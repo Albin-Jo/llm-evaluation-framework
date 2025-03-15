@@ -1,0 +1,347 @@
+# File: app/services/auth.py
+from typing import Dict, Optional
+from uuid import UUID
+
+import httpx
+from authlib.integrations.starlette_client import OAuth
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2AuthorizationCodeBearer
+from jose import JWTError, jwt
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config.settings import settings
+from app.db.session import get_db
+from app.db.repositories.user_repository import UserRepository
+from app.models.orm.models import User, UserRole
+from app.schema.user_schema import UserInDB
+
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Initialize OAuth client for OIDC
+oauth = OAuth()
+oauth.register(
+    name="oidc",
+    server_metadata_url=settings.OIDC_DISCOVERY_URL,
+    client_id=settings.OIDC_CLIENT_ID,
+    client_secret=settings.OIDC_CLIENT_SECRET,
+    client_kwargs={
+        "scope": "openid email profile"
+    }
+)
+
+# OAuth2 scheme for token validation
+oauth2_scheme = OAuth2AuthorizationCodeBearer(
+    authorizationUrl=f"{settings.OIDC_DISCOVERY_URL}/auth",
+    tokenUrl=f"{settings.OIDC_DISCOVERY_URL}/token",
+)
+
+
+class AuthService:
+    """Service for handling authentication and authorization."""
+
+    def __init__(self, db_session: AsyncSession):
+        self.db_session = db_session
+        self.user_repo = UserRepository(db_session)
+
+    async def get_current_user(self, token: str) -> User:
+        """
+        Validate access token and return the current user.
+
+        Args:
+            token: JWT access token
+
+        Returns:
+            User: Current authenticated user
+
+        Raises:
+            HTTPException: If token is invalid or user not found
+        """
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+        try:
+            # Decode the JWT token
+            # In a real implementation, you'd use the OIDC provider's keys to validate
+            # For simplicity, we're just extracting the sub claim
+            payload = jwt.decode(
+                token,
+                settings.APP_SECRET_KEY,
+                algorithms=["RS256"],
+                options={"verify_signature": False}  # In production, always verify signatures
+            )
+
+            external_id: str = payload.get("sub")
+            if external_id is None:
+                raise credentials_exception
+
+        except JWTError:
+            raise credentials_exception
+
+        # Get user from database
+        user = await self.user_repo.get_by_external_id(external_id)
+        if user is None:
+            # User doesn't exist in our database yet
+            # We could auto-create the user here from token claims
+            # For now, we'll just raise an exception
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Inactive user",
+            )
+
+        return user
+
+    async def get_current_active_user(
+            self, token: str = Depends(oauth2_scheme)
+    ) -> User:
+        """
+        Get current active user from token.
+
+        Args:
+            token: JWT access token
+
+        Returns:
+            User: Current authenticated user
+        """
+        return await self.get_current_user(token)
+
+    async def check_admin_privileges(self, user: User) -> None:
+        """
+        Check if user has admin privileges.
+
+        Args:
+            user: User to check
+
+        Raises:
+            HTTPException: If user doesn't have admin privileges
+        """
+        if user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions",
+            )
+
+    async def create_user_from_oidc(self, user_data: Dict) -> User:
+        """
+        Create a new user from OIDC data.
+
+        Args:
+            user_data: User data from OIDC provider
+
+        Returns:
+            User: Created user
+        """
+        external_id = user_data.get("sub")
+        email = user_data.get("email")
+        name = user_data.get("name") or f"{user_data.get('given_name', '')} {user_data.get('family_name', '')}".strip()
+
+        # Check if user already exists
+        existing_user = await self.user_repo.get_by_external_id(external_id)
+        if existing_user:
+            return existing_user
+
+        # Create new user
+        new_user = await self.user_repo.create(
+            external_id=external_id,
+            email=email,
+            display_name=name,
+            role=UserRole.VIEWER  # Default role
+        )
+
+        return new_user
+
+
+async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
+    """
+    FastAPI dependency for AuthService.
+
+    Args:
+        db: Database session
+
+    Returns:
+        AuthService: Authentication service
+    """
+    return AuthService(db)
+
+
+async def get_current_user(self, token: str) -> User:
+    """
+    Validate access token and return the current user.
+
+    Args:
+        token: JWT access token
+
+    Returns:
+        User: Current authenticated user
+
+    Raises:
+        HTTPException: If token is invalid or user not found
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        # In a production environment, we should properly verify the token signature
+        # using the public key from the OIDC provider
+        if settings.APP_ENV != "testing":
+            try:
+                # Try to get OIDC configuration and keys
+                async with httpx.AsyncClient() as client:
+                    openid_config_response = await client.get(settings.OIDC_DISCOVERY_URL)
+                    if openid_config_response.status_code != 200:
+                        logger.error(f"Failed to fetch OIDC configuration: {openid_config_response.status_code}")
+                        raise credentials_exception
+
+                    openid_config = openid_config_response.json()
+                    jwks_uri = openid_config.get("jwks_uri")
+
+                    if not jwks_uri:
+                        logger.error("JWKS URI not found in OIDC configuration")
+                        raise credentials_exception
+
+                    jwks_response = await client.get(jwks_uri)
+                    if jwks_response.status_code != 200:
+                        logger.error(f"Failed to fetch JWKS: {jwks_response.status_code}")
+                        raise credentials_exception
+
+                    jwks = jwks_response.json()
+
+                # Verify token with proper key
+                payload = jwt.decode(
+                    token,
+                    jwks,
+                    algorithms=["RS256"],
+                    audience=settings.OIDC_CLIENT_ID,
+                    options={"verify_signature": True}
+                )
+            except Exception as e:
+                logger.error(f"Error verifying token: {e}")
+                # Fall back to unverified decode for development/testing
+                payload = jwt.decode(
+                    token,
+                    settings.APP_SECRET_KEY,
+                    algorithms=["RS256"],
+                    options={"verify_signature": False}
+                )
+                logger.warning("Used unverified token decode - NOT SECURE FOR PRODUCTION")
+        else:
+            # In testing mode, skip verification
+            payload = jwt.decode(
+                token,
+                settings.APP_SECRET_KEY,
+                algorithms=["RS256"],
+                options={"verify_signature": False}
+            )
+
+        external_id: str = payload.get("sub")
+        if external_id is None:
+            raise credentials_exception
+
+    except JWTError:
+        raise credentials_exception
+
+    # Get user from database
+    user = await self.user_repo.get_by_external_id(external_id)
+    if user is None:
+        # User doesn't exist in our database yet
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
+        )
+
+    return user
+
+
+async def get_current_active_user(
+        current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    FastAPI dependency for getting the current active user.
+
+    Args:
+        current_user: Current user
+
+    Returns:
+        User: Current active user
+
+    Raises:
+        HTTPException: If user is inactive
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
+        )
+    return current_user
+
+
+async def get_current_admin_user(
+        current_user: User = Depends(get_current_active_user),
+) -> User:
+    """
+    FastAPI dependency for getting the current admin user.
+
+    Args:
+        current_user: Current active user
+
+    Returns:
+        User: Current admin user
+
+    Raises:
+        HTTPException: If user doesn't have admin privileges
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+    return current_user
+
+
+async def get_development_user(db: AsyncSession = Depends(get_db)) -> User:
+    """
+    Development-only function to get a default user without authentication.
+    WARNING: Do not use in production!
+    """
+    if settings.APP_ENV != "development":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required in non-development environments",
+        )
+
+    # Try to get an admin user from the database
+    user_repo = UserRepository(db)
+    users = await user_repo.get_multi(filters={"role": UserRole.ADMIN}, limit=1)
+
+    if users:
+        return users[0]
+
+    # If no admin user exists, create one
+    dev_user = await user_repo.create(
+        external_id="dev-user-id",
+        email="dev@example.com",
+        display_name="Development User",
+        role=UserRole.ADMIN
+    )
+
+    return dev_user

@@ -1,0 +1,20 @@
+# File: .coveragerc
+[run]
+source = app
+omit =
+    */tests/*
+    */venv/*
+    */env/*
+    */__pycache__/*
+    */migrations/*
+    */.pytest_cache/*
+    */alembic/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise ImportError
