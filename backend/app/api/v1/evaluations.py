@@ -5,14 +5,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
-from app.models.orm.models import Evaluation, EvaluationStatus, User
-from app.schema.evaluation_schema import (
+from backend.app.db.session import get_db
+from backend.app.db.models.orm.models import Evaluation, EvaluationStatus, User
+from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationDetailResponse,
     EvaluationResponse, EvaluationUpdate
 )
-from app.services.auth import get_current_active_user
-from app.services.evaluation_service import EvaluationService
+from backend.app.services.auth import get_current_active_user
+from backend.app.services.evaluation_service import EvaluationService
 
 router = APIRouter()
 

@@ -6,15 +6,15 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Respon
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
-from app.models.orm.models import DatasetType, User
-from app.schema.dataset_schema import (
+from backend.app.db.session import get_db
+from backend.app.db.models.orm.models import DatasetType, User
+from backend.app.db.schema.dataset_schema import (
     DatasetResponse, DatasetUpdate,
     DatasetValidationResult
 )
-from app.services.auth import get_current_active_user
-from app.services.dataset_service import DatasetService
-from app.services.storage import get_storage_service
+from backend.app.services.auth import get_current_active_user
+from backend.app.services.dataset_service import DatasetService
+from backend.app.services.storage import get_storage_service
 
 router = APIRouter()
 

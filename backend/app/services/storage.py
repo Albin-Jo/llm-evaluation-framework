@@ -9,7 +9,7 @@ from typing import BinaryIO, List, Optional, AsyncGenerator
 
 from fastapi import UploadFile
 
-from app.core.config.settings import settings
+from backend.app.core.config import settings
 
 
 class BaseStorageService(ABC):

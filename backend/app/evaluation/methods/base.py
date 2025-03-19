@@ -10,8 +10,8 @@ from uuid import UUID
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.orm.models import Dataset, Evaluation, MicroAgent, Prompt
-from app.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+from backend.app.db.models.orm.models import Dataset, Evaluation, MicroAgent, Prompt
+from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 
 # Add logger configuration
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class BaseEvaluationMethod(ABC):
         Returns:
             Optional[MicroAgent]: MicroAgent if found, None otherwise
         """
-        from app.db.repositories.base import BaseRepository
+        from backend.app.db.repositories.base import BaseRepository
         repo = BaseRepository(MicroAgent, self.db_session)
         return await repo.get(microagent_id)
 
@@ -56,7 +56,7 @@ class BaseEvaluationMethod(ABC):
         Returns:
             Optional[Dataset]: Dataset if found, None otherwise
         """
-        from app.db.repositories.base import BaseRepository
+        from backend.app.db.repositories.base import BaseRepository
         repo = BaseRepository(Dataset, self.db_session)
         return await repo.get(dataset_id)
 
@@ -70,7 +70,7 @@ class BaseEvaluationMethod(ABC):
         Returns:
             Optional[Prompt]: Prompt if found, None otherwise
         """
-        from app.db.repositories.base import BaseRepository
+        from backend.app.db.repositories.base import BaseRepository
         repo = BaseRepository(Prompt, self.db_session)
         return await repo.get(prompt_id)
 
@@ -84,7 +84,7 @@ class BaseEvaluationMethod(ABC):
         Returns:
             List[Dict[str, Any]]: Dataset items
         """
-        from app.services.storage import get_storage_service
+        from backend.app.services.storage import get_storage_service
 
         # Get storage service
         storage_service = get_storage_service()
@@ -268,7 +268,7 @@ class BaseEvaluationMethod(ABC):
         all_results = []
 
         # Create a reusable HTTP client
-        from app.core.config.settings import settings
+        from backend.app.core.config import settings
         import httpx
 
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -358,7 +358,7 @@ class BaseEvaluationMethod(ABC):
             ground_truth = item.get("ground_truth", "")
 
             # Call the microagent API using the shared client
-            from app.core.config.settings import settings
+            from backend.app.core.config import settings
 
             start_time = time.time()
             response = await client.post(
@@ -438,7 +438,7 @@ class BaseEvaluationMethod(ABC):
             Dict[str, Any]: API response
         """
         import httpx
-        from app.core.config.settings import settings
+        from backend.app.core.config import settings
         from asyncio import sleep
 
         retries = 0

@@ -4,9 +4,9 @@ import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from app.evaluation.methods.base import BaseEvaluationMethod
-from app.models.orm.models import Evaluation
-from app.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+from backend.app.evaluation.methods.base import BaseEvaluationMethod
+from backend.app.db.models.orm.models import Evaluation
+from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -334,7 +334,7 @@ class ActualRagasEvaluationMethod(BaseEvaluationMethod):
         Call the micro-agent API with retry logic.
         """
         import httpx
-        from app.core.config.settings import settings
+        from backend.app.core.config import settings
 
         max_retries = 3
         retry_delay = 1.0  # seconds

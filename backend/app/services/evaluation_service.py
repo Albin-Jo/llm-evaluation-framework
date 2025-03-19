@@ -9,14 +9,14 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.repositories.base import BaseRepository
-from app.evaluation.factory import EvaluationMethodFactory
-from app.evaluation.methods.base import BaseEvaluationMethod
-from app.models.orm.models import (
+from backend.app.db.repositories.base import BaseRepository
+from backend.app.evaluation.factory import EvaluationMethodFactory
+from backend.app.evaluation.methods.base import BaseEvaluationMethod
+from backend.app.db.models.orm.models import (
     Dataset, Evaluation, EvaluationMethod, EvaluationResult,
     EvaluationStatus, MetricScore, MicroAgent, Prompt, User
 )
-from app.schema.evaluation_schema import (
+from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationResultCreate, EvaluationUpdate,
     MetricScoreCreate
 )
@@ -305,7 +305,7 @@ class EvaluationService:
             evaluation_id: Evaluation ID
         """
         # In a real implementation, this would send a task to Celery
-        from app.workers.tasks import run_evaluation_task
+        from backend.app.workers.tasks import run_evaluation_task
         run_evaluation_task.delay(str(evaluation_id))
 
         # Start the evaluation (in this example - would normally be done by the worker)

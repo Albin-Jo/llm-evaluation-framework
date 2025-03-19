@@ -8,17 +8,16 @@ from json import JSONDecodeError
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 from uuid import UUID
 
-from fastapi import HTTPException, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.config.settings import settings
-from app.db.repositories.dataset_repository import DatasetRepository
-from app.models.orm.models import Dataset, DatasetType, User
-from app.schema.dataset_schema import (
+from backend.app.core.config import settings
+from backend.app.db.repositories.dataset_repository import DatasetRepository
+from backend.app.db.models.orm.models import Dataset, DatasetType, User
+from backend.app.db.schema.dataset_schema import (
     DatasetCreate, DatasetUpdate,
     DatasetValidationResult
 )
-from app.services.storage import get_storage_service
+from backend.app.services.storage import get_storage_service
+from fastapi import HTTPException, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -128,123 +127,123 @@ class DatasetService:
                     detail=f"Error creating dataset: {str(e)}"
                 )
 
-        async def get_dataset(self, dataset_id: UUID, user: User) -> Dataset:
-            """
-            Get a dataset by ID.
+    async def get_dataset(self, dataset_id: UUID, user: User) -> Dataset:
+        """
+        Get a dataset by ID.
 
-            Args:
-                dataset_id: Dataset ID
-                user: Current user
+        Args:
+            dataset_id: Dataset ID
+            user: Current user
 
-            Returns:
-                Dataset: Retrieved dataset
+        Returns:
+            Dataset: Retrieved dataset
 
-            Raises:
-                HTTPException: If dataset not found or user doesn't have access
-            """
-            dataset = await self.dataset_repo.get(dataset_id)
+        Raises:
+            HTTPException: If dataset not found or user doesn't have access
+        """
+        dataset = await self.dataset_repo.get(dataset_id)
 
-            if not dataset:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Dataset with ID {dataset_id} not found"
-                )
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found"
+            )
 
-            # Check if user has permission to view this dataset
-            if (
-                    dataset.owner_id != user.id
-                    and not dataset.is_public
-                    and user.role.value != "admin"
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Not enough permissions to access this dataset"
-                )
+        # Check if user has permission to view this dataset
+        if (
+                dataset.owner_id != user.id
+                and not dataset.is_public
+                and user.role.value != "admin"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions to access this dataset"
+            )
 
+        return dataset
+
+    async def update_dataset(self, dataset_id: UUID, dataset_data: DatasetUpdate, user: User) -> Dataset:
+        """
+        Update a dataset.
+
+        Args:
+            dataset_id: Dataset ID
+            dataset_data: Dataset update data
+            user: Current user
+
+        Returns:
+            Dataset: Updated dataset
+
+        Raises:
+            HTTPException: If dataset not found or user doesn't have permission
+        """
+        dataset = await self.dataset_repo.get(dataset_id)
+
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found"
+            )
+
+        # Check if user has permission to update this dataset
+        if dataset.owner_id != user.id and user.role.value != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions to update this dataset"
+            )
+
+        # Update the dataset
+        update_data = {
+            k: v for k, v in dataset_data.model_dump().items() if v is not None
+        }
+
+        if not update_data:
             return dataset
 
-        async def update_dataset(self, dataset_id: UUID, dataset_data: DatasetUpdate, user: User) -> Dataset:
-            """
-            Update a dataset.
+        updated_dataset = await self.dataset_repo.update(dataset_id, update_data)
+        return updated_dataset
 
-            Args:
-                dataset_id: Dataset ID
-                dataset_data: Dataset update data
-                user: Current user
+    async def delete_dataset(self, dataset_id: UUID, user: User) -> bool:
+        """
+        Delete a dataset.
 
-            Returns:
-                Dataset: Updated dataset
+        Args:
+            dataset_id: Dataset ID
+            user: Current user
 
-            Raises:
-                HTTPException: If dataset not found or user doesn't have permission
-            """
-            dataset = await self.dataset_repo.get(dataset_id)
+        Returns:
+            bool: True if deleted successfully
 
-            if not dataset:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Dataset with ID {dataset_id} not found"
-                )
+        Raises:
+            HTTPException: If dataset not found or user doesn't have permission
+        """
+        dataset = await self.dataset_repo.get(dataset_id)
 
-            # Check if user has permission to update this dataset
-            if dataset.owner_id != user.id and user.role.value != "admin":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Not enough permissions to update this dataset"
-                )
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found"
+            )
 
-            # Update the dataset
-            update_data = {
-                k: v for k, v in dataset_data.model_dump().items() if v is not None
-            }
+        # Check if user has permission to delete this dataset
+        if dataset.owner_id != user.id and user.role.value != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions to delete this dataset"
+            )
 
-            if not update_data:
-                return dataset
+        # Delete the dataset file
+        await self.storage_service.delete_file(dataset.file_path)
 
-            updated_dataset = await self.dataset_repo.update(dataset_id, update_data)
-            return updated_dataset
+        # Delete the dataset from the database
+        success = await self.dataset_repo.delete(dataset_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete dataset"
+            )
 
-        async def delete_dataset(self, dataset_id: UUID, user: User) -> bool:
-            """
-            Delete a dataset.
-
-            Args:
-                dataset_id: Dataset ID
-                user: Current user
-
-            Returns:
-                bool: True if deleted successfully
-
-            Raises:
-                HTTPException: If dataset not found or user doesn't have permission
-            """
-            dataset = await self.dataset_repo.get(dataset_id)
-
-            if not dataset:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Dataset with ID {dataset_id} not found"
-                )
-
-            # Check if user has permission to delete this dataset
-            if dataset.owner_id != user.id and user.role.value != "admin":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Not enough permissions to delete this dataset"
-                )
-
-            # Delete the dataset file
-            await self.storage_service.delete_file(dataset.file_path)
-
-            # Delete the dataset from the database
-            success = await self.dataset_repo.delete(dataset_id)
-            if not success:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to delete dataset"
-                )
-
-            return True
+        return True
 
     async def list_datasets(
             self, user: User, skip: int = 0, limit: int = 100,

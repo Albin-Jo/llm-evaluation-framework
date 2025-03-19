@@ -6,10 +6,10 @@ from uuid import UUID
 from celery import Celery
 from celery.signals import worker_ready
 
-from app.core.config.settings import settings
-from app.db.session import db_session
-from app.models.orm.models import EvaluationMethod, EvaluationStatus
-from app.services.evaluation_service import EvaluationService
+from backend.app.core.config import settings
+from backend.app.db.session import db_session
+from backend.app.db.models.orm.models import EvaluationMethod, EvaluationStatus
+from backend.app.services.evaluation_service import EvaluationService
 
 # Configure Celery
 celery_app = Celery(
