@@ -11,7 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.orm.base import Base, ModelMixin, TimestampMixin
+from backend.app.db.models.orm.base import Base, ModelMixin, TimestampMixin
 
 
 class UserRole(str, Enum):

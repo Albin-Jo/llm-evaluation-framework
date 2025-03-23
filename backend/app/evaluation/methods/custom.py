@@ -3,9 +3,9 @@ import logging
 from typing import Any, Dict, List
 from uuid import UUID
 
-from app.evaluation.methods.base import BaseEvaluationMethod
-from app.models.orm.models import Evaluation
-from app.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+from backend.app.evaluation.methods.base import BaseEvaluationMethod
+from backend.app.db.models.orm.models import Evaluation
+from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -276,7 +276,7 @@ class CustomEvaluationMethod(BaseEvaluationMethod):
             Dict[str, Any]: API response
         """
         import httpx
-        from app.core.config.settings import settings
+        from backend.app.core.config import settings
 
         try:
             async with httpx.AsyncClient() as client:

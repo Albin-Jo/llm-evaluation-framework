@@ -38,7 +38,7 @@ def run_async(coroutine):
 @pytest.fixture(scope="session")
 def engine():
     """Create a SQLite in-memory database engine."""
-    from app.models.orm.base import Base
+    from backend.app.db.models.orm.base import Base
     import app.models.orm.models  # Import all model classes
 
     # Create engine
@@ -116,7 +116,7 @@ def db_session_sync():
 @pytest.fixture
 def test_user_sync():
     """Create a synchronous test user."""
-    from app.models.orm.models import User, UserRole
+    from backend.app.db.models.orm.models import User, UserRole
     from unittest.mock import MagicMock
 
     user = MagicMock(spec=User)
@@ -133,7 +133,7 @@ def test_user_sync():
 @pytest.fixture
 def test_microagent_sync():
     """Create a synchronous test microagent."""
-    from app.models.orm.models import MicroAgent
+    from backend.app.db.models.orm.models import MicroAgent
     from unittest.mock import MagicMock
 
     microagent = MagicMock(spec=MicroAgent)
@@ -150,7 +150,7 @@ def test_microagent_sync():
 @pytest.fixture
 def test_dataset_sync():
     """Create a synchronous test dataset."""
-    from app.models.orm.models import Dataset, DatasetType
+    from backend.app.db.models.orm.models import Dataset, DatasetType
     from unittest.mock import MagicMock
 
     dataset = MagicMock(spec=Dataset)
@@ -170,7 +170,7 @@ def test_dataset_sync():
 @pytest.fixture
 def test_prompt_sync():
     """Create a synchronous test prompt."""
-    from app.models.orm.models import Prompt
+    from backend.app.db.models.orm.models import Prompt
     from unittest.mock import MagicMock
 
     prompt = MagicMock(spec=Prompt)
@@ -188,7 +188,7 @@ def test_prompt_sync():
 # @pytest.fixture
 # def test_evaluation_sync():
 #     """Create a synchronous test evaluation."""
-#     from app.models.orm.models import Evaluation, EvaluationMethod, EvaluationStatus
+#     from backend.app.db.models.orm.models import Evaluation, EvaluationMethod, EvaluationStatus
 #     from unittest.mock import MagicMock
 #
 #     evaluation = MagicMock(spec=Evaluation)
@@ -264,7 +264,7 @@ def mock_httpx_client(monkeypatch):
 @pytest.fixture(scope="session")
 def settings():
     """Provide app settings."""
-    from app.core.config.settings import settings as app_settings
+    from backend.app.core.config import settings as app_settings
     # Ensure we're in testing mode
     app_settings.APP_ENV = "testing"
     app_settings.DB_URI = "sqlite+aiosqlite:///:memory:"
@@ -284,7 +284,7 @@ def create_mock_evaluation(
         prompt_id=None
 ):
     """Create a properly initialized mock Evaluation object with all required fields."""
-    from app.models.orm.models import Evaluation, EvaluationMethod, EvaluationStatus
+    from backend.app.db.models.orm.models import Evaluation, EvaluationMethod, EvaluationStatus
     from unittest.mock import MagicMock
     from datetime import datetime
     import uuid

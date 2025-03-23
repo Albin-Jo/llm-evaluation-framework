@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.orm.base import Base
+from backend.app.db.models.orm.base import Base
 
 # Define a TypeVar for our models
 ModelType = TypeVar("ModelType", bound=Base)

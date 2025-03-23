@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.orm.models import DatasetType
+from backend.app.db.models.orm.models import DatasetType
 
 
 class DatasetBase(BaseModel):

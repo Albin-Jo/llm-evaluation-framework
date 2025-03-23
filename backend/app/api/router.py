@@ -1,10 +1,10 @@
 # File: app/api/router.py
 from fastapi import APIRouter, Depends
 
-from app.api.endpoints import (
+from backend.app.api.v1 import (
     auth, datasets, evaluations, agents, prompts, comparisons
 )
-from app.core.config.settings import settings
+from backend.app.core.config import settings
 
 api_router = APIRouter()
 

@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
-from app.models.orm.models import Evaluation, EvaluationResult, MetricScore, User, evaluation_comparison
-from app.schema.evaluation_schema import (
+from backend.app.db.session import get_db
+from backend.app.db.models.orm.models import Evaluation, EvaluationResult, MetricScore, User, evaluation_comparison
+from backend.app.db.schema.evaluation_schema import (
     EvaluationComparisonCreate, EvaluationComparisonResponse
 )
-from app.services.auth import get_current_active_user
+from backend.app.services.auth import get_current_active_user
 
 router = APIRouter()
 

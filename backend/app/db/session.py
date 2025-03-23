@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.config.settings import settings
+from backend.app.core.config import settings
 
 # Create an engine and session factory
 engine = create_async_engine(settings.DB_URI, echo=settings.APP_DEBUG)

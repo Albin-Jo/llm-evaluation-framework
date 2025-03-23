@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from app.models.orm.models import EvaluationMethod, EvaluationStatus
+from backend.app.db.models.orm.models import EvaluationMethod, EvaluationStatus
 
 
 class MetricScoreBase(BaseModel):

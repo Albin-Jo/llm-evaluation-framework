@@ -36,7 +36,7 @@ class MetricsRegistry:
 # Register built-in metrics
 def register_builtin_metrics():
     """Register built-in metrics."""
-    from app.evaluation.metrics.ragas_metrics import (
+    from backend.app.evaluation.metrics.ragas_metrics import (
         calculate_faithfulness, calculate_answer_relevancy,
         calculate_context_relevancy, calculate_correctness
     )

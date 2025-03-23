@@ -5,8 +5,8 @@ from uuid import UUID
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.repositories.base import BaseRepository
-from app.models.orm.models import Dataset, DatasetType, User
+from backend.app.db.repositories.base import BaseRepository
+from backend.app.db.models.orm.models import Dataset, DatasetType, User
 
 
 class DatasetRepository(BaseRepository):

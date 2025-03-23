@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
-from app.models.orm.models import UserRole
+from backend.app.db.models.orm.models import UserRole
 
 
 class UserBase(BaseModel):

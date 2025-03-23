@@ -4,8 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.utils import get_openapi
 
-from app.api.router import api_router
-from app.core.config.settings import settings
+from backend.app.api.router import api_router
+from backend.app.core.config import settings
 
 # Initialize FastAPI application with more descriptive metadata
 app = FastAPI(

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     DB_PORT: str = "5432"
     DB_USER: str = "postgres"
     DB_PASSWORD: SecretStr = Field(default=SecretStr("postgres"))
-    DB_NAME: str = "pixi_eval"
+    DB_NAME: str = "llm_evaluation"
     DB_URI: Optional[str] = None  # Will be computed if not provided
 
     # Celery settings

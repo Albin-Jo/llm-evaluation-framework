@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import your models
-from app.models.orm.models import *  # Import all models
-from app.core.config.settings import settings
+from backend.app.db.models.orm.models import *  # Import all models
+from backend.app.core.config import settings
 
 # This is the Alembic Config object
 config = context.config
@@ -67,7 +67,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in an async context."""
-    from app.db.session import engine
+    from backend.app.db.session import engine
 
     async with engine.begin() as connection:
         await connection.run_sync(do_run_migrations)

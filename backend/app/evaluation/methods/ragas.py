@@ -1,172 +1,48 @@
-# File: app/evaluation/methods/ragas.py
-import json
+# File: backend/app/evaluation/methods/ragas.py
+import asyncio
 import logging
+import time
 from typing import Any, Dict, List, Optional
-import httpx
-import pandas as pd
+from uuid import UUID
 
-from app.core.config.settings import settings
-from app.evaluation.methods.base import BaseEvaluationMethod
-from app.models.orm.models import Evaluation
-from app.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.core.config import settings
+from backend.app.db.models.orm.models import Evaluation, EvaluationStatus
+from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+from backend.app.evaluation.methods.base import BaseEvaluationMethod
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 class RagasEvaluationMethod(BaseEvaluationMethod):
-    """Evaluation method using RAGAS library."""
+    """Evaluation method using RAGAS library for RAG evaluation."""
 
-    # async def run_evaluation(self, evaluation: Evaluation) -> List[EvaluationResultCreate]:
-    #     """
-    #     Run evaluation using RAGAS.
-    #
-    #     Args:
-    #         evaluation: Evaluation model
-    #
-    #     Returns:
-    #         List[EvaluationResultCreate]: List of evaluation results
-    #     """
-    #     # Get related entities
-    #     microagent = await self.get_microagent(evaluation.micro_agent_id)
-    #     dataset = await self.get_dataset(evaluation.dataset_id)
-    #     prompt = await self.get_prompt(evaluation.prompt_id)
-    #
-    #     if not microagent or not dataset or not prompt:
-    #         logger.error(f"Missing required entities for evaluation {evaluation.id}")
-    #         return []
-    #
-    #     # Load dataset
-    #     dataset_items = await self.load_dataset(dataset)
-    #
-    #     # Prepare data for batch processing with RAGAS
-    #     queries = []
-    #     contexts = []
-    #     responses = []
-    #     ground_truths = []
-    #     item_indices = []
-    #
-    #     # First pass: get all the responses from the microagent
-    #     for item_index, item in enumerate(dataset_items):
-    #         try:
-    #             # Process dataset item
-    #             query = item.get("query", "")
-    #             context = item.get("context", "")
-    #             ground_truth = item.get("ground_truth", "")
-    #
-    #             if not query or not context:
-    #                 logger.warning(f"Skipping dataset item {item_index}: missing query or context")
-    #                 continue
-    #
-    #             # Format prompt with dataset item
-    #             formatted_prompt = self._format_prompt(prompt.content, item)
-    #
-    #             # Call the micro-agent API
-    #             response = await self._call_microagent_api(
-    #                 microagent.api_endpoint,
-    #                 {
-    #                     "prompt": formatted_prompt,
-    #                     "query": query,
-    #                     "context": context
-    #                 }
-    #             )
-    #
-    #             # Extract LLM answer from response
-    #             answer = response.get("answer", "")
-    #             if not answer:
-    #                 logger.warning(f"Skipping dataset item {item_index}: empty answer from microagent")
-    #                 continue
-    #
-    #             # Add to collections for batch processing
-    #             queries.append(query)
-    #             contexts.append(context)
-    #             responses.append(answer)
-    #             ground_truths.append(ground_truth if ground_truth else None)
-    #             item_indices.append(item_index)
-    #
-    #         except Exception as e:
-    #             logger.exception(f"Error processing dataset item {item_index}: {e}")
-    #
-    #     # Check if we have any valid items to evaluate
-    #     if not queries:
-    #         logger.error("No valid items to evaluate")
-    #         return []
-    #
-    #     # Second pass: run RAGAS evaluation on all items
-    #     try:
-    #         # Run RAGAS evaluation
-    #         metrics_results = await self._run_ragas_evaluation(
-    #             queries,
-    #             contexts,
-    #             responses,
-    #             ground_truths if all(ground_truths) else None,
-    #             evaluation.config or {}
-    #         )
-    #
-    #         # Third pass: create evaluation results
-    #         results = []
-    #         for i, idx in enumerate(item_indices):
-    #             item = dataset_items[idx]
-    #             formatted_prompt = self._format_prompt(prompt.content, item)
-    #
-    #             # Get metrics for this item
-    #             item_metrics = {k: v[i] for k, v in metrics_results.items()}
-    #
-    #             # Calculate overall score (average of all metrics)
-    #             overall_score = sum(item_metrics.values()) / len(item_metrics) if item_metrics else 0.0
-    #
-    #             # Create metric scores
-    #             metric_scores = [
-    #                 MetricScoreCreate(
-    #                     name=name,
-    #                     value=value,
-    #                     weight=1.0,
-    #                     metadata={"description": self._get_metric_description(name)}
-    #                 )
-    #                 for name, value in item_metrics.items()
-    #             ]
-    #
-    #             # Create evaluation result
-    #             result = EvaluationResultCreate(
-    #                 evaluation_id=evaluation.id,
-    #                 overall_score=overall_score,
-    #                 raw_results=item_metrics,
-    #                 dataset_sample_id=str(idx),
-    #                 input_data={
-    #                     "query": queries[i],
-    #                     "context": contexts[i],
-    #                     "ground_truth": ground_truths[i] if ground_truths[i] else "",
-    #                     "prompt": formatted_prompt
-    #                 },
-    #                 output_data={"answer": responses[i]},
-    #                 processing_time_ms=None,  # We don't have this for batch processing
-    #                 metric_scores=metric_scores
-    #             )
-    #
-    #             results.append(result)
-    #
-    #         return results
-    #
-    #     except Exception as e:
-    #         logger.exception(f"Error running RAGAS evaluation: {e}")
-    #
-    #         # Create a failed result for each item
-    #         results = []
-    #         for idx in item_indices:
-    #             item = dataset_items[idx]
-    #             results.append(
-    #                 EvaluationResultCreate(
-    #                     evaluation_id=evaluation.id,
-    #                     overall_score=0.0,
-    #                     raw_results={"error": str(e)},
-    #                     dataset_sample_id=str(idx),
-    #                     input_data=item,
-    #                     output_data={"error": str(e)},
-    #                     metric_scores=[]
-    #                 )
-    #             )
-    #
-    #         return results
+    method_name = "ragas"
+
+    def __init__(self, db_session: AsyncSession):
+        """Initialize the evaluation method."""
+        super().__init__(db_session)
+        self._check_ragas_available()
+
+    def _check_ragas_available(self) -> bool:
+        """
+        Check if the RAGAS library is available and log the availability status.
+
+        Returns:
+            bool: True if RAGAS is available, False otherwise
+        """
+        try:
+            import ragas
+            self.ragas_available = True
+            logger.info(f"RAGAS library found (version: {ragas.__version__})")
+            return True
+        except ImportError:
+            self.ragas_available = False
+            logger.warning("RAGAS library not found. Using fallback implementation.")
+            return False
 
     async def run_evaluation(self, evaluation: Evaluation) -> List[EvaluationResultCreate]:
         """
@@ -178,272 +54,62 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         Returns:
             List[EvaluationResultCreate]: List of evaluation results
         """
-        # Get related entities
-        microagent = await self.get_microagent(evaluation.micro_agent_id)
-        dataset = await self.get_dataset(evaluation.dataset_id)
-        prompt = await self.get_prompt(evaluation.prompt_id)
-
-        if not microagent or not dataset or not prompt:
-            logger.error(f"Missing required entities for evaluation {evaluation.id}")
-            return []
-
-        # Load dataset
-        dataset_items = await self.load_dataset(dataset)
-
-        results = []
-
-        for item_index, item in enumerate(dataset_items):
-            try:
-                # Process dataset item
-                query = item.get("query", "")
-                context = item.get("context", "")
-                ground_truth = item.get("ground_truth", "")
-
-                # Format prompt with dataset item
-                formatted_prompt = self._format_prompt(prompt.content, item)
-
-                # Call the micro-agent API
-                response = await self._call_microagent_api(
-                    microagent.api_endpoint,
-                    {
-                        "prompt": formatted_prompt,
-                        "query": query,
-                        "context": context
-                    }
-                )
-
-                # Extract LLM answer from response
-                answer = response.get("answer", "")
-
-                # Calculate metrics
-                metrics = await self.calculate_metrics(
-                    input_data={
-                        "query": query,
-                        "context": context,
-                        "ground_truth": ground_truth
-                    },
-                    output_data={"answer": answer},
-                    config=evaluation.config or {}
-                )
-
-                # Calculate overall score (average of all metrics)
-                overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
-
-                # Create metric scores
-                metric_scores = [
-                    MetricScoreCreate(
-                        name=name,
-                        value=value,
-                        weight=1.0,
-                        metadata={"description": self._get_metric_description(name)}
-                    )
-                    for name, value in metrics.items()
-                ]
-
-                # Create evaluation result
-                result = EvaluationResultCreate(
-                    evaluation_id=evaluation.id,
-                    overall_score=overall_score,
-                    raw_results=metrics,
-                    dataset_sample_id=str(item_index),
-                    input_data={
-                        "query": query,
-                        "context": context,
-                        "ground_truth": ground_truth,
-                        "prompt": formatted_prompt
-                    },
-                    output_data={"answer": answer},
-                    processing_time_ms=response.get("processing_time_ms"),
-                    metric_scores=metric_scores
-                )
-
-                results.append(result)
-
-            except Exception as e:
-                logger.exception(f"Error processing dataset item {item_index}: {e}")
-
-                # Create failed evaluation result
-                result = EvaluationResultCreate(
-                    evaluation_id=evaluation.id,
-                    overall_score=0.0,
-                    raw_results={"error": str(e)},
-                    dataset_sample_id=str(item_index),
-                    input_data=item,
-                    output_data={"error": str(e)},
-                    metric_scores=[]
-                )
-
-                results.append(result)
-
-        return results
-
-    async def _run_ragas_evaluation(
-            self,
-            queries: List[str],
-            contexts: List[str],
-            responses: List[str],
-            ground_truths: Optional[List[str]] = None,
-            config: Dict[str, Any] = None
-    ) -> Dict[str, List[float]]:
-        """
-        Run evaluation using RAGAS library.
-
-        Args:
-            queries: List of queries
-            contexts: List of contexts
-            responses: List of LLM answers
-            ground_truths: Optional list of ground truth answers
-            config: Evaluation configuration
-
-        Returns:
-            Dict[str, List[float]]: Dictionary mapping metric names to lists of values
-        """
-        try:
-            # Import RAGAS components
-            from ragas.metrics import (
-                faithfulness, answer_relevancy, context_relevancy,
-                context_precision, context_recall
+        # Update the evaluation to running status if needed
+        if evaluation.status == EvaluationStatus.PENDING:
+            await self._update_evaluation_status(
+                evaluation.id,
+                EvaluationStatus.RUNNING,
+                {"start_time": time.time()}
             )
-            from ragas.metrics.critique import harmfulness
-            from datasets import Dataset
 
-            # Create dataset for RAGAS
-            data = {
-                "question": queries,
-                "contexts": [[ctx] for ctx in contexts],  # RAGAS expects a list of contexts for each item
-                "answer": responses,
-            }
+        logger.info(f"Starting RAGAS evaluation {evaluation.id}")
 
-            if ground_truths and all(ground_truths):
-                data["ground_truth"] = ground_truths
+        # Process using batch processing approach
+        try:
+            results = await self.batch_process(evaluation)
 
-            # Convert to HuggingFace dataset
-            ds = Dataset.from_dict(data)
+            # Update evaluation to completed status
+            await self._update_evaluation_status(
+                evaluation.id,
+                EvaluationStatus.COMPLETED,
+                {"end_time": time.time()}
+            )
 
-            # Get enabled metrics from config
-            enabled_metrics = config.get("metrics", ["faithfulness", "answer_relevancy", "context_relevancy"])
+            logger.info(f"Completed RAGAS evaluation {evaluation.id} with {len(results)} results")
+            return results
 
-            # Initialize metrics
-            metrics = []
-            if "faithfulness" in enabled_metrics:
-                metrics.append(faithfulness)
-            if "answer_relevancy" in enabled_metrics:
-                metrics.append(answer_relevancy)
-            if "context_relevancy" in enabled_metrics:
-                metrics.append(context_relevancy)
-            if "context_precision" in enabled_metrics and ground_truths and all(ground_truths):
-                metrics.append(context_precision)
-            if "context_recall" in enabled_metrics and ground_truths and all(ground_truths):
-                metrics.append(context_recall)
-            if "harmfulness" in enabled_metrics:
-                metrics.append(harmfulness)
+        except Exception as e:
+            # Update evaluation to failed status
+            await self._update_evaluation_status(
+                evaluation.id,
+                EvaluationStatus.FAILED,
+                {"end_time": time.time()}
+            )
 
-            if not metrics:
-                logger.warning("No valid RAGAS metrics selected")
-                return {}
+            logger.exception(f"Failed RAGAS evaluation {evaluation.id}: {str(e)}")
+            raise
 
-            # Run evaluation
-            from ragas import evaluate
-            results = evaluate(ds, metrics)
-
-            # Convert results to the expected format
-            metrics_dict = {}
-            for metric in metrics:
-                metric_name = metric.__name__.lower()
-                metrics_dict[metric_name] = results[metric_name].tolist()
-
-            return metrics_dict
-
-        except ImportError:
-            logger.exception("RAGAS library not installed. Using fallback implementation.")
-            return self._fallback_ragas_evaluation(queries, contexts, responses, ground_truths)
-
-    async def _fallback_ragas_evaluation(
-            self,
-            queries: List[str],
-            contexts: List[str],
-            responses: List[str],
-            ground_truths: Optional[List[str]] = None
-    ) -> Dict[str, List[float]]:
+    async def _update_evaluation_status(
+            self, evaluation_id: UUID, status: EvaluationStatus, additional_data: Dict[str, Any] = None
+    ) -> None:
         """
-        Fallback implementation for RAGAS evaluation when the library is not available.
+        Update evaluation status in the database.
 
         Args:
-            queries: List of queries
-            contexts: List of contexts
-            responses: List of LLM answers
-            ground_truths: Optional list of ground truth answers
-
-        Returns:
-            Dict[str, List[float]]: Dictionary mapping metric names to lists of values
+            evaluation_id: Evaluation ID
+            status: New status
+            additional_data: Additional data to update
         """
-        metrics = {}
+        from backend.app.db.repositories.base import BaseRepository
+        from backend.app.db.models.orm.models import Evaluation
 
-        # Calculate faithfulness for each item
-        faithfulness_scores = []
-        for response, context in zip(responses, contexts):
-            faithfulness_scores.append(self._calculate_faithfulness(response, context))
-        metrics["faithfulness"] = faithfulness_scores
+        evaluation_repo = BaseRepository(Evaluation, self.db_session)
 
-        # Calculate answer_relevancy for each item
-        answer_relevancy_scores = []
-        for response, query in zip(responses, queries):
-            answer_relevancy_scores.append(self._calculate_answer_relevancy(response, query))
-        metrics["answer_relevancy"] = answer_relevancy_scores
+        update_data = {"status": status}
+        if additional_data:
+            update_data.update(additional_data)
 
-        # Calculate context_relevancy for each item
-        context_relevancy_scores = []
-        for context, query in zip(contexts, queries):
-            context_relevancy_scores.append(self._calculate_context_relevancy(context, query))
-        metrics["context_relevancy"] = context_relevancy_scores
-
-        # Calculate correctness if ground truths are available
-        if ground_truths and all(ground_truths):
-            correctness_scores = []
-            for response, ground_truth in zip(responses, ground_truths):
-                correctness_scores.append(self._calculate_correctness(response, ground_truth))
-            metrics["correctness"] = correctness_scores
-
-        return metrics
-
-    # async def calculate_metrics(
-    #         self, input_data: Dict[str, Any], output_data: Dict[str, Any], config: Dict[str, Any]
-    # ) -> Dict[str, float]:
-    #     """
-    #     Calculate RAGAS metrics for a single evaluation item.
-    #
-    #     Args:
-    #         input_data: Input data for the evaluation
-    #         output_data: Output data from the LLM
-    #         config: Evaluation configuration
-    #
-    #     Returns:
-    #         Dict[str, float]: Dictionary mapping metric names to values
-    #     """
-    #     # Extract inputs and outputs
-    #     query = input_data.get("query", "")
-    #     context = input_data.get("context", "")
-    #     ground_truth = input_data.get("ground_truth", "")
-    #     answer = output_data.get("answer", "")
-    #
-    #     # Run single-item evaluation
-    #     queries = [query]
-    #     contexts = [context]
-    #     responses = [answer]
-    #     ground_truths = [ground_truth] if ground_truth else None
-    #
-    #     try:
-    #         # Use the RAGAS evaluation
-    #         metrics_results = await self._run_ragas_evaluation(
-    #             queries, contexts, responses, ground_truths, config
-    #         )
-    #
-    #         # Convert list results to single values
-    #         return {k: v[0] for k, v in metrics_results.items()}
-    #
-    #     except Exception as e:
-    #         logger.exception(f"Error calculating RAGAS metrics: {e}")
-    #         return {}
+        await evaluation_repo.update(evaluation_id, update_data)
 
     async def calculate_metrics(
             self, input_data: Dict[str, Any], output_data: Dict[str, Any], config: Dict[str, Any]
@@ -459,105 +125,149 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         Returns:
             Dict[str, float]: Dictionary mapping metric names to values
         """
-        try:
-            # Extract inputs and outputs
-            query = input_data.get("query", "")
-            context = input_data.get("context", "")
-            ground_truth = input_data.get("ground_truth", "")
-            answer = output_data.get("answer", "")
+        # Extract inputs and outputs
+        query = input_data.get("query", "")
+        context = input_data.get("context", "")
+        ground_truth = input_data.get("ground_truth", "")
+        answer = output_data.get("answer", "")
 
-            if not query or not context or not answer:
-                logger.warning("Missing required data for RAGAS evaluation")
-                return {}
+        if not query or not context or not answer:
+            logger.warning("Missing required data for RAGAS evaluation")
+            return {}
 
-            # Get enabled metrics from config or use defaults
-            enabled_metrics = config.get("metrics", ["faithfulness", "answer_relevancy", "context_relevancy"])
+        # Get enabled metrics from config or use defaults
+        enabled_metrics = config.get("metrics", ["faithfulness", "answer_relevancy", "context_relevancy"])
 
-            # Initialize metrics dictionary
-            metrics = {}
-
-            # Try to use RAGAS library if available
+        # Try to use actual RAGAS library if available
+        if self.ragas_available:
             try:
-                from ragas.metrics import (
-                    faithfulness, answer_relevancy, context_relevancy,
-                    context_precision, context_recall
+                metrics = await self._calculate_real_ragas_metrics(
+                    query, context, answer, ground_truth, enabled_metrics
                 )
-                from datasets import Dataset
 
-                # Create dataset for RAGAS
-                data = {
-                    "question": [query],
-                    "contexts": [[context]],  # RAGAS expects a list of contexts for each item
-                    "answer": [answer],
-                }
-
-                if ground_truth:
-                    data["ground_truth"] = [ground_truth]
-
-                # Convert to HuggingFace dataset
-                ds = Dataset.from_dict(data)
-
-                # Initialize metrics
-                ragas_metrics = []
-                if "faithfulness" in enabled_metrics:
-                    ragas_metrics.append(faithfulness)
-                if "answer_relevancy" in enabled_metrics:
-                    ragas_metrics.append(answer_relevancy)
-                if "context_relevancy" in enabled_metrics:
-                    ragas_metrics.append(context_relevancy)
-                if "context_precision" in enabled_metrics and ground_truth:
-                    ragas_metrics.append(context_precision)
-                if "context_recall" in enabled_metrics and ground_truth:
-                    ragas_metrics.append(context_recall)
-
-                if ragas_metrics:
-                    # Run evaluation
-                    from ragas import evaluate
-                    results = evaluate(ds, ragas_metrics)
-
-                    # Extract results
-                    for metric in ragas_metrics:
-                        metric_name = metric.__name__.lower()
-                        metrics[metric_name] = results[metric_name][0]  # Get first (only) result
-
+                # If we got valid metrics, return them
+                if metrics:
                     return metrics
 
-            except (ImportError, Exception) as e:
-                logger.warning(f"Error using RAGAS library, falling back to simple implementations: {e}")
-                # Fall back to simple implementations
+            except Exception as e:
+                logger.warning(f"Error using RAGAS library: {e}. Falling back to simple implementation.")
+                # Fall through to fallback implementation
 
-            # Calculate fallback metrics
+        # Fallback implementation
+        return await self._calculate_fallback_metrics(
+            query, context, answer, ground_truth, enabled_metrics
+        )
+
+    async def _calculate_real_ragas_metrics(
+            self, query: str, context: str, answer: str, ground_truth: Optional[str],
+            enabled_metrics: List[str]
+    ) -> Dict[str, float]:
+        """
+        Calculate metrics using the actual RAGAS library.
+
+        Args:
+            query: User query
+            context: Source context
+            answer: LLM answer
+            ground_truth: Optional ground truth
+            enabled_metrics: List of metrics to calculate
+
+        Returns:
+            Dict[str, float]: Dictionary mapping metric names to values
+        """
+        try:
+            # Import RAGAS components
+            from ragas.metrics import (
+                faithfulness, answer_relevancy, context_relevancy,
+                context_precision, context_recall
+            )
+            from datasets import Dataset
+
+            # Prepare data for RAGAS
+            contexts = [context] if isinstance(context, str) else context
+
+            data = {
+                "question": [query],
+                "contexts": [[ctx] for ctx in contexts],  # RAGAS expects a list of contexts for each item
+                "answer": [answer],
+            }
+
+            if ground_truth:
+                data["ground_truth"] = [ground_truth]
+
+            # Convert to HuggingFace dataset
+            ds = Dataset.from_dict(data)
+
+            # Initialize metrics
+            ragas_metrics = []
             if "faithfulness" in enabled_metrics:
-                metrics["faithfulness"] = self._calculate_faithfulness(answer, context)
-
+                ragas_metrics.append(faithfulness)
             if "answer_relevancy" in enabled_metrics:
-                metrics["answer_relevancy"] = self._calculate_answer_relevancy(answer, query)
-
+                ragas_metrics.append(answer_relevancy)
             if "context_relevancy" in enabled_metrics:
-                metrics["context_relevancy"] = self._calculate_context_relevancy(context, query)
+                ragas_metrics.append(context_relevancy)
+            if "context_precision" in enabled_metrics and ground_truth:
+                ragas_metrics.append(context_precision)
+            if "context_recall" in enabled_metrics and ground_truth:
+                ragas_metrics.append(context_recall)
 
-            # Correctness metric needs ground truth
-            if ground_truth and "correctness" in enabled_metrics:
-                metrics["correctness"] = self._calculate_correctness(answer, ground_truth)
+            if not ragas_metrics:
+                logger.warning("No valid RAGAS metrics selected")
+                return {}
+
+            # Run evaluation using a thread pool to avoid blocking the event loop
+            from ragas import evaluate
+            results = await asyncio.to_thread(evaluate, ds, ragas_metrics)
+
+            # Extract results
+            metrics = {}
+            for metric in ragas_metrics:
+                metric_name = metric.__name__.lower()
+                metrics[metric_name] = float(results[metric_name][0])
 
             return metrics
 
         except Exception as e:
-            logger.exception(f"Error calculating RAGAS metrics: {e}")
+            logger.exception(f"Error in RAGAS metrics calculation: {e}")
             return {}
 
-    def _calculate_faithfulness(self, answer: str, context: str) -> float:
+    async def _calculate_fallback_metrics(
+            self, query: str, context: str, answer: str, ground_truth: Optional[str],
+            enabled_metrics: List[str]
+    ) -> Dict[str, float]:
         """
-        Calculate faithfulness score.
+        Calculate fallback metrics when RAGAS is not available.
 
         Args:
+            query: User query
+            context: Source context
             answer: LLM answer
-            context: Input context
+            ground_truth: Optional ground truth
+            enabled_metrics: List of metrics to calculate
 
         Returns:
-            float: Faithfulness score (0-1)
+            Dict[str, float]: Dictionary mapping metric names to values
         """
-        # Simple implementation - check if answer words are in context
+        # Initialize metrics dictionary
+        metrics = {}
+
+        if "faithfulness" in enabled_metrics:
+            metrics["faithfulness"] = self._calculate_faithfulness(answer, context)
+
+        if "answer_relevancy" in enabled_metrics:
+            metrics["answer_relevancy"] = self._calculate_answer_relevancy(answer, query)
+
+        if "context_relevancy" in enabled_metrics:
+            metrics["context_relevancy"] = self._calculate_context_relevancy(context, query)
+
+        # Correctness metric needs ground truth
+        if ground_truth and "correctness" in enabled_metrics:
+            metrics["correctness"] = self._calculate_correctness(answer, ground_truth)
+
+        return metrics
+
+    def _calculate_faithfulness(self, answer: str, context: str) -> float:
+        """Calculate faithfulness score (fallback implementation)."""
         if not answer or not context:
             return 0.0
 
@@ -571,17 +281,7 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         return len(overlap) / len(answer_words)
 
     def _calculate_answer_relevancy(self, answer: str, query: str) -> float:
-        """
-        Calculate answer relevancy score.
-
-        Args:
-            answer: LLM answer
-            query: User query
-
-        Returns:
-            float: Answer relevancy score (0-1)
-        """
-        # Simple implementation - check keyword overlap
+        """Calculate answer relevancy score (fallback implementation)."""
         if not answer or not query:
             return 0.0
 
@@ -591,21 +291,31 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         if not query_words:
             return 0.0
 
+        # Consider key question terms as more important
+        question_terms = {"what", "how", "why", "when", "where", "who", "which"}
+        query_question_words = {word for word in query_words if word in question_terms}
+
+        # If the query contains question words, check if they're addressed in the answer
+        if query_question_words:
+            # Calculate a weighted score - question words are more important
+            regular_overlap = query_words.intersection(answer_words)
+            question_overlap = query_question_words.intersection(answer_words)
+
+            if not question_overlap and query_question_words:
+                # Penalize not addressing question words
+                score = len(regular_overlap) / (len(query_words) * 2)
+            else:
+                # Bonus for addressing question words
+                score = (len(regular_overlap) + len(question_overlap)) / (len(query_words) + len(query_question_words))
+
+            return min(score, 1.0)
+
+        # Simple overlap for non-question queries
         overlap = query_words.intersection(answer_words)
         return len(overlap) / len(query_words)
 
     def _calculate_context_relevancy(self, context: str, query: str) -> float:
-        """
-        Calculate context relevancy score.
-
-        Args:
-            context: Input context
-            query: User query
-
-        Returns:
-            float: Context relevancy score (0-1)
-        """
-        # Simple implementation - check keyword overlap
+        """Calculate context relevancy score (fallback implementation)."""
         if not context or not query:
             return 0.0
 
@@ -619,17 +329,7 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         return len(overlap) / len(query_words)
 
     def _calculate_correctness(self, answer: str, ground_truth: str) -> float:
-        """
-        Calculate correctness score.
-
-        Args:
-            answer: LLM answer
-            ground_truth: Expected answer
-
-        Returns:
-            float: Correctness score (0-1)
-        """
-        # Simple implementation - check token overlap
+        """Calculate correctness score (fallback implementation)."""
         if not answer or not ground_truth:
             return 0.0
 
@@ -639,21 +339,23 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         if not ground_truth_tokens:
             return 0.0
 
-        # Calculate token overlap (very simplistic)
+        # Calculate F1-like score
         common_tokens = sum(1 for token in answer_tokens if token in ground_truth_tokens)
-        return common_tokens / len(ground_truth_tokens)
+
+        if not common_tokens:
+            return 0.0
+
+        precision = common_tokens / len(answer_tokens) if answer_tokens else 0
+        recall = common_tokens / len(ground_truth_tokens) if ground_truth_tokens else 0
+
+        if precision + recall == 0:
+            return 0.0
+
+        f1 = 2 * (precision * recall) / (precision + recall)
+        return f1
 
     def _format_prompt(self, prompt_template: str, item: Dict[str, Any]) -> str:
-        """
-        Format prompt template with dataset item.
-
-        Args:
-            prompt_template: Prompt template string
-            item: Dataset item
-
-        Returns:
-            str: Formatted prompt
-        """
+        """Format prompt template with dataset item."""
         formatted_prompt = prompt_template
 
         # Replace placeholders in the template
@@ -668,7 +370,7 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
             self, api_endpoint: str, payload: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Call the micro-agent API.
+        Call the micro-agent API with improved error handling and retries.
 
         Args:
             api_endpoint: API endpoint URL
@@ -678,50 +380,100 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
             Dict[str, Any]: API response
 
         Raises:
-            Exception: If API call fails
+            Exception: If API call fails after retries
         """
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    api_endpoint,
-                    json=payload,
-                    headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
-                    timeout=60.0
-                )
+        import random
+        max_retries = 3
+        backoff_factor = 0.5
+        retries = 0
+        last_exception = None
 
-                response.raise_for_status()
-                return response.json()
+        while retries < max_retries:
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    headers = {"Authorization": f"Bearer {settings.OPENAI_API_KEY.get_secret_value()}"}
 
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error calling micro-agent API: {e}")
-            raise Exception(f"Micro-agent API returned error: {e.response.status_code}")
+                    # Add detailed request logging
+                    logger.debug(f"Calling microagent API ({retries + 1}/{max_retries}): {api_endpoint}")
+                    start_time = time.time()
 
-        except httpx.RequestError as e:
-            logger.error(f"Request error calling micro-agent API: {e}")
-            raise Exception(f"Error connecting to micro-agent API: {str(e)}")
+                    response = await client.post(
+                        api_endpoint,
+                        json=payload,
+                        headers=headers
+                    )
 
-        except Exception as e:
-            logger.error(f"Unexpected error calling micro-agent API: {e}")
-            raise Exception(f"Error calling micro-agent API: {str(e)}")
+                    response_time = time.time() - start_time
+                    logger.debug(f"Microagent API response time: {response_time:.2f}s")
+
+                    response.raise_for_status()
+                    response_data = response.json()
+
+                    # Add processing time
+                    response_data["processing_time_ms"] = int(response_time * 1000)
+
+                    return response_data
+
+            except httpx.HTTPStatusError as e:
+                last_exception = e
+                status_code = e.response.status_code
+
+                # Log detailed error
+                logger.error(f"HTTP error calling microagent API: {status_code}, response: {e.response.text}")
+
+                # Retry for certain status codes
+                if status_code in (429, 500, 502, 503, 504):
+                    retries += 1
+                    if retries < max_retries:
+                        # Exponential backoff with jitter
+                        wait_time = backoff_factor * (2 ** retries) + random.uniform(0, 0.1)
+                        logger.warning(f"Retrying in {wait_time:.2f} seconds (attempt {retries}/{max_retries})")
+                        await asyncio.sleep(wait_time)
+                        continue
+                else:
+                    # For other status codes, don't retry
+                    error_detail = f"Microagent API returned error: HTTP {status_code}"
+                    try:
+                        response_data = e.response.json()
+                        if "error" in response_data:
+                            error_detail += f" - {response_data['error']}"
+                    except Exception:
+                        pass
+                    raise Exception(error_detail)
+
+            except httpx.RequestError as e:
+                last_exception = e
+                logger.error(f"Network error calling microagent API: {e}")
+                retries += 1
+                if retries < max_retries:
+                    wait_time = backoff_factor * (2 ** retries)
+                    logger.warning(f"Retrying in {wait_time:.2f} seconds (attempt {retries}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                    continue
+
+            except Exception as e:
+                last_exception = e
+                logger.error(f"Unexpected error calling microagent API: {e}")
+                retries += 1
+                if retries < max_retries:
+                    wait_time = backoff_factor * (2 ** retries)
+                    logger.warning(f"Retrying in {wait_time:.2f} seconds (attempt {retries}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                    continue
+
+        # If we've exhausted retries
+        logger.error(f"Exhausted retries calling microagent API: {last_exception}")
+        raise Exception(f"Failed to call microagent API after {max_retries} retries: {str(last_exception)}")
 
     def _get_metric_description(self, metric_name: str) -> str:
-        """
-        Get description for a metric.
-
-        Args:
-            metric_name: Metric name
-
-        Returns:
-            str: Metric description
-        """
+        """Get description for a metric."""
         descriptions = {
             "faithfulness": "Measures how well the answer sticks to the information in the context without hallucinating.",
             "answer_relevancy": "Measures how relevant the answer is to the query asked.",
             "context_relevancy": "Measures how relevant the context is to the query asked.",
-            "context_precision": "Measures how precise the retrieved context is compared to the ground truth context.",
-            "context_recall": "Measures how well the retrieved context covers the ground truth context.",
-            "harmfulness": "Measures whether the answer contains harmful or inappropriate content.",
+            "context_precision": "Measures how precisely the retrieved context matches what's needed to answer the query.",
+            "context_recall": "Measures how well the retrieved context covers all the information needed to answer the query.",
             "correctness": "Measures how well the answer matches the ground truth."
         }
 
-        return descriptions.get(metric_name, "")
+        return descriptions.get(metric_name, f"Measures the {metric_name} of the response.")

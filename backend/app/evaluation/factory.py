@@ -2,12 +2,12 @@
 from typing import Dict, Type
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.evaluation.methods.base import BaseEvaluationMethod
-from app.evaluation.methods.ragas import RagasEvaluationMethod
-from app.evaluation.methods.deepeval import DeepEvalEvaluationMethod
-from app.evaluation.methods.custom import CustomEvaluationMethod
-from app.evaluation.methods.manual import ManualEvaluationMethod
-from app.models.orm.models import EvaluationMethod
+from backend.app.evaluation.methods.base import BaseEvaluationMethod
+from backend.app.evaluation.methods.ragas import RagasEvaluationMethod
+from backend.app.evaluation.methods.deepeval import DeepEvalEvaluationMethod
+from backend.app.evaluation.methods.custom import CustomEvaluationMethod
+from backend.app.evaluation.methods.manual import ManualEvaluationMethod
+from backend.app.db.models.orm.models import EvaluationMethod
 
 
 class EvaluationMethodFactory:

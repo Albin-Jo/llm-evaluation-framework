@@ -5,14 +5,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.repositories.base import BaseRepository
-from app.db.session import get_db
-from app.models.orm.models import Prompt, PromptTemplate, User
-from app.schema.prompt_schema import (
+from backend.app.db.repositories.base import BaseRepository
+from backend.app.db.session import get_db
+from backend.app.db.models.orm.models import Prompt, PromptTemplate, User
+from backend.app.db.schema.prompt_schema import (
     PromptCreate, PromptResponse, PromptTemplateCreate,
     PromptTemplateResponse, PromptTemplateUpdate, PromptUpdate
 )
-from app.services.auth import get_current_active_user, get_current_admin_user
+from backend.app.services.auth import get_current_active_user, get_current_admin_user
 
 router = APIRouter()
 

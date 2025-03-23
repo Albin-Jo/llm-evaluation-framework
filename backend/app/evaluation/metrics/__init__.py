@@ -3,7 +3,7 @@
 Metrics package for evaluation.
 """
 
-from app.evaluation.metrics.ragas_metrics import (
+from backend.app.evaluation.metrics.ragas_metrics import (
     calculate_faithfulness,
     calculate_answer_relevancy,
     calculate_context_relevancy,
