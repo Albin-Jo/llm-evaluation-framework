@@ -1,6 +1,6 @@
 # File: app/schema/prompt_schema.py
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -45,6 +45,11 @@ class PromptTemplateResponse(PromptTemplateInDB):
     pass
 
 
+class PromptTemplateBulkCreate(BaseModel):
+    """Schema for bulk creating prompt templates."""
+    templates: List[PromptTemplateCreate]
+
+
 class PromptBase(BaseModel):
     """Base schema for Prompt data."""
     name: str
@@ -85,3 +90,33 @@ class PromptInDB(PromptBase):
 class PromptResponse(PromptInDB):
     """Schema for Prompt response."""
     pass
+
+
+class PromptVariableInfo(BaseModel):
+    """Schema for prompt variable information."""
+    name: str
+    description: Optional[str] = None
+    type: str = "string"
+    required: bool = True
+    default: Optional[Any] = None
+    example: Optional[Any] = None
+
+
+class PromptTemplateVariables(BaseModel):
+    """Schema for prompt template variables."""
+    variables: List[PromptVariableInfo]
+
+
+class PromptRenderRequest(BaseModel):
+    """Schema for rendering a prompt with variables."""
+    variables: Dict[str, Any]
+    use_jinja: bool = False
+
+
+class PromptRenderResponse(BaseModel):
+    """Schema for the response from rendering a prompt."""
+    original: str
+    rendered: Optional[str] = None
+    success: bool
+    missing_variables: List[str] = []
+    error: Optional[str] = None
