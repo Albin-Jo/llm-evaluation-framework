@@ -1,319 +1,216 @@
-# File: tests/conftest.py
 import asyncio
-from datetime import UTC
+import os
+from typing import AsyncGenerator, Dict, Generator
+import uuid
+from datetime import datetime, timedelta
 
 import pytest
-import os
-import uuid
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+import pytest_asyncio
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
-# Set up test environment variables
-os.environ["APP_ENV"] = "testing"
-os.environ["DB_USER"] = "postgres"
-os.environ["DB_PASSWORD"] = "postgres"
-os.environ["DB_HOST"] = "localhost"
-os.environ["DB_PORT"] = "5432"
-os.environ["DB_NAME"] = "llm_evaluation_test"
-os.environ["DB_URI"] = "sqlite+aiosqlite:///:memory:"
+from backend.app.core.config import settings
+from backend.app.db.session import get_db
+from backend.app.db.models.orm.base import Base
+from backend.app.db.models.orm.models import User, DatasetType, UserRole
+from backend.app.main import app as main_app
+# from backend.app.services.auth import create_access_token
 
+# Use a test database URL
+TEST_DATABASE_URL = settings.DATABASE_URL.replace(
+    "/" + settings.DATABASE_NAME, "/test_" + settings.DATABASE_NAME
+)
 
-# Fixture for event loop - used by pytest-asyncio
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    """Create and return a custom event loop policy."""
-    policy = asyncio.DefaultEventLoopPolicy()
-    return policy
-
-
-# Helper to run async functions
-def run_async(coroutine):
-    """Run an async function as a synchronous function."""
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(coroutine)
+# Create test engine with Echo for debugging
+engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool, echo=True)
+TestingSessionLocal = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
-# Create database engine once for all tests
-@pytest.fixture(scope="session")
-def engine():
-    """Create a SQLite in-memory database engine."""
-    from backend.app.db.models.orm.base import Base
-    import app.models.orm.models  # Import all model classes
+# Setup and teardown for the database
+@pytest_asyncio.fixture(scope="session")
+async def setup_database():
+    # Create tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
 
-    # Create engine
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False,
-        future=True
-    )
+    yield
 
-    # Set up
-    async def setup():
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    # Tear down
-    async def teardown():
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-        await engine.dispose()
-
-    # Run setup
-    run_async(setup())
-
-    yield engine
-
-    # Run teardown
-    run_async(teardown())
+    # Drop tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture
-async def db_session(engine):
-    """Create an async session for testing."""
-    # Create session factory
-    async_session_factory = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
-    )
-
-    # Create session
-    async with async_session_factory() as session:
-        try:
+# Get a test database session
+@pytest_asyncio.fixture
+async def db(setup_database) -> AsyncGenerator[AsyncSession, None]:
+    async with TestingSessionLocal() as session:
+        # Start transaction
+        async with session.begin():
             yield session
-            await session.commit()
-        except Exception:
+            # Roll back transaction after test
             await session.rollback()
-            raise
 
 
+# Override the dependency in FastAPI app
 @pytest.fixture
-def db_session_sync():
-    """Create a synchronous mock session for testing."""
-    from unittest.mock import MagicMock, AsyncMock
+def app(db) -> FastAPI:
+    async def override_get_db():
+        yield db
 
-    # Create a mock session with async methods
-    session = MagicMock()
-    session.commit = AsyncMock(return_value=None)
-    session.rollback = AsyncMock(return_value=None)
-    session.close = AsyncMock(return_value=None)
-    session.execute = AsyncMock()
-    session.refresh = AsyncMock()
-    session.add = MagicMock()
-
-    # Mock query results
-    result_mock = MagicMock()
-    result_mock.scalars = MagicMock(return_value=result_mock)
-    result_mock.first = MagicMock(return_value=None)
-    result_mock.all = MagicMock(return_value=[])
-
-    # Set execute return value
-    session.execute.return_value = result_mock
-
-    return session
+    main_app.dependency_overrides[get_db] = override_get_db
+    return main_app
 
 
-# Create fixtures for test entities
+# Create test client
 @pytest.fixture
-def test_user_sync():
-    """Create a synchronous test user."""
-    from backend.app.db.models.orm.models import User, UserRole
-    from unittest.mock import MagicMock
+def client(app) -> Generator[TestClient, None, None]:
+    with TestClient(app) as c:
+        yield c
 
-    user = MagicMock(spec=User)
-    user.id = uuid.uuid4()
-    user.external_id = "test-user-id"
-    user.email = "test@example.com"
-    user.display_name = "Test User"
-    user.role = UserRole.ADMIN
-    user.is_active = True
 
+# User fixtures
+@pytest_asyncio.fixture
+async def test_user(db) -> User:
+    user = User(
+        id=uuid.uuid4(),
+        email="test@example.com",
+        hashed_password="$2b$12$IKEQb00u5eHrkBkIG4tK8eW/4PN5EYLbtXGHILbHF.vLUYG3XnCXS",  # 'password123'
+        is_active=True,
+        role=UserRole.USER,
+        full_name="Test User"
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
     return user
 
 
+@pytest_asyncio.fixture
+async def test_admin(db) -> User:
+    admin = User(
+        id=uuid.uuid4(),
+        email="admin@example.com",
+        hashed_password="$2b$12$IKEQb00u5eHrkBkIG4tK8eW/4PN5EYLbtXGHILbHF.vLUYG3XnCXS",  # 'password123'
+        is_active=True,
+        role=UserRole.ADMIN,
+        full_name="Admin User"
+    )
+    db.add(admin)
+    await db.commit()
+    await db.refresh(admin)
+    return admin
+
+
+# Auth tokens
 @pytest.fixture
-def test_microagent_sync():
-    """Create a synchronous test microagent."""
-    from backend.app.db.models.orm.models import MicroAgent
-    from unittest.mock import MagicMock
-
-    microagent = MagicMock(spec=MicroAgent)
-    microagent.id = uuid.uuid4()
-    microagent.name = "Test MicroAgent"
-    microagent.description = "A test micro-agent for evaluation"
-    microagent.api_endpoint = "http://localhost:8000/test-agent"
-    microagent.domain = "testing"
-    microagent.is_active = True
-
-    return microagent
-
-
-@pytest.fixture
-def test_dataset_sync():
-    """Create a synchronous test dataset."""
-    from backend.app.db.models.orm.models import Dataset, DatasetType
-    from unittest.mock import MagicMock
-
-    dataset = MagicMock(spec=Dataset)
-    dataset.id = uuid.uuid4()
-    dataset.name = "Test Dataset"
-    dataset.description = "A test dataset for evaluation"
-    dataset.type = DatasetType.QUESTION_ANSWER
-    dataset.file_path = "test_data/test_dataset.json"
-    dataset.owner_id = uuid.uuid4()  # This would typically be test_user.id
-    dataset.row_count = 2
-    dataset.version = "1.0.0"
-    dataset.is_public = True
-
-    return dataset
+def user_token(test_user) -> str:
+    return create_access_token(
+        data={"sub": str(test_user.id), "email": test_user.email},
+        expires_delta=timedelta(minutes=30)
+    )
 
 
 @pytest.fixture
-def test_prompt_sync():
-    """Create a synchronous test prompt."""
-    from backend.app.db.models.orm.models import Prompt
-    from unittest.mock import MagicMock
-
-    prompt = MagicMock(spec=Prompt)
-    prompt.id = uuid.uuid4()
-    prompt.name = "Test Prompt"
-    prompt.description = "A test prompt for evaluation"
-    prompt.content = "Answer the following question: {query}\nContext: {context}"
-    prompt.owner_id = uuid.uuid4()  # This would typically be test_user.id
-    prompt.version = "1.0.0"
-    prompt.is_public = True
-
-    return prompt
+def admin_token(test_admin) -> str:
+    return create_access_token(
+        data={"sub": str(test_admin.id), "email": test_admin.email},
+        expires_delta=timedelta(minutes=30)
+    )
 
 
-# @pytest.fixture
-# def test_evaluation_sync():
-#     """Create a synchronous test evaluation."""
-#     from backend.app.db.models.orm.models import Evaluation, EvaluationMethod, EvaluationStatus
-#     from unittest.mock import MagicMock
-#
-#     evaluation = MagicMock(spec=Evaluation)
-#     evaluation.id = uuid.uuid4()
-#     evaluation.name = "Test Evaluation"
-#     evaluation.description = "A test evaluation"
-#     evaluation.method = EvaluationMethod.RAGAS
-#     evaluation.status = EvaluationStatus.PENDING
-#     evaluation.created_by_id = uuid.uuid4()  # This would be test_user.id
-#     evaluation.micro_agent_id = uuid.uuid4()  # This would be test_microagent.id
-#     evaluation.dataset_id = uuid.uuid4()  # This would be test_dataset.id
-#     evaluation.prompt_id = uuid.uuid4()  # This would be test_prompt.id
-#     evaluation.config = {"metrics": ["faithfulness", "answer_relevancy", "context_relevancy"]}
-#
-#     return evaluation
-
+# Auth headers for requests
 @pytest.fixture
-def test_evaluation_sync():
-    """Synchronous test evaluation with properly initialized fields."""
-    return create_mock_evaluation()
+def user_auth_headers(user_token) -> Dict[str, str]:
+    return {"Authorization": f"Bearer {user_token}"}
 
 
 @pytest.fixture
-def mock_httpx_client(monkeypatch):
-    """Mock httpx client for API calls."""
-
-    class MockResponse:
-        def __init__(self, json_data, status_code=200):
-            self.json_data = json_data
-            self.status_code = status_code
-
-        def json(self):
-            return self.json_data
-
-        def raise_for_status(self):
-            if self.status_code >= 400:
-                raise Exception(f"HTTP Error: {self.status_code}")
-
-    class MockAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            pass
-
-        async def post(self, url, json=None, headers=None, timeout=None):
-            # Mock response based on the input
-            if json and "query" in json:
-                query = json.get("query", "")
-                if query.lower() == "what is machine learning?":
-                    return MockResponse({
-                        "answer": "Machine learning is a branch of artificial intelligence that focuses on building systems that can learn from data.",
-                        "processing_time_ms": 150
-                    })
-                elif query.lower() == "how does rag work?":
-                    return MockResponse({
-                        "answer": "RAG works by combining retrieval systems with generative models to produce more accurate and contextually relevant responses.",
-                        "processing_time_ms": 200
-                    })
-
-            # Default response
-            return MockResponse({
-                "answer": "I'm a test response from the mock agent.",
-                "processing_time_ms": 100
-            })
-
-    import httpx
-    monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
-
-    return MockAsyncClient()
+def admin_auth_headers(admin_token) -> Dict[str, str]:
+    return {"Authorization": f"Bearer {admin_token}"}
 
 
-@pytest.fixture(scope="session")
-def settings():
-    """Provide app settings."""
-    from backend.app.core.config import settings as app_settings
-    # Ensure we're in testing mode
-    app_settings.APP_ENV = "testing"
-    app_settings.DB_URI = "sqlite+aiosqlite:///:memory:"
-    return app_settings
+# Mock file upload data
+@pytest.fixture
+def sample_csv_file() -> bytes:
+    return b"query,context,answer\nWhat is LLM?,Language model,Large Language Model\nHow to evaluate LLM?,Use metrics,Use evaluation framework"
 
 
-# Add this to tests/conftest.py
-def create_mock_evaluation(
-        id=None,
-        name="Test Evaluation",
-        description="A test evaluation",
-        method="ragas",
-        status="pending",
-        created_by_id=None,
-        micro_agent_id=None,
-        dataset_id=None,
-        prompt_id=None
-):
-    """Create a properly initialized mock Evaluation object with all required fields."""
-    from backend.app.db.models.orm.models import Evaluation, EvaluationMethod, EvaluationStatus
-    from unittest.mock import MagicMock
-    from datetime import datetime
-    import uuid
+@pytest.fixture
+def sample_dataset(db, test_user) -> Dict:
+    return {
+        "id": uuid.uuid4(),
+        "name": "Test Dataset",
+        "description": "Sample dataset for testing",
+        "type": DatasetType.QUESTION_ANSWER,
+        "file_path": "datasets/test_dataset.csv",
+        "schema": {"type": "object", "properties": {}},
+        "version": "1.0.0",
+        "row_count": 2,
+        "is_public": False,
+        "owner_id": test_user.id,
+        "domain": "test",
+        "created_at": datetime.now(),
+        "updated_at": datetime.now(),
+    }
 
-    # Use provided values or defaults
-    eval_id = id or uuid.uuid4()
-    created_by = created_by_id or uuid.uuid4()
-    micro_agent = micro_agent_id or uuid.uuid4()
-    dataset = dataset_id or uuid.uuid4()
-    prompt = prompt_id or uuid.uuid4()
-    now = datetime.now(UTC)
 
-    # Create the mock with properly typed attributes
-    mock_eval = MagicMock(spec=Evaluation)
-    mock_eval.id = eval_id
-    mock_eval.name = name
-    mock_eval.description = description
-    mock_eval.method = method
-    mock_eval.status = status
-    mock_eval.created_by_id = created_by
-    mock_eval.micro_agent_id = micro_agent
-    mock_eval.dataset_id = dataset
-    mock_eval.prompt_id = prompt
-    mock_eval.created_at = now
-    mock_eval.updated_at = now
-    mock_eval.config = {"metrics": ["faithfulness"]}  # Real dictionary
-    mock_eval.experiment_id = "test-experiment-123"  # Real string
-    mock_eval.metrics = ["faithfulness"]  # Real list
-    mock_eval.start_time = now
-    mock_eval.end_time = now
+@pytest.fixture
+def sample_prompt_template(db) -> Dict:
+    return {
+        "id": uuid.uuid4(),
+        "name": "Test Template",
+        "description": "A test prompt template",
+        "content": "Here is a prompt with {variable}",
+        "variables": ["variable"],
+        "is_public": True,
+        "created_at": datetime.now(),
+        "updated_at": datetime.now(),
+    }
 
-    return mock_eval
+
+@pytest.fixture
+def sample_prompt(db, test_user, sample_prompt_template) -> Dict:
+    return {
+        "id": uuid.uuid4(),
+        "name": "Test Prompt",
+        "description": "A test prompt",
+        "content": "Here is a prompt with {test_var}",
+        "variables": ["test_var"],
+        "is_public": False,
+        "template_id": sample_prompt_template["id"],
+        "owner_id": test_user.id,
+        "created_at": datetime.now(),
+        "updated_at": datetime.now(),
+    }
+
+
+# Mock storage service
+@pytest.fixture
+def mock_storage_service(monkeypatch):
+    class MockStorageService:
+        async def upload_file(self, file, path):
+            return path
+
+        async def file_exists(self, path):
+            return True
+
+        async def read_file(self, path):
+            if path.endswith(".csv"):
+                return b"query,context,answer\nWhat is LLM?,Language model,Large Language Model"
+            return b"test content"
+
+        async def read_file_stream(self, path):
+            yield b"test content chunk"
+
+        async def delete_file(self, path):
+            return True
+
+    from backend.app.services import storage
+    monkeypatch.setattr(storage, "get_storage_service", lambda: MockStorageService())
+    return MockStorageService()

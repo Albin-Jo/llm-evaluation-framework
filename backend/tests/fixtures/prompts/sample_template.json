@@ -1,0 +1,7 @@
+{
+  "name": "LLM Evaluation Prompt Template",
+  "description": "A template for creating evaluation prompts",
+  "content": "You are an evaluator for Large Language Models. Your task is to assess the quality of responses to questions about {domain}.\n\nQuestion: {question}\n\nAnswer to evaluate: {answer}\n\nPlease evaluate the answer based on the following criteria:\n1. Factual accuracy: Is the information correct?\n2. Completeness: Does it fully address the question?\n3. Clarity: Is it easy to understand?\n4. Relevance: Is it directly relevant to the question?\n\nProvide your evaluation with a score from 1-5 for each criterion and an overall score.",
+  "variables": ["domain", "question", "answer"],
+  "is_public": true
+}

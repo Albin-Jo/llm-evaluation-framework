@@ -50,8 +50,8 @@ app.add_middleware(
 # Include API routers
 app.include_router(api_router, prefix="/api")
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="frontend_v1/static"), name="static")
+# # Mount static files
+# app.mount("/static", StaticFiles(directory="frontend_v1/static"), name="static")
 
 
 # Health check endpoint
