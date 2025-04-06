@@ -15,10 +15,9 @@ logger = logging.getLogger(__name__)
 
 # Import project modules
 from backend.app.core.config import settings
-from backend.app.db.models.orm.models import User, UserRole, MicroAgent, EvaluationStatus
+from backend.app.db.models.orm.models import User, UserRole, Agent, EvaluationStatus
 from backend.app.utils.sample_dataset import SampleEvaluationBuilder
 from backend.app.services.evaluation_service import EvaluationService
-from backend.app.services.microagent_service import MicroAgentService
 
 
 class DirectEvaluationService(EvaluationService):

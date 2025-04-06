@@ -1,4 +1,4 @@
-# File: app/models/orm/models.py
+# File: app/db/models/orm/models.py
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
@@ -41,23 +41,29 @@ class User(Base, TimestampMixin, ModelMixin):
     evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="created_by")
 
 
-class MicroAgent(Base, TimestampMixin, ModelMixin):
+class Agent(Base, TimestampMixin, ModelMixin):
     """
-    MicroAgent model representing individual specialized agents in the system.
+    Agent model representing individual specialized agents in the system.
     """
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
     )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     api_endpoint: Mapped[str] = mapped_column(String(255), nullable=False)
-    domain: Mapped[str] = mapped_column(String(100), nullable=False)
+    domain: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     config: Mapped[dict] = mapped_column(JSON, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    # New fields
+    model_type: Mapped[str] = mapped_column(String(100), nullable=True)
+    version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
+    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
+    tags: Mapped[List[str]] = mapped_column(JSON, nullable=True)
 
     # Relationships
-    evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="micro_agent")
+    evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="agent")
+    created_by: Mapped[Optional["User"]] = relationship(foreign_keys=[created_by_id])
 
 
 class DatasetType(str, Enum):
@@ -176,8 +182,8 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     # Relationships
     created_by_id: Mapped[UUID] = mapped_column(ForeignKey("user.id"), nullable=False)
     created_by: Mapped["User"] = relationship(back_populates="evaluations")
-    micro_agent_id: Mapped[UUID] = mapped_column(ForeignKey("microagent.id"), nullable=False)
-    micro_agent: Mapped["MicroAgent"] = relationship(back_populates="evaluations")
+    agent_id: Mapped[UUID] = mapped_column(ForeignKey("agent.id"), nullable=False)
+    agent: Mapped["Agent"] = relationship(back_populates="evaluations")
     dataset_id: Mapped[UUID] = mapped_column(ForeignKey("dataset.id"), nullable=False)
     dataset: Mapped["Dataset"] = relationship(back_populates="evaluations")
     prompt_id: Mapped[UUID] = mapped_column(ForeignKey("prompt.id"), nullable=False)

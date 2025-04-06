@@ -10,30 +10,31 @@ The LLM Evaluation Framework is an internal tool for evaluating domain-specific 
 - **Deployment**: Docker
 
 ## Current Project Status
-- **Current Phase**: Implement Prompt Module
-- **Last Session Date**: NA
-- **Last Session Focus**: We have Implemented Evaluation Module
-- **Current Focus**: Analyse, debug current implementation and improve the prompt module.
+- **Current Phase**: Implement agents Module
+- **Last Session Date**: One day ago
+- **Last Session Focus**: We have Implemented dataset, prompt Module and evaluation module
+- **Current Focus**: Analyse, debug current implementation and improve the agents module. Make sure its following best practices and fullfillis requirement
 
 ## Components Status
 
-| Component | Status      | Notes |
-|-----------|-------------|-------|
-| Project Structure | Complete    | Basic FastAPI and React setup finished |
-| Authentication | Hold        | OIDC integration 80% complete |
-| Dataset Management | Complete    | All CRUD operations implemented |
-| Agent Integration | Not Started | Scheduled for Phase 2 |
-| Evaluation Engine | Completed   |  |
-| Reports Module | Not Started | Scheduled for Phase 3 |
-| Frontend Dashboard | Hold        | Basic layout complete, components in development |
+| Component | Status      | Notes                                              |
+|-----------|-------------|----------------------------------------------------|
+| Project Structure | Complete    | Basic FastAPI and Angular dashboard setup finished |
+| Authentication | Hold        | OIDC integration 80% complete                      |
+| Dataset Management | Complete    | All CRUD operations implemented                    |
+| Agent Integration |  Started |                          |
+| Evaluation Engine | Completed   |                                                    |
+| Reports Module | Not Started |                              |
+| Frontend Dashboard | Started     | Basic layout complete, components in development   |
 
 ## Today's Session Goal
-In this session, we'll focus on: Analyse, debug, improve current implementation of prompt module
-Focus on all apis, services, models, and repository layer of prompt module. 
+In this session, we'll focus on: Analyse, debug, improve current implementation of Agents module
+Focus on all apis, services, models, and repository layer of agents module.
+Testing agent using azure open ai
 
 ## Key Considerations
 - Include a detailed explanation of the implementation and usage
-- Create sample prompt and test cases so that we can test the apis
+- Create sample evaluation and test cases so that we can test the apis
 - Unit testing should be implemented for critical components
 - always make sure to include file name and path reference
 

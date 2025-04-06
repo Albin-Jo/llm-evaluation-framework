@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_db
@@ -317,3 +317,86 @@ async def get_evaluation_results(
         processed_results.append(result_dict)
 
     return processed_results
+
+
+# File: backend/app/api/v1/evaluations.py
+# Add this new endpoint to the existing router
+
+@router.post("/{evaluation_id}/test", response_model=Dict)
+async def test_evaluation(
+        evaluation_id: UUID,
+        test_data: Dict = Body(...),
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Test an evaluation with sample data without creating results.
+
+    This is useful for validating configurations and testing metrics
+    before running a full evaluation.
+
+    The request body should contain test data in the format:
+    {
+        "query": "Sample query",
+        "context": "Sample context",
+        "answer": "Sample answer",
+        "ground_truth": "Optional ground truth"
+    }
+    """
+    evaluation_service = EvaluationService(db)
+
+    # Get the evaluation to check permissions
+    evaluation = await evaluation_service.get_evaluation(evaluation_id)
+    if not evaluation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Evaluation with ID {evaluation_id} not found"
+        )
+
+    # Check if user has permission to test this evaluation
+    if current_user.role.value != "admin" and evaluation.created_by_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to test this evaluation"
+        )
+
+    # Validate minimum required test data
+    required_fields = ["query", "context", "answer"]
+    for field in required_fields:
+        if field not in test_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Missing required field: {field}"
+            )
+
+    try:
+        # Get evaluation method
+        method_handler = await evaluation_service.get_evaluation_method_handler(evaluation.method)
+
+        # Calculate metrics
+        metrics = await method_handler.calculate_metrics(
+            input_data={
+                "query": test_data.get("query", ""),
+                "context": test_data.get("context", ""),
+                "ground_truth": test_data.get("ground_truth", "")
+            },
+            output_data={"answer": test_data.get("answer", "")},
+            config=evaluation.config or {}
+        )
+
+        # Calculate overall score
+        overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
+
+        return {
+            "evaluation_id": str(evaluation_id),
+            "overall_score": overall_score,
+            "metrics": metrics,
+            "config": evaluation.config
+        }
+
+    except Exception as e:
+        logger.exception(f"Error testing evaluation {evaluation_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error testing evaluation: {str(e)}"
+        )

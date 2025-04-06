@@ -46,6 +46,7 @@ class EvaluationService:
         self.dataset_repo = BaseRepository(Dataset, db_session)
         self.prompt_repo = BaseRepository(Prompt, db_session)
 
+    # File: backend/app/services/evaluation_service.py
     async def create_evaluation(
             self, evaluation_data: EvaluationCreate, user: User
     ) -> Evaluation:
@@ -68,6 +69,35 @@ class EvaluationService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"MicroAgent with ID {evaluation_data.micro_agent_id} not found"
+            )
+
+        dataset = await self.dataset_repo.get(evaluation_data.dataset_id)
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {evaluation_data.dataset_id} not found"
+            )
+
+        prompt = await self.prompt_repo.get(evaluation_data.prompt_id)
+        if not prompt:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Prompt with ID {evaluation_data.prompt_id} not found"
+            )
+
+        # Create evaluation
+        evaluation_dict = evaluation_data.model_dump()
+        evaluation_dict["created_by_id"] = user.id
+
+        try:
+            evaluation = await self.evaluation_repo.create(evaluation_dict)
+            logger.info(f"Created evaluation {evaluation.id} by user {user.id}")
+            return evaluation
+        except Exception as e:
+            logger.error(f"Failed to create evaluation: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create evaluation: {str(e)}"
             )
 
     async def get_evaluation(self, evaluation_id: UUID) -> Optional[Evaluation]:

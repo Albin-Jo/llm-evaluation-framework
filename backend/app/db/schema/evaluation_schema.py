@@ -1,4 +1,4 @@
-# File: app/schema/evaluation_schema.py
+# File: backend/app/db/schema/evaluation_schema.py
 from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
@@ -13,7 +13,7 @@ class MetricScoreBase(BaseModel):
     name: str
     value: float
     weight: float = 1.0
-    metadata: Optional[Dict] = None
+    meta_info: Optional[Dict] = None  # Changed from metadata to meta_info for consistency
 
 
 class MetricScoreCreate(MetricScoreBase):

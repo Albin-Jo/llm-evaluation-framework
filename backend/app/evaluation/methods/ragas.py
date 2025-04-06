@@ -181,41 +181,50 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
                 faithfulness, answer_relevancy, context_relevancy,
                 context_precision, context_recall
             )
+            import pandas as pd
             from datasets import Dataset
 
-            # Prepare data for RAGAS
+            # Prepare data for RAGAS - convert context to list if it's a string
             contexts = [context] if isinstance(context, str) else context
 
-            data = {
+            # Create DataFrame first (more efficient than dict conversion)
+            df = pd.DataFrame({
                 "question": [query],
                 "contexts": [[ctx] for ctx in contexts],  # RAGAS expects a list of contexts for each item
                 "answer": [answer],
-            }
+            })
 
             if ground_truth:
-                data["ground_truth"] = [ground_truth]
+                df["ground_truth"] = [ground_truth]
 
             # Convert to HuggingFace dataset
-            ds = Dataset.from_dict(data)
+            ds = Dataset.from_pandas(df)
 
             # Initialize metrics
             ragas_metrics = []
-            if "faithfulness" in enabled_metrics:
-                ragas_metrics.append(faithfulness)
-            if "answer_relevancy" in enabled_metrics:
-                ragas_metrics.append(answer_relevancy)
-            if "context_relevancy" in enabled_metrics:
-                ragas_metrics.append(context_relevancy)
-            if "context_precision" in enabled_metrics and ground_truth:
-                ragas_metrics.append(context_precision)
-            if "context_recall" in enabled_metrics and ground_truth:
-                ragas_metrics.append(context_recall)
+            metric_mapping = {
+                "faithfulness": faithfulness,
+                "answer_relevancy": answer_relevancy,
+                "context_relevancy": context_relevancy,
+            }
+
+            # Add ground truth dependent metrics
+            if ground_truth:
+                metric_mapping.update({
+                    "context_precision": context_precision,
+                    "context_recall": context_recall
+                })
+
+            # Filter enabled metrics
+            for metric_name in enabled_metrics:
+                if metric_name in metric_mapping:
+                    ragas_metrics.append(metric_mapping[metric_name])
 
             if not ragas_metrics:
                 logger.warning("No valid RAGAS metrics selected")
                 return {}
 
-            # Run evaluation using a thread pool to avoid blocking the event loop
+            # Run evaluation in a separate thread to avoid blocking event loop
             from ragas import evaluate
             results = await asyncio.to_thread(evaluate, ds, ragas_metrics)
 
@@ -223,7 +232,11 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
             metrics = {}
             for metric in ragas_metrics:
                 metric_name = metric.__name__.lower()
-                metrics[metric_name] = float(results[metric_name][0])
+                # Handle potential issues with RAGAS output format
+                if metric_name in results and len(results[metric_name]) > 0:
+                    metrics[metric_name] = float(results[metric_name][0])
+                else:
+                    logger.warning(f"Metric {metric_name} not found in RAGAS results or empty results")
 
             return metrics
 
@@ -365,105 +378,6 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
                 formatted_prompt = formatted_prompt.replace(placeholder, str(value))
 
         return formatted_prompt
-
-    async def _call_microagent_api(
-            self, api_endpoint: str, payload: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Call the micro-agent API with improved error handling and retries.
-
-        Args:
-            api_endpoint: API endpoint URL
-            payload: Request payload
-
-        Returns:
-            Dict[str, Any]: API response
-
-        Raises:
-            Exception: If API call fails after retries
-        """
-        import random
-        max_retries = 3
-        backoff_factor = 0.5
-        retries = 0
-        last_exception = None
-
-        while retries < max_retries:
-            try:
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    headers = {"Authorization": f"Bearer {settings.OPENAI_API_KEY.get_secret_value()}"}
-
-                    # Add detailed request logging
-                    logger.debug(f"Calling microagent API ({retries + 1}/{max_retries}): {api_endpoint}")
-                    start_time = time.time()
-
-                    response = await client.post(
-                        api_endpoint,
-                        json=payload,
-                        headers=headers
-                    )
-
-                    response_time = time.time() - start_time
-                    logger.debug(f"Microagent API response time: {response_time:.2f}s")
-
-                    response.raise_for_status()
-                    response_data = response.json()
-
-                    # Add processing time
-                    response_data["processing_time_ms"] = int(response_time * 1000)
-
-                    return response_data
-
-            except httpx.HTTPStatusError as e:
-                last_exception = e
-                status_code = e.response.status_code
-
-                # Log detailed error
-                logger.error(f"HTTP error calling microagent API: {status_code}, response: {e.response.text}")
-
-                # Retry for certain status codes
-                if status_code in (429, 500, 502, 503, 504):
-                    retries += 1
-                    if retries < max_retries:
-                        # Exponential backoff with jitter
-                        wait_time = backoff_factor * (2 ** retries) + random.uniform(0, 0.1)
-                        logger.warning(f"Retrying in {wait_time:.2f} seconds (attempt {retries}/{max_retries})")
-                        await asyncio.sleep(wait_time)
-                        continue
-                else:
-                    # For other status codes, don't retry
-                    error_detail = f"Microagent API returned error: HTTP {status_code}"
-                    try:
-                        response_data = e.response.json()
-                        if "error" in response_data:
-                            error_detail += f" - {response_data['error']}"
-                    except Exception:
-                        pass
-                    raise Exception(error_detail)
-
-            except httpx.RequestError as e:
-                last_exception = e
-                logger.error(f"Network error calling microagent API: {e}")
-                retries += 1
-                if retries < max_retries:
-                    wait_time = backoff_factor * (2 ** retries)
-                    logger.warning(f"Retrying in {wait_time:.2f} seconds (attempt {retries}/{max_retries})")
-                    await asyncio.sleep(wait_time)
-                    continue
-
-            except Exception as e:
-                last_exception = e
-                logger.error(f"Unexpected error calling microagent API: {e}")
-                retries += 1
-                if retries < max_retries:
-                    wait_time = backoff_factor * (2 ** retries)
-                    logger.warning(f"Retrying in {wait_time:.2f} seconds (attempt {retries}/{max_retries})")
-                    await asyncio.sleep(wait_time)
-                    continue
-
-        # If we've exhausted retries
-        logger.error(f"Exhausted retries calling microagent API: {last_exception}")
-        raise Exception(f"Failed to call microagent API after {max_retries} retries: {str(last_exception)}")
 
     def _get_metric_description(self, metric_name: str) -> str:
         """Get description for a metric."""
