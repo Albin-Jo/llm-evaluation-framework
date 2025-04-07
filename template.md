@@ -10,10 +10,11 @@ The LLM Evaluation Framework is an internal tool for evaluating domain-specific 
 - **Deployment**: Docker
 
 ## Current Project Status
-- **Current Phase**: Implement agents Module
+- **Current Phase**: Debug and Update evaluation module
 - **Last Session Date**: One day ago
-- **Last Session Focus**: We have Implemented dataset, prompt Module and evaluation module
-- **Current Focus**: Analyse, debug current implementation and improve the agents module. Make sure its following best practices and fullfillis requirement
+- **Last Session Focus**: We have Implemented dataset, prompt Module, evaluation module and agent module
+- **Current Focus**: Analyse, debug current implementation and improve the evaluation module. 
+- Make sure its following Updated Ragas apis
 
 ## Components Status
 
@@ -28,9 +29,12 @@ The LLM Evaluation Framework is an internal tool for evaluating domain-specific 
 | Frontend Dashboard | Started     | Basic layout complete, components in development   |
 
 ## Today's Session Goal
-In this session, we'll focus on: Analyse, debug, improve current implementation of Agents module
-Focus on all apis, services, models, and repository layer of agents module.
-Testing agent using azure open ai
+The RAGAS API has changed significantly, so api usages,metric definitions will also need to be updated.
+Modifying imports
+Updating usage patterns
+Replacing outdated metrics with the new ones
+In this session, we'll focus on: Analyse, debug, improve current implementation of evaluation module
+Focus on all apis, services, models, and repository layer of evluation module.
 
 ## Key Considerations
 - Include a detailed explanation of the implementation and usage

@@ -1,24 +1,139 @@
 # File: app/evaluation/metrics/ragas_metrics.py
 """
-Metrics for RAGAS evaluation.
+Metrics for RAGAS evaluation with updated implementations.
 
-This module provides implementations of RAGAS metrics.
+This module provides implementations of the updated RAGAS metrics.
 """
+import logging
+from typing import Dict, List, Optional, Union, Any
 
-async def calculate_faithfulness(answer: str, context: str) -> float:
+logger = logging.getLogger(__name__)
+
+# Flag to check if RAGAS is available
+try:
+    import ragas
+    from ragas import SingleTurnSample
+    from ragas.metrics import (
+        Faithfulness,
+        ResponseRelevancy,
+        LLMContextPrecisionWithoutReference,
+        LLMContextRecall,
+        ContextEntityRecall,
+        NoiseSensitivity
+    )
+    from ragas.llms import LangchainLLMWrapper
+
+    RAGAS_AVAILABLE = True
+    logger.info(f"RAGAS library found (version: {ragas.__version__})")
+except ImportError:
+    RAGAS_AVAILABLE = False
+    logger.warning("RAGAS library not found. Using fallback implementations for metrics.")
+
+# Cache for LLM instances to avoid recreating them
+_llm_cache = {}
+
+
+async def get_ragas_llm():
+    """Get or create a cached RAGAS LLM wrapper."""
+    if not RAGAS_AVAILABLE:
+        return None
+
+    global _llm_cache
+    if "ragas_llm" not in _llm_cache:
+        try:
+            from langchain_openai import AzureChatOpenAI
+            from backend.app.core.config import settings
+
+            # Initialize Azure OpenAI client for evaluation
+            llm = AzureChatOpenAI(
+                openai_api_key=settings.AZURE_OPENAI_KEY,
+                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                azure_deployment=settings.AZURE_OPENAI_DEPLOYMENT,
+                api_version=settings.AZURE_OPENAI_VERSION,
+                temperature=0.0
+            )
+
+            # Wrap in the RAGAS LLM interface
+            _llm_cache["ragas_llm"] = LangchainLLMWrapper(llm)
+        except Exception as e:
+            logger.error(f"Error initializing RAGAS LLM: {e}")
+            return None
+
+    return _llm_cache["ragas_llm"]
+
+
+async def _calculate_with_ragas(
+        metric_class, sample: Dict[str, Any], requires_reference: bool = False
+) -> Optional[float]:
+    """Generic function to calculate metrics using RAGAS."""
+    if not RAGAS_AVAILABLE:
+        return None
+
+    # Check if required fields are present
+    if "query" not in sample or "answer" not in sample or "context" not in sample:
+        return None
+
+    if requires_reference and "ground_truth" not in sample:
+        return None
+
+    try:
+        # Get RAGAS LLM
+        ragas_llm = await get_ragas_llm()
+        if not ragas_llm:
+            return None
+
+        # Create metric instance
+        metric_instance = metric_class(llm=ragas_llm)
+
+        # Prepare context (ensure it's a list)
+        contexts = sample["context"]
+        if isinstance(contexts, str):
+            contexts = [contexts]
+
+        # Create SingleTurnSample
+        ragas_sample = SingleTurnSample(
+            user_input=sample["query"],
+            response=sample["answer"],
+            retrieved_contexts=contexts,
+            reference=sample.get("ground_truth")
+        )
+
+        # Calculate score
+        score = await metric_instance.single_turn_ascore(ragas_sample)
+        return float(score)
+
+    except Exception as e:
+        logger.error(f"Error calculating RAGAS metric {metric_class.__name__}: {e}")
+        return None
+
+
+async def calculate_faithfulness(answer: str, context: Union[str, List[str]]) -> float:
     """
-    Calculate faithfulness score.
+    Calculate faithfulness score using RAGAS if available.
 
     Args:
         answer: LLM answer
-        context: Input context
+        context: Input context (string or list of strings)
 
     Returns:
         float: Faithfulness score (0-1)
     """
-    # Check if answer is based on the context
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        result = await _calculate_with_ragas(
+            Faithfulness,
+            {"query": "", "answer": answer, "context": context}
+        )
+        if result is not None:
+            return result
+
+    # Fallback implementation
     if not answer or not context:
         return 0.0
+
+    # Ensure context is a string for fallback
+    if isinstance(context, list):
+        context = " ".join(context)
 
     answer_words = set(answer.lower().split())
     context_words = set(context.lower().split())
@@ -30,18 +145,32 @@ async def calculate_faithfulness(answer: str, context: str) -> float:
     return len(overlap) / len(answer_words)
 
 
-async def calculate_answer_relevancy(answer: str, query: str) -> float:
+async def calculate_response_relevancy(answer: str, query: str,
+                                       context: Optional[Union[str, List[str]]] = None) -> float:
     """
-    Calculate answer relevancy score.
+    Calculate response relevancy score using RAGAS if available.
 
     Args:
         answer: LLM answer
         query: User query
+        context: Optional context for RAGAS
 
     Returns:
-        float: Answer relevancy score (0-1)
+        float: Response relevancy score (0-1)
     """
-    # Check if answer is relevant to the query
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        sample = {"query": query, "answer": answer}
+        if context is not None:
+            sample["context"] = context
+        else:
+            sample["context"] = [""]  # Empty context as placeholder
+
+        result = await _calculate_with_ragas(ResponseRelevancy, sample)
+        if result is not None:
+            return result
+
+    # Fallback implementation
     if not answer or not query:
         return 0.0
 
@@ -51,24 +180,59 @@ async def calculate_answer_relevancy(answer: str, query: str) -> float:
     if not query_words:
         return 0.0
 
+    # Consider key question terms as more important
+    question_terms = {"what", "how", "why", "when", "where", "who", "which"}
+    query_question_words = {word for word in query_words if word in question_terms}
+
+    # If the query contains question words, check if they're addressed in the answer
+    if query_question_words:
+        # Calculate a weighted score - question words are more important
+        regular_overlap = query_words.intersection(answer_words)
+        question_overlap = query_question_words.intersection(answer_words)
+
+        if not question_overlap and query_question_words:
+            # Penalize not addressing question words
+            score = len(regular_overlap) / (len(query_words) * 2)
+        else:
+            # Bonus for addressing question words
+            score = (len(regular_overlap) + len(question_overlap)) / (len(query_words) + len(query_question_words))
+
+        return min(score, 1.0)
+
+    # Simple overlap for non-question queries
     overlap = query_words.intersection(answer_words)
     return len(overlap) / len(query_words)
 
 
-async def calculate_context_relevancy(context: str, query: str) -> float:
+async def calculate_context_precision(context: Union[str, List[str]], query: str) -> float:
     """
-    Calculate context relevancy score.
+    Calculate context precision score using RAGAS if available.
 
     Args:
-        context: Input context
+        context: Input context (string or list of strings)
         query: User query
 
     Returns:
-        float: Context relevancy score (0-1)
+        float: Context precision score (0-1)
     """
-    # Check if context is relevant to the query
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        # LLMContextPrecisionWithoutReference doesn't need an answer but the API requires it
+        placeholder_answer = "This is a placeholder answer for context precision evaluation."
+        result = await _calculate_with_ragas(
+            LLMContextPrecisionWithoutReference,
+            {"query": query, "answer": placeholder_answer, "context": context}
+        )
+        if result is not None:
+            return result
+
+    # Fallback implementation
     if not context or not query:
         return 0.0
+
+    # Ensure context is a string for fallback
+    if isinstance(context, list):
+        context = " ".join(context)
 
     query_words = set(query.lower().split())
     context_words = set(context.lower().split())
@@ -80,27 +244,168 @@ async def calculate_context_relevancy(context: str, query: str) -> float:
     return len(overlap) / len(query_words)
 
 
-async def calculate_correctness(answer: str, ground_truth: str) -> float:
+async def calculate_context_recall(context: Union[str, List[str]], query: str, ground_truth: str) -> float:
     """
-    Calculate correctness score.
+    Calculate context recall score using RAGAS if available.
 
     Args:
-        answer: LLM answer
+        context: Input context (string or list of strings)
+        query: User query
         ground_truth: Expected answer
 
     Returns:
-        float: Correctness score (0-1)
+        float: Context recall score (0-1)
     """
-    # Check if answer matches ground truth
-    if not answer or not ground_truth:
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        # LLMContextRecall requires a reference/ground_truth
+        placeholder_answer = "This is a placeholder answer for context recall evaluation."
+        result = await _calculate_with_ragas(
+            LLMContextRecall,
+            {
+                "query": query,
+                "answer": placeholder_answer,
+                "context": context,
+                "ground_truth": ground_truth
+            },
+            requires_reference=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback implementation
+    if not context or not ground_truth:
         return 0.0
+
+    # Ensure context is a string for fallback
+    if isinstance(context, list):
+        context = " ".join(context)
+
+    ground_truth_words = set(ground_truth.lower().split())
+    context_words = set(context.lower().split())
+
+    if not ground_truth_words:
+        return 0.0
+
+    # Calculate token overlap
+    common_words = ground_truth_words.intersection(context_words)
+    return len(common_words) / len(ground_truth_words)
+
+
+async def calculate_context_entity_recall(context: Union[str, List[str]], ground_truth: str) -> float:
+    """
+    Calculate context entity recall score using RAGAS if available.
+
+    Args:
+        context: Input context (string or list of strings)
+        ground_truth: Expected answer
+
+    Returns:
+        float: Context entity recall score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        # ContextEntityRecall just needs context and reference
+        placeholder_query = "This is a placeholder query for context entity recall."
+        placeholder_answer = "This is a placeholder answer for context entity recall evaluation."
+        result = await _calculate_with_ragas(
+            ContextEntityRecall,
+            {
+                "query": placeholder_query,
+                "answer": placeholder_answer,
+                "context": context,
+                "ground_truth": ground_truth
+            },
+            requires_reference=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback implementation - simple entity extraction
+    if not context or not ground_truth:
+        return 0.0
+
+    # Ensure context is a string for fallback
+    if isinstance(context, list):
+        context = " ".join(context)
+
+    # Naive entity extraction (words starting with capital letters)
+    def extract_entities(text):
+        words = text.split()
+        entities = set()
+        for word in words:
+            if word and word[0].isupper() and len(word) > 1:
+                entities.add(word)
+        return entities
+
+    context_entities = extract_entities(context)
+    ground_truth_entities = extract_entities(ground_truth)
+
+    if not ground_truth_entities:
+        return 1.0  # No entities to recall
+
+    # Calculate recall
+    common_entities = context_entities.intersection(ground_truth_entities)
+    return len(common_entities) / len(ground_truth_entities)
+
+
+async def calculate_noise_sensitivity(query: str, answer: str, context: Union[str, List[str]],
+                                      ground_truth: str) -> float:
+    """
+    Calculate noise sensitivity score using RAGAS if available.
+    Lower scores are better for this metric (0 is best).
+
+    Args:
+        query: User query
+        answer: LLM answer
+        context: Input context (string or list of strings)
+        ground_truth: Expected answer
+
+    Returns:
+        float: Noise sensitivity score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        result = await _calculate_with_ragas(
+            NoiseSensitivity,
+            {
+                "query": query,
+                "answer": answer,
+                "context": context,
+                "ground_truth": ground_truth
+            },
+            requires_reference=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback implementation
+    # For noise sensitivity, lower is better, so we invert the correctness score
+    # and cap at 1.0
+
+    # First calculate correctness between answer and ground truth
+    if not answer or not ground_truth:
+        return 1.0  # Worst score if missing inputs
 
     answer_tokens = answer.lower().split()
     ground_truth_tokens = ground_truth.lower().split()
 
     if not ground_truth_tokens:
-        return 0.0
+        return 1.0  # Worst score if no ground truth
 
-    # Calculate token overlap
+    # Calculate F1-like score for correctness
     common_tokens = sum(1 for token in answer_tokens if token in ground_truth_tokens)
-    return common_tokens / len(ground_truth_tokens)
+
+    if not common_tokens:
+        return 1.0  # Completely incorrect = high noise sensitivity
+
+    precision = common_tokens / len(answer_tokens) if answer_tokens else 0
+    recall = common_tokens / len(ground_truth_tokens) if ground_truth_tokens else 0
+
+    if precision + recall == 0:
+        return 1.0  # Avoid division by zero
+
+    f1 = 2 * (precision * recall) / (precision + recall)
+
+    # Invert to get noise sensitivity (1 - correctness) and ensure in range [0,1]
+    return min(1.0, 1.0 - f1)

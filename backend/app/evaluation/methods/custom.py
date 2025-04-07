@@ -1,22 +1,34 @@
-# File: app/evaluation/methods/custom.py
+# File: backend/app/evaluation/methods/custom.py
+import asyncio
 import logging
-from typing import Any, Dict, List
+import time
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from backend.app.evaluation.methods.base import BaseEvaluationMethod
-from backend.app.db.models.orm.models import Evaluation
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.core.config import settings
+from backend.app.db.models.orm.models import Evaluation, EvaluationStatus
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+from backend.app.evaluation.methods.base import BaseEvaluationMethod
+from backend.app.evaluation.metrics.registry import MetricsRegistry
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 class CustomEvaluationMethod(BaseEvaluationMethod):
-    """Custom evaluation method allowing user-defined metrics and calculations."""
+    """Custom evaluation method using registered metrics."""
+
+    method_name = "custom"
+
+    def __init__(self, db_session: AsyncSession):
+        """Initialize the evaluation method."""
+        super().__init__(db_session)
 
     async def run_evaluation(self, evaluation: Evaluation) -> List[EvaluationResultCreate]:
         """
-        Run a custom evaluation based on user-defined logic.
+        Run evaluation using custom metrics.
 
         Args:
             evaluation: Evaluation model
@@ -24,288 +36,148 @@ class CustomEvaluationMethod(BaseEvaluationMethod):
         Returns:
             List[EvaluationResultCreate]: List of evaluation results
         """
-        # Get related entities
-        microagent = await self.get_microagent(evaluation.micro_agent_id)
-        dataset = await self.get_dataset(evaluation.dataset_id)
-        prompt = await self.get_prompt(evaluation.prompt_id)
+        # Update the evaluation to running status if needed
+        if evaluation.status == EvaluationStatus.PENDING:
+            await self._update_evaluation_status(
+                evaluation.id,
+                EvaluationStatus.RUNNING,
+                {"start_time": time.time()}
+            )
 
-        if not microagent or not dataset or not prompt:
-            logger.error(f"Missing required entities for evaluation {evaluation.id}")
-            return []
+        logger.info(f"Starting custom evaluation {evaluation.id}")
 
-        # Load dataset
-        dataset_items = await self.load_dataset(dataset)
+        # Process using batch processing approach
+        try:
+            results = await self.batch_process(evaluation)
 
-        # Get custom metric functions from configuration
-        custom_metrics = evaluation.config.get("custom_metrics", [])
-        if not custom_metrics:
-            logger.error(f"No custom metrics defined for evaluation {evaluation.id}")
-            return []
+            # Update evaluation to completed status
+            await self._update_evaluation_status(
+                evaluation.id,
+                EvaluationStatus.COMPLETED,
+                {"end_time": time.time()}
+            )
 
-        results = []
+            logger.info(f"Completed custom evaluation {evaluation.id} with {len(results)} results")
+            return results
 
-        for item_index, item in enumerate(dataset_items):
-            try:
-                # Process dataset item
-                formatted_prompt = self._format_prompt(prompt.content, item)
+        except Exception as e:
+            # Update evaluation to failed status
+            await self._update_evaluation_status(
+                evaluation.id,
+                EvaluationStatus.FAILED,
+                {"end_time": time.time()}
+            )
 
-                # Call the micro-agent API
-                response = await self._call_microagent_api(
-                    microagent.api_endpoint,
-                    {
-                        "prompt": formatted_prompt,
-                        "query": item.get("query", ""),
-                        "context": item.get("context", "")
-                    }
-                )
+            logger.exception(f"Failed custom evaluation {evaluation.id}: {str(e)}")
+            raise
 
-                # Extract LLM answer from response
-                answer = response.get("answer", "")
+    async def _update_evaluation_status(
+            self, evaluation_id: UUID, status: EvaluationStatus, additional_data: Dict[str, Any] = None
+    ) -> None:
+        """
+        Update evaluation status in the database.
 
-                # Calculate metrics
-                metrics = await self.calculate_metrics(
-                    input_data=item,
-                    output_data={"answer": answer},
-                    config=evaluation.config or {}
-                )
+        Args:
+            evaluation_id: Evaluation ID
+            status: New status
+            additional_data: Additional data to update
+        """
+        from backend.app.db.repositories.base import BaseRepository
+        from backend.app.db.models.orm.models import Evaluation
 
-                # Calculate overall score based on weighted average
-                total_weight = sum(metric.get("weight", 1.0) for metric in metrics.values())
-                overall_score = sum(
-                    metric["value"] * metric.get("weight", 1.0) for metric in metrics.values()
-                ) / total_weight if total_weight > 0 else 0.0
+        evaluation_repo = BaseRepository(Evaluation, self.db_session)
 
-                # Create metric scores
-                metric_scores = [
-                    MetricScoreCreate(
-                        name=name,
-                        value=metric["value"],
-                        weight=metric.get("weight", 1.0),
-                        metadata={"description": metric.get("description", "")}
-                    )
-                    for name, metric in metrics.items()
-                ]
+        update_data = {"status": status}
+        if additional_data:
+            update_data.update(additional_data)
 
-                # Create evaluation result
-                result = EvaluationResultCreate(
-                    evaluation_id=evaluation.id,
-                    overall_score=overall_score,
-                    raw_results={name: metric["value"] for name, metric in metrics.items()},
-                    dataset_sample_id=str(item_index),
-                    input_data={**item, "prompt": formatted_prompt},
-                    output_data={"answer": answer},
-                    processing_time_ms=response.get("processing_time_ms"),
-                    metric_scores=metric_scores
-                )
-
-                results.append(result)
-
-            except Exception as e:
-                logger.exception(f"Error processing dataset item {item_index}: {e}")
-
-                # Create failed evaluation result
-                result = EvaluationResultCreate(
-                    evaluation_id=evaluation.id,
-                    overall_score=0.0,
-                    raw_results={"error": str(e)},
-                    dataset_sample_id=str(item_index),
-                    input_data=item,
-                    output_data={"error": str(e)},
-                    metric_scores=[]
-                )
-
-                results.append(result)
-
-        return results
+        await evaluation_repo.update(evaluation_id, update_data)
 
     async def calculate_metrics(
             self, input_data: Dict[str, Any], output_data: Dict[str, Any], config: Dict[str, Any]
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> Dict[str, float]:
         """
-        Calculate custom metrics based on configuration.
+        Calculate custom metrics.
 
         Args:
             input_data: Input data for the evaluation
             output_data: Output data from the LLM
-            config: Evaluation configuration with custom metric definitions
+            config: Evaluation configuration
 
         Returns:
-            Dict[str, Dict[str, Any]]: Dictionary mapping metric names to value dictionaries
+            Dict[str, float]: Dictionary mapping metric names to values
         """
-        try:
-            custom_metrics = config.get("custom_metrics", [])
-            metrics = {}
+        # Extract inputs and outputs
+        query = input_data.get("query", "")
+        context = input_data.get("context", "")
+        ground_truth = input_data.get("ground_truth", "")
+        answer = output_data.get("answer", "")
 
-            for metric_config in custom_metrics:
-                metric_name = metric_config.get("name")
-                metric_type = metric_config.get("type")
-
-                if not metric_name or not metric_type:
-                    continue
-
-                # Calculate metric based on type
-                if metric_type == "keyword_match":
-                    keywords = metric_config.get("keywords", [])
-                    answer = output_data.get("answer", "")
-                    score = self._calculate_keyword_match(answer, keywords)
-
-                    metrics[metric_name] = {
-                        "value": score,
-                        "weight": metric_config.get("weight", 1.0),
-                        "description": metric_config.get("description", "Keyword match score")
-                    }
-
-                elif metric_type == "length_check":
-                    min_length = metric_config.get("min_length", 0)
-                    max_length = metric_config.get("max_length", 1000)
-                    answer = output_data.get("answer", "")
-                    score = self._calculate_length_check(answer, min_length, max_length)
-
-                    metrics[metric_name] = {
-                        "value": score,
-                        "weight": metric_config.get("weight", 1.0),
-                        "description": metric_config.get("description", "Length check score")
-                    }
-
-                elif metric_type == "json_validation":
-                    schema = metric_config.get("schema", {})
-                    answer = output_data.get("answer", "")
-                    score = self._calculate_json_validation(answer, schema)
-
-                    metrics[metric_name] = {
-                        "value": score,
-                        "weight": metric_config.get("weight", 1.0),
-                        "description": metric_config.get("description", "JSON validation score")
-                    }
-
-                # Add more metric types as needed
-
-            return metrics
-
-        except Exception as e:
-            logger.exception(f"Error calculating custom metrics: {e}")
+        if not query or not context or not answer:
+            logger.warning("Missing required data for custom evaluation")
             return {}
 
-    def _calculate_keyword_match(self, text: str, keywords: List[str]) -> float:
-        """
-        Calculate keyword match score.
+        # Get enabled metrics from config or use defaults
+        enabled_metrics = config.get("metrics", ["faithfulness", "response_relevancy", "context_precision"])
 
-        Args:
-            text: Text to check
-            keywords: List of keywords to look for
+        # Apply weights from config if provided
+        weights = config.get("weights", {})
 
-        Returns:
-            float: Match score (0-1)
-        """
-        if not text or not keywords:
-            return 0.0
+        # Calculate metrics
+        metrics_results = {}
+        registry = MetricsRegistry()
 
-        text_lower = text.lower()
-        matched_keywords = sum(1 for keyword in keywords if keyword.lower() in text_lower)
-        return matched_keywords / len(keywords) if keywords else 0.0
+        for metric_name in enabled_metrics:
+            metric_info = registry.get(metric_name)
 
-    def _calculate_length_check(self, text: str, min_length: int, max_length: int) -> float:
-        """
-        Calculate length check score.
+            if not metric_info:
+                logger.warning(f"Metric '{metric_name}' not found in registry")
+                continue
 
-        Args:
-            text: Text to check
-            min_length: Minimum desired length
-            max_length: Maximum desired length
+            metric_func = metric_info["func"]
 
-        Returns:
-            float: Length score (0-1)
-        """
-        if not text:
-            return 0.0 if min_length > 0 else 1.0
+            try:
+                # Call the metric function with appropriate parameters
+                if metric_name == "faithfulness":
+                    score = await metric_func(answer, context)
+                elif metric_name == "response_relevancy":
+                    score = await metric_func(answer, query, context)
+                elif metric_name == "context_precision":
+                    score = await metric_func(context, query)
+                elif metric_name == "context_recall":
+                    # Requires ground truth
+                    if not ground_truth:
+                        logger.warning(f"Skipping {metric_name} - ground truth not provided")
+                        continue
+                    score = await metric_func(context, query, ground_truth)
+                elif metric_name == "context_entity_recall":
+                    # Requires ground truth
+                    if not ground_truth:
+                        logger.warning(f"Skipping {metric_name} - ground truth not provided")
+                        continue
+                    score = await metric_func(context, ground_truth)
+                elif metric_name == "noise_sensitivity":
+                    # Requires ground truth
+                    if not ground_truth:
+                        logger.warning(f"Skipping {metric_name} - ground truth not provided")
+                        continue
+                    score = await metric_func(query, answer, context, ground_truth)
+                else:
+                    # Default case - try to call with all parameters
+                    score = await metric_func(query=query, answer=answer, context=context, ground_truth=ground_truth)
 
-        text_length = len(text.split())
+                # Apply weight if specified
+                weight = weights.get(metric_name, 1.0)
+                metrics_results[metric_name] = score * weight
+                logger.info(f"Calculated {metric_name} score: {score:.4f} (weight: {weight})")
 
-        if text_length < min_length:
-            return text_length / min_length
-        elif text_length > max_length:
-            return max(0.0, 1.0 - ((text_length - max_length) / max_length))
-        else:
-            return 1.0
+            except Exception as e:
+                logger.error(f"Error calculating {metric_name}: {e}")
 
-    def _calculate_json_validation(self, text: str, schema: Dict[str, Any]) -> float:
-        """
-        Calculate JSON validation score.
-
-        Args:
-            text: Text to check (should be JSON)
-            schema: JSON schema to validate against
-
-        Returns:
-            float: Validation score (0-1)
-        """
-        import json
-        from jsonschema import validate, ValidationError
-
-        if not text:
-            return 0.0
-
-        try:
-            # Parse JSON
-            data = json.loads(text)
-
-            # Validate against schema
-            validate(instance=data, schema=schema)
-            return 1.0
-
-        except json.JSONDecodeError:
-            # Not valid JSON
-            return 0.0
-
-        except ValidationError:
-            # Valid JSON but doesn't match schema
-            return 0.5
-
-        except Exception:
-            return 0.0
-
-    async def _call_microagent_api(self, api_endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Call the micro-agent API.
-
-        Args:
-            api_endpoint: API endpoint URL
-            payload: Request payload
-
-        Returns:
-            Dict[str, Any]: API response
-        """
-        import httpx
-        from backend.app.core.config import settings
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    api_endpoint,
-                    json=payload,
-                    headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
-                    timeout=60.0
-                )
-
-                response.raise_for_status()
-                return response.json()
-
-
-        except Exception as e:
-            logger.error(f"Error calling micro-agent API: {e}")
-            raise Exception(f"Error calling micro-agent API: {str(e)}")
+        return metrics_results
 
     def _format_prompt(self, prompt_template: str, item: Dict[str, Any]) -> str:
-        """
-        Format prompt template with dataset item.
-
-        Args:
-            prompt_template: Prompt template string
-            item: Dataset item
-
-        Returns:
-            str: Formatted prompt
-        """
+        """Format prompt template with dataset item."""
         formatted_prompt = prompt_template
 
         # Replace placeholders in the template
@@ -315,3 +187,23 @@ class CustomEvaluationMethod(BaseEvaluationMethod):
                 formatted_prompt = formatted_prompt.replace(placeholder, str(value))
 
         return formatted_prompt
+
+    def _get_metric_description(self, metric_name: str) -> str:
+        """Get description for a metric."""
+        registry = MetricsRegistry()
+        metric_info = registry.get(metric_name)
+
+        if metric_info and "description" in metric_info:
+            return metric_info["description"]
+
+        # Fallback descriptions
+        descriptions = {
+            "faithfulness": "Measures how well the answer sticks to the information in the context without hallucinating.",
+            "response_relevancy": "Measures how relevant the answer is to the query asked.",
+            "context_precision": "Measures how precisely the retrieved context matches what's needed to answer the query.",
+            "context_recall": "Measures how well the retrieved context covers all the information needed to answer the query.",
+            "context_entity_recall": "Measures how well the retrieved context captures the entities mentioned in the reference answer.",
+            "noise_sensitivity": "Measures the model's tendency to be misled by irrelevant information in the context (lower is better)."
+        }
+
+        return descriptions.get(metric_name, f"Measures the {metric_name} of the response.")

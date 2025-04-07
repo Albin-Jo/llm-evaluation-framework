@@ -35,10 +35,11 @@ class MetricsRegistry:
 
 # Register built-in metrics
 def register_builtin_metrics():
-    """Register built-in metrics."""
+    """Register built-in metrics with updated descriptions."""
     from backend.app.evaluation.metrics.ragas_metrics import (
-        calculate_faithfulness, calculate_answer_relevancy,
-        calculate_context_relevancy, calculate_correctness
+        calculate_faithfulness, calculate_response_relevancy,
+        calculate_context_precision, calculate_context_recall,
+        calculate_context_entity_recall, calculate_noise_sensitivity
     )
 
     MetricsRegistry.register(
@@ -49,23 +50,37 @@ def register_builtin_metrics():
     )
 
     MetricsRegistry.register(
-        "answer_relevancy",
-        calculate_answer_relevancy,
+        "response_relevancy",
+        calculate_response_relevancy,
         "Measures how relevant the answer is to the query asked.",
         1.0
     )
 
     MetricsRegistry.register(
-        "context_relevancy",
-        calculate_context_relevancy,
-        "Measures how relevant the context is to the query asked.",
+        "context_precision",
+        calculate_context_precision,
+        "Measures how precisely the retrieved context matches what's needed to answer the query.",
         1.0
     )
 
     MetricsRegistry.register(
-        "correctness",
-        calculate_correctness,
-        "Measures how well the answer matches the ground truth.",
+        "context_recall",
+        calculate_context_recall,
+        "Measures how well the retrieved context covers all the information needed to answer the query.",
+        1.0
+    )
+
+    MetricsRegistry.register(
+        "context_entity_recall",
+        calculate_context_entity_recall,
+        "Measures how well the retrieved context captures the entities mentioned in the reference answer.",
+        1.0
+    )
+
+    MetricsRegistry.register(
+        "noise_sensitivity",
+        calculate_noise_sensitivity,
+        "Measures the model's tendency to be misled by irrelevant information in the context (lower is better).",
         1.0
     )
 
