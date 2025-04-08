@@ -1,11 +1,11 @@
 # File: app/services/storage.py
-import os
-import uuid
-import time
 import hashlib
+import os
+import time
+import uuid
 from abc import ABC, abstractmethod
 from functools import lru_cache
-from typing import BinaryIO, List, Optional, AsyncGenerator
+from typing import List, AsyncGenerator
 
 from fastapi import UploadFile
 
@@ -162,6 +162,8 @@ class LocalStorageService(BaseStorageService):
             str: Path to the uploaded file
         """
         # Create directory if it doesn't exist
+        # Convert any backslashes to forward slashes for consistency across platforms
+        directory = directory.replace('\\', '/')
         dir_path = self._get_full_path(directory)
         os.makedirs(dir_path, exist_ok=True)
 
@@ -170,7 +172,7 @@ class LocalStorageService(BaseStorageService):
         filename = f"{uuid.uuid4()}{file_ext}"
 
         # Create full path
-        relative_path = os.path.join(directory, filename)
+        relative_path = os.path.join(directory, filename).replace('\\', '/')
         full_path = self._get_full_path(relative_path)
 
         # Write file in chunks

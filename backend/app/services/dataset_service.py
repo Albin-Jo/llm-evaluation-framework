@@ -8,16 +8,17 @@ from json import JSONDecodeError
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 from uuid import UUID
 
+from fastapi import HTTPException, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.core.config import settings
-from backend.app.db.repositories.dataset_repository import DatasetRepository
 from backend.app.db.models.orm.models import Dataset, DatasetType, User
+from backend.app.db.repositories.dataset_repository import DatasetRepository
 from backend.app.db.schema.dataset_schema import (
     DatasetCreate, DatasetUpdate,
     DatasetValidationResult
 )
 from backend.app.services.storage import get_storage_service
-from fastapi import HTTPException, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -64,68 +65,72 @@ class DatasetService:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=f"File too large. Maximum size: {settings.MAX_UPLOAD_SIZE / (1024 * 1024)}MB"
-                # File: app/services/dataset_service.py (continued)
             )
 
-            # Validate file content type
-            content_type = file.content_type
-            valid_types = {
-                DatasetType.USER_QUERY: ["text/csv", "application/json", "text/plain"],
-                DatasetType.CONTEXT: ["text/csv", "application/json", "text/plain"],
-                DatasetType.QUESTION_ANSWER: ["text/csv", "application/json"],
-                DatasetType.CONVERSATION: ["application/json"],
-                DatasetType.CUSTOM: ["text/csv", "application/json", "text/plain"]
-            }
+        # Validate file content type
+        content_type = file.content_type
+        valid_types = {
+            DatasetType.USER_QUERY: ["text/csv", "application/json", "text/plain"],
+            DatasetType.CONTEXT: ["text/csv", "application/json", "text/plain"],
+            DatasetType.QUESTION_ANSWER: ["text/csv", "application/json"],
+            DatasetType.CONVERSATION: ["application/json"],
+            DatasetType.CUSTOM: ["text/csv", "application/json", "text/plain"]
+        }
 
-            if content_type not in valid_types.get(dataset_type, []):
-                raise HTTPException(
-                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                    detail=f"Unsupported file type for dataset type {dataset_type}. Supported types: {valid_types.get(dataset_type)}"
-                )
+        if content_type not in valid_types.get(dataset_type, []):
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail=f"Unsupported file type for dataset type {dataset_type}. Supported types: {valid_types.get(dataset_type)}"
+            )
 
-            try:
-                # Upload file
-                file_path = await self.storage_service.upload_file(file, "datasets")
+        try:
+            # Construct more organized file path
+            # /{environment}/uploads/datasets/{dataset_type}/...
+            environment = settings.ENVIRONMENT
+            dir_path = f"{environment}/uploads/datasets/{dataset_type.value}"
 
-                # Analyze file and get metadata
-                meta_info, row_count, schema = await self.analyze_file(file, dataset_type)
+            # Upload file
+            file_path = await self.storage_service.upload_file(file, dir_path)
 
-                # Create dataset
-                dataset_data = DatasetCreate(
-                    name=name,
-                    description=description,
-                    type=dataset_type,
-                    file_path=file_path,
-                    schema=schema,
-                    meta_info=meta_info,
-                    row_count=row_count,
-                    is_public=is_public
-                )
+            # Analyze file and get metadata
+            meta_info, row_count, schema = await self.analyze_file(file, dataset_type)
 
-                # Create dataset in DB
-                dataset_dict = dataset_data.model_dump()
-                dataset_dict["owner_id"] = user.id
+            # Create dataset
+            dataset_data = DatasetCreate(
+                name=name,
+                description=description,
+                type=dataset_type,
+                file_path=file_path,
+                schema=schema,
+                meta_info=meta_info,
+                row_count=row_count,
+                is_public=is_public
+            )
 
-                dataset = await self.dataset_repo.create(dataset_dict)
-                return dataset
+            # Create dataset in DB
+            dataset_dict = dataset_data.model_dump()
+            dataset_dict["owner_id"] = user.id
 
-            except JSONDecodeError:
-                # Clean up uploaded file if it exists
-                if 'file_path' in locals():
-                    await self.storage_service.delete_file(file_path)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid JSON format in the uploaded file"
-                )
-            except Exception as e:
-                # Clean up uploaded file if it exists
-                if 'file_path' in locals():
-                    await self.storage_service.delete_file(file_path)
-                logger.exception(f"Error creating dataset: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Error creating dataset: {str(e)}"
-                )
+            dataset = await self.dataset_repo.create(dataset_dict)
+            return dataset
+
+        except JSONDecodeError:
+            # Clean up uploaded file if it exists
+            if 'file_path' in locals():
+                await self.storage_service.delete_file(file_path)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid JSON format in the uploaded file"
+            )
+        except Exception as e:
+            # Clean up uploaded file if it exists
+            if 'file_path' in locals():
+                await self.storage_service.delete_file(file_path)
+            logger.exception(f"Error creating dataset: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error creating dataset: {str(e)}"
+            )
 
     async def get_dataset(self, dataset_id: UUID, user: User) -> Dataset:
         """
@@ -817,6 +822,7 @@ class DatasetService:
                 detail=f"Error exporting dataset: {str(e)}"
             )
 
+
     async def create_dataset_version(
             self, dataset_id: UUID, file: UploadFile, version_notes: Optional[str], user: User
     ) -> Dataset:
@@ -855,9 +861,11 @@ class DatasetService:
             new_version = f"{current_version}.1"
 
         try:
-            # Upload new file
-            # Generate version-specific path
-            version_path = f"datasets/versions/{dataset_id}/{new_version}"
+            # Upload new file using organized directory structure
+            # /{environment}/uploads/datasets/{dataset_type}/versions/{dataset_id}/{version}/
+            environment = settings.ENVIRONMENT
+            version_path = f"{environment}/uploads/datasets/{original_dataset.type.value}/versions/{dataset_id}/{new_version}"
+
             file_path = await self.storage_service.upload_file(file, version_path)
 
             # Analyze file and get metadata

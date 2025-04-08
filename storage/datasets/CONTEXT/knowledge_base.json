@@ -1,0 +1,47 @@
+[
+  {
+    "title": "Remote Access VPN Troubleshooting Guide",
+    "content": "When experiencing VPN connection issues, follow these steps: 1) Ensure you have a stable internet connection by testing with other applications. 2) Verify that you're using the correct VPN client (GlobalConnect version 5.2 or higher). 3) Check that your username and password are entered correctly, including the correct domain prefix (CORP\\username). 4) Confirm your MFA token is current and hasn't expired. 5) Try disconnecting from any public Wi-Fi and use a personal hotspot or home network instead. 6) Restart the VPN client completely, not just reconnecting. 7) If using Windows, run the connection diagnostic tool by right-clicking the network icon. 8) Check if your antivirus or firewall is blocking the VPN connection. 9) Verify that your VPN certificate hasn't expired by checking the client settings. 10) If all else fails, contact the IT Help Desk at extension 1234 or helpdesk@company.com with your username, device details, and specific error messages.",
+    "metadata": {
+      "category": "IT",
+      "tags": ["VPN", "remote work", "connectivity", "troubleshooting"],
+      "last_updated": "2023-11-15"
+    }
+  },
+  {
+    "title": "Data Encryption Standards and Procedures",
+    "content": "Company data encryption standards require all sensitive data to be encrypted both at rest and in transit. For file encryption, use the company-provided FileGuard software installed on all corporate devices. To encrypt a file, right-click and select 'Encrypt with FileGuard' or open the FileGuard application and select files manually. The default encryption uses AES-256. When sharing encrypted files with external partners, use the Secure File Transfer Portal (SFTP) at transfer.company.com. Recipients will need the password, which should be communicated through a separate channel, preferably by phone. For emails containing sensitive information, include [SECURE] in the subject line to trigger automatic encryption. Database administrators must ensure all databases containing PII or financial information implement transparent data encryption. Mobile devices must have full-disk encryption enabled, which is configured by default on company-managed devices. Employees using BYOD must verify encryption is enabled through the Mobile Device Management portal.",
+    "metadata": {
+      "category": "Security",
+      "tags": ["encryption", "data protection", "compliance", "file sharing"],
+      "last_updated": "2024-01-20"
+    }
+  },
+  {
+    "title": "Conference Room Equipment Operating Procedures",
+    "content": "Each conference room is equipped with a video conferencing system compatible with Microsoft Teams, Zoom, and Webex. To start a meeting, use the touch panel on the table. Select your preferred platform and enter the meeting ID or join from the calendar if the room was properly booked. For display issues, ensure the HDMI cables are securely connected and press the 'Source' button to cycle through inputs. The default display mode is extended, but you can change to mirror mode by pressing Win+P on Windows or clicking the display options on Mac. Audio problems are usually resolved by selecting the correct audio output on the touch panel. Ensure the microphone pods are properly placed on the table and not muted (indicated by a red light). For larger meetings, use the ceiling microphone system which is activated automatically. If the system is completely unresponsive, locate the AV reset button under the main table. Press and hold for 5 seconds, then wait 2 minutes for the system to reboot. For persistent issues, contact Facilities Management at ext. 5678.",
+    "metadata": {
+      "category": "Facilities",
+      "tags": ["conference rooms", "AV equipment", "video conferencing", "troubleshooting"],
+      "last_updated": "2023-09-08"
+    }
+  },
+  {
+    "title": "Software License Management Policy",
+    "content": "All software used on company devices must be properly licensed and approved by the IT department. Employees may not install unauthorized software on company devices. To request new software, submit a Software Request Form through the IT Service Portal, providing business justification, number of licenses needed, and preferred installation date. The IT department maintains a software inventory tracking system to ensure compliance with licensing agreements. Software licenses are categorized as: Individual (assigned to a specific user), Departmental (limited to users within a department), or Enterprise (available company-wide). Before purchasing additional licenses, check the Software Portal to see if unused licenses are available. License renewals are managed centrally by the IT Asset Management team, who will contact license owners 60 days prior to expiration. When an employee changes roles or leaves the company, their assigned software licenses must be returned to the license pool by submitting a License Reassignment form. Using unlicensed software or deliberately circumventing license restrictions is a violation of company policy and may result in disciplinary action.",
+    "metadata": {
+      "category": "IT",
+      "tags": ["software", "licenses", "compliance", "IT policy"],
+      "last_updated": "2023-12-10"
+    }
+  },
+  {
+    "title": "Data Backup and Recovery Procedures",
+    "content": "All company data should be stored on approved platforms (OneDrive, SharePoint, or network drives) to ensure proper backup. Local device storage is not backed up automatically and should only be used for temporary files. Company servers and approved storage locations are backed up incrementally every 24 hours, with full backups performed weekly. Backups are retained according to the following schedule: Daily backups for 30 days, weekly backups for 3 months, monthly backups for 1 year, and annual backups for 7 years. To restore accidentally deleted files from OneDrive or SharePoint, users can access the Recycle Bin within the application for items deleted within the last 93 days. For files deleted from network drives or files beyond the standard retention period, submit a Data Restoration Request through the IT Service Portal. Include the file name, original location, approximate date of deletion, and business justification for restoration. The IT team will attempt recovery within 24-48 hours, depending on the complexity. In the event of a major data loss incident, the Business Continuity Plan will be activated, and the Data Recovery Team will restore systems based on priority levels established in the Business Impact Analysis.",
+    "metadata": {
+      "category": "IT",
+      "tags": ["backup", "data recovery", "data storage", "business continuity"],
+      "last_updated": "2024-02-05"
+    }
+  }
+]

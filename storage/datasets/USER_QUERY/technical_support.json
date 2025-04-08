@@ -1,0 +1,82 @@
+[
+  {
+    "query": "My laptop is running very slowly. What can I do to fix it?",
+    "metadata": {
+      "category": "hardware",
+      "priority": "medium",
+      "frequency": "high"
+    }
+  },
+  {
+    "query": "I can't connect to the VPN when working remotely. How do I troubleshoot this?",
+    "metadata": {
+      "category": "network",
+      "priority": "high",
+      "frequency": "high"
+    }
+  },
+  {
+    "query": "How do I set up multi-factor authentication for my company accounts?",
+    "metadata": {
+      "category": "security",
+      "priority": "high",
+      "frequency": "medium"
+    }
+  },
+  {
+    "query": "The printer on the 3rd floor isn't working. Who should I contact?",
+    "metadata": {
+      "category": "hardware",
+      "priority": "low",
+      "frequency": "medium"
+    }
+  },
+  {
+    "query": "I need to restore a deleted file from my OneDrive. Is this possible?",
+    "metadata": {
+      "category": "software",
+      "priority": "medium",
+      "frequency": "medium"
+    }
+  },
+  {
+    "query": "My email is not syncing on my mobile device. What should I check?",
+    "metadata": {
+      "category": "mobile",
+      "priority": "medium",
+      "frequency": "high"
+    }
+  },
+  {
+    "query": "How do I request access to the financial reporting system?",
+    "metadata": {
+      "category": "permissions",
+      "priority": "medium",
+      "frequency": "low"
+    }
+  },
+  {
+    "query": "The video conferencing system in Meeting Room A is not connecting. Is there a quick fix?",
+    "metadata": {
+      "category": "hardware",
+      "priority": "high",
+      "frequency": "medium"
+    }
+  },
+  {
+    "query": "I'm getting a 'disk full' error on my laptop. What should I do?",
+    "metadata": {
+      "category": "hardware",
+      "priority": "high",
+      "frequency": "medium"
+    }
+  },
+  {
+    "query": "How do I encrypt sensitive files before sharing them with external partners?",
+    "metadata": {
+      "category": "security",
+      "priority": "high",
+      "frequency": "medium"
+    }
+  }
+]
