@@ -3,12 +3,12 @@ import httpx
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2AuthorizationCodeBearer
-from jose import JWTError, jwt
+from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.db.repositories.user_repository import UserRepository
-from backend.app.db.models.orm.models import User, UserRole
+from backend.app.db.models.orm import User, UserRole
 import logging
 
 logger = logging.getLogger(__name__)

@@ -1,20 +1,19 @@
-# File: app/api/v1/datasets.py
-from typing import Any, Dict, List, Optional
+from typing import Optional, List, Dict
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.session import get_db
-from backend.app.db.models.orm.models import DatasetType, User
+from backend.app.db.models.orm import DatasetType
 from backend.app.db.schema.dataset_schema import (
-    DatasetResponse, DatasetUpdate,
-    DatasetValidationResult
+    DatasetResponse, DatasetUpdate, DatasetSchemaResponse
 )
-from backend.app.services.auth import get_current_active_user
+from backend.app.db.session import get_db
+from backend.app.db.validators.dataset_validator import (
+    get_dataset_schema, validate_dataset_schema
+)
+from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.services.dataset_service import DatasetService
-from backend.app.services.storage import get_storage_service
 
 router = APIRouter()
 
@@ -26,7 +25,6 @@ async def create_dataset(
         type: DatasetType = Form(...),
         file: UploadFile = File(...),
         is_public: bool = Form(False),
-        current_user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -38,7 +36,6 @@ async def create_dataset(
         type: Dataset type (USER_QUERY, CONTEXT, QUESTION_ANSWER, CONVERSATION, CUSTOM)
         file: Uploaded file (CSV, JSON, or plain text)
         is_public: Whether the dataset is public
-        current_user: Current authenticated user
         db: Database session
 
     Returns:
@@ -50,13 +47,36 @@ async def create_dataset(
     dataset_service = DatasetService(db)
 
     try:
+        # Validate the file content against the schema
+        file_contents = await file.read()
+        if isinstance(file_contents, bytes):
+            file_contents = file_contents.decode('utf-8')
+
+        # Reset file pointer for the dataset service to use
+        await file.seek(0)
+
+        # Validate dataset against schema
+        try:
+            validation_result = validate_dataset_schema(file_contents, type)
+            # Add validation info to dataset creation
+            extra_meta = {
+                "validation_result": validation_result,
+                "supported_metrics": DATASET_TYPE_METRICS.get(type, []),
+                "row_count": validation_result.get("count", 0)
+            }
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid dataset format: {str(e)}"
+            )
+
         dataset = await dataset_service.create_dataset(
             name=name,
             description=description,
             dataset_type=type,
             file=file,
             is_public=is_public,
-            user=current_user
+            extra_metadata=extra_meta
         )
         return dataset
     except Exception as e:
@@ -74,7 +94,6 @@ async def list_datasets(
         limit: int = 100,
         type: Optional[DatasetType] = None,
         is_public: Optional[bool] = None,
-        current_user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -85,7 +104,6 @@ async def list_datasets(
         limit: Maximum number of records to return
         type: Filter by dataset type
         is_public: Filter by public/private status
-        current_user: Current authenticated user
         db: Database session
 
     Returns:
@@ -94,7 +112,6 @@ async def list_datasets(
     dataset_service = DatasetService(db)
 
     datasets = await dataset_service.list_datasets(
-        user=current_user,
         skip=skip,
         limit=limit,
         dataset_type=type,
@@ -107,7 +124,6 @@ async def list_datasets(
 @router.get("/{dataset_id}", response_model=DatasetResponse)
 async def get_dataset(
         dataset_id: UUID,
-        current_user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -115,7 +131,6 @@ async def get_dataset(
 
     Args:
         dataset_id: Dataset ID
-        current_user: Current authenticated user
         db: Database session
 
     Returns:
@@ -127,7 +142,7 @@ async def get_dataset(
     dataset_service = DatasetService(db)
 
     try:
-        dataset = await dataset_service.get_dataset(dataset_id, current_user)
+        dataset = await dataset_service.get_dataset(dataset_id)
         return dataset
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -138,11 +153,38 @@ async def get_dataset(
         )
 
 
+@router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_dataset(
+        dataset_id: UUID,
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete dataset by ID.
+
+    Args:
+        dataset_id: Dataset ID
+        db: Database session
+
+    Raises:
+        HTTPException: If dataset not found or user doesn't have permission
+    """
+    dataset_service = DatasetService(db)
+
+    try:
+        await dataset_service.delete_dataset(dataset_id)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting dataset: {str(e)}"
+        )
+
+
 @router.put("/{dataset_id}", response_model=DatasetResponse)
 async def update_dataset(
         dataset_id: UUID,
         dataset_data: DatasetUpdate,
-        current_user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -151,7 +193,6 @@ async def update_dataset(
     Args:
         dataset_id: Dataset ID
         dataset_data: Dataset update data
-        current_user: Current authenticated user
         db: Database session
 
     Returns:
@@ -164,7 +205,7 @@ async def update_dataset(
 
     try:
         updated_dataset = await dataset_service.update_dataset(
-            dataset_id, dataset_data, current_user
+            dataset_id, dataset_data
         )
         return updated_dataset
     except Exception as e:
@@ -176,418 +217,66 @@ async def update_dataset(
         )
 
 
-@router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_dataset(
-        dataset_id: UUID,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
+@router.get("/schema/{dataset_type}", response_model=DatasetSchemaResponse)
+async def get_dataset_type_schema(
+        dataset_type: DatasetType
 ):
     """
-    Delete dataset by ID.
+    Get the schema for a specific dataset type.
+
+    This endpoint provides information about required and optional fields,
+    as well as which evaluation metrics are supported for this dataset type.
 
     Args:
-        dataset_id: Dataset ID
-        current_user: Current authenticated user
-        db: Database session
-
-    Raises:
-        HTTPException: If dataset not found or user doesn't have permission
-    """
-    dataset_service = DatasetService(db)
-
-    try:
-        await dataset_service.delete_dataset(dataset_id, current_user)
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting dataset: {str(e)}"
-        )
-
-
-@router.get("/{dataset_id}/preview", response_model=List[Dict[str, Any]])
-async def preview_dataset(
-        dataset_id: UUID,
-        limit: int = 10,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Preview dataset content.
-
-    Args:
-        dataset_id: Dataset ID
-        limit: Number of records to return
-        current_user: Current authenticated user
-        db: Database session
+        dataset_type: Type of dataset to get schema for
 
     Returns:
-        List[Dict[str, Any]]: Dataset preview
-
-    Raises:
-        HTTPException: If dataset not found or user doesn't have access
+        DatasetSchemaResponse: Schema information including supported metrics
     """
-    dataset_service = DatasetService(db)
-
     try:
-        preview = await dataset_service.preview_dataset(
-            dataset_id, current_user, limit
-        )
-        return preview
+        schema = get_dataset_schema(dataset_type)
+        supported_metrics = DATASET_TYPE_METRICS.get(dataset_type, [])
+
+        return {
+            "dataset_type": dataset_type,
+            "schema": schema,
+            "supported_metrics": supported_metrics
+        }
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error previewing dataset: {str(e)}"
+            detail=f"Error getting dataset schema: {str(e)}"
         )
 
 
-@router.post("/{dataset_id}/validate", response_model=DatasetValidationResult)
-async def validate_dataset(
-        dataset_id: UUID,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
+@router.get("/metrics/{dataset_type}", response_model=Dict[str, List[str]])
+async def get_supported_metrics(
+        dataset_type: DatasetType
 ):
     """
-    Validate a dataset against its schema.
+    Get supported metrics for a specific dataset type.
 
     Args:
-        dataset_id: Dataset ID
-        current_user: Current authenticated user
-        db: Database session
+        dataset_type: Type of dataset to get metrics for
 
     Returns:
-        DatasetValidationResult: Validation results
-
-    Raises:
-        HTTPException: If dataset not found or user doesn't have access
+        Dict: Dictionary with dataset type and list of supported metrics
     """
-    dataset_service = DatasetService(db)
-
     try:
-        validation_result = await dataset_service.validate_dataset(
-            dataset_id, current_user
-        )
-        return validation_result
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error validating dataset: {str(e)}"
-        )
-
-
-@router.get("/{dataset_id}/statistics", response_model=Dict[str, Any])
-async def get_dataset_statistics(
-        dataset_id: UUID,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Get statistical information about a dataset.
-
-    Args:
-        dataset_id: Dataset ID
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        Dict[str, Any]: Dataset statistics
-
-    Raises:
-        HTTPException: If dataset not found or user doesn't have access
-    """
-    dataset_service = DatasetService(db)
-
-    try:
-        statistics = await dataset_service.get_dataset_statistics(
-            dataset_id, current_user
-        )
-        return statistics
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error calculating dataset statistics: {str(e)}"
-        )
-
-
-@router.get("/{dataset_id}/export")
-async def export_dataset(
-        dataset_id: UUID,
-        format: str = "json",
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Export a dataset to various formats.
-
-    Args:
-        dataset_id: Dataset ID
-        format: Export format (json, csv)
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        Response: Exported dataset file
-
-    Raises:
-        HTTPException: If dataset not found or user doesn't have access
-    """
-    dataset_service = DatasetService(db)
-
-    try:
-        filename, content_type, content = await dataset_service.export_dataset(
-            dataset_id, current_user, format
-        )
-
-        return Response(
-            content=content,
-            media_type=content_type,
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error exporting dataset: {str(e)}"
-        )
-
-
-@router.post("/{dataset_id}/versions", response_model=DatasetResponse)
-async def create_dataset_version(
-        dataset_id: UUID,
-        file: UploadFile = File(...),
-        version_notes: Optional[str] = Form(None),
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Create a new version of an existing dataset.
-
-    Args:
-        dataset_id: Dataset ID
-        file: Uploaded file
-        version_notes: Notes about this version
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        DatasetResponse: Updated dataset
-
-    Raises:
-        HTTPException: If dataset not found or user doesn't have permission
-    """
-    dataset_service = DatasetService(db)
-
-    try:
-        updated_dataset = await dataset_service.create_dataset_version(
-            dataset_id, file, version_notes, current_user
-        )
-        return updated_dataset
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating dataset version: {str(e)}"
-        )
-
-
-@router.get("/search", response_model=List[DatasetResponse])
-async def search_datasets(
-        query: str,
-        types: Optional[List[DatasetType]] = Query(None),
-        include_content: bool = False,
-        skip: int = 0,
-        limit: int = 20,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Search for datasets by name, description, or content.
-
-    Args:
-        query: Search term
-        types: Filter by dataset types
-        include_content: Whether to search in dataset content
-        skip: Number of records to skip (for pagination)
-        limit: Maximum number of records to return
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        List[DatasetResponse]: Matching datasets
-    """
-    dataset_service = DatasetService(db)
-
-    try:
-        datasets = await dataset_service.search_datasets(
-            query=query,
-            user=current_user,
-            types=types,
-            include_content=include_content,
-            skip=skip,
-            limit=limit
-        )
-        return datasets
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error searching datasets: {str(e)}"
-        )
-
-
-# @router.get("/files/{path:path}")
-# async def get_dataset_file(
-#         path: str,
-#         validated_path: str = Depends(validate_file_access_token),
-#         expires: int,
-#         db: AsyncSession = Depends(get_db)
-# ):
-#     """
-#     Protected endpoint to access dataset files through a secure token.
-#
-#     Args:
-#         path: File path
-#         token: Security token
-#         expires: Expiration timestamp
-#         db: Database session
-#
-#     Returns:
-#         Response: The requested file if token is valid
-#
-#     Raises:
-#         HTTPException: If token is invalid or expired
-#     """
-#     # Check if token has expired
-#     current_time = int(time.time())
-#     if current_time > expires:
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="Access token has expired"
-#         )
-#
-#     # Validate token
-#     expected_token = hashlib.sha256(f"{path}:{expires}:{settings.APP_SECRET_KEY}".encode()).hexdigest()
-#     if token != expected_token:
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="Invalid access token"
-#         )
-#
-#     # Get storage service
-#     storage_service = get_storage_service()
-#
-#     # Check if file exists
-#     if not await storage_service.file_exists(path):
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="File not found"
-#         )
-#
-#     # For local storage, we can use FileResponse
-#     from backend.app.services.storage import LocalStorageService
-#     if isinstance(storage_service, LocalStorageService):
-#         full_path = storage_service._get_full_path(path)
-#         return FileResponse(full_path)
-#     else:
-#         # For other storage types, stream the file
-#         try:
-#             # Try to determine content type
-#             content_type = "application/octet-stream"
-#             if path.endswith(".json"):
-#                 content_type = "application/json"
-#             elif path.endswith(".csv"):
-#                 content_type = "text/csv"
-#             elif path.endswith(".txt"):
-#                 content_type = "text/plain"
-#
-#             # Stream the file
-#             async def file_iterator():
-#                 async for chunk in storage_service.read_file_stream(path):
-#                     yield chunk
-#
-#             return StreamingResponse(
-#                 file_iterator(),
-#                 media_type=content_type,
-#                 headers={"Content-Disposition": f"attachment; filename={path.split('/')[-1]}"}
-#             )
-#         except Exception as e:
-#             raise HTTPException(
-#                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#                 detail=f"Error retrieving file: {str(e)}"
-#             )
-
-
-@router.get("/{dataset_id}/download")
-async def download_dataset(
-        dataset_id: UUID,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Download a dataset file directly.
-
-    Args:
-        dataset_id: Dataset ID
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        StreamingResponse: Dataset file stream
-
-    Raises:
-        HTTPException: If dataset not found or user doesn't have access
-    """
-    dataset_service = DatasetService(db)
-
-    try:
-        # Check if user has access to the dataset
-        dataset = await dataset_service.get_dataset(dataset_id, current_user)
-
-        # Get storage service
-        storage_service = get_storage_service()
-
-        # Check if file exists
-        if not await storage_service.file_exists(dataset.file_path):
+        if dataset_type not in DATASET_TYPE_METRICS:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Dataset file not found"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid dataset type: {dataset_type}"
             )
 
-        # Determine content type based on file extension
-        content_type = "application/octet-stream"
-        if dataset.file_path.endswith(".json"):
-            content_type = "application/json"
-        elif dataset.file_path.endswith(".csv"):
-            content_type = "text/csv"
-        elif dataset.file_path.endswith(".txt"):
-            content_type = "text/plain"
-
-        # Stream the file
-        async def file_iterator():
-            async for chunk in dataset_service.get_dataset_content_stream(dataset_id, current_user):
-                yield chunk
-
-        filename = f"{dataset.name}{dataset.file_path[dataset.file_path.rfind('.'):]}"
-
-        return StreamingResponse(
-            file_iterator(),
-            media_type=content_type,
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
+        return {
+            "dataset_type": dataset_type,
+            "supported_metrics": DATASET_TYPE_METRICS[dataset_type]
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error downloading dataset: {str(e)}"
+            detail=f"Error getting supported metrics: {str(e)}"
         )

@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import your models
-from backend.app.db.models.orm.models import *  # Import all models
 from backend.app.core.config import settings
 
 # This is the Alembic Config object

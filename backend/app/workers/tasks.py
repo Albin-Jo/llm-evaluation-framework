@@ -1,4 +1,4 @@
-# File: app/workers/tasks.py
+# backend/app/workers/tasks.py
 import asyncio
 import logging
 from uuid import UUID
@@ -7,8 +7,8 @@ from celery import Celery
 from celery.signals import worker_ready
 
 from backend.app.core.config import settings
+from backend.app.db.models.orm import EvaluationStatus
 from backend.app.db.session import db_session
-from backend.app.db.models.orm.models import EvaluationMethod, EvaluationStatus
 from backend.app.services.evaluation_service import EvaluationService
 
 # Configure Celery
@@ -42,7 +42,6 @@ def run_evaluation_task(self, evaluation_id: str) -> str:
         return loop.run_until_complete(_run_evaluation(evaluation_uuid))
     except Exception as exc:
         logger.exception(f"Error running evaluation {evaluation_id}")
-
         # Retry with exponential backoff
         retry_in = 2 ** self.request.retries
         self.retry(exc=exc, countdown=retry_in)
@@ -86,7 +85,8 @@ async def _run_evaluation(evaluation_id: UUID) -> str:
 
             # Run the evaluation with batch processing
             batch_size = evaluation.config.get("batch_size", 10) if evaluation.config else 10
-            results = await method_handler.batch_process(evaluation, batch_size)
+            logger.info(f"Processing evaluation {evaluation_id} with batch size {batch_size}")
+            results = await method_handler.run_evaluation(evaluation)
 
             # Process results
             for result_data in results:

@@ -1,4 +1,3 @@
-# File: app/models/orm/base.py
 from datetime import datetime
 from typing import Any, Dict
 

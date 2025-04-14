@@ -1,11 +1,10 @@
-# File: app/schema/user_schema.py
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict
 
-from backend.app.db.models.orm.models import UserRole
+from backend.app.db.models.orm import UserRole
 
 
 class UserBase(BaseModel):
@@ -17,7 +16,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """Schema for creating a new user."""
+    """Schema for creatinguser."""
     external_id: str
 
 

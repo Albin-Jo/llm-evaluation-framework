@@ -1,5 +1,4 @@
 # File: backend/app/evaluation/methods/ragas.py
-import asyncio
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -8,8 +7,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
-from backend.app.db.models.orm.models import Evaluation, EvaluationStatus
-from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+from backend.app.db.models.orm import Evaluation, EvaluationStatus
+from backend.app.db.schema.evaluation_schema import EvaluationResultCreate
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 
 # Configure logging
@@ -100,7 +99,7 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
             additional_data: Additional data to update
         """
         from backend.app.db.repositories.base import BaseRepository
-        from backend.app.db.models.orm.models import Evaluation
+        from backend.app.db.models.orm import Evaluation
 
         evaluation_repo = BaseRepository(Evaluation, self.db_session)
 

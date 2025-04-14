@@ -5,7 +5,6 @@ import os
 import sys
 import uuid
 import traceback
-from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -25,7 +24,7 @@ logger = logging.getLogger("debug")
 
 # Import project modules - adjust paths if needed
 from backend.app.core.config import settings
-from backend.app.db.models.orm.models import User, UserRole, EvaluationStatus
+from backend.app.db.models.orm import User, UserRole, EvaluationStatus
 from backend.app.utils.sample_dataset import SampleEvaluationBuilder
 from backend.app.services.evaluation_service import EvaluationService
 from backend.app.evaluation.methods.ragas import RagasEvaluationMethod

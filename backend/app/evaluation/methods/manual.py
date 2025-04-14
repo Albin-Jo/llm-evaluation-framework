@@ -1,11 +1,10 @@
 # File: app/evaluation/methods/manual.py
 import logging
 from typing import Any, Dict, List
-from uuid import UUID
 
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
-from backend.app.db.models.orm.models import Evaluation
-from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
+from backend.app.db.models.orm import Evaluation
+from backend.app.db.schema.evaluation_schema import EvaluationResultCreate
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -1,4 +1,4 @@
-# File: app/db/repositories/agent_repository.py
+import logging
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 
@@ -6,9 +6,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import or_
 
+from backend.app.db.models.orm import Agent, Evaluation
 from backend.app.db.repositories.base import BaseRepository
-from backend.app.db.models.orm.models import Agent, Evaluation
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ class AgentRepository(BaseRepository):
             The agent if found, None otherwise
         """
         query = select(self.model).where(self.model.name == name)
-        result = await self.db.execute(query)
+        result = await self.session.execute(query)
         return result.scalars().first()
 
     async def search_by_name(
@@ -67,7 +66,7 @@ class AgentRepository(BaseRepository):
         query = query.offset(skip).limit(limit)
 
         # Execute query
-        result = await self.db.execute(query)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_agents_by_domain(self, domain: str) -> List[Agent]:
@@ -81,7 +80,7 @@ class AgentRepository(BaseRepository):
             List of agents in the specified domain
         """
         query = select(self.model).where(self.model.domain == domain)
-        result = await self.db.execute(query)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_active_agents(self) -> List[Agent]:
@@ -92,7 +91,7 @@ class AgentRepository(BaseRepository):
             List of active agents
         """
         query = select(self.model).where(self.model.is_active == True)
-        result = await self.db.execute(query)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def has_related_evaluations(self, agent_id: UUID) -> bool:
@@ -106,7 +105,7 @@ class AgentRepository(BaseRepository):
             True if the agent has evaluations, False otherwise
         """
         query = select(func.count()).select_from(Evaluation).where(Evaluation.agent_id == agent_id)
-        result = await self.db.execute(query)
+        result = await self.session.execute(query)
         count = result.scalar()
         return count > 0
 
@@ -169,5 +168,5 @@ class AgentRepository(BaseRepository):
         query = query.offset(skip).limit(limit)
 
         # Execute query
-        result = await self.db.execute(query)
+        result = await self.session.execute(query)
         return list(result.scalars().all())

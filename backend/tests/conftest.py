@@ -1,5 +1,3 @@
-import asyncio
-import os
 from typing import AsyncGenerator, Dict, Generator
 import uuid
 from datetime import datetime, timedelta
@@ -14,8 +12,8 @@ from sqlalchemy.pool import NullPool
 
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
-from backend.app.db.models.orm.base import Base
-from backend.app.db.models.orm.models import User, DatasetType, UserRole
+from backend.app.db.models.base import Base
+from backend.app.db.models.orm import User, DatasetType, UserRole
 from backend.app.main import app as main_app
 # from backend.app.services.auth import create_access_token
 

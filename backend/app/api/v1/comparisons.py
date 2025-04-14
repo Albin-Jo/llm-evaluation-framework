@@ -3,11 +3,11 @@ from typing import Dict, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_db
-from backend.app.db.models.orm.models import Evaluation, EvaluationResult, MetricScore, User, evaluation_comparison
+from backend.app.db.models.orm import Evaluation, EvaluationResult, MetricScore, User, evaluation_comparison
 from backend.app.db.schema.evaluation_schema import (
     EvaluationComparisonCreate, EvaluationComparisonResponse
 )

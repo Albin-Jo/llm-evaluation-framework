@@ -1,4 +1,3 @@
-# File: app/db/models/orm/models.py
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
@@ -11,7 +10,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.db.models.orm.base import Base, ModelMixin, TimestampMixin
+from backend.app.db.models.base import Base, ModelMixin, TimestampMixin
 
 
 class UserRole(str, Enum):
@@ -35,11 +34,6 @@ class User(Base, TimestampMixin, ModelMixin):
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), nullable=False, default=UserRole.VIEWER)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    # Relationships
-    datasets: Mapped[List["Dataset"]] = relationship(back_populates="owner")
-    prompts: Mapped[List["Prompt"]] = relationship(back_populates="owner")
-    evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="created_by")
-
 
 class Agent(Base, TimestampMixin, ModelMixin):
     """
@@ -58,12 +52,10 @@ class Agent(Base, TimestampMixin, ModelMixin):
     # New fields
     model_type: Mapped[str] = mapped_column(String(100), nullable=True)
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
-    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=True)
 
     # Relationships
     evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="agent")
-    created_by: Mapped[Optional["User"]] = relationship(foreign_keys=[created_by_id])
 
 
 class DatasetType(str, Enum):
@@ -86,15 +78,13 @@ class Dataset(Base, TimestampMixin, ModelMixin):
     description: Mapped[str] = mapped_column(Text, nullable=True)
     type: Mapped[DatasetType] = mapped_column(SQLEnum(DatasetType), nullable=False)
     file_path: Mapped[str] = mapped_column(String(255), nullable=False)
-    schema: Mapped[dict] = mapped_column(JSON, nullable=True)
+    schema_definition: Mapped[dict] = mapped_column(JSON, nullable=True)
     meta_info: Mapped[dict] = mapped_column(JSON, nullable=True)  # Renamed from metadata
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     row_count: Mapped[int] = mapped_column(Integer, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Relationships
-    owner_id: Mapped[UUID] = mapped_column(ForeignKey("user.id"), nullable=False)
-    owner: Mapped["User"] = relationship(back_populates="datasets")
     evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="dataset")
 
 
@@ -133,8 +123,6 @@ class Prompt(Base, TimestampMixin, ModelMixin):
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Relationships
-    owner_id: Mapped[UUID] = mapped_column(ForeignKey("user.id"), nullable=False)
-    owner: Mapped["User"] = relationship(back_populates="prompts")
     template_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("prompttemplate.id"), nullable=True
     )
@@ -180,8 +168,6 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    created_by_id: Mapped[UUID] = mapped_column(ForeignKey("user.id"), nullable=False)
-    created_by: Mapped["User"] = relationship(back_populates="evaluations")
     agent_id: Mapped[UUID] = mapped_column(ForeignKey("agent.id"), nullable=False)
     agent: Mapped["Agent"] = relationship(back_populates="evaluations")
     dataset_id: Mapped[UUID] = mapped_column(ForeignKey("dataset.id"), nullable=False)
@@ -238,7 +224,6 @@ evaluation_comparison = Table(
     Column("name", String(255), nullable=False),
     Column("description", Text, nullable=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now()),
-    Column("created_by_id", ForeignKey("user.id"), nullable=False),
     Column("evaluation_a_id", ForeignKey("evaluation.id"), nullable=False),
     Column("evaluation_b_id", ForeignKey("evaluation.id"), nullable=False),
     Column("comparison_results", JSON, nullable=True)

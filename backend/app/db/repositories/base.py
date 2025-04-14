@@ -1,13 +1,12 @@
-# File: app/db/repositories/base.py
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm.base import Base
+from backend.app.db.models.orm import Base
 
-# Define a TypeVar for our models
+# Define a TypeVar for models
 ModelType = TypeVar("ModelType", bound=Base)
 
 

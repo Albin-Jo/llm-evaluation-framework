@@ -3,16 +3,11 @@
 Utility functions for testing.
 """
 import io
-import json
-import os
-import uuid
-from typing import Any, Dict, List, Optional, Tuple, Union
 from pathlib import Path
 
 from fastapi import UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm.models import User, DatasetType, UserRole
+from backend.app.db.models.orm import User
 from backend.app.services.auth import create_access_token
 
 

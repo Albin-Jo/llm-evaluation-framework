@@ -1,11 +1,10 @@
-# File: app/db/repositories/user_repository.py
 from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm.models import User, UserRole
+from backend.app.db.models.orm import User, UserRole
 
 
 class UserRepository:

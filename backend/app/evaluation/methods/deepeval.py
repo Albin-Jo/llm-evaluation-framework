@@ -1,12 +1,11 @@
 # File: app/evaluation/methods/deepeval.py
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import httpx
 
 from backend.app.core.config import settings
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
-from backend.app.db.models.orm.models import Evaluation
+from backend.app.db.models.orm import Evaluation
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 
 # Configure logging

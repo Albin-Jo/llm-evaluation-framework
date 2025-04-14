@@ -4,7 +4,7 @@ from typing import Dict, Type
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm.models import EvaluationMethod
+from backend.app.db.models.orm import EvaluationMethod
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 
 # Configure logging

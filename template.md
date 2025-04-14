@@ -5,16 +5,15 @@ The LLM Evaluation Framework is an internal tool for evaluating domain-specific 
 
 ## Technical Stack
 - **Backend**: FastAPI, Python, SQLAlchemy
-- **Frontend**: React, TypeScript, Vite
+- **Frontend**: Angular
 - **Database**: PostgreSQL
 - **Deployment**: Docker
 
 ## Current Project Status
-- **Current Phase**: Debug and Update evaluation module
+- **Current Phase**: Debug ragas evaluation 
 - **Last Session Date**: One day ago
 - **Last Session Focus**: We have Implemented dataset, prompt Module, evaluation module and agent module
-- **Current Focus**: Analyse, debug current implementation and improve the evaluation module. 
-- Make sure its following Updated Ragas apis
+- **Current Focus**: we are getting error while starting an evaluation
 
 ## Components Status
 
@@ -29,12 +28,9 @@ The LLM Evaluation Framework is an internal tool for evaluating domain-specific 
 | Frontend Dashboard | Started     | Basic layout complete, components in development   |
 
 ## Today's Session Goal
-The RAGAS API has changed significantly, so api usages,metric definitions will also need to be updated.
-Modifying imports
-Updating usage patterns
-Replacing outdated metrics with the new ones
-In this session, we'll focus on: Analyse, debug, improve current implementation of evaluation module
-Focus on all apis, services, models, and repository layer of evluation module.
+Evaluation apis are working.We can create evaluations. But when evaluations start we are getting erros.
+Apis are working as expected. evaluation status will be updated failed. 
+You need to resolve this issue
 
 ## Key Considerations
 - Include a detailed explanation of the implementation and usage

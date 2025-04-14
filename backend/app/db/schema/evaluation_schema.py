@@ -1,11 +1,10 @@
-# File: backend/app/db/schema/evaluation_schema.py
 from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 
-from backend.app.db.models.orm.models import EvaluationMethod, EvaluationStatus
+from backend.app.db.models.orm import EvaluationMethod, EvaluationStatus
 
 
 class MetricScoreBase(BaseModel):
@@ -13,7 +12,7 @@ class MetricScoreBase(BaseModel):
     name: str
     value: float
     weight: float = 1.0
-    meta_info: Optional[Dict] = None  # Changed from metadata to meta_info for consistency
+    meta_info: Optional[Dict] = None
 
 
 class MetricScoreCreate(MetricScoreBase):
@@ -82,7 +81,7 @@ class EvaluationBase(BaseModel):
 
 class EvaluationCreate(EvaluationBase):
     """Schema for creating a new Evaluation."""
-    micro_agent_id: UUID
+    agent_id: UUID
     dataset_id: UUID
     prompt_id: UUID
 
@@ -102,8 +101,7 @@ class EvaluationUpdate(BaseModel):
 class EvaluationInDB(EvaluationBase):
     """Schema for Evaluation data from database."""
     id: UUID
-    created_by_id: UUID
-    micro_agent_id: UUID
+    agent_id: UUID
     dataset_id: UUID
     prompt_id: UUID
     created_at: datetime
@@ -139,7 +137,6 @@ class EvaluationComparisonCreate(EvaluationComparisonBase):
 class EvaluationComparisonInDB(EvaluationComparisonBase):
     """Schema for Evaluation comparison data from database."""
     id: UUID
-    created_by_id: UUID
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

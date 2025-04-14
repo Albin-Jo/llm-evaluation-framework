@@ -1,4 +1,3 @@
-# File: app/evaluation/metrics/registry.py
 from typing import Any, Callable, Dict, Optional
 
 

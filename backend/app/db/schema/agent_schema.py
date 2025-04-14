@@ -1,9 +1,8 @@
-# File: app/db/schema/agent_schema.py
 from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict, HttpUrl, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class AgentBase(BaseModel):
@@ -57,7 +56,7 @@ class AgentInDB(AgentBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
-    created_by_id: Optional[UUID] = None
+    # created_by_id: Optional[UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
 

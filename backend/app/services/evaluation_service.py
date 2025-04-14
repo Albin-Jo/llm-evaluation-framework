@@ -1,31 +1,93 @@
-# File: backend/app/services/evaluation_service.py
-import asyncio
+# backend/app/services/evaluation_service.py
 import datetime
-import hashlib
-import json
 import logging
-import traceback
-from functools import lru_cache
-from typing import Any, Dict, List, Optional, Type, Union, Tuple
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import BackgroundTasks, HTTPException, status
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.db.models.orm import (
+    Dataset, Evaluation, EvaluationResult,
+    EvaluationStatus, MetricScore, Agent, Prompt, EvaluationMethod
+)
 from backend.app.db.repositories.base import BaseRepository
-from backend.app.evaluation.factory import EvaluationMethodFactory
-from backend.app.evaluation.methods.base import BaseEvaluationMethod
-from backend.app.db.models.orm.models import (
-    Dataset, Evaluation, EvaluationMethod, EvaluationResult,
-    EvaluationStatus, MetricScore, MicroAgent, Prompt, User
-)
 from backend.app.db.schema.evaluation_schema import (
-    EvaluationCreate, EvaluationResultCreate, EvaluationUpdate,
-    MetricScoreCreate
+    EvaluationCreate, EvaluationResultCreate, EvaluationUpdate
 )
+from backend.app.evaluation.methods.base import BaseEvaluationMethod
+from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
+    """
+    Run evaluation in a completely separate task with its own database session.
+
+    This prevents session conflicts when running async tasks.
+
+    Args:
+        evaluation_id_str: Evaluation ID as string
+    """
+    from backend.app.db.session import db_session
+    from uuid import UUID
+
+    evaluation_id = UUID(evaluation_id_str)
+
+    # Create a new database session specifically for this task
+    async with db_session() as session:
+        # Create a new service instance with this session
+        service = EvaluationService(session)
+
+        try:
+            # Get the evaluation
+            evaluation = await service.get_evaluation(evaluation_id)
+            if not evaluation:
+                logger.error(f"Evaluation {evaluation_id} not found")
+                return
+
+            # Check if already running
+            if evaluation.status not in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
+                logger.warning(f"Evaluation {evaluation_id} is in {evaluation.status} state, not running")
+                return
+
+            # Make sure it's running
+            if evaluation.status == EvaluationStatus.PENDING:
+                await service.start_evaluation(evaluation_id)
+
+            # Get the evaluation method handler
+            method_handler = await service.get_evaluation_method_handler(evaluation.method)
+
+            # Run the evaluation
+            results = await method_handler.run_evaluation(evaluation)
+
+            # Process results
+            for result_data in results:
+                await service.create_evaluation_result(result_data)
+
+            # IMPORTANT: Check current status before marking as completed
+            # This prevents trying to complete an already completed evaluation
+            current_status = (await service.get_evaluation(evaluation_id)).status
+            if current_status in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
+                await service.complete_evaluation(evaluation_id, success=True)
+                logger.info(f"Completed evaluation {evaluation_id} with {len(results)} results")
+            else:
+                logger.info(f"Evaluation {evaluation_id} already in {current_status} state, skipping completion")
+
+        except Exception as e:
+            logger.exception(f"Error running evaluation {evaluation_id} in separate task: {str(e)}")
+
+            # Mark as failed only if still in RUNNING or PENDING state
+            try:
+                current_status = (await service.get_evaluation(evaluation_id)).status
+                if current_status in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
+                    await service.complete_evaluation(evaluation_id, success=False)
+                else:
+                    logger.info(f"Evaluation {evaluation_id} already in {current_status} state, not marking as failed")
+            except Exception as complete_error:
+                logger.error(f"Failed to mark evaluation as failed: {str(complete_error)}")
 
 
 class EvaluationService:
@@ -42,33 +104,31 @@ class EvaluationService:
         self.evaluation_repo = BaseRepository(Evaluation, db_session)
         self.result_repo = BaseRepository(EvaluationResult, db_session)
         self.metric_repo = BaseRepository(MetricScore, db_session)
-        self.micro_agent_repo = BaseRepository(MicroAgent, db_session)
+        self.agent_repo = BaseRepository(Agent, db_session)
         self.dataset_repo = BaseRepository(Dataset, db_session)
         self.prompt_repo = BaseRepository(Prompt, db_session)
 
-    # File: backend/app/services/evaluation_service.py
     async def create_evaluation(
-            self, evaluation_data: EvaluationCreate, user: User
+            self, evaluation_data: EvaluationCreate,
     ) -> Evaluation:
         """
         Create a new evaluation.
 
         Args:
             evaluation_data: Evaluation data
-            user: Current user
 
         Returns:
             Evaluation: Created evaluation
 
         Raises:
-            HTTPException: If referenced entities don't exist
+            HTTPException: If referenced entities don't exist or validation fails
         """
         # Verify that referenced entities exist
-        micro_agent = await self.micro_agent_repo.get(evaluation_data.micro_agent_id)
-        if not micro_agent:
+        agent = await self.agent_repo.get(evaluation_data.agent_id)
+        if not agent:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"MicroAgent with ID {evaluation_data.micro_agent_id} not found"
+                detail=f"Agent with ID {evaluation_data.agent_id} not found"
             )
 
         dataset = await self.dataset_repo.get(evaluation_data.dataset_id)
@@ -85,13 +145,15 @@ class EvaluationService:
                 detail=f"Prompt with ID {evaluation_data.prompt_id} not found"
             )
 
+        # Validate metrics based on dataset type
+        await self._validate_metrics_for_dataset(evaluation_data.metrics, dataset)
+
         # Create evaluation
         evaluation_dict = evaluation_data.model_dump()
-        evaluation_dict["created_by_id"] = user.id
 
         try:
             evaluation = await self.evaluation_repo.create(evaluation_dict)
-            logger.info(f"Created evaluation {evaluation.id} by user {user.id}")
+            logger.info(f"Created evaluation {evaluation.id}")
             return evaluation
         except Exception as e:
             logger.error(f"Failed to create evaluation: {str(e)}")
@@ -212,104 +274,32 @@ class EvaluationService:
             logger.error(f"Error deleting evaluation {evaluation_id}: {str(e)}")
             return False
 
-    async def start_evaluation(self, evaluation_id: UUID) -> Optional[Evaluation]:
+    async def _validate_metrics_for_dataset(self, metrics: Optional[List[str]], dataset: Dataset) -> None:
         """
-        Start an evaluation.
+        Validate that the selected metrics are appropriate for the dataset type.
 
         Args:
-            evaluation_id: Evaluation ID
-
-        Returns:
-            Optional[Evaluation]: Updated evaluation if found, None otherwise
+            metrics: List of metrics to validate
+            dataset: Dataset to validate against
 
         Raises:
-            HTTPException: If evaluation cannot be started
+            HTTPException: If metrics are invalid for the dataset type
         """
-        try:
-            evaluation = await self.evaluation_repo.get(evaluation_id)
-            if not evaluation:
-                logger.warning(f"Attempted to start non-existent evaluation {evaluation_id}")
-                return None
+        if not metrics:
+            return  # No metrics specified, will use defaults
 
-            if evaluation.status != EvaluationStatus.PENDING:
-                msg = f"Evaluation is already in {evaluation.status} status"
-                logger.warning(f"Cannot start evaluation {evaluation_id}: {msg}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=msg
-                )
+        # Get allowed metrics for this dataset type
+        allowed_metrics = DATASET_TYPE_METRICS.get(dataset.type, [])
 
-            # Update status and start time
-            now = datetime.datetime.now()
-            update_data = {
-                "status": EvaluationStatus.RUNNING,
-                "start_time": now
-            }
+        # Check if any specified metrics are not allowed
+        invalid_metrics = [m for m in metrics if m not in allowed_metrics]
 
-            updated = await self.evaluation_repo.update(evaluation_id, update_data)
-            logger.info(f"Started evaluation {evaluation_id} at {now}")
-            return updated
-
-        except HTTPException:
-            # Re-raise HTTP exceptions
-            raise
-        except Exception as e:
-            logger.error(f"Error starting evaluation {evaluation_id}: {str(e)}")
+        if invalid_metrics:
+            logger.warning(f"Invalid metrics for dataset type {dataset.type}: {invalid_metrics}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to start evaluation: {str(e)}"
-            )
-
-    async def complete_evaluation(
-            self, evaluation_id: UUID, success: bool = True
-    ) -> Optional[Evaluation]:
-        """
-        Mark an evaluation as completed or failed.
-
-        Args:
-            evaluation_id: Evaluation ID
-            success: Whether the evaluation was successful
-
-        Returns:
-            Optional[Evaluation]: Updated evaluation if found, None otherwise
-
-        Raises:
-            HTTPException: If evaluation cannot be completed
-        """
-        try:
-            evaluation = await self.evaluation_repo.get(evaluation_id)
-            if not evaluation:
-                logger.warning(f"Attempted to complete non-existent evaluation {evaluation_id}")
-                return None
-
-            if evaluation.status not in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
-                msg = f"Evaluation is not in RUNNING or PENDING status (current: {evaluation.status})"
-                logger.warning(f"Cannot complete evaluation {evaluation_id}: {msg}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=msg
-                )
-
-            # Update status and end time
-            now = datetime.datetime.now()
-            new_status = EvaluationStatus.COMPLETED if success else EvaluationStatus.FAILED
-            update_data = {
-                "status": new_status,
-                "end_time": now
-            }
-
-            updated = await self.evaluation_repo.update(evaluation_id, update_data)
-            logger.info(f"Completed evaluation {evaluation_id} with status {new_status} at {now}")
-            return updated
-
-        except HTTPException:
-            # Re-raise HTTP exceptions
-            raise
-        except Exception as e:
-            logger.error(f"Error completing evaluation {evaluation_id}: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to complete evaluation: {str(e)}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Metrics {invalid_metrics} are not valid for {dataset.type} datasets. "
+                       f"Valid metrics are: {allowed_metrics}"
             )
 
     async def create_evaluation_result(
@@ -373,47 +363,6 @@ class EvaluationService:
             logger.error(f"Error retrieving results for evaluation {evaluation_id}: {str(e)}")
             return []
 
-    @lru_cache(maxsize=128)
-    async def get_cached_evaluation_result(
-            self, evaluation_id: UUID, dataset_sample_id: str
-    ) -> Optional[EvaluationResult]:
-        """
-        Get cached evaluation result.
-
-        Args:
-            evaluation_id: Evaluation ID
-            dataset_sample_id: Dataset sample ID
-
-        Returns:
-            Optional[EvaluationResult]: Evaluation result if found, None otherwise
-        """
-        try:
-            results = await self.result_repo.get_multi(
-                filters={
-                    "evaluation_id": evaluation_id,
-                    "dataset_sample_id": dataset_sample_id
-                }
-            )
-            return results[0] if results else None
-        except Exception as e:
-            logger.error(
-                f"Error retrieving cached result for evaluation {evaluation_id}, sample {dataset_sample_id}: {str(e)}")
-            return None
-
-    def _compute_cache_key(self, input_data: Dict[str, Any], method: EvaluationMethod) -> str:
-        """
-        Compute a cache key for evaluation inputs.
-
-        Args:
-            input_data: Input data
-            method: Evaluation method
-
-        Returns:
-            str: Cache key
-        """
-        serialized = json.dumps(input_data, sort_keys=True)
-        return f"{method}:{hashlib.md5(serialized.encode()).hexdigest()}"
-
     async def get_metric_scores(
             self, result_id: UUID
     ) -> List[MetricScore]:
@@ -434,11 +383,59 @@ class EvaluationService:
             logger.error(f"Error retrieving metric scores for result {result_id}: {str(e)}")
             return []
 
+    async def start_evaluation(self, evaluation_id: UUID) -> Optional[Evaluation]:
+        """
+        Start an evaluation.
+
+        Args:
+            evaluation_id: Evaluation ID
+
+        Returns:
+            Optional[Evaluation]: Updated evaluation if found, None otherwise
+
+        Raises:
+            HTTPException: If evaluation cannot be started
+        """
+        try:
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                logger.warning(f"Attempted to start non-existent evaluation {evaluation_id}")
+                return None
+
+            if evaluation.status != EvaluationStatus.PENDING:
+                msg = f"Evaluation is already in {evaluation.status} status"
+                logger.warning(f"Cannot start evaluation {evaluation_id}: {msg}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=msg
+                )
+
+            # Update status and start time
+            now = datetime.datetime.now()
+            update_data = {
+                "status": EvaluationStatus.RUNNING,
+                "start_time": now
+            }
+
+            updated = await self.evaluation_repo.update(evaluation_id, update_data)
+            logger.info(f"Started evaluation {evaluation_id} at {now}")
+            return updated
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error starting evaluation {evaluation_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to start evaluation: {str(e)}"
+            )
+
     async def queue_evaluation_job(self, evaluation_id: UUID) -> None:
         """
         Queue an evaluation job for background processing.
 
-        This can either send a task to Celery or run directly in a background task.
+        This will send a task to Celery or run directly in a background task.
 
         Args:
             evaluation_id: Evaluation ID
@@ -458,19 +455,24 @@ class EvaluationService:
             # Update to running status
             await self.start_evaluation(evaluation_id)
 
-            # In a real implementation, this would send a task to Celery
+            # In production, use Celery
             from backend.app.workers.tasks import run_evaluation_task
 
-            # Check if we're running in a test environment
-            import os
-            if os.getenv("APP_ENV") == "testing":
-                # For testing, run directly
-                asyncio.create_task(self._run_evaluation_directly(evaluation_id))
-            else:
-                # For production, use Celery
+            # Queue the task asynchronously so the API can return immediately
+            try:
+                # Use Celery in production
                 run_evaluation_task.delay(str(evaluation_id))
+                logger.info(f"Queued evaluation job {evaluation_id} to Celery")
+            except Exception as e:
+                # Fallback to direct execution if Celery is not available
+                logger.warning(f"Failed to queue to Celery: {e}. Running as separate task.")
 
-            logger.info(f"Queued evaluation job for evaluation {evaluation_id}")
+                # IMPORTANT: Don't use the current database session for the task
+                # Create a separate, detached task instead
+                # This prevents session conflicts
+                import asyncio
+                asyncio.create_task(_run_evaluation_as_separate_task(str(evaluation_id)))
+                logger.info(f"Started evaluation {evaluation_id} as separate task")
 
         except ValueError as e:
             logger.warning(f"Cannot queue evaluation job: {str(e)}")
@@ -529,6 +531,127 @@ class EvaluationService:
             except Exception:
                 pass
 
+    async def complete_evaluation(
+            self, evaluation_id: UUID, success: bool = True
+    ) -> Optional[Evaluation]:
+        """
+        Mark an evaluation as completed or failed.
+
+        Args:
+            evaluation_id: Evaluation ID
+            success: Whether the evaluation was successful
+
+        Returns:
+            Optional[Evaluation]: Updated evaluation if found, None otherwise
+
+        Raises:
+            HTTPException: If evaluation cannot be completed
+        """
+        try:
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                logger.warning(f"Attempted to complete non-existent evaluation {evaluation_id}")
+                return None
+
+            if evaluation.status not in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
+                msg = f"Evaluation is not in RUNNING or PENDING status (current: {evaluation.status})"
+                logger.warning(f"Cannot complete evaluation {evaluation_id}: {msg}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=msg
+                )
+
+            # Update status and end time
+            now = datetime.datetime.now()
+            new_status = EvaluationStatus.COMPLETED if success else EvaluationStatus.FAILED
+            update_data = {
+                "status": new_status,
+                "end_time": now
+            }
+
+            updated = await self.evaluation_repo.update(evaluation_id, update_data)
+            logger.info(f"Completed evaluation {evaluation_id} with status {new_status} at {now}")
+            return updated
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error completing evaluation {evaluation_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to complete evaluation: {str(e)}"
+            )
+
+    async def get_evaluation_progress(self, evaluation_id: UUID) -> Dict[str, Any]:
+        """
+        Get the progress of an evaluation.
+
+        Args:
+            evaluation_id: Evaluation ID
+
+        Returns:
+            Dict[str, Any]: Evaluation progress information
+        """
+        try:
+            # Get evaluation
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Evaluation with ID {evaluation_id} not found"
+                )
+
+            # Get dataset to calculate total items
+            dataset = await self.dataset_repo.get(evaluation.dataset_id)
+            total_items = dataset.row_count if dataset and dataset.row_count else 0
+
+            # Get completed results
+            results = await self.result_repo.get_multi(filters={"evaluation_id": evaluation_id})
+            completed_items = len(results)
+
+            # Calculate progress percentage
+            progress_pct = (completed_items / total_items * 100) if total_items > 0 else 0
+
+            # Calculate running time safely handling timezone differences
+            running_time_seconds = 0
+            if evaluation.start_time:
+                if evaluation.end_time:
+                    # Both start and end time exist
+                    # Convert to UTC if they have tzinfo, or assume they're in the same timezone
+                    start = evaluation.start_time.replace(
+                        tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
+                    end = evaluation.end_time.replace(
+                        tzinfo=None) if evaluation.end_time.tzinfo else evaluation.end_time
+                    running_time_seconds = (end - start).total_seconds()
+                else:
+                    # Only start time exists, use current time for comparison
+                    # Convert start_time to naive if it has tzinfo
+                    start = evaluation.start_time.replace(
+                        tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
+                    now = datetime.datetime.now()
+                    running_time_seconds = (now - start).total_seconds()
+
+            # Return progress information
+            return {
+                "status": evaluation.status,
+                "total_items": total_items,
+                "completed_items": completed_items,
+                "progress_percentage": round(progress_pct, 2),
+                "start_time": evaluation.start_time,
+                "end_time": evaluation.end_time,
+                "running_time_seconds": running_time_seconds
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting evaluation progress: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error getting evaluation progress: {str(e)}"
+            )
+
     async def get_evaluation_method_handler(
             self, method: EvaluationMethod
     ) -> BaseEvaluationMethod:
@@ -544,6 +667,8 @@ class EvaluationService:
         Raises:
             HTTPException: If method is not supported
         """
+        from backend.app.evaluation.factory import EvaluationMethodFactory
+
         try:
             handler = EvaluationMethodFactory.create(method, self.db_session)
             return handler
@@ -558,127 +683,4 @@ class EvaluationService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error initializing evaluation method: {str(e)}"
-            )
-
-    async def get_evaluation_statistics(self, evaluation_id: UUID) -> Dict[str, Any]:
-        """
-        Get statistics for an evaluation.
-
-        Args:
-            evaluation_id: Evaluation ID
-
-        Returns:
-            Dict[str, Any]: Evaluation statistics
-        """
-        try:
-            # Get the evaluation
-            evaluation = await self.evaluation_repo.get(evaluation_id)
-            if not evaluation:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Evaluation with ID {evaluation_id} not found"
-                )
-
-            # Get results
-            results = await self.get_evaluation_results(evaluation_id)
-
-            # Initialize statistics
-            stats = {
-                "total_samples": len(results),
-                "avg_overall_score": 0.0,
-                "metrics": {},
-                "processing_time": {
-                    "min": None,
-                    "max": None,
-                    "avg": None
-                },
-                "error_rate": 0.0
-            }
-
-            if not results:
-                return stats
-
-            # Calculate statistics
-            total_overall_score = 0.0
-            processing_times = []
-            error_count = 0
-            metric_scores = {}
-
-            for result in results:
-                # Calculate overall score
-                if result.overall_score is not None:
-                    total_overall_score += result.overall_score
-                else:
-                    error_count += 1
-
-                # Track processing time
-                if result.processing_time_ms is not None:
-                    processing_times.append(result.processing_time_ms)
-
-                # Collect metric scores
-                result_metrics = await self.get_metric_scores(result.id)
-                for metric in result_metrics:
-                    if metric.name not in metric_scores:
-                        metric_scores[metric.name] = []
-                    metric_scores[metric.name].append(metric.value)
-
-            # Calculate averages
-            if len(results) > error_count:
-                stats["avg_overall_score"] = total_overall_score / (len(results) - error_count)
-
-            if processing_times:
-                stats["processing_time"]["min"] = min(processing_times)
-                stats["processing_time"]["max"] = max(processing_times)
-                stats["processing_time"]["avg"] = sum(processing_times) / len(processing_times)
-
-            stats["error_rate"] = error_count / len(results) if results else 0.0
-
-            # Calculate metric statistics
-            for metric_name, values in metric_scores.items():
-                if values:
-                    stats["metrics"][metric_name] = {
-                        "avg": sum(values) / len(values),
-                        "min": min(values),
-                        "max": max(values),
-                        "count": len(values)
-                    }
-
-            return stats
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Error getting evaluation statistics: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error getting evaluation statistics: {str(e)}"
-            )
-
-        dataset = await self.dataset_repo.get(evaluation_data.dataset_id)
-        if not dataset:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Dataset with ID {evaluation_data.dataset_id} not found"
-            )
-
-        prompt = await self.prompt_repo.get(evaluation_data.prompt_id)
-        if not prompt:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Prompt with ID {evaluation_data.prompt_id} not found"
-            )
-
-        # Create evaluation
-        evaluation_dict = evaluation_data.model_dump()
-        evaluation_dict["created_by_id"] = user.id
-
-        try:
-            evaluation = await self.evaluation_repo.create(evaluation_dict)
-            logger.info(f"Created evaluation {evaluation.id} by user {user.id}")
-            return evaluation
-        except Exception as e:
-            logger.error(f"Failed to create evaluation: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create evaluation: {str(e)}"
             )

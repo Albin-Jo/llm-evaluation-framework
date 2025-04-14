@@ -1,4 +1,3 @@
-# File: app/evaluation/engines/base.py
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 

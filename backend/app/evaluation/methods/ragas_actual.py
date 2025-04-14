@@ -1,11 +1,10 @@
 # File: app/evaluation/methods/ragas_actual.py
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
-from uuid import UUID
+from typing import Any, Dict, List
 
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
-from backend.app.db.models.orm.models import Evaluation
+from backend.app.db.models.orm import Evaluation
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 
 # Configure logging

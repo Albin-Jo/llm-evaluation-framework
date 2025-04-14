@@ -3,11 +3,11 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, Any, Tuple
 import uuid
 
 from backend.app.core.config import settings
-from backend.app.db.models.orm.models import DatasetType, User
+from backend.app.db.models.orm import DatasetType, User
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ class SampleDatasetGenerator:
             Dataset: Created dataset
         """
         from backend.app.db.repositories.base import BaseRepository
-        from backend.app.db.models.orm.models import Dataset
+        from backend.app.db.models.orm import Dataset
 
         # Generate sample dataset
         file_path, metadata = SampleDatasetGenerator.generate_question_answer_dataset(
@@ -300,7 +300,7 @@ Technical Question: {query}"""
             Prompt: Created prompt
         """
         from backend.app.db.repositories.base import BaseRepository
-        from backend.app.db.models.orm.models import Prompt
+        from backend.app.db.models.orm import Prompt
 
         # Get prompt content
         content = SamplePromptGenerator.get_rag_system_prompt(domain)
@@ -347,7 +347,7 @@ class SampleMicroAgentGenerator:
             MicroAgent: Created micro-agent
         """
         from backend.app.db.repositories.base import BaseRepository
-        from backend.app.db.models.orm.models import MicroAgent
+        from backend.app.db.models.orm import MicroAgent
 
         # Determine API endpoint based on use_azure
         if use_azure:
@@ -407,7 +407,7 @@ class SampleEvaluationBuilder:
             Tuple: (Evaluation, Dataset, Prompt, MicroAgent)
         """
         from backend.app.db.repositories.base import BaseRepository
-        from backend.app.db.models.orm.models import Evaluation, EvaluationMethod, EvaluationStatus
+        from backend.app.db.models.orm import Evaluation, EvaluationMethod, EvaluationStatus
 
         # Create sample dataset
         dataset = await SampleDatasetGenerator.create_sample_dataset_in_db(

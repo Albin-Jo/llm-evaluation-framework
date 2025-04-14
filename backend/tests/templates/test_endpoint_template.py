@@ -3,16 +3,11 @@
 Template for creating endpoint tests.
 Copy this file when adding new endpoints and modify as needed.
 """
-import uuid
-from typing import Dict, Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Dict
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from backend.app.db.models.orm.models import User
 
 
 # Import your model and repository here

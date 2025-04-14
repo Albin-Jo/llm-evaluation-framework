@@ -1,36 +1,25 @@
-# File: app/evaluation/metrics/ragas_metrics.py
-"""
-Metrics for RAGAS evaluation with updated implementations.
-
-This module provides implementations of the updated RAGAS metrics.
-"""
+# backend/app/evaluation/metrics/ragas_metrics.py
 import logging
 from typing import Dict, List, Optional, Union, Any
 
+import ragas
+from ragas import SingleTurnSample
+from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import (
+    Faithfulness,
+    ResponseRelevancy,
+    LLMContextPrecisionWithoutReference,
+    LLMContextRecall,
+    ContextEntityRecall,
+    NoiseSensitivity
+)
+
 logger = logging.getLogger(__name__)
+RAGAS_AVAILABLE = True
+logger.info(f"RAGAS library found (version: {ragas.__version__})")
 
-# Flag to check if RAGAS is available
-try:
-    import ragas
-    from ragas import SingleTurnSample
-    from ragas.metrics import (
-        Faithfulness,
-        ResponseRelevancy,
-        LLMContextPrecisionWithoutReference,
-        LLMContextRecall,
-        ContextEntityRecall,
-        NoiseSensitivity
-    )
-    from ragas.llms import LangchainLLMWrapper
-
-    RAGAS_AVAILABLE = True
-    logger.info(f"RAGAS library found (version: {ragas.__version__})")
-except ImportError:
-    RAGAS_AVAILABLE = False
-    logger.warning("RAGAS library not found. Using fallback implementations for metrics.")
-
-# Cache for LLM instances to avoid recreating them
-_llm_cache = {}
+# Cache for LLM and embedding instances to avoid recreating them
+_cache = {}
 
 
 async def get_ragas_llm():
@@ -38,8 +27,7 @@ async def get_ragas_llm():
     if not RAGAS_AVAILABLE:
         return None
 
-    global _llm_cache
-    if "ragas_llm" not in _llm_cache:
+    if "ragas_llm" not in _cache:
         try:
             from langchain_openai import AzureChatOpenAI
             from backend.app.core.config import settings
@@ -54,16 +42,45 @@ async def get_ragas_llm():
             )
 
             # Wrap in the RAGAS LLM interface
-            _llm_cache["ragas_llm"] = LangchainLLMWrapper(llm)
+            _cache["ragas_llm"] = LangchainLLMWrapper(llm)
+            logger.info("Successfully initialized RAGAS LLM wrapper")
         except Exception as e:
             logger.error(f"Error initializing RAGAS LLM: {e}")
             return None
 
-    return _llm_cache["ragas_llm"]
+    return _cache["ragas_llm"]
+
+
+async def get_ragas_embeddings():
+    """Get or create a cached embeddings model for RAGAS."""
+    if not RAGAS_AVAILABLE:
+        return None
+
+    if "ragas_embeddings" not in _cache:
+        try:
+            from langchain_openai import AzureOpenAIEmbeddings
+            from backend.app.core.config import settings
+
+            # Initialize Azure OpenAI embeddings
+            embeddings = AzureOpenAIEmbeddings(
+                openai_api_key=settings.AZURE_OPENAI_KEY,
+                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                azure_deployment=settings.AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT,
+                api_version=settings.AZURE_OPENAI_VERSION,
+            )
+
+            _cache["ragas_embeddings"] = embeddings
+            logger.info("Successfully initialized embeddings model for RAGAS")
+        except Exception as e:
+            logger.error(f"Error initializing embeddings model: {e}")
+            return None
+
+    return _cache["ragas_embeddings"]
 
 
 async def _calculate_with_ragas(
-        metric_class, sample: Dict[str, Any], requires_reference: bool = False
+        metric_class, sample: Dict[str, Any], requires_reference: bool = False,
+        requires_embeddings: bool = False
 ) -> Optional[float]:
     """Generic function to calculate metrics using RAGAS."""
     if not RAGAS_AVAILABLE:
@@ -71,19 +88,35 @@ async def _calculate_with_ragas(
 
     # Check if required fields are present
     if "query" not in sample or "answer" not in sample or "context" not in sample:
+        logger.warning(f"Missing required fields for {metric_class.__name__}. Needed: query, answer, context")
         return None
 
     if requires_reference and "ground_truth" not in sample:
+        logger.warning(f"Missing ground_truth field required for {metric_class.__name__}")
         return None
 
     try:
         # Get RAGAS LLM
         ragas_llm = await get_ragas_llm()
         if not ragas_llm:
+            logger.error(f"Could not initialize RAGAS LLM for {metric_class.__name__}")
             return None
 
-        # Create metric instance
-        metric_instance = metric_class(llm=ragas_llm)
+        # Get embeddings if required
+        embeddings = None
+        if requires_embeddings:
+            embeddings = await get_ragas_embeddings()
+            if not embeddings:
+                logger.error(f"Embeddings required for {metric_class.__name__} but could not be initialized")
+                return None
+
+        # Create metric instance with appropriate parameters
+        if requires_embeddings:
+            metric_instance = metric_class(llm=ragas_llm, embeddings=embeddings)
+            logger.debug(f"Created {metric_class.__name__} with LLM and embeddings")
+        else:
+            metric_instance = metric_class(llm=ragas_llm)
+            logger.debug(f"Created {metric_class.__name__} with LLM only")
 
         # Prepare context (ensure it's a list)
         contexts = sample["context"]
@@ -99,11 +132,13 @@ async def _calculate_with_ragas(
         )
 
         # Calculate score
+        logger.info(f"Calculating {metric_class.__name__} using RAGAS")
         score = await metric_instance.single_turn_ascore(ragas_sample)
+        logger.info(f"{metric_class.__name__} score: {score}")
         return float(score)
 
     except Exception as e:
-        logger.error(f"Error calculating RAGAS metric {metric_class.__name__}: {e}")
+        logger.error(f"Error calculating RAGAS metric {metric_class.__name__}: {e}", exc_info=True)
         return None
 
 
@@ -128,6 +163,11 @@ async def calculate_faithfulness(answer: str, context: Union[str, List[str]]) ->
             return result
 
     # Fallback implementation
+    return _calculate_faithfulness_fallback(answer, context)
+
+
+def _calculate_faithfulness_fallback(answer: str, context: Union[str, List[str]]) -> float:
+    """Simple fallback implementation for faithfulness when RAGAS is not available."""
     if not answer or not context:
         return 0.0
 
@@ -166,11 +206,21 @@ async def calculate_response_relevancy(answer: str, query: str,
         else:
             sample["context"] = [""]  # Empty context as placeholder
 
-        result = await _calculate_with_ragas(ResponseRelevancy, sample)
+        # Note: ResponseRelevancy requires embeddings
+        result = await _calculate_with_ragas(
+            ResponseRelevancy,
+            sample,
+            requires_embeddings=True
+        )
         if result is not None:
             return result
 
     # Fallback implementation
+    return _calculate_response_relevancy_fallback(answer, query)
+
+
+def _calculate_response_relevancy_fallback(answer: str, query: str) -> float:
+    """Simple fallback implementation for response relevancy when RAGAS is not available."""
     if not answer or not query:
         return 0.0
 
@@ -227,6 +277,11 @@ async def calculate_context_precision(context: Union[str, List[str]], query: str
             return result
 
     # Fallback implementation
+    return _calculate_context_precision_fallback(context, query)
+
+
+def _calculate_context_precision_fallback(context: Union[str, List[str]], query: str) -> float:
+    """Simple fallback implementation for context precision when RAGAS is not available."""
     if not context or not query:
         return 0.0
 
@@ -274,6 +329,11 @@ async def calculate_context_recall(context: Union[str, List[str]], query: str, g
             return result
 
     # Fallback implementation
+    return _calculate_context_recall_fallback(context, ground_truth)
+
+
+def _calculate_context_recall_fallback(context: Union[str, List[str]], ground_truth: str) -> float:
+    """Simple fallback implementation for context recall when RAGAS is not available."""
     if not context or not ground_truth:
         return 0.0
 
@@ -321,7 +381,12 @@ async def calculate_context_entity_recall(context: Union[str, List[str]], ground
         if result is not None:
             return result
 
-    # Fallback implementation - simple entity extraction
+    # Fallback implementation
+    return _calculate_entity_recall_fallback(context, ground_truth)
+
+
+def _calculate_entity_recall_fallback(context: Union[str, List[str]], ground_truth: str) -> float:
+    """Simple entity extraction fallback when RAGAS is not available."""
     if not context or not ground_truth:
         return 0.0
 
@@ -380,6 +445,11 @@ async def calculate_noise_sensitivity(query: str, answer: str, context: Union[st
             return result
 
     # Fallback implementation
+    return _calculate_noise_sensitivity_fallback(answer, ground_truth)
+
+
+def _calculate_noise_sensitivity_fallback(answer: str, ground_truth: str) -> float:
+    """Simple fallback implementation for noise sensitivity when RAGAS is not available."""
     # For noise sensitivity, lower is better, so we invert the correctness score
     # and cap at 1.0
 
@@ -409,3 +479,48 @@ async def calculate_noise_sensitivity(query: str, answer: str, context: Union[st
 
     # Invert to get noise sensitivity (1 - correctness) and ensure in range [0,1]
     return min(1.0, 1.0 - f1)
+
+
+# Mapping of metrics to their required dataset fields and calculation functions
+METRIC_REQUIREMENTS = {
+    "faithfulness": {
+        "required_fields": ["answer", "context"],
+        "calculation_func": calculate_faithfulness,
+        "description": "Measures how well the answer sticks to the information in the context without hallucinating."
+    },
+    "response_relevancy": {
+        "required_fields": ["answer", "query"],
+        "calculation_func": calculate_response_relevancy,
+        "description": "Measures how relevant the answer is to the query asked."
+    },
+    "context_precision": {
+        "required_fields": ["context", "query"],
+        "calculation_func": calculate_context_precision,
+        "description": "Measures how precisely the retrieved context matches what's needed to answer the query."
+    },
+    "context_recall": {
+        "required_fields": ["context", "query", "ground_truth"],
+        "calculation_func": calculate_context_recall,
+        "description": "Measures how well the retrieved context covers all the information needed to answer the query."
+    },
+    "context_entity_recall": {
+        "required_fields": ["context", "ground_truth"],
+        "calculation_func": calculate_context_entity_recall,
+        "description": "Measures how well the retrieved context captures the entities mentioned in the reference answer."
+    },
+    "noise_sensitivity": {
+        "required_fields": ["query", "answer", "context", "ground_truth"],
+        "calculation_func": calculate_noise_sensitivity,
+        "description": "Measures the model's tendency to be misled by irrelevant information (lower is better)."
+    }
+}
+
+# Mapping of which metrics can be applied to which dataset types
+DATASET_TYPE_METRICS = {
+    "user_query": ["faithfulness", "response_relevancy", "context_precision"],
+    "context": ["context_precision", "context_recall", "context_entity_recall"],
+    "question_answer": ["faithfulness", "response_relevancy", "context_recall", "noise_sensitivity"],
+    "conversation": ["response_relevancy", "faithfulness"],
+    "custom": ["faithfulness", "response_relevancy", "context_precision", "context_recall",
+               "context_entity_recall", "noise_sensitivity"]
+}

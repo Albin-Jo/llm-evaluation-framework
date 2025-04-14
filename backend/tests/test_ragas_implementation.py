@@ -1,12 +1,9 @@
 # File: tests/test_ragas_implementation.py
 import asyncio
-import json
 import logging
 import os
 import pytest
 import sys
-from datetime import datetime
-from typing import Dict, List, Any
 
 # Set up logging
 logging.basicConfig(
@@ -18,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Add the parent directory to sys.path to allow importing from backend
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from backend.app.db.models.orm.models import EvaluationMethod
+from backend.app.db.models.orm import EvaluationMethod
 from backend.app.evaluation.factory import EvaluationMethodFactory
 from backend.app.utils.sample_evaluation_runner import SampleEvaluationRunner
 

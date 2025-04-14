@@ -4,7 +4,6 @@ import os
 import uuid
 from pathlib import Path
 import logging
-from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Import project modules
 from backend.app.core.config import settings
-from backend.app.db.models.orm.models import User, UserRole, Agent, EvaluationStatus
+from backend.app.db.models.orm import User, UserRole, EvaluationStatus
 from backend.app.utils.sample_dataset import SampleEvaluationBuilder
 from backend.app.services.evaluation_service import EvaluationService
 
@@ -120,7 +119,7 @@ async def run_openai_test():
 
         # Update the evaluation to use our direct agent
         from backend.app.db.repositories.base import BaseRepository
-        from backend.app.db.models.orm.models import Evaluation
+        from backend.app.db.models.orm import Evaluation
         eval_repo = BaseRepository(Evaluation, session)
         await eval_repo.update(evaluation.id, {"micro_agent_id": direct_agent.id})
         await session.commit()

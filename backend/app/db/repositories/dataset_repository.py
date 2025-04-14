@@ -1,12 +1,10 @@
-# File: app/db/repositories/dataset_repository.py
 from typing import List, Optional, Dict, Any
-from uuid import UUID
 
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.db.models.orm import Dataset, DatasetType
 from backend.app.db.repositories.base import BaseRepository
-from backend.app.db.models.orm.models import Dataset, DatasetType, User
 
 
 class DatasetRepository(BaseRepository):
@@ -18,7 +16,6 @@ class DatasetRepository(BaseRepository):
     async def search_datasets(
             self,
             query: str,
-            user: User,
             types: Optional[List[DatasetType]] = None,
             skip: int = 0,
             limit: int = 20
@@ -28,7 +25,6 @@ class DatasetRepository(BaseRepository):
 
         Args:
             query: Search term
-            user: Current user
             types: Optional list of dataset types to filter by
             skip: Number of records to skip
             limit: Number of records to return
@@ -51,16 +47,6 @@ class DatasetRepository(BaseRepository):
         if types:
             base_query = base_query.where(Dataset.type.in_([t.value for t in types]))
 
-        # Add permission filtering
-        if user.role.value != "admin":
-            # Regular users can see their own datasets and public datasets
-            base_query = base_query.where(
-                or_(
-                    Dataset.owner_id == user.id,
-                    Dataset.is_public == True
-                )
-            )
-
         # Execute query with pagination
         base_query = base_query.offset(skip).limit(limit)
         result = await self.db_session.execute(base_query)
@@ -68,7 +54,6 @@ class DatasetRepository(BaseRepository):
 
     async def get_accessible_datasets(
             self,
-            user: User,
             types: Optional[List[DatasetType]] = None,
             skip: int = 0,
             limit: int = 100,
@@ -76,46 +61,29 @@ class DatasetRepository(BaseRepository):
     ) -> List[Dataset]:
         """
         Get datasets accessible to the user (owned or public).
-
         Args:
-            user: Current user
             types: Optional list of dataset types to filter by
             skip: Number of records to skip
             limit: Number of records to return
             filters: Additional filters
-
         Returns:
             List[Dataset]: Accessible datasets
         """
         if filters is None:
             filters = {}
 
-        if user.role.value == "admin":
-            # Admins can see all datasets
-            return await self.get_multi(skip=skip, limit=limit, filters=filters)
-
-        # For regular users, combine their datasets with public ones
         # Filter by type if specified
         type_filter = {}
         if types:
             type_filter = {"type": {"$in": [t.value for t in types]}}
 
-        # Get user's datasets
-        user_filters = {**filters, "owner_id": user.id, **type_filter}
-        user_datasets = await self.get_multi(skip=0, limit=None, filters=user_filters)
+        # Combine all filters
+        combined_filters = {**filters, **type_filter}
 
-        # If is_public filter is explicitly set to False, don't fetch public datasets
-        if filters.get("is_public") is False:
-            return user_datasets[skip:skip + limit]
+        # Get all datasets based on combined filters without applying is_public filter
+        # This will get both public and private datasets matching the filters
+        all_datasets = await self.get_multi(skip=skip, limit=limit, filters=combined_filters)
 
-        # Get public datasets
-        public_filters = {**filters, "is_public": True, **type_filter}
-        public_datasets = await self.get_multi(skip=0, limit=None, filters=public_filters)
+        print(f"Retrieved {len(all_datasets)} datasets matching filters: {combined_filters}")
 
-        # Filter out user's datasets from public ones to avoid duplicates
-        user_dataset_ids = {ds.id for ds in user_datasets}
-        filtered_public_datasets = [ds for ds in public_datasets if ds.id not in user_dataset_ids]
-
-        # Combine and paginate
-        all_datasets = user_datasets + filtered_public_datasets
-        return all_datasets[skip:skip + limit]
+        return all_datasets

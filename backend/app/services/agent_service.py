@@ -1,14 +1,13 @@
-# File: app/services/agent_service.py
+import json
+import logging
 import time
 from typing import Dict, Any, Optional, List
-from uuid import UUID
+
 import httpx
-import logging
-import json
 from fastapi import HTTPException, status
 
-from backend.app.db.models.orm.models import Agent
 from backend.app.core.config import settings
+from backend.app.db.models.orm import Agent
 
 logger = logging.getLogger(__name__)
 

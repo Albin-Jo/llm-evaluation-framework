@@ -1,18 +1,15 @@
-# File: app/api/v1/agents.py
+import logging
 from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-import logging
 
 from backend.app.db.repositories.agent_repository import AgentRepository
-from backend.app.db.session import get_db
-from backend.app.db.models.orm.models import Agent, User
 from backend.app.db.schema.agent_schema import (
     AgentCreate, AgentResponse, AgentUpdate
 )
-from backend.app.services.auth import get_current_active_user, get_current_admin_user
+from backend.app.db.session import get_db
 from backend.app.services.agent_service import test_agent_service
 
 # Set up logging
@@ -24,7 +21,6 @@ router = APIRouter()
 @router.post("/", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
 async def create_agent(
         agent_data: AgentCreate,
-        current_user: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -32,7 +28,6 @@ async def create_agent(
 
     Args:
         agent_data: The agent data to create
-        current_user: The current admin user
         db: Database session
 
     Returns:
@@ -69,7 +64,6 @@ async def list_agents(
         domain: Optional[str] = Query(None, description="Filter agents by domain"),
         is_active: Optional[bool] = Query(None, description="Filter agents by active status"),
         name: Optional[str] = Query(None, description="Filter agents by name (partial match)"),
-        current_user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -81,7 +75,6 @@ async def list_agents(
         domain: Optional domain filter
         is_active: Optional active status filter
         name: Optional name filter (partial match)
-        current_user: The current user
         db: Database session
 
     Returns:
@@ -113,7 +106,6 @@ async def list_agents(
 @router.get("/{agent_id}", response_model=AgentResponse)
 async def get_agent(
         agent_id: UUID,
-        current_user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -121,7 +113,6 @@ async def get_agent(
 
     Args:
         agent_id: The ID of the agent to retrieve
-        current_user: The current user
         db: Database session
 
     Returns:
@@ -149,7 +140,6 @@ async def get_agent(
 async def update_agent(
         agent_id: UUID,
         agent_data: AgentUpdate,
-        current_user: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -158,7 +148,6 @@ async def update_agent(
     Args:
         agent_id: The ID of the agent to update
         agent_data: The updated agent data
-        current_user: The current admin user
         db: Database session
 
     Returns:
@@ -205,7 +194,6 @@ async def update_agent(
 @router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_agent(
         agent_id: UUID,
-        current_user: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -213,7 +201,6 @@ async def delete_agent(
 
     Args:
         agent_id: The ID of the agent to delete
-        current_user: The current admin user
         db: Database session
 
     Raises:
@@ -256,7 +243,6 @@ async def delete_agent(
 async def test_agent(
         agent_id: UUID,
         test_input: Dict,
-        current_user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -265,7 +251,6 @@ async def test_agent(
     Args:
         agent_id: The ID of the agent to test
         test_input: The input data to test with
-        current_user: The current user
         db: Database session
 
     Returns:

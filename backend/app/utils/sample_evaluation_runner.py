@@ -6,8 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from backend.app.core.config import settings
-from backend.app.db.models.orm.models import EvaluationMethod, EvaluationStatus
+from backend.app.db.models.orm import EvaluationMethod, EvaluationStatus
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate
 from backend.app.evaluation.factory import EvaluationMethodFactory
 

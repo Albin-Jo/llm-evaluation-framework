@@ -1,27 +1,213 @@
-# File: app/services/dataset_service.py
-import csv
-import io
 import json
 import logging
 from datetime import datetime
 from json import JSONDecodeError
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 from uuid import UUID
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
-from backend.app.db.models.orm.models import Dataset, DatasetType, User
+from backend.app.db.models.base import Base
+from backend.app.db.models.orm import Dataset, DatasetType
 from backend.app.db.repositories.dataset_repository import DatasetRepository
 from backend.app.db.schema.dataset_schema import (
-    DatasetCreate, DatasetUpdate,
-    DatasetValidationResult
+    DatasetCreate, DatasetUpdate
 )
+from backend.app.db.validators.dataset_validator import (
+    validate_dataset_schema
+)
+from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.services.storage import get_storage_service
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+async def _get_file_size(file: UploadFile) -> int:
+    """
+    Get the size of an uploaded file.
+
+    Args:
+        file: Uploaded file
+
+    Returns:
+        int: File size in bytes
+    """
+    file_size = 0
+    chunk_size = 1024 * 1024  # 1MB chunks
+
+    # Calculate file size without loading entire file
+    await file.seek(0)
+    chunk = await file.read(chunk_size)
+    while chunk:
+        file_size += len(chunk)
+        chunk = await file.read(chunk_size)
+
+    # Reset file position
+    await file.seek(0)
+
+    return file_size
+
+
+async def analyze_file(
+        file: UploadFile, dataset_type: DatasetType) -> Tuple[Dict[str, Any], int, Dict[str, Any]]:
+    """
+    Analyze file and get metadata using streaming.
+
+    Args:
+        file: Uploaded file
+        dataset_type: Dataset type
+
+    Returns:
+        tuple: (metadata, row_count, schema)
+    """
+    # Reset file position
+    await file.seek(0)
+
+    # Basic file metadata
+    metadata = {
+        "filename": file.filename,
+        "content_type": file.content_type,
+    }
+
+    try:
+        # Different processing based on file type
+        if file.content_type == "application/json" or dataset_type.value.endswith("json"):
+            # For JSON, we still need to read the whole file to parse it
+            content = await file.read()
+            metadata["size"] = len(content)
+
+            # Parse JSON
+            data = json.loads(content.decode("utf-8"))
+
+            # Validate against schema for dataset type
+            try:
+                validation_result = validate_dataset_schema(content.decode("utf-8"), dataset_type)
+                metadata["validation_result"] = validation_result
+                metadata["supported_metrics"] = DATASET_TYPE_METRICS.get(dataset_type, [])
+                schema = validation_result.get("schema", {})
+            except ValueError as e:
+                # Log validation error but continue with basic schema inference
+                logger.warning(f"Dataset validation failed: {str(e)}")
+                metadata["validation_error"] = str(e)
+
+                # Infer basic schema as fallback
+                if isinstance(data, list):
+                    schema = {"properties": {}} if not data else {
+                        "properties": {
+                            k: {"type": type(v).__name__} for k, v in data[0].items()
+                        }
+                    }
+                else:
+                    schema = {"properties": {
+                        k: {"type": type(v).__name__} for k, v in data.items()
+                    }}
+
+            # Determine row count
+            if isinstance(data, list):
+                row_count = len(data)
+            else:
+                row_count = 1
+
+        elif file.content_type == "text/csv" or dataset_type.value.endswith("csv"):
+            # For CSV, process line by line to count rows and infer schema
+            await file.seek(0)
+
+            # Read header first
+            header_line = await file.readline()
+            header = header_line.decode("utf-8").strip().split(",")
+
+            # Read first data row to infer types
+            first_row_line = await file.readline()
+            if first_row_line:
+                first_row = first_row_line.decode("utf-8").strip().split(",")
+            else:
+                first_row = []
+
+            # Infer schema from header and first row
+            schema = {"properties": {}}
+            if header and first_row:
+                for i, col in enumerate(header):
+                    if i < len(first_row):
+                        # Try to infer type
+                        val = first_row[i]
+                        try:
+                            int(val)
+                            schema["properties"][col] = {"type": "integer"}
+                        except ValueError:
+                            try:
+                                float(val)
+                                schema["properties"][col] = {"type": "number"}
+                            except ValueError:
+                                schema["properties"][col] = {"type": "string"}
+                    else:
+                        schema["properties"][col] = {"type": "string"}
+
+            # Count rows (we already read 2 lines)
+            row_count = 1  # Start with 1 for the data row we've already read
+
+            # Read and count remaining lines
+            chunk_size = 8192  # Read ~8KB at a time
+            remaining_content = b""
+
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+
+                remaining_content += chunk
+                lines = remaining_content.split(b"\n")
+
+                # The last line might be incomplete, so keep it for the next iteration
+                remaining_content = lines.pop() if lines else b""
+
+                row_count += len(lines)
+
+            # Don't forget the last line if it's not empty
+            if remaining_content:
+                row_count += 1
+
+            # Get file size by reading the whole file
+            await file.seek(0)
+            content = await file.read()
+            metadata["size"] = len(content)
+
+            # For CSV, add metrics that would be supported based on dataset type
+            metadata["supported_metrics"] = DATASET_TYPE_METRICS.get(dataset_type, [])
+
+        else:
+            # For other formats, read the whole file to get size
+            await file.seek(0)
+            content = await file.read()
+            metadata["size"] = len(content)
+
+            row_count = 1  # Default for non-structured data
+            schema = {"type": "string"}
+
+        # Reset file position for potential reuse
+        await file.seek(0)
+
+        return metadata, row_count, schema
+
+    except Exception as e:
+        # If analysis fails, return basic info
+        logger.exception(f"Error analyzing file: {str(e)}")
+
+        # Get file size if possible by reading the file
+        try:
+            await file.seek(0)
+            content = await file.read()
+            metadata["size"] = len(content)
+            await file.seek(0)  # Reset position
+        except:
+            metadata["size"] = 0
+
+        return {
+            **metadata,
+            "error": str(e)
+        }, 0, {}
 
 
 class DatasetService:
@@ -40,7 +226,7 @@ class DatasetService:
 
     async def create_dataset(
             self, name: str, description: Optional[str], dataset_type: DatasetType,
-            file: UploadFile, is_public: bool, user: User
+            file: UploadFile, is_public: bool, extra_metadata: Optional[Dict[str, Any]] = None
     ) -> Dataset:
         """
         Create a new dataset.
@@ -51,7 +237,7 @@ class DatasetService:
             dataset_type: Dataset type
             file: Uploaded file
             is_public: Whether the dataset is public
-            user: Current user
+            extra_metadata: Additional metadata to include
 
         Returns:
             Dataset: Created dataset
@@ -60,7 +246,7 @@ class DatasetService:
             HTTPException: If file validation fails
         """
         # Validate file size
-        file_size = await self._get_file_size(file)
+        file_size = await _get_file_size(file)
         if file_size > settings.MAX_UPLOAD_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -70,30 +256,37 @@ class DatasetService:
         # Validate file content type
         content_type = file.content_type
         valid_types = {
-            DatasetType.USER_QUERY: ["text/csv", "application/json", "text/plain"],
-            DatasetType.CONTEXT: ["text/csv", "application/json", "text/plain"],
+            DatasetType.USER_QUERY: ["text/csv", "application/json"],
+            DatasetType.CONTEXT: ["text/csv", "application/json"],
             DatasetType.QUESTION_ANSWER: ["text/csv", "application/json"],
             DatasetType.CONVERSATION: ["application/json"],
-            DatasetType.CUSTOM: ["text/csv", "application/json", "text/plain"]
+            DatasetType.CUSTOM: ["text/csv", "application/json"]
         }
 
         if content_type not in valid_types.get(dataset_type, []):
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail=f"Unsupported file type for dataset type {dataset_type}. Supported types: {valid_types.get(dataset_type)}"
+                detail=f"Unsupported file type for dataset "
+                       f"type {dataset_type}. Supported types: {valid_types.get(dataset_type)}"
             )
 
         try:
-            # Construct more organized file path
-            # /{environment}/uploads/datasets/{dataset_type}/...
-            environment = settings.ENVIRONMENT
+            environment = settings.APP_ENV
             dir_path = f"{environment}/uploads/datasets/{dataset_type.value}"
 
             # Upload file
             file_path = await self.storage_service.upload_file(file, dir_path)
 
             # Analyze file and get metadata
-            meta_info, row_count, schema = await self.analyze_file(file, dataset_type)
+            meta_info, row_count, schema = await analyze_file(file, dataset_type)
+
+            # Add extra metadata if provided
+            if extra_metadata:
+                meta_info.update(extra_metadata)
+
+            # Add supported metrics if not already present
+            if "supported_metrics" not in meta_info:
+                meta_info["supported_metrics"] = DATASET_TYPE_METRICS.get(dataset_type, [])
 
             # Create dataset
             dataset_data = DatasetCreate(
@@ -101,7 +294,7 @@ class DatasetService:
                 description=description,
                 type=dataset_type,
                 file_path=file_path,
-                schema=schema,
+                schema_definition=schema,
                 meta_info=meta_info,
                 row_count=row_count,
                 is_public=is_public
@@ -109,7 +302,7 @@ class DatasetService:
 
             # Create dataset in DB
             dataset_dict = dataset_data.model_dump()
-            dataset_dict["owner_id"] = user.id
+            # dataset_dict["owner_id"] = user.id
 
             dataset = await self.dataset_repo.create(dataset_dict)
             return dataset
@@ -132,126 +325,8 @@ class DatasetService:
                 detail=f"Error creating dataset: {str(e)}"
             )
 
-    async def get_dataset(self, dataset_id: UUID, user: User) -> Dataset:
-        """
-        Get a dataset by ID.
-
-        Args:
-            dataset_id: Dataset ID
-            user: Current user
-
-        Returns:
-            Dataset: Retrieved dataset
-
-        Raises:
-            HTTPException: If dataset not found or user doesn't have access
-        """
-        dataset = await self.dataset_repo.get(dataset_id)
-
-        if not dataset:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Dataset with ID {dataset_id} not found"
-            )
-
-        # Check if user has permission to view this dataset
-        if (
-                dataset.owner_id != user.id
-                and not dataset.is_public
-                and user.role.value != "admin"
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions to access this dataset"
-            )
-
-        return dataset
-
-    async def update_dataset(self, dataset_id: UUID, dataset_data: DatasetUpdate, user: User) -> Dataset:
-        """
-        Update a dataset.
-
-        Args:
-            dataset_id: Dataset ID
-            dataset_data: Dataset update data
-            user: Current user
-
-        Returns:
-            Dataset: Updated dataset
-
-        Raises:
-            HTTPException: If dataset not found or user doesn't have permission
-        """
-        dataset = await self.dataset_repo.get(dataset_id)
-
-        if not dataset:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Dataset with ID {dataset_id} not found"
-            )
-
-        # Check if user has permission to update this dataset
-        if dataset.owner_id != user.id and user.role.value != "admin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions to update this dataset"
-            )
-
-        # Update the dataset
-        update_data = {
-            k: v for k, v in dataset_data.model_dump().items() if v is not None
-        }
-
-        if not update_data:
-            return dataset
-
-        updated_dataset = await self.dataset_repo.update(dataset_id, update_data)
-        return updated_dataset
-
-    async def delete_dataset(self, dataset_id: UUID, user: User) -> bool:
-        """
-        Delete a dataset.
-
-        Args:
-            dataset_id: Dataset ID
-            user: Current user
-
-        Returns:
-            bool: True if deleted successfully
-
-        Raises:
-            HTTPException: If dataset not found or user doesn't have permission
-        """
-        dataset = await self.dataset_repo.get(dataset_id)
-
-        if not dataset:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Dataset with ID {dataset_id} not found"
-            )
-
-        # Check if user has permission to delete this dataset
-        if dataset.owner_id != user.id and user.role.value != "admin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions to delete this dataset"
-            )
-
-        # Delete the dataset file
-        await self.storage_service.delete_file(dataset.file_path)
-
-        # Delete the dataset from the database
-        success = await self.dataset_repo.delete(dataset_id)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete dataset"
-            )
-
-        return True
-
     async def list_datasets(
-            self, user: User, skip: int = 0, limit: int = 100,
+            self, skip: int = 0, limit: int = 100,
             dataset_type: Optional[DatasetType] = None,
             is_public: Optional[bool] = None
     ) -> List[Dataset]:
@@ -259,7 +334,6 @@ class DatasetService:
         List datasets accessible to the user.
 
         Args:
-            user: Current user
             skip: Number of records to skip
             limit: Number of records to return
             dataset_type: Filter by dataset type
@@ -278,553 +352,103 @@ class DatasetService:
             filters["is_public"] = is_public
 
         return await self.dataset_repo.get_accessible_datasets(
-            user=user,
             skip=skip,
             limit=limit,
             filters=filters
         )
 
-    async def search_datasets(
-            self, query: str, user: User, types: Optional[List[DatasetType]] = None,
-            include_content: bool = False, skip: int = 0, limit: int = 20
-    ) -> List[Dataset]:
+    async def get_dataset(self, dataset_id: UUID) -> Dataset:
         """
-        Search for datasets by name, description, or content.
-
-        Args:
-            query: Search term
-            user: Current user
-            types: Filter by dataset types
-            include_content: Whether to search in dataset content
-            skip: Number of records to skip
-            limit: Number of records to return
-
-        Returns:
-            List[Dataset]: Matching datasets
-        """
-        # Search by name and description
-        datasets = await self.dataset_repo.search_datasets(
-            query=query,
-            user=user,
-            types=types,
-            skip=skip,
-            limit=limit
-        )
-
-        # If include_content is True, also search in the content
-        if include_content and query:
-            # Get all datasets accessible to the user
-            accessible_datasets = await self.dataset_repo.get_accessible_datasets(
-                user=user,
-                types=types,
-                skip=0,
-                limit=None
-            )
-
-            content_matches = []
-
-            # Search in content - this can be expensive
-            for dataset in accessible_datasets:
-                # Skip datasets already in results
-                if dataset in datasets:
-                    continue
-
-                try:
-                    content = await self.storage_service.read_file(dataset.file_path)
-
-                    # Simple content search
-                    if query.lower() in content.lower():
-                        content_matches.append(dataset)
-
-                        if len(content_matches) + len(datasets) >= limit:
-                            break
-                except Exception as e:
-                    logger.warning(f"Error searching in dataset {dataset.id}: {str(e)}")
-
-            # Add content matches up to the limit
-            remaining = limit - len(datasets)
-            if remaining > 0:
-                datasets.extend(content_matches[:remaining])
-
-        return datasets
-
-    async def preview_dataset(self, dataset_id: UUID, user: User, limit: int = 10) -> List[Dict[str, Any]]:
-        """
-        Preview dataset content.
+        Get a dataset by ID.
 
         Args:
             dataset_id: Dataset ID
-            user: Current user
-            limit: Number of records to return
 
         Returns:
-            List[Dict[str, Any]]: Dataset preview
+            Dataset: Retrieved dataset
 
         Raises:
             HTTPException: If dataset not found or user doesn't have access
         """
-        dataset = await self.get_dataset(dataset_id, user)
+        dataset = await self.dataset_repo.get(dataset_id)
 
-        try:
-            # Read dataset file
-            file_content = await self.storage_service.read_file(dataset.file_path)
-
-            # Parse dataset based on type
-            if dataset.type.value.endswith("json"):
-                data = json.loads(file_content)
-                return data[:limit] if isinstance(data, list) else [data]
-
-            elif dataset.type.value.endswith("csv"):
-                csv_data = []
-                csv_file = io.StringIO(file_content)
-                reader = csv.DictReader(csv_file)
-
-                for i, row in enumerate(reader):
-                    if i >= limit:
-                        break
-                    csv_data.append(dict(row))
-
-                return csv_data
-
-            else:
-                # Return raw text for non-structured data
-                return [{"content": file_content[:1000] + "..." if len(file_content) > 1000 else file_content}]
-
-        except Exception as e:
+        if not dataset:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error reading dataset file: {str(e)}"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found"
             )
 
-    async def validate_dataset(self, dataset_id: UUID, user: User) -> DatasetValidationResult:
+        return dataset
+
+    async def delete_dataset(self, dataset_id: UUID) -> bool:
         """
-        Validate a dataset against its schema.
+        Delete a dataset.
 
         Args:
             dataset_id: Dataset ID
-            user: Current user
 
         Returns:
-            DatasetValidationResult: Validation results
+            bool: True if deleted successfully
 
         Raises:
-            HTTPException: If dataset not found or user doesn't have access
+            HTTPException: If dataset not found or user doesn't have permission
         """
-        dataset = await self.get_dataset(dataset_id, user)
+        dataset = await self.dataset_repo.get(dataset_id)
 
-        try:
-            # Read dataset file
-            file_content = await self.storage_service.read_file(dataset.file_path)
-
-            # Validation results
-            results = DatasetValidationResult(
-                valid=True,
-                errors=[],
-                warnings=[],
-                statistics={}
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found"
             )
 
-            # Parse and validate based on dataset type
-            if dataset.type.value.endswith("json"):
-                # Validate JSON
-                try:
-                    data = json.loads(file_content)
+        # Delete the dataset file
+        await self.storage_service.delete_file(dataset.file_path)
 
-                    # Basic structure validation
-                    if isinstance(data, list):
-                        results.statistics["total_records"] = len(data)
-
-                        # Check for empty records
-                        empty_records = sum(1 for item in data if not item)
-                        if empty_records:
-                            results.warnings.append(f"Dataset contains {empty_records} empty records")
-
-                        # Validate against schema if available
-                        if dataset.schema and dataset.schema.get("properties"):
-                            expected_fields = set(dataset.schema["properties"].keys())
-
-                            # Check each record
-                            for i, record in enumerate(data):
-                                if not isinstance(record, dict):
-                                    results.errors.append(f"Record {i} is not a JSON object")
-                                    continue
-
-                                record_fields = set(record.keys())
-
-                                # Missing required fields
-                                missing = expected_fields - record_fields
-                                if missing:
-                                    results.warnings.append(f"Record {i} is missing fields: {', '.join(missing)}")
-
-                                # Extra fields
-                                extra = record_fields - expected_fields
-                                if extra:
-                                    results.warnings.append(f"Record {i} has extra fields: {', '.join(extra)}")
-                    else:
-                        results.statistics["total_records"] = 1
-
-                        # Single object validation
-                        if dataset.schema and dataset.schema.get("properties"):
-                            expected_fields = set(dataset.schema["properties"].keys())
-                            record_fields = set(data.keys())
-
-                            # Missing required fields
-                            missing = expected_fields - record_fields
-                            if missing:
-                                results.warnings.append(f"Record is missing fields: {', '.join(missing)}")
-
-                            # Extra fields
-                            extra = record_fields - expected_fields
-                            if extra:
-                                results.warnings.append(f"Record has extra fields: {', '.join(extra)}")
-
-                except json.JSONDecodeError as e:
-                    results.valid = False
-                    results.errors.append(f"Invalid JSON: {str(e)}")
-
-            elif dataset.type.value.endswith("csv"):
-                # Validate CSV
-                try:
-                    csv_file = io.StringIO(file_content)
-                    reader = csv.reader(csv_file)
-
-                    # Read header
-                    try:
-                        header = next(reader)
-                        results.statistics["columns"] = len(header)
-                    except StopIteration:
-                        results.valid = False
-                        results.errors.append("CSV file is empty or has no header")
-                        return results
-
-                    # Count rows and check consistency
-                    row_count = 0
-                    inconsistent_rows = 0
-
-                    for i, row in enumerate(reader):
-                        row_count += 1
-
-                        if len(row) != len(header):
-                            inconsistent_rows += 1
-                            if inconsistent_rows <= 5:  # Limit the number of reported inconsistencies
-                                results.errors.append(f"Row {i + 1} has {len(row)} columns, expected {len(header)}")
-
-                    results.statistics["total_records"] = row_count
-
-                    if inconsistent_rows:
-                        results.valid = False
-                        results.errors.append(f"Found {inconsistent_rows} rows with inconsistent number of columns")
-
-                    # Compare with reported row count if available
-                    if dataset.row_count is not None and dataset.row_count != row_count:
-                        results.warnings.append(
-                            f"Reported row count ({dataset.row_count}) differs from actual count ({row_count})"
-                        )
-
-                    # Validate against schema if available
-                    if dataset.schema and dataset.schema.get("properties"):
-                        expected_fields = set(dataset.schema["properties"].keys())
-                        header_fields = set(header)
-
-                        # Missing required fields
-                        missing = expected_fields - header_fields
-                        if missing:
-                            results.warnings.append(f"CSV is missing columns: {', '.join(missing)}")
-
-                        # Extra fields
-                        extra = header_fields - expected_fields
-                        if extra:
-                            results.warnings.append(f"CSV has extra columns: {', '.join(extra)}")
-
-                except Exception as e:
-                    results.valid = False
-                    results.errors.append(f"CSV validation error: {str(e)}")
-
-            else:
-                # For other formats, just return basic info
-                results.statistics["file_size"] = len(file_content)
-                results.warnings.append("No detailed validation available for this file type")
-
-            # Set overall validation status
-            results.valid = len(results.errors) == 0
-
-            return results
-
-        except Exception as e:
+        # Delete the dataset from the database
+        success = await self.dataset_repo.delete(dataset_id)
+        if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error validating dataset: {str(e)}"
+                detail="Failed to delete dataset"
             )
 
-    async def get_dataset_statistics(self, dataset_id: UUID, user: User) -> Dict[str, Any]:
+        return True
+
+    async def update_dataset(self, dataset_id: UUID, dataset_data: DatasetUpdate) -> Base | None | Any:
         """
-        Get dataset statistics.
+        Update a dataset.
 
         Args:
             dataset_id: Dataset ID
-            user: Current user
+            dataset_data: Dataset update data
 
         Returns:
-            Dict[str, Any]: Dataset statistics
+            Dataset: Updated dataset
 
         Raises:
-            HTTPException: If dataset not found or user doesn't have access
+            HTTPException: If dataset not found or user doesn't have permission
         """
-        dataset = await self.get_dataset(dataset_id, user)
+        dataset = await self.dataset_repo.get(dataset_id)
 
-        try:
-            # Read dataset file
-            file_content = await self.storage_service.read_file(dataset.file_path)
-
-            # Statistics object
-            stats = {
-                "basic_info": {
-                    "name": dataset.name,
-                    "type": dataset.type.value,
-                    "row_count": dataset.row_count,
-                    "file_size": len(file_content),
-                    "version": dataset.version,
-                    "creation_date": dataset.created_at.isoformat() if dataset.created_at else None,
-                    "last_modified": dataset.updated_at.isoformat() if dataset.updated_at else None
-                },
-                "fields": {},
-                "numerical_stats": {},
-                "text_stats": {},
-                "quality_metrics": {
-                    "completeness": 0,
-                    "consistency": 0,
-                    "duplicates": 0
-                }
-            }
-
-            # Process based on dataset type
-            if dataset.type.value.endswith("json"):
-                data = json.loads(file_content)
-
-                # Ensure data is a list
-                if not isinstance(data, list):
-                    data = [data]
-
-                if not data:
-                    return stats
-
-                # Field statistics
-                all_fields = set()
-                for item in data:
-                    all_fields.update(item.keys())
-
-                field_presence = {field: 0 for field in all_fields}
-                field_types = {field: {} for field in all_fields}
-                numerical_values = {field: [] for field in all_fields}
-                text_lengths = {field: [] for field in all_fields}
-
-                # Unique rows for duplicate detection
-                seen_rows = set()
-                duplicate_count = 0
-
-                # Process each record
-                for item in data:
-                    # Check for duplicates (using json string as hash)
-                    item_hash = json.dumps(item, sort_keys=True)
-                    if item_hash in seen_rows:
-                        duplicate_count += 1
-                    else:
-                        seen_rows.add(item_hash)
-
-                    # Process each field
-                    for field in all_fields:
-                        # Check presence
-                        if field in item:
-                            field_presence[field] += 1
-
-                            # Check type
-                            value = item[field]
-                            value_type = type(value).__name__
-                            field_types[field][value_type] = field_types[field].get(value_type, 0) + 1
-
-                            # Collect numerical values
-                            if isinstance(value, (int, float)) or (
-                                    isinstance(value, str) and value.replace('.', '', 1).isdigit()):
-                                try:
-                                    num_value = float(value)
-                                    numerical_values[field].append(num_value)
-                                except (ValueError, TypeError):
-                                    pass
-
-                            # Collect text lengths
-                            if isinstance(value, str):
-                                text_lengths[field].append(len(value))
-
-                # Calculate field statistics
-                for field in all_fields:
-                    presence_rate = field_presence[field] / len(data)
-                    dominant_type = max(field_types[field].items(), key=lambda x: x[1])[0] if field_types[
-                        field] else "unknown"
-
-                    stats["fields"][field] = {
-                        "presence_rate": presence_rate,
-                        "dominant_type": dominant_type,
-                        "type_distribution": field_types[field]
-                    }
-
-                    # Numerical statistics
-                    if numerical_values[field]:
-                        nums = numerical_values[field]
-                        stats["numerical_stats"][field] = {
-                            "count": len(nums),
-                            "min": min(nums),
-                            "max": max(nums),
-                            "mean": sum(nums) / len(nums),
-                            "unique_values": len(set(nums))
-                        }
-
-                    # Text statistics
-                    if text_lengths[field]:
-                        lengths = text_lengths[field]
-                        stats["text_stats"][field] = {
-                            "count": len(lengths),
-                            "min_length": min(lengths),
-                            "max_length": max(lengths),
-                            "avg_length": sum(lengths) / len(lengths)
-                        }
-
-                # Overall quality metrics
-                avg_completeness = sum(field_presence.values()) / (len(all_fields) * len(data))
-                stats["quality_metrics"]["completeness"] = avg_completeness
-                stats["quality_metrics"]["duplicates"] = duplicate_count
-
-                # Consistency - check if fields mostly have the same type
-                type_consistency = 0
-                for field, type_dist in field_types.items():
-                    if type_dist:
-                        max_type_count = max(type_dist.values())
-                        type_consistency += max_type_count / sum(type_dist.values())
-
-                stats["quality_metrics"]["consistency"] = type_consistency / len(field_types) if field_types else 0
-
-            elif dataset.type.value.endswith("csv"):
-                # Process CSV (similar logic to JSON processing)
-                csv_file = io.StringIO(file_content)
-                reader = csv.DictReader(csv_file)
-
-                # Convert to list to process multiple times
-                data = list(reader)
-
-                if not data:
-                    return stats
-
-                # Get all fields from header
-                all_fields = reader.fieldnames or []
-
-                field_presence = {field: 0 for field in all_fields}
-                field_types = {field: {} for field in all_fields}
-                numerical_values = {field: [] for field in all_fields}
-                text_lengths = {field: [] for field in all_fields}
-
-                # Similar processing as JSON...
-                # (implementation omitted for brevity as it's very similar to JSON logic)
-
-            else:
-                # For non-structured data, only provide basic stats
-                stats["basic_info"]["file_size"] = len(file_content)
-                if isinstance(file_content, str):
-                    stats["basic_info"]["character_count"] = len(file_content)
-                    stats["basic_info"]["line_count"] = file_content.count('\n') + 1
-
-            return stats
-
-        except Exception as e:
-            logger.exception(f"Error calculating dataset statistics: {str(e)}")
+        if not dataset:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error calculating dataset statistics: {str(e)}"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found"
             )
 
-    async def export_dataset(
-            self, dataset_id: UUID, user: User, export_format: str = "json"
-    ) -> Tuple[str, str, bytes]:
-        """
-        Export a dataset to various formats.
+        # Update the dataset
+        update_data = {
+            k: v for k, v in dataset_data.model_dump().items() if v is not None
+        }
 
-        Args:
-            dataset_id: Dataset ID
-            user: Current user
-            export_format: Export format (json, csv)
+        if not update_data:
+            return dataset
 
-        Returns:
-            Tuple[str, str, bytes]: (filename, content_type, content)
-
-        Raises:
-            HTTPException: If dataset not found or user doesn't have access
-        """
-        dataset = await self.get_dataset(dataset_id, user)
-
-        try:
-            # Read dataset file
-            file_content = await self.storage_service.read_file(dataset.file_path)
-
-            # Convert to requested format
-            if export_format.lower() == "json":
-                # If already JSON, just return it
-                if dataset.type.value.endswith("json"):
-                    filename = f"{dataset.name}.json"
-                    content_type = "application/json"
-                    return filename, content_type, file_content.encode('utf-8')
-
-                # Convert from CSV to JSON if needed
-                elif dataset.type.value.endswith("csv"):
-                    csv_file = io.StringIO(file_content)
-                    reader = csv.DictReader(csv_file)
-                    json_data = json.dumps([dict(row) for row in reader])
-
-                    filename = f"{dataset.name}.json"
-                    content_type = "application/json"
-                    return filename, content_type, json_data.encode('utf-8')
-
-            elif export_format.lower() == "csv":
-                # If already CSV, just return it
-                if dataset.type.value.endswith("csv"):
-                    filename = f"{dataset.name}.csv"
-                    content_type = "text/csv"
-                    return filename, content_type, file_content.encode('utf-8')
-
-                # Convert from JSON to CSV
-                elif dataset.type.value.endswith("json"):
-                    data = json.loads(file_content)
-
-                    # Ensure data is a list for CSV conversion
-                    if not isinstance(data, list):
-                        data = [data]
-
-                    if not data:
-                        filename = f"{dataset.name}.csv"
-                        content_type = "text/csv"
-                        return filename, content_type, "".encode('utf-8')
-
-                    # Write to CSV
-                    output = io.StringIO()
-                    writer = csv.DictWriter(output, fieldnames=data[0].keys())
-                    writer.writeheader()
-                    writer.writerows(data)
-
-                    filename = f"{dataset.name}.csv"
-                    content_type = "text/csv"
-                    return filename, content_type, output.getvalue().encode('utf-8')
-
-            # Default to returning raw content
-            filename = f"{dataset.name}.{export_format}"
-            content_type = "application/octet-stream"
-            return filename, content_type, file_content.encode('utf-8')
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error exporting dataset: {str(e)}"
-            )
-
+        updated_dataset = await self.dataset_repo.update(dataset_id, update_data)
+        return updated_dataset
 
     async def create_dataset_version(
-            self, dataset_id: UUID, file: UploadFile, version_notes: Optional[str], user: User
+            self, dataset_id: UUID, file: UploadFile, version_notes: Optional[str],
     ) -> Dataset:
         """
         Create a new version of an existing dataset.
@@ -833,7 +457,6 @@ class DatasetService:
             dataset_id: Dataset ID
             file: Uploaded file
             version_notes: Version notes
-            user: Current user
 
         Returns:
             Dataset: Updated dataset
@@ -841,14 +464,7 @@ class DatasetService:
         Raises:
             HTTPException: If dataset not found or user doesn't have access
         """
-        original_dataset = await self.get_dataset(dataset_id, user)
-
-        # Check if user has permission to create a new version
-        if original_dataset.owner_id != user.id and user.role.value != "admin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions to create a new version"
-            )
+        original_dataset = await self.get_dataset(dataset_id)
 
         # Increment version
         current_version = original_dataset.version
@@ -863,13 +479,13 @@ class DatasetService:
         try:
             # Upload new file using organized directory structure
             # /{environment}/uploads/datasets/{dataset_type}/versions/{dataset_id}/{version}/
-            environment = settings.ENVIRONMENT
+            environment = settings.APP_ENV
             version_path = f"{environment}/uploads/datasets/{original_dataset.type.value}/versions/{dataset_id}/{new_version}"
 
             file_path = await self.storage_service.upload_file(file, version_path)
 
             # Analyze file and get metadata
-            meta_info, row_count, schema = await self.analyze_file(file, original_dataset.type)
+            meta_info, row_count, schema = await analyze_file(file, original_dataset.type)
 
             # Add version metadata
             if not meta_info:
@@ -885,7 +501,7 @@ class DatasetService:
             # Create new dataset with existing metadata but new file
             dataset_data = DatasetUpdate(
                 file_path=file_path,
-                schema=schema,
+                schema_definition=schema,
                 meta_info=meta_info,
                 row_count=row_count,
                 version=new_version
@@ -902,195 +518,29 @@ class DatasetService:
                 detail=f"Error creating dataset version: {str(e)}"
             )
 
-    async def analyze_file(self, file: UploadFile, dataset_type: DatasetType) -> Tuple[
-        Dict[str, Any], int, Dict[str, Any]]:
+    async def generate_file_path(self, name: str, filename: str, dataset_type: DatasetType) -> str:
         """
-        Analyze file and get metadata using streaming.
+        Generate a unique file path for a dataset file.
 
         Args:
-            file: Uploaded file
+            name: Dataset name
+            filename: Original filename
             dataset_type: Dataset type
 
         Returns:
-            tuple: (metadata, row_count, schema)
+            str: Generated file path
         """
-        # Reset file position
-        await file.seek(0)
+        # Generate a unique ID for the file
+        import uuid
+        file_id = str(uuid.uuid4())
 
-        # Basic file metadata
-        metadata = {
-            "filename": file.filename,
-            "content_type": file.content_type,
-        }
+        # Get file extension
+        ext = filename.split('.')[-1] if '.' in filename else 'json'
 
-        try:
-            # Different processing based on file type
-            if file.content_type == "application/json" or dataset_type.value.endswith("json"):
-                # For JSON, we still need to read the whole file to parse it
-                content = await file.read()
-                metadata["size"] = len(content)
+        # Sanitize dataset name for use in path
+        import re
+        sanitized_name = re.sub(r'[^\w\-]', '_', name).lower()
 
-                # Parse JSON
-                data = json.loads(content.decode("utf-8"))
-
-                if isinstance(data, list):
-                    row_count = len(data)
-                    # Infer schema from first item if it's a list
-                    schema = {"properties": {}} if not data else {
-                        "properties": {
-                            k: {"type": type(v).__name__} for k, v in data[0].items()
-                        }
-                    }
-                else:
-                    row_count = 1
-                    schema = {"properties": {
-                        k: {"type": type(v).__name__} for k, v in data.items()
-                    }}
-
-            elif file.content_type == "text/csv" or dataset_type.value.endswith("csv"):
-                # For CSV, process line by line to count rows and infer schema
-                await file.seek(0)
-
-                # Read header first
-                header_line = await file.readline()
-                header = header_line.decode("utf-8").strip().split(",")
-
-                # Read first data row to infer types
-                # File: app/services/dataset_service.py (continued)
-                first_row_line = await file.readline()
-                if first_row_line:
-                    first_row = first_row_line.decode("utf-8").strip().split(",")
-                else:
-                    first_row = []
-
-                # Infer schema from header and first row
-                schema = {"properties": {}}
-                if header and first_row:
-                    for i, col in enumerate(header):
-                        if i < len(first_row):
-                            # Try to infer type
-                            val = first_row[i]
-                            try:
-                                int(val)
-                                schema["properties"][col] = {"type": "integer"}
-                            except ValueError:
-                                try:
-                                    float(val)
-                                    schema["properties"][col] = {"type": "number"}
-                                except ValueError:
-                                    schema["properties"][col] = {"type": "string"}
-                        else:
-                            schema["properties"][col] = {"type": "string"}
-
-                # Count rows (we already read 2 lines)
-                row_count = 1  # Start with 1 for the data row we've already read
-
-                # Read and count remaining lines
-                chunk_size = 8192  # Read ~8KB at a time
-                remaining_content = b""
-
-                while True:
-                    chunk = await file.read(chunk_size)
-                    if not chunk:
-                        break
-
-                    remaining_content += chunk
-                    lines = remaining_content.split(b"\n")
-
-                    # The last line might be incomplete, so keep it for the next iteration
-                    remaining_content = lines.pop() if lines else b""
-
-                    row_count += len(lines)
-
-                # Don't forget the last line if it's not empty
-                if remaining_content:
-                    row_count += 1
-
-                # Get file size
-                await file.seek(0, 2)  # Seek to end
-                metadata["size"] = await file.tell()
-
-            else:
-                # For other formats, just get size and minimal info
-                await file.seek(0, 2)  # Seek to end
-                size = await file.tell()
-                metadata["size"] = size
-
-                row_count = 1  # Default for non-structured data
-                schema = {"type": "string"}
-
-                # Reset file position for potential reuse
-            await file.seek(0)
-
-            return metadata, row_count, schema
-
-        except Exception as e:
-            # If analysis fails, return basic info
-            logger.exception(f"Error analyzing file: {str(e)}")
-
-            # Try to get file size if possible
-            try:
-                await file.seek(0, 2)  # Seek to end
-                size = await file.tell()
-                metadata["size"] = size
-                await file.seek(0)  # Reset position
-            except:
-                metadata["size"] = 0
-
-            return {
-                **metadata,
-                "error": str(e)
-            }, 0, {}
-
-    async def get_dataset_content_stream(
-            self, dataset_id: UUID, user: User
-    ) -> AsyncGenerator[bytes, None]:
-        """
-        Stream dataset content.
-
-        Args:
-            dataset_id: Dataset ID
-            user: Current user
-
-        Yields:
-            bytes: Dataset content chunks
-
-        Raises:
-            HTTPException: If dataset not found or user doesn't have access
-        """
-        dataset = await self.get_dataset(dataset_id, user)
-
-        try:
-            async for chunk in self.storage_service.read_file_stream(dataset.file_path):
-                yield chunk
-        except Exception as e:
-            logger.exception(f"Error streaming dataset content: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error streaming dataset content: {str(e)}"
-            )
-
-    async def _get_file_size(self, file: UploadFile) -> int:
-        """
-        Get the size of an uploaded file.
-
-        Args:
-            file: Uploaded file
-
-        Returns:
-            int: File size in bytes
-        """
-        file_size = 0
-        chunk_size = 1024 * 1024  # 1MB chunks
-
-        # Calculate file size without loading entire file
-        await file.seek(0)
-        chunk = await file.read(chunk_size)
-        while chunk:
-            file_size += len(chunk)
-            chunk = await file.read(chunk_size)
-
-        # Reset file position
-        await file.seek(0)
-
-        return file_size
+        # Create path in format: {environment}/uploads/datasets/{type}/{sanitized_name}_{file_id}.{ext}
+        environment = settings.APP_ENV
+        return f"{environment}/uploads/datasets/{dataset_type.value}/{sanitized_name}_{file_id}.{ext}"

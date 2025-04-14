@@ -1,14 +1,13 @@
 # File: app/api/v1/auth.py
-from typing import Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
-from backend.app.db.models.orm.models import User
-from backend.app.db.schema.user_schema import UserResponse, UserWithToken
+from backend.app.db.models.orm import User
+from backend.app.db.schema.user_schema import UserResponse
 from backend.app.services.auth import AuthService, get_auth_service, get_current_active_user, oauth
 
 router = APIRouter()
