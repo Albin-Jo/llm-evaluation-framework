@@ -1,6 +1,6 @@
-from typing import AsyncGenerator, Dict, Generator
 import uuid
 from datetime import datetime, timedelta
+from typing import AsyncGenerator, Dict, Generator
 
 import pytest
 import pytest_asyncio
@@ -11,10 +11,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from backend.app.core.config import settings
-from backend.app.db.session import get_db
 from backend.app.db.models.base import Base
 from backend.app.db.models.orm import User, DatasetType, UserRole
+from backend.app.db.session import get_db
 from backend.app.main import app as main_app
+
 # from backend.app.services.auth import create_access_token
 
 # Use a test database URL
@@ -212,3 +213,87 @@ def mock_storage_service(monkeypatch):
     from backend.app.services import storage
     monkeypatch.setattr(storage, "get_storage_service", lambda: MockStorageService())
     return MockStorageService()
+
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
+
+from backend.app.db.models.orm import ReportStatus, ReportFormat, Report
+from backend.app.db.repositories.base import BaseRepository
+from backend.app.services.report_service import ReportService
+
+
+@pytest.fixture
+async def test_report(db_session: AsyncSession, test_evaluation):
+    """Create a test report for testing."""
+    report_repo = BaseRepository(Report, db_session)
+
+    # Create report data
+    report_data = {
+        "name": "Test Report",
+        "description": "Test report description",
+        "evaluation_id": UUID(test_evaluation["id"]),
+        "format": ReportFormat.PDF,
+        "status": ReportStatus.DRAFT,
+        "config": {
+            "include_executive_summary": True,
+            "include_evaluation_details": True,
+            "include_metrics_overview": True,
+            "include_detailed_results": True,
+            "include_agent_responses": True
+        },
+        "is_public": False
+    }
+
+    # Create report
+    report = await report_repo.create(report_data)
+
+    # Return as dict for easier access
+    report_dict = report.to_dict()
+    yield report_dict
+
+    # Cleanup
+    try:
+        await report_repo.delete(report.id)
+    except:
+        pass
+
+
+@pytest.fixture
+async def test_generated_report(db_session: AsyncSession, test_evaluation):
+    """Create a test report with generated file for testing."""
+    report_service = ReportService(db_session)
+
+    # Create report data
+    report_data = {
+        "name": "Generated Test Report",
+        "description": "Test report with generated file",
+        "evaluation_id": UUID(test_evaluation["id"]),
+        "format": ReportFormat.PDF,
+        "include_executive_summary": True,
+        "include_evaluation_details": True,
+        "include_metrics_overview": True,
+        "include_detailed_results": True,
+        "include_agent_responses": True,
+        "is_public": False
+    }
+
+    # Create report
+    from backend.app.db.schema.report_schema import ReportCreate
+    report_create = ReportCreate(**report_data)
+    report = await report_service.create_report(report_create)
+
+    # Generate report file
+    report = await report_service.generate_report(report.id)
+
+    # Return as dict for easier access
+    report_dict = report.to_dict()
+    yield report_dict
+
+    # Cleanup
+    try:
+        report_repo = BaseRepository(Report, db_session)
+        await report_repo.delete(report.id)
+    except:
+        pass

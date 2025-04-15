@@ -1,7 +1,30 @@
 # LLM Evaluation Framework: Session Context
 
 ## Project Overview
-The LLM Evaluation Framework is an internal tool for evaluating domain-specific AI agents built with Azure OpenAI. The system allows users to create evaluations, manage datasets, compare agent performance, and generate reports.
+LLM Evaluation Framework Overview
+
+The LLM Evaluation Framework is an internal platform designed to assess the performance of domain-specific
+AI agents developed using Azure OpenAI. 
+It offers a comprehensive suite of tools for creating evaluations, managing datasets, 
+comparing agent performance, and generating shareable reports.
+
+Built with a FastAPI backend and Angular frontend, the framework seamlessly
+integrates with our existing Azure OpenAI agents, while remaining extensible 
+to support other LLM providers in the future. The initial implementation will 
+prioritize core functionality, with advanced capabilities planned for subsequent phases.
+
+Our organization has deployed multiple domain-specific agents (e.g., HR, Travel) powered by 
+Azure OpenAI, each tailored to a specific business function. However, we currently lack standardized 
+tools to systematically evaluate these agents, surface areas for improvement, and share performance
+insights across teams. This framework aims to bridge that gap.
+Project Goals:
+Develop a unified dashboard to monitor and evaluate agent performance
+Integrate with multiple evaluation tools (e.g., RAGAS, DeepEval, OPIK)
+Support side-by-side comparisons of evaluation results
+Manage datasets and prompts for consistent, repeatable testing
+Generate and distribute evaluation reports via email
+Lay the groundwork for continuous improvement of our AI agents
+
 
 ## Technical Stack
 - **Backend**: FastAPI, Python, SQLAlchemy
@@ -10,10 +33,10 @@ The LLM Evaluation Framework is an internal tool for evaluating domain-specific 
 - **Deployment**: Docker
 
 ## Current Project Status
-- **Current Phase**: Debug ragas evaluation 
+- **Current Phase**: Implement reports module 
 - **Last Session Date**: One day ago
 - **Last Session Focus**: We have Implemented dataset, prompt Module, evaluation module and agent module
-- **Current Focus**: we are getting error while starting an evaluation
+- **Current Focus**: Implement reports module
 
 ## Components Status
 
@@ -28,15 +51,19 @@ The LLM Evaluation Framework is an internal tool for evaluating domain-specific 
 | Frontend Dashboard | Started     | Basic layout complete, components in development   |
 
 ## Today's Session Goal
-Evaluation apis are working.We can create evaluations. But when evaluations start we are getting erros.
-Apis are working as expected. evaluation status will be updated failed. 
-You need to resolve this issue
+Implement reports module and related files like schema, models, service etc.
 
 ## Key Considerations
-- Include a detailed explanation of the implementation and usage
-- Create sample evaluation and test cases so that we can test the apis
-- Unit testing should be implemented for critical components
-- always make sure to include file name and path reference
+sample of api requirements:
+POST /api/reports/: Create a new report
+GET /api/reports/: List all reports
+GET /api/reports/{report_id}: Get report details
+PUT /api/reports/{report_id}: Update report information
+DELETE /api/reports/{report_id}: Delete a report
+POST /api/reports/{report_id}/send: Send report via email
+GET /api/reports/templates: List report templates
+POST /api/reports/templates: Create a report template
+GET /api/reports/templates/{template_id}: Get template details
 
 
 ## Code References

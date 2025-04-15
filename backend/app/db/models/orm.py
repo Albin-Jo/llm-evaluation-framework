@@ -175,6 +175,7 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     prompt_id: Mapped[UUID] = mapped_column(ForeignKey("prompt.id"), nullable=False)
     prompt: Mapped["Prompt"] = relationship(back_populates="evaluations")
     results: Mapped[List["EvaluationResult"]] = relationship(back_populates="evaluation")
+    reports: Mapped[List["Report"]] = relationship(back_populates="evaluation")
 
 
 class MetricScore(Base, TimestampMixin, ModelMixin):
@@ -228,3 +229,45 @@ evaluation_comparison = Table(
     Column("evaluation_b_id", ForeignKey("evaluation.id"), nullable=False),
     Column("comparison_results", JSON, nullable=True)
 )
+
+
+class ReportStatus(str, Enum):
+    DRAFT = "draft"
+    GENERATED = "generated"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+# Add this enum for report format
+class ReportFormat(str, Enum):
+    PDF = "pdf"
+    HTML = "html"
+    JSON = "json"
+
+
+# Add this class for Report model
+class Report(Base, TimestampMixin, ModelMixin):
+    """
+    Report model for generated evaluation reports.
+    """
+
+    id: Mapped[UUID] = mapped_column(
+        PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[ReportStatus] = mapped_column(
+        SQLEnum(ReportStatus), nullable=False, default=ReportStatus.DRAFT
+    )
+    format: Mapped[ReportFormat] = mapped_column(
+        SQLEnum(ReportFormat), nullable=False, default=ReportFormat.PDF
+    )
+    content: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    file_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    last_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    evaluation_id: Mapped[UUID] = mapped_column(ForeignKey("evaluation.id"), nullable=False)
+    evaluation: Mapped["Evaluation"] = relationship(back_populates="reports")
