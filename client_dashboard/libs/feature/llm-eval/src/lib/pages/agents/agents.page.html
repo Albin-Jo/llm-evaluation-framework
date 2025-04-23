@@ -18,19 +18,19 @@
       <form [formGroup]="filterForm" class="filters-form">
         <div class="search-field">
           <qrac-textbox
-            [label]="'Search'"
-            [controlName]="'search'"
+            label="Search"
+            controlName="search"
             formControlName="search"
-            [placeholder]="'Search agents by name'"
-            [size]="'medium'">
+            placeholder="Search agents by name"
+            size="medium">
           </qrac-textbox>
         </div>
 
         <div class="filter-fields">
           <div class="filter-field">
             <qrac-select
-              [label]="'Status'"
-              [controlName]="'status'"
+              label="Status"
+              controlName="status"
               formControlName="status"
               [options]="statusOptions">
             </qrac-select>
@@ -38,8 +38,8 @@
 
           <div class="filter-field">
             <qrac-select
-              [label]="'Domain'"
-              [controlName]="'domain'"
+              label="Domain"
+              controlName="domain"
               formControlName="domain"
               [options]="domainOptions">
             </qrac-select>

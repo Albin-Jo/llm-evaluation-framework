@@ -1,0 +1,381 @@
+/* Path: libs/styles/_mixins.scss */
+@import './variables';
+
+// Flexbox utilities
+@mixin flex($direction: row, $justify: flex-start, $align: stretch, $wrap: nowrap) {
+  display: flex;
+  flex-direction: $direction;
+  justify-content: $justify;
+  align-items: $align;
+  flex-wrap: $wrap;
+}
+
+// Responsive media queries
+@mixin media-breakpoint-up($breakpoint) {
+  @if $breakpoint == xs {
+    @media (min-width: $breakpoint-xs) { @content; }
+  } @else if $breakpoint == sm {
+    @media (min-width: $breakpoint-sm) { @content; }
+  } @else if $breakpoint == md {
+    @media (min-width: $breakpoint-md) { @content; }
+  } @else if $breakpoint == lg {
+    @media (min-width: $breakpoint-lg) { @content; }
+  } @else if $breakpoint == xl {
+    @media (min-width: $breakpoint-xl) { @content; }
+  } @else if $breakpoint == xxl {
+    @media (min-width: $breakpoint-xxl) { @content; }
+  }
+}
+
+@mixin media-breakpoint-down($breakpoint) {
+  @if $breakpoint == xs {
+    @media (max-width: $breakpoint-xs - 0.02px) { @content; }
+  } @else if $breakpoint == sm {
+    @media (max-width: $breakpoint-sm - 0.02px) { @content; }
+  } @else if $breakpoint == md {
+    @media (max-width: $breakpoint-md - 0.02px) { @content; }
+  } @else if $breakpoint == lg {
+    @media (max-width: $breakpoint-lg - 0.02px) { @content; }
+  } @else if $breakpoint == xl {
+    @media (max-width: $breakpoint-xl - 0.02px) { @content; }
+  } @else if $breakpoint == xxl {
+    @media (max-width: $breakpoint-xxl - 0.02px) { @content; }
+  }
+}
+
+// Common card style
+@mixin card {
+  background-color: white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-color;
+}
+
+// Card with padding
+@mixin card-padded($padding: $spacing-6) {
+  @include card;
+  padding: $padding;
+}
+
+// Section title style
+@mixin section-title {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $text-primary;
+  margin-bottom: $spacing-4;
+}
+
+// Page title style
+@mixin page-title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $text-primary;
+  margin-bottom: $spacing-2;
+}
+
+// Form control base styles
+@mixin form-control {
+  width: 100%;
+  padding: $spacing-3;
+  font-size: $font-size-sm;
+  color: $text-primary;
+  background-color: white;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  transition: $transition-normal;
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+  }
+
+  &.is-invalid {
+    border-color: $error;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($error, 0.1);
+    }
+  }
+}
+
+// Button base styles
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2 $spacing-4;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: $transition-normal;
+  border: 1px solid transparent;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// Primary button style
+@mixin button-primary {
+  @include button-base;
+  background-color: $primary;
+  color: white;
+  border-color: $primary;
+
+  &:hover:not(:disabled) {
+    background-color: $primary-dark;
+    border-color: $primary-dark;
+  }
+}
+
+// Secondary button style
+@mixin button-secondary {
+  @include button-base;
+  background-color: $secondary;
+  color: $text-primary;
+  border-color: $border-color;
+
+  &:hover:not(:disabled) {
+    background-color: $secondary-dark;
+    border-color: $border-dark;
+  }
+}
+
+// Outline button style
+@mixin button-outline {
+  @include button-base;
+  background-color: transparent;
+  color: $primary;
+  border-color: $primary;
+
+  &:hover:not(:disabled) {
+    background-color: rgba($primary, 0.05);
+  }
+}
+
+// Danger button style
+@mixin button-danger {
+  @include button-base;
+  background-color: $error;
+  color: white;
+  border-color: $error;
+
+  &:hover:not(:disabled) {
+    background-color: darken($error, 10%);
+    border-color: darken($error, 10%);
+  }
+}
+
+// Badge/Tag style
+@mixin badge($bg-color: $primary-light, $text-color: $primary) {
+  display: inline-block;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  background-color: $bg-color;
+  color: $text-color;
+}
+
+// Status badge mixin
+@mixin status-badge($status) {
+  @if $status == 'success' or $status == 'completed' or $status == 'ready' or $status == 'active' {
+    @include badge($success-light, $success);
+  } @else if $status == 'warning' or $status == 'pending' or $status == 'processing' {
+    @include badge($warning-light, $warning);
+  } @else if $status == 'error' or $status == 'failed' or $status == 'inactive' {
+    @include badge($error-light, $error);
+  } @else if $status == 'info' or $status == 'running' {
+    @include badge($info-light, $info);
+  } @else {
+    @include badge($secondary-dark, $text-secondary);
+  }
+}
+
+// Spinner animation
+@mixin spinner($size: 24px, $border-width: 3px, $color: $primary) {
+  width: $size;
+  height: $size;
+  border: $border-width solid rgba($color, 0.2);
+  border-radius: 50%;
+  border-top-color: $color;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+// Loading container
+@mixin loading-container {
+  @include flex(column, center, center);
+  padding: $spacing-12;
+  text-align: center;
+
+  .spinner {
+    @include spinner;
+    margin-bottom: $spacing-4;
+  }
+
+  .loading-text {
+    color: $text-secondary;
+    font-size: $font-size-sm;
+  }
+}
+
+// Error container
+@mixin error-container {
+  @include flex(column, center, center);
+  padding: $spacing-12;
+  text-align: center;
+
+  .error-icon {
+    font-size: $font-size-3xl;
+    color: $error;
+    margin-bottom: $spacing-4;
+  }
+
+  .error-message {
+    color: $text-primary;
+    margin-bottom: $spacing-6;
+  }
+
+  .error-actions {
+    @include flex(row, center, center);
+    gap: $spacing-4;
+  }
+}
+
+// Table styles
+@mixin table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    padding: $spacing-4;
+    text-align: left;
+    border-bottom: 1px solid $border-light;
+  }
+
+  thead th {
+    background-color: $background-light;
+    font-weight: $font-weight-semibold;
+    color: $text-secondary;
+    font-size: $font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  tbody tr {
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: rgba($primary, 0.02);
+    }
+  }
+}
+
+// Form group with label
+@mixin form-group {
+  margin-bottom: $spacing-4;
+
+  .form-label {
+    display: block;
+    margin-bottom: $spacing-2;
+    font-weight: $font-weight-medium;
+    color: $text-primary;
+
+    &.required::after {
+      content: '*';
+      color: $error;
+      margin-left: $spacing-1;
+    }
+  }
+
+  .help-text {
+    margin-top: $spacing-1;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+  }
+
+  .error-message {
+    margin-top: $spacing-1;
+    font-size: $font-size-xs;
+    color: $error;
+  }
+}
+
+// Empty state placeholder
+@mixin empty-state {
+  @include flex(column, center, center);
+  padding: $spacing-12;
+  text-align: center;
+  background-color: $background-light;
+  border-radius: $radius-lg;
+
+  .empty-icon {
+    font-size: $font-size-3xl;
+    margin-bottom: $spacing-4;
+    color: $text-tertiary;
+  }
+
+  .empty-title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-medium;
+    margin-bottom: $spacing-2;
+    color: $text-primary;
+  }
+
+  .empty-description {
+    color: $text-secondary;
+    margin-bottom: $spacing-6;
+    font-size: $font-size-sm;
+  }
+}
+
+// Pagination container
+@mixin pagination {
+  @include flex(row, space-between, center);
+  padding: $spacing-4;
+
+  .pagination-info {
+    font-size: $font-size-xs;
+    color: $text-secondary;
+  }
+
+  .pagination-controls {
+    @include flex(row, center, center);
+    gap: $spacing-2;
+  }
+
+  .pagination-button {
+    padding: $spacing-2 $spacing-3;
+    background-color: white;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    font-size: $font-size-xs;
+    color: $text-primary;
+    cursor: pointer;
+    transition: $transition-normal;
+
+    &:hover:not(:disabled) {
+      background-color: $background-light;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &.active {
+      background-color: $primary;
+      color: white;
+      border-color: $primary;
+    }
+  }
+}

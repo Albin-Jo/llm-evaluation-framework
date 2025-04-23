@@ -1,334 +1,331 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agent-detail/agent-detail.page.scss */
+/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-detail/agents-detail.page.scss */
+@import '../../../../../../styles/variables';
+@import '../../../../../../styles/mixins';
+
 :host {
   display: block;
   width: 100%;
-  --primary: #3f51b5;
-  --primary-dark: #303f9f;
-  --primary-light: #c5cae9;
-  --text-primary: #212121;
-  --text-secondary: #757575;
-  --background: #f5f5f5;
-  --background-light: #e0e0e0;
-  --border-color: #e0e0e0;
-  --hover-background: #f5f5f5;
-  --error: #f44336;
-  --error-light: #ffebee;
-  --success: #4caf50;
-  --success-light: #e8f5e9;
-  --warning: #ff9800;
-  --warning-light: #fff3e0;
 }
 
-.agent-detail-container {
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem;
-  gap: 1.5rem;
-}
+.evaluation-detail-container {
+  padding: $spacing-6;
+  max-width: $container-lg;
+  margin: 0 auto;
 
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-
-  .back-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: none;
-    border: none;
-    color: var(--primary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    padding: 0.5rem 0;
-
-    &:hover {
-      text-decoration: underline;
-    }
-
-    .back-icon {
-      font-size: 1rem;
-    }
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
   }
+}
 
-  .actions-container {
-    display: flex;
-    gap: 0.75rem;
+// Header section
+.header-section {
+  margin-bottom: $spacing-6;
 
-    .action-button {
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      font-size: 0.875rem;
-      font-weight: 500;
+  .back-navigation {
+    margin-bottom: $spacing-4;
+
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      background: none;
+      border: none;
+      color: $primary;
+      font-size: $font-size-sm;
       cursor: pointer;
-      transition: background-color 0.2s;
 
-      &.edit-button {
-        background-color: var(--primary-light);
-        color: var(--primary);
-        border: 1px solid var(--primary);
+      &:hover {
+        text-decoration: underline;
+      }
 
-        &:hover {
-          background-color: var(--primary);
-          color: white;
+      .back-icon {
+        margin-right: $spacing-2;
+        font-size: $font-size-md;
+      }
+    }
+  }
+
+  .title-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column;
+      gap: $spacing-4;
+    }
+
+    .title-section {
+      .page-title {
+        @include page-title;
+        margin-bottom: $spacing-2;
+      }
+
+      .status-badge-container {
+        margin-top: $spacing-2;
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: $spacing-3;
+
+      @include media-breakpoint-down(md) {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      @include media-breakpoint-down(sm) {
+        flex-direction: column;
+
+        .action-button {
+          width: 100%;
+          justify-content: center;
         }
       }
 
-      &.delete-button {
-        background-color: var(--error-light);
-        color: var(--error);
-        border: 1px solid var(--error);
+      .action-button {
+        padding: $spacing-2 $spacing-4;
+        border-radius: $radius-sm;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: $transition-normal;
 
-        &:hover {
-          background-color: var(--error);
+        &.edit-button {
+          @include button-outline;
+        }
+
+        &.delete-button {
+          @include button-danger;
+        }
+
+        &.start-button {
+          background-color: $success;
           color: white;
+          border: 1px solid $success;
+
+          &:hover {
+            background-color: darken($success, 10%);
+            border-color: darken($success, 10%);
+          }
+        }
+
+        &.cancel-button {
+          background-color: $warning;
+          color: white;
+          border: 1px solid $warning;
+
+          &:hover {
+            background-color: darken($warning, 10%);
+            border-color: darken($warning, 10%);
+          }
+        }
+
+        &.report-button {
+          background-color: $info;
+          color: white;
+          border: 1px solid $info;
+
+          &:hover {
+            background-color: darken($info, 10%);
+            border-color: darken($info, 10%);
+          }
         }
       }
     }
   }
 }
 
-/* Loading state */
+// Loading and error states
 .loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  color: var(--text-secondary);
-
-  .spinner {
-    border: 3px solid rgba(0, 0, 0, 0.1);
-    border-top: 3px solid var(--primary);
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+  @include loading-container;
+  @include card-padded;
+  margin-bottom: $spacing-6;
 }
 
-/* Error state */
 .error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  color: var(--error);
-
-  .error-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
+  @include error-container;
+  @include card-padded;
+  margin-bottom: $spacing-6;
 }
 
-/* Agent details */
+// Agent content
 .agent-details {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: $spacing-6;
 
   .detail-header-section {
+    @include card-padded;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: $spacing-4;
+
+    @include media-breakpoint-down(sm) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
 
     .agent-name {
-      font-size: 1.75rem;
-      font-weight: 600;
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-semibold;
       margin: 0;
-      color: var(--text-primary);
+      color: $text-primary;
     }
 
     .status-badge {
       display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 500;
+      padding: $spacing-1 $spacing-3;
+      border-radius: $radius-full;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
 
       &.active {
-        background-color: var(--success-light);
-        color: var(--success);
+        @include status-badge('success');
       }
 
       &.inactive {
-        background-color: var(--warning-light);
-        color: var(--warning);
+        @include status-badge('error');
       }
     }
   }
 
   .detail-section {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: $spacing-6;
 
-    @media (max-width: 768px) {
+    @include media-breakpoint-down(sm) {
       grid-template-columns: 1fr;
     }
 
-    .detail-card {
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      padding: 1.5rem;
+    .info-card {
+      @include card-padded;
 
-      .section-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin: 0 0 1.25rem 0;
-        color: var(--text-primary);
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 0.75rem;
+      .card-title {
+        @include section-title;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: $spacing-3;
+        margin-bottom: $spacing-4;
       }
 
-      .info-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.25rem;
+      .card-content {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-4;
 
-        @media (max-width: 576px) {
-          grid-template-columns: 1fr;
-        }
-
-        .info-item {
+        .info-row {
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: $spacing-1;
 
           &.full-width {
             grid-column: 1 / -1;
           }
 
+          &.clickable {
+            cursor: pointer;
+
+            &:hover .link-value {
+              text-decoration: underline;
+              color: darken($primary, 10%);
+            }
+          }
+
           .info-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            font-weight: 500;
+            font-size: $font-size-xs;
+            color: $text-secondary;
+            font-weight: $font-weight-medium;
           }
 
           .info-value {
-            font-size: 0.875rem;
-            color: var(--text-primary);
+            font-size: $font-size-sm;
+            color: $text-primary;
+            word-break: break-word;
+
+            &.link-value {
+              color: $primary;
+            }
 
             &.endpoint {
-              word-break: break-all;
-              font-family: monospace;
-              background-color: var(--background-light);
-              padding: 0.5rem;
-              border-radius: 4px;
+              font-family: $font-family-mono;
+              background-color: $background-light;
+              padding: $spacing-2;
+              border-radius: $radius-sm;
+            }
+
+            &.description-value {
+              white-space: pre-line;
             }
           }
 
           .domain-badge {
             display: inline-block;
-            padding: 0.25rem 0.5rem;
-            background-color: var(--background-light);
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 500;
+            padding: $spacing-1 $spacing-2;
+            background-color: $background-light;
+            border-radius: $radius-sm;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-medium;
             width: fit-content;
           }
 
           .tags-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: $spacing-2;
 
             .tag {
               display: inline-block;
-              padding: 0.25rem 0.5rem;
-              background-color: var(--background-light);
-              border-radius: 4px;
-              font-size: 0.75rem;
-              color: var(--text-secondary);
+              padding: $spacing-1 $spacing-2;
+              background-color: $background-light;
+              border-radius: $radius-sm;
+              font-size: $font-size-xs;
+              color: $text-secondary;
             }
-          }
-
-          .config-json {
-            background-color: var(--background-light);
-            padding: 0.75rem;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 0.75rem;
-            white-space: pre-wrap;
-            word-break: break-word;
-            overflow-x: auto;
-            max-height: 200px;
-            overflow-y: auto;
           }
         }
       }
     }
   }
 
-  .test-section {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+  .config-section {
+    @include card-padded;
 
     .section-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin: 0 0 0.75rem 0;
-      color: var(--text-primary);
+      @include section-title;
+      margin-bottom: $spacing-4;
+    }
+
+    .config-json {
+      background-color: $background-light;
+      padding: $spacing-4;
+      border-radius: $radius-sm;
+      overflow: auto;
+      font-family: $font-family-mono;
+      font-size: $font-size-sm;
+      white-space: pre-wrap;
+      max-height: 300px;
+    }
+  }
+
+  .test-section {
+    @include card-padded;
+
+    .section-title {
+      @include section-title;
+      margin-bottom: $spacing-2;
     }
 
     .test-description {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      margin: 0 0 1.25rem 0;
+      color: $text-secondary;
+      font-size: $font-size-sm;
+      margin-bottom: $spacing-4;
     }
 
     .test-button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 0.625rem 1rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background-color: var(--primary-dark);
-      }
+      @include button-primary;
     }
   }
-}
-
-/* Responsive adjustments */
-@media screen and (max-width: 576px) {
-  .detail-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-
-    .actions-container {
-      width: 100%;
-
-      .action-button {
-        flex: 1;
-        text-align: center;
-      }
-    }
-  }
-}

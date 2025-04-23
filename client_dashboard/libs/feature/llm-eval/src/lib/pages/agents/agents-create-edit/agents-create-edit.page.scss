@@ -1,246 +1,153 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agent-create-edit/agent-create-edit.page.scss */
+/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-create-edit/agents-create-edit.page.scss */
+@import '../../../../../../styles/variables';
+@import '../../../../../../styles/mixins';
+
 :host {
   display: block;
   width: 100%;
-  --primary: #3f51b5;
-  --primary-dark: #303f9f;
-  --primary-light: #c5cae9;
-  --text-primary: #212121;
-  --text-secondary: #757575;
-  --background: #f5f5f5;
-  --background-light: #e0e0e0;
-  --border-color: #e0e0e0;
-  --hover-background: #f5f5f5;
-  --error: #f44336;
-  --error-light: #ffebee;
-  --success: #4caf50;
-  --success-light: #e8f5e9;
-  --warning: #ff9800;
-  --warning-light: #fff3e0;
 }
 
 .agent-create-edit-container {
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem;
-  gap: 1.5rem;
+  padding: $spacing-6;
+  max-width: $container-lg;
+  margin: 0 auto;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
 }
 
 .form-header {
-  margin-bottom: 1rem;
+  margin-bottom: $spacing-6;
 
   .page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    margin: 0 0 0.5rem 0;
-    color: var(--text-primary);
+    @include page-title;
+    margin-bottom: $spacing-2;
   }
 
   .page-description {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin: 0;
+    color: $text-secondary;
+    font-size: $font-size-sm;
   }
 }
 
-/* Loading state */
+// Loading and error states
+.loading-container, .error-container {
+  @include card-padded;
+  margin-bottom: $spacing-6;
+  text-align: center;
+}
+
 .loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  color: var(--text-secondary);
-
-  .spinner {
-    border: 3px solid rgba(0, 0, 0, 0.1);
-    border-top: 3px solid var(--primary);
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+  @include loading-container;
+  padding: $spacing-12;
 }
 
-/* Error state */
 .error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  color: var(--error);
-
-  .error-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
+  @include error-container;
+  padding: $spacing-12;
 
   .retry-button {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    background-color: var(--background-light);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: background-color 0.2s;
-
-    &:hover {
-      background-color: var(--background);
-    }
+    @include button-secondary;
+    margin-top: $spacing-4;
   }
 }
 
-/* Form styles */
+// Form container
 .form-container {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  width: 100%;
 }
 
 .agent-form {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 1.5rem;
+  gap: $spacing-8;
 
   .form-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+    @include card-padded;
 
     .section-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin: 0 0 0.5rem 0;
-      color: var(--text-primary);
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0.75rem;
+      @include section-title;
+      border-bottom: 1px solid $border-color;
+      padding-bottom: $spacing-4;
+      margin-bottom: $spacing-6;
     }
 
     .form-row {
       display: flex;
-      flex-direction: column;
-      gap: 1rem;
+      gap: $spacing-6;
+      margin-bottom: $spacing-6;
 
       &.two-columns {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-
-        @media (max-width: 768px) {
-          grid-template-columns: 1fr;
+        @include media-breakpoint-down(md) {
+          flex-direction: column;
+          gap: $spacing-4;
         }
       }
 
-      .form-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
 
-        .field-hint {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          margin-top: 0.25rem;
-        }
+    .form-field {
+      flex: 1;
+      min-width: 0; // prevent flex items from overflowing
 
-        .error-message {
-          color: var(--error);
-          font-size: 0.75rem;
-          margin-top: 0.25rem;
-        }
+      .error-message {
+        color: $error;
+        font-size: $font-size-xs;
+        margin-top: $spacing-1;
+      }
+
+      .field-hint {
+        font-size: $font-size-xs;
+        color: $text-secondary;
+        margin-top: $spacing-1;
       }
     }
   }
 
   .form-actions {
+    @include card-padded;
     display: flex;
     justify-content: flex-end;
-    gap: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
+    gap: $spacing-4;
+
+    @include media-breakpoint-down(sm) {
+      flex-direction: column-reverse;
+      gap: $spacing-3;
+    }
 
     .cancel-button {
-      padding: 0.625rem 1.25rem;
-      background-color: white;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background-color 0.2s;
+      @include button-secondary;
 
-      &:hover {
-        background-color: var(--background-light);
+      @include media-breakpoint-down(sm) {
+        width: 100%;
       }
     }
 
     .submit-button {
-      display: flex;
+      @include button-primary;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      padding: 0.625rem 1.25rem;
-      background-color: var(--primary);
-      border: none;
-      border-radius: 4px;
-      color: white;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background-color 0.2s;
 
-      &:hover:not(:disabled) {
-        background-color: var(--primary-dark);
-      }
-
-      &:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
+      @include media-breakpoint-down(sm) {
+        width: 100%;
       }
 
       .spinner-small {
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top: 2px solid white;
-        border-radius: 50%;
-        width: 16px;
-        height: 16px;
-        animation: spin 1s linear infinite;
+        @include spinner($size: 16px, $border-width: 2px, $color: white);
+        margin-right: $spacing-2;
       }
     }
   }
 }
 
-/* Responsive adjustments */
+// Responsive adjustments
 @media screen and (max-width: 576px) {
   .agent-create-edit-container {
-    padding: 1rem;
-  }
-
-  .agent-form {
-    padding: 1rem;
-  }
-
-  .form-actions {
-    flex-direction: column-reverse;
-
-    .cancel-button, .submit-button {
-      width: 100%;
-    }
+    padding: $spacing-3;
   }
 }

@@ -1,62 +1,60 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-upload/dataset-upload.page.scss */
+@import '../../../../../../styles/variables';
+@import '../../../../../../styles/mixins';
 
-// Variables
-$primary-color: #3498db;
-$secondary-color: #2c3e50;
-$light-gray: #f5f5f5;
-$border-color: #e0e0e0;
-$text-primary: #333;
-$text-secondary: #666;
-$success-color: #27ae60;
-$error-color: #e74c3c;
-$warning-color: #f39c12;
+:host {
+  display: block;
+  width: 100%;
+}
 
-// Container
 .page-container {
-  max-width: 960px;
+  padding: $spacing-6;
+  max-width: $container-lg;
   margin: 0 auto;
-  padding: 1.5rem;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
 }
 
-// Back navigation
+// Back Navigation
 .back-navigation {
-  margin-bottom: 1.5rem;
+  margin-bottom: $spacing-6;
+
+  .back-button {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: $primary;
+    font-size: $font-size-sm;
+    padding: $spacing-2 0;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    .back-icon {
+      margin-right: $spacing-2;
+      font-size: $font-size-md;
+    }
+  }
 }
 
-.back-button {
-  display: inline-flex;
-  align-items: center;
-  background: none;
-  border: none;
-  color: $primary-color;
-  font-size: 0.875rem;
-  padding: 0.5rem 0;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
-
-  .back-icon {
-    margin-right: 0.375rem;
-  }
-}
-
-// Page header
+// Page Header
 .page-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: $spacing-6;
 
   .page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    margin: 0 0 0.5rem;
-    color: $text-primary;
+    @include page-title;
+    margin-bottom: $spacing-2;
   }
 
   .page-description {
     color: $text-secondary;
-    margin: 0;
-    font-size: 1rem;
+    font-size: $font-size-sm;
+    max-width: 700px;
   }
 }
 
@@ -64,150 +62,148 @@ $warning-color: #f39c12;
 .upload-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: $spacing-6;
 }
 
 .form-card {
-  background-color: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  @include card-padded;
+
+  .card-title {
+    @include section-title;
+    margin-bottom: $spacing-4;
+    padding-bottom: $spacing-3;
+    border-bottom: 1px solid $border-color;
+  }
+
+  .card-description {
+    color: $text-secondary;
+    margin-bottom: $spacing-4;
+    font-size: $font-size-sm;
+  }
 }
 
-.card-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
-  color: $text-primary;
-}
-
-.card-description {
-  color: $text-secondary;
-  margin: 0 0 1.5rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-// Form elements
+// Form Groups
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: $spacing-5;
 
   &:last-child {
     margin-bottom: 0;
   }
-}
 
-.form-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: $text-primary;
+  .form-label {
+    display: block;
+    margin-bottom: $spacing-2;
+    font-weight: $font-weight-medium;
+    color: $text-primary;
 
-  &.required::after {
-    content: '*';
-    color: $error-color;
-    margin-left: 0.25rem;
+    &.required::after {
+      content: '*';
+      color: $error;
+      margin-left: $spacing-1;
+    }
+  }
+
+  .error-message {
+    color: $error;
+    font-size: $font-size-xs;
+    margin-top: $spacing-2;
+  }
+
+  .help-text {
+    font-size: $font-size-xs;
+    color: $text-secondary;
+    margin-top: $spacing-2;
   }
 }
 
-.help-text {
-  font-size: 0.75rem;
-  color: $text-secondary;
-  margin-top: 0.375rem;
-}
-
-.error-message {
-  color: $error-color;
-  font-size: 0.75rem;
-  margin-top: 0.375rem;
-}
-
-// File upload
+// File Upload Area
 .file-upload-area {
-  margin-bottom: 1.5rem;
+  margin-bottom: $spacing-4;
 }
 
+// Selected Files
 .selected-files {
-  margin-top: 1.5rem;
-  background-color: $light-gray;
-  border-radius: 8px;
-  padding: 1rem;
-}
+  background-color: $background-light;
+  border-radius: $radius-sm;
+  padding: $spacing-4;
 
-.selected-files-title {
-  font-size: 1rem;
-  font-weight: 500;
-  margin: 0 0 1rem;
-  color: $text-primary;
-}
-
-.file-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.file-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background-color: white;
-  border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  overflow: hidden;
-}
-
-.file-icon {
-  font-size: 1.25rem;
-}
-
-.file-details {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.file-name {
-  font-weight: 500;
-  color: $text-primary;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 300px;
-
-  @media (max-width: 576px) {
-    max-width: 200px;
+  .selected-files-title {
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    margin: 0 0 $spacing-3 0;
+    color: $text-primary;
   }
-}
 
-.file-size {
-  font-size: 0.75rem;
-  color: $text-secondary;
-}
+  .file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-3;
 
-.remove-file-button {
-  background-color: transparent;
-  color: $error-color;
-  border: 1px solid $error-color;
-  padding: 0.375rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: white;
+      border-radius: $radius-sm;
+      padding: $spacing-3;
+      box-shadow: $shadow-sm;
 
-  &:hover {
-    background-color: rgba($error-color, 0.05);
+      .file-info {
+        display: flex;
+        align-items: center;
+        gap: $spacing-3;
+        flex: 1;
+        overflow: hidden;
+
+        .file-icon {
+          font-size: $font-size-xl;
+          color: $primary;
+        }
+
+        .file-details {
+          flex: 1;
+          overflow: hidden;
+
+          .file-name {
+            font-weight: $font-weight-medium;
+            color: $text-primary;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+            display: block;
+
+            @include media-breakpoint-down(md) {
+              max-width: 200px;
+            }
+
+            @include media-breakpoint-down(sm) {
+              max-width: 150px;
+            }
+          }
+
+          .file-size {
+            font-size: $font-size-xs;
+            color: $text-secondary;
+          }
+        }
+      }
+
+      .remove-file-button {
+        @include button-outline;
+        padding: $spacing-1 $spacing-2;
+        font-size: $font-size-xs;
+        border-color: $error;
+        color: $error;
+
+        &:hover {
+          background-color: rgba($error, 0.05);
+        }
+      }
+    }
   }
 }
 
@@ -215,102 +211,59 @@ $warning-color: #f39c12;
 .tags-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: $spacing-2;
+  margin-bottom: $spacing-2;
+
+  .tag-button {
+    background-color: $background-light;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    padding: $spacing-2 $spacing-3;
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background-color: darken($background-light, 5%);
+    }
+
+    &.active {
+      background-color: $primary-light;
+      border-color: $primary;
+      color: $primary;
+    }
+  }
 }
 
-.tag-button {
-  padding: 0.375rem 0.75rem;
-  border-radius: 16px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  background-color: $light-gray;
-  color: $text-secondary;
-  border: 1px solid $border-color;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background-color: darken($light-gray, 5%);
-  }
-
-  &.active {
-    background-color: rgba($primary-color, 0.1);
-    color: $primary-color;
-    border-color: rgba($primary-color, 0.2);
-  }
-}
-
-// Form actions
+// Form Actions
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: $spacing-3;
+  margin-top: $spacing-4;
 
-  @media (max-width: 576px) {
-    flex-direction: column;
+  @include media-breakpoint-down(sm) {
+    flex-direction: column-reverse;
 
     button {
       width: 100%;
     }
   }
-}
 
-// Buttons
-.primary-button,
-.outline-button {
-  padding: 0.625rem 1.25rem;
-  border-radius: 4px;
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.primary-button {
-  background-color: $primary-color;
-  color: white;
-  border: 1px solid $primary-color;
-
-  &:hover:not(:disabled) {
-    background-color: darken($primary-color, 10%);
+  .outline-button {
+    @include button-secondary;
   }
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  .primary-button {
+    @include button-primary;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    .spinner-sm {
+      @include spinner($size: 16px, $border-width: 2px, $color: white);
+      margin-right: $spacing-2;
+    }
   }
-}
-
-.outline-button {
-  background-color: transparent;
-  color: $text-secondary;
-  border: 1px solid $border-color;
-
-  &:hover {
-    background-color: $light-gray;
-    color: $text-primary;
-  }
-}
-
-// Spinner
-.spinner-sm {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s linear infinite;
-  margin-right: 0.5rem;
-  vertical-align: middle;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }

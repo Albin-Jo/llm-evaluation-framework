@@ -39,10 +39,10 @@
           <div class="form-row">
             <div class="form-field">
               <qrac-textbox
-                [label]="'Query'"
-                [controlName]="'query'"
+                label="Query"
+                controlName="query"
                 formControlName="query"
-                [placeholder]="'Enter your query or question'"
+                placeholder="Enter your query or question"
                 [required]="true">
               </qrac-textbox>
               <div *ngIf="testForm.get('query')?.touched && testForm.get('query')?.hasError('required')" class="error-message">
@@ -54,10 +54,10 @@
           <div class="form-row">
             <div class="form-field">
               <qrac-text-area
-                [label]="'Context (Optional)'"
-                [controlName]="'context'"
+                label="Context (Optional)"
+                controlName="context"
                 formControlName="context"
-                [placeholder]="'Enter context information'"
+                placeholder="Enter context information"
                 [rows]="4">
               </qrac-text-area>
               <div class="field-hint">
@@ -69,10 +69,10 @@
           <div class="form-row">
             <div class="form-field">
               <qrac-text-area
-                [label]="'Additional Parameters (JSON)'"
-                [controlName]="'parameters'"
+                label="Additional Parameters (JSON)"
+                controlName="parameters"
                 formControlName="parameters"
-                [placeholder]="'Enter additional parameters as JSON'"
+                placeholder="Enter additional parameters as JSON"
                 [rows]="3">
               </qrac-text-area>
               <div class="field-hint">

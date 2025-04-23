@@ -24,7 +24,7 @@
         <qrac-textbox
           id="name"
           formControlName="name"
-          [placeholder]="'Enter dataset name'"
+          placeholder="Enter dataset name"
           [error]="nameControl && nameControl.invalid && nameControl.touched">
         </qrac-textbox>
         <div *ngIf="nameControl && nameControl.invalid && nameControl.touched" class="error-message">
@@ -35,11 +35,11 @@
 
       <div class="form-group">
         <label for="description" class="form-label">Description</label>
-        <qrac-textarea
+        <qrac-text-area
           id="description"
           formControlName="description"
-          [placeholder]="'Enter dataset description (optional)'">
-        </qrac-textarea>
+          placeholder="Enter dataset description (optional)">
+        </qrac-text-area>
         <div *ngIf="descriptionControl && descriptionControl.invalid && descriptionControl.touched" class="error-message">
           <span *ngIf="descriptionControl.errors?.['maxlength']">
             Description cannot exceed 500 characters

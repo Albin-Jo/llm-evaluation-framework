@@ -14,54 +14,45 @@
 
   <div class="datasets-content">
     <!-- Filters Section -->
-<!--    <div class="filters-section">-->
-<!--      <form [formGroup]="filterForm" class="filters-form">-->
-<!--        <div class="search-field">-->
-<!--          <qrac-textbox-->
-<!--            [label]="'Search'"-->
-<!--            [controlName]="'search'"-->
-<!--            formControlName="search"-->
-<!--            [placeholder]="'Search datasets by name or description'"-->
-<!--            [size]="'medium'">-->
-<!--          </qrac-textbox>-->
-<!--        </div>-->
+    <div class="filters-section">
+      <form [formGroup]="filterForm" class="filters-form">
+        <div class="search-field">
+          <qrac-textbox
+            label="Search"
+            controlName="search"
+            formControlName="search"
+            placeholder="Search datasets by name or description"
+            size="medium">
+          </qrac-textbox>
+        </div>
 
-<!--        <div class="filter-fields">-->
-<!--          <div class="filter-field">-->
-<!--            <qrac-select-->
-<!--              [label]="'Status'"-->
-<!--              [controlName]="'status'"-->
-<!--              formControlName="status"-->
-<!--              [options]="statusOptions">-->
-<!--            </qrac-select>-->
-<!--          </div>-->
+        <div class="filter-fields">
+          <div class="filter-field">
+            <qrac-select
+              label="Status"
+              controlName="status"
+              formControlName="status"
+              [options]="statusOptions">
+            </qrac-select>
+          </div>
 
-<!--          <div class="filter-field">-->
-<!--            <qrac-select-->
-<!--              [label]="'Format'"-->
-<!--              [controlName]="'type'"-->
-<!--              formControlName="type"-->
-<!--              [options]="formatOptions">-->
-<!--            </qrac-select>-->
-<!--          </div>-->
+          <div class="filter-field">
+            <qrac-select
+              label="Format"
+              controlName="type"
+              formControlName="type"
+              [options]="formatOptions">
+            </qrac-select>
+          </div>
+        </div>
 
-<!--          <div class="filter-field visibility-field">-->
-<!--            <qrac-select-->
-<!--              [label]="'Visibility'"-->
-<!--              [controlName]="'isPublic'"-->
-<!--              formControlName="isPublic"-->
-<!--              [options]="visibilityOptions">-->
-<!--            </qrac-select>-->
-<!--          </div>-->
-<!--        </div>-->
-
-<!--        <div class="filter-actions">-->
-<!--          <button class="clear-button" type="button" (click)="clearFilters()">-->
-<!--            Clear Filters-->
-<!--          </button>-->
-<!--        </div>-->
-<!--      </form>-->
-<!--    </div>-->
+        <div class="filter-actions">
+          <button class="clear-button" type="button" (click)="clearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </form>
+    </div>
 
     <!-- Loading State -->
     <div *ngIf="isLoading" class="loading-container">
@@ -140,7 +131,7 @@
             <td class="count-col">{{ dataset.documentCount || 'N/A' }}</td>
             <td class="date-col">{{ formatDate(dataset.createdAt) }}</td>
             <td class="status-col">
-              <span class="status-badge" [ngClass]="dataset.status.toLowerCase() || 'ready'">
+              <span class="status-badge" [ngClass]="dataset.status.toLowerCase()">
                 {{ dataset.status || 'Ready' }}
               </span>
             </td>
