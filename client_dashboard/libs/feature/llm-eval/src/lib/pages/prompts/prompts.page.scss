@@ -1,384 +1,242 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/prompts/prompts.page.scss */
+@import '../../../../../../styles/variables';
+@import '../../../../../../styles/mixins';
 
-// Variables
-$primary-color: #3498db;
-$secondary-color: #2c3e50;
-$light-gray: #f5f5f5;
-$border-color: #e0e0e0;
-$text-primary: #333;
-$text-secondary: #666;
-$success-color: #27ae60;
-$warning-color: #f39c12;
-
-// Container styles
-.prompts-container {
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
+:host {
+  display: block;
+  width: 100%;
 }
 
-// Header section
+.prompts-container {
+  max-width: $container-xl;
+  margin: 0 auto;
+  padding: $spacing-6;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
+}
+
 .header-section {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  background-color: white;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
+  align-items: flex-start;
+  margin-bottom: $spacing-6;
 
-.title-section {
-  .page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    margin: 0;
-    color: $text-primary;
-  }
-
-  .page-description {
-    margin: 0.5rem 0 0;
-    color: $text-secondary;
-    font-size: 0.95rem;
-  }
-}
-
-.action-section {
-  display: flex;
-  gap: 0.75rem;
-
-  .create-button {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    background-color: $primary-color;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: 500;
-    cursor: pointer;
-    font-size: 0.875rem;
-
-    &:hover {
-      background-color: darken($primary-color, 10%);
-    }
-
-    .button-icon {
-      margin-right: 0.375rem;
-      font-size: 1rem;
-    }
-  }
-}
-
-// Content area
-.prompts-content {
-  margin-top: 1.5rem;
-}
-
-// Table styles
-.prompts-list {
-  margin-top: 1rem;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.prompts-table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: white;
-
-  th, td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid $border-color;
-  }
-
-  th {
-    background-color: $light-gray;
-    font-weight: 600;
-    color: $text-secondary;
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .prompt-row {
-    cursor: pointer;
-    transition: background-color 0.2s;
-
-    &:hover {
-      background-color: rgba($primary-color, 0.05);
-    }
-
-    td:not(.actions-col) {
-      position: relative;
-
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
-        cursor: pointer;
-      }
-    }
-  }
-
-  // Column specific styles
-  .name-col {
-    width: 20%;
-    font-weight: 500;
-  }
-
-  .description-col {
-    width: 35%;
-    color: $text-secondary;
-    font-size: 0.9rem;
-  }
-
-  .version-col {
-    width: 10%;
-    font-size: 0.875rem;
-    color: $text-secondary;
-  }
-
-  .visibility-col {
-    width: 10%;
-  }
-
-  .date-col {
-    width: 15%;
-    font-size: 0.875rem;
-    color: $text-secondary;
-  }
-
-  .actions-col {
-    width: 10%;
-  }
-}
-
-// Visibility badge
-.visibility-badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-
-  &.public {
-    background-color: rgba($success-color, 0.1);
-    color: $success-color;
-  }
-
-  &.private {
-    background-color: rgba($warning-color, 0.1);
-    color: $warning-color;
-  }
-}
-
-// Action buttons
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.action-button {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid $border-color;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  background-color: white;
-
-  &.view-button {
-    color: $primary-color;
-    &:hover {
-      background-color: rgba($primary-color, 0.1);
-    }
-  }
-
-  &.edit-button {
-    color: $primary-color;
-    &:hover {
-      background-color: rgba($primary-color, 0.1);
-    }
-  }
-
-  &.delete-button {
-    color: #e74c3c;
-    &:hover {
-      background-color: rgba(#e74c3c, 0.1);
-    }
-  }
-}
-
-// Loading, error and no results states
-.loading-container,
-.error-container,
-.no-results-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 3rem 1.5rem;
-  background-color: $light-gray;
-  border-radius: 8px;
-  margin: 1.5rem 0;
-}
-
-.spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  border-top: 4px solid $primary-color;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.error-icon, .no-results-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-}
-
-.pagination-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-  @media (max-width: 768px) {
+  @include media-breakpoint-down(md) {
     flex-direction: column;
-    gap: 1rem;
-  }
-}
-
-.pagination-info {
-  font-size: 0.875rem;
-  color: $text-secondary;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.pagination-button {
-  padding: 0.5rem 0.75rem;
-  background-color: white;
-  border: 1px solid $border-color;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  color: $text-primary;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background-color: $light-gray;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.pagination-pages {
-  display: flex;
-  gap: 0.25rem;
-  align-items: center;
-}
-
-.pagination-ellipsis {
-  font-size: 0.875rem;
-  color: $text-secondary;
-  padding: 0 0.25rem;
-}
-
-.page-button {
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: white;
-  border: 1px solid $border-color;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  cursor: pointer;
-
-  &:hover:not(.active) {
-    background-color: $light-gray;
-  }
-
-  &.active {
-    background-color: $primary-color;
-    color: white;
-    border-color: $primary-color;
-  }
-}
-
-// Responsive styles
-@media (max-width: 1024px) {
-  .description-col {
-    max-width: 200px;
-  }
-}
-
-@media (max-width: 768px) {
-  .prompts-container {
-    padding: 1rem;
-  }
-
-  .header-section {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    gap: $spacing-4;
 
     .action-section {
       width: 100%;
     }
   }
 
-  .prompts-table {
-    th, td {
-      padding: 0.75rem;
+  .title-section {
+    .page-title {
+      @include page-title;
+      margin-bottom: $spacing-2;
     }
 
-    .description-col, .date-col {
-      display: none;
+    .page-description {
+      color: $text-secondary;
+      font-size: $font-size-sm;
     }
+  }
+
+  .action-section {
+    .create-button {
+      @include button-primary;
+      display: inline-flex;
+      align-items: center;
+
+      .button-icon {
+        margin-right: $spacing-2;
+        font-size: $font-size-base;
+      }
+
+      @include media-breakpoint-down(md) {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+.prompts-content {
+  @include card;
+  overflow: hidden;
+}
+
+.filters-section {
+  padding: $spacing-4;
+  border-bottom: 1px solid $border-color;
+
+  .filters-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-4;
+    align-items: flex-end;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .search-field {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .filter-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $spacing-4;
+
+      @include media-breakpoint-down(md) {
+        flex-direction: column;
+      }
+
+      .filter-field {
+        min-width: 150px;
+      }
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+
+      .clear-button {
+        @include button-secondary;
+        font-size: $font-size-xs;
+        padding: $spacing-2 $spacing-4;
+      }
+    }
+  }
+}
+
+.loading-container {
+  @include loading-container;
+}
+
+.error-container {
+  @include error-container;
+}
+
+.no-results-container {
+  @include empty-state;
+}
+
+.prompts-list {
+  overflow-x: auto;
+
+  .prompts-table {
+    @include table;
 
     .name-col {
-      width: 40%;
+      font-weight: $font-weight-medium;
+      color: $primary;
+      min-width: 160px;
+    }
+
+    .description-col {
+      color: $text-secondary;
+      min-width: 200px;
+      max-width: 300px;
     }
 
     .version-col {
-      width: 15%;
+      min-width: 80px;
     }
 
     .visibility-col {
-      width: 25%;
+      min-width: 100px;
+
+      .visibility-badge {
+        @include badge;
+
+        &.public {
+          @include badge($success-light, $success);
+        }
+
+        &.private {
+          @include badge($warning-light, $warning);
+        }
+      }
+    }
+
+    .date-col {
+      min-width: 120px;
+      white-space: nowrap;
     }
 
     .actions-col {
-      width: 20%;
+      white-space: nowrap;
+      min-width: 120px;
+
+      .action-buttons {
+        display: flex;
+        gap: $spacing-2;
+
+        .action-button {
+          padding: $spacing-1 $spacing-2;
+          border: 1px solid $border-color;
+          border-radius: $radius-sm;
+          background: none;
+          font-size: $font-size-xs;
+          cursor: pointer;
+          transition: $transition-normal;
+
+          &:hover {
+            background-color: $background-light;
+          }
+
+          &.edit-button:hover {
+            border-color: $primary;
+            color: $primary;
+          }
+
+          &.delete-button:hover {
+            border-color: $error;
+            color: $error;
+          }
+        }
+      }
+    }
+
+    .prompt-row {
+      cursor: pointer;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: rgba($primary, 0.05);
+      }
+    }
+  }
+}
+
+.pagination-container {
+  @include pagination;
+  border-top: 1px solid $border-color;
+
+  .pagination-pages {
+    .page-button {
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  @include media-breakpoint-down(md) {
+    flex-direction: column;
+    gap: $spacing-4;
+
+    .pagination-info, .pagination-controls {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
     }
   }
 }

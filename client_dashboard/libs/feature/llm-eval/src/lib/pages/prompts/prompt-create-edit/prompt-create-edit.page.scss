@@ -1,204 +1,146 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/prompts/prompt-create-edit/prompt-create-edit.page.scss */
+@import '../../../../../../../styles/variables';
+@import '../../../../../../../styles/mixins';
 
-// Variables
-$primary-color: #3498db;
-$secondary-color: #2c3e50;
-$light-gray: #f5f5f5;
-$border-color: #e0e0e0;
-$text-primary: #333;
-$text-secondary: #666;
-$success-color: #27ae60;
-$error-color: #e74c3c;
-$warning-color: #f39c12;
-
-// Container
-.prompt-form-container {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 1.5rem;
+:host {
+  display: block;
+  width: 100%;
 }
 
-// Page header
+.prompt-form-container {
+  max-width: $container-lg;
+  margin: 0 auto;
+  padding: $spacing-6;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
+}
+
 .page-header {
-  margin-bottom: 2rem;
+  margin-bottom: $spacing-6;
 }
 
 .back-navigation {
-  margin-bottom: 1rem;
-}
+  margin-bottom: $spacing-4;
 
-.back-button {
-  display: inline-flex;
-  align-items: center;
-  background: none;
-  border: none;
-  color: $primary-color;
-  font-size: 0.875rem;
-  padding: 0.5rem 0;
-  cursor: pointer;
+  .back-button {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: $primary;
+    font-size: $font-size-sm;
+    padding: $spacing-2 0;
+    cursor: pointer;
 
-  &:hover {
-    text-decoration: underline;
-  }
+    &:hover {
+      text-decoration: underline;
+    }
 
-  .back-icon {
-    margin-right: 0.375rem;
+    .back-icon {
+      margin-right: $spacing-2;
+    }
   }
 }
 
 .page-title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-  color: $text-primary;
+  @include page-title;
+  margin-bottom: $spacing-2;
 }
 
 .page-description {
   color: $text-secondary;
   margin: 0;
-  font-size: 1rem;
+  font-size: $font-size-sm;
 }
 
 // Status containers
 .status-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
+  @include card-padded;
+  margin-bottom: $spacing-6;
 }
 
-.spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  border-top: 4px solid $primary-color;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
+.loading-container {
+  @include loading-container;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
+.error-container {
+  @include error-container;
 
-.spinner-sm {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s linear infinite;
-  margin-right: 0.5rem;
-  vertical-align: middle;
-}
-
-.error-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-  color: $error-color;
-}
-
-.error-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  .error-actions {
+    display: flex;
+    gap: $spacing-4;
+    margin-top: $spacing-4;
+  }
 }
 
 // Form
 .prompt-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: $spacing-6;
 }
 
 .form-card {
-  background-color: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
+  @include card-padded;
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-4;
+  }
 
-.card-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0 0 0.75rem;
-  color: $text-primary;
-}
+  .card-title {
+    @include section-title;
+    border-bottom: 1px solid $border-color;
+    padding-bottom: $spacing-3;
+    margin-bottom: $spacing-4;
+  }
 
-.card-description {
-  color: $text-secondary;
-  margin: 0 0 1rem;
-  font-size: 0.85rem;
+  .card-description {
+    color: $text-secondary;
+    margin: 0 0 $spacing-4;
+    font-size: $font-size-sm;
+  }
 }
 
 // Form groups
 .form-group {
-  margin-bottom: 1rem;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
+  @include form-group;
 }
 
 .form-row {
   display: flex;
-  gap: 1.25rem;
-  margin-bottom: 1rem;
+  gap: $spacing-6;
+  margin-bottom: $spacing-4;
 
-  @media (max-width: 768px) {
+  @include media-breakpoint-down(md) {
     flex-direction: column;
-    gap: 1rem;
+    gap: $spacing-4;
   }
-}
 
-.half-width {
-  flex: 1;
+  .half-width {
+    flex: 1;
+  }
 }
 
 .form-label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
+  margin-bottom: $spacing-2;
+  font-weight: $font-weight-medium;
   color: $text-primary;
 
   &.required::after {
     content: '*';
-    color: $error-color;
-    margin-left: 0.25rem;
+    color: $error;
+    margin-left: $spacing-1;
   }
 }
 
 .form-control {
-  width: 100%;
-  padding: 0.625rem;
-  font-size: 0.875rem;
-  border: 1px solid $border-color;
-  border-radius: 4px;
-  transition: border-color 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: $primary-color;
-  }
-
-  &.is-invalid {
-    border-color: $error-color;
-  }
+  @include form-control;
 
   &.textarea {
     resize: vertical;
@@ -207,21 +149,21 @@ $warning-color: #f39c12;
 
   &.content-textarea {
     min-height: 200px;
-    font-family: monospace;
-    font-size: 0.875rem;
+    font-family: $font-family-mono;
+    font-size: $font-size-sm;
   }
 }
 
 .help-text {
-  font-size: 0.75rem;
+  font-size: $font-size-xs;
   color: $text-secondary;
-  margin-top: 0.375rem;
+  margin-top: $spacing-1;
 }
 
 .error-message {
-  color: $error-color;
-  font-size: 0.75rem;
-  margin-top: 0.375rem;
+  color: $error;
+  font-size: $font-size-xs;
+  margin-top: $spacing-1;
 }
 
 // Checkbox and toggle
@@ -232,7 +174,7 @@ $warning-color: #f39c12;
 }
 
 .toggle-container {
-  margin-top: 1.625rem;
+  margin-top: $spacing-4;
 }
 
 .toggle-label {
@@ -241,36 +183,36 @@ $warning-color: #f39c12;
   cursor: pointer;
 
   input[type="checkbox"] {
-    margin-right: 0.625rem;
+    margin-right: $spacing-2;
   }
 
   .toggle-text {
-    font-weight: 500;
+    font-weight: $font-weight-medium;
   }
 }
 
 // Parameters section
 .parameters-container {
-  margin-top: 1rem;
+  margin-top: $spacing-4;
 }
 
 .no-parameters {
-  padding: 1.5rem;
+  padding: $spacing-6;
   text-align: center;
-  background-color: $light-gray;
-  border-radius: 4px;
+  background-color: $background-light;
+  border-radius: $radius-sm;
   color: $text-secondary;
-  font-size: 0.875rem;
+  font-size: $font-size-sm;
 }
 
 .parameter-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background-color: $light-gray;
-  border-radius: 4px;
-  margin-bottom: 0.75rem;
+  gap: $spacing-3;
+  padding: $spacing-3;
+  background-color: $background-light;
+  border-radius: $radius-sm;
+  margin-bottom: $spacing-3;
 
   &:last-child {
     margin-bottom: 0;
@@ -280,11 +222,11 @@ $warning-color: #f39c12;
 .parameter-fields {
   display: flex;
   flex: 1;
-  gap: 1rem;
+  gap: $spacing-4;
 
-  @media (max-width: 768px) {
+  @include media-breakpoint-down(md) {
     flex-direction: column;
-    gap: 0.75rem;
+    gap: $spacing-3;
   }
 }
 
@@ -294,30 +236,30 @@ $warning-color: #f39c12;
 
 .parameter-label {
   display: block;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  margin-bottom: 0.375rem;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  margin-bottom: $spacing-1;
   color: $text-primary;
 }
 
 .add-param-button {
   display: inline-flex;
   align-items: center;
-  padding: 0.5rem 0.75rem;
+  padding: $spacing-2 $spacing-3;
   background-color: white;
-  border: 1px solid $primary-color;
-  color: $primary-color;
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  border: 1px solid $primary;
+  color: $primary;
+  border-radius: $radius-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
   cursor: pointer;
 
   &:hover {
-    background-color: rgba($primary-color, 0.05);
+    background-color: rgba($primary, 0.05);
   }
 
   .add-icon {
-    margin-right: 0.25rem;
+    margin-right: $spacing-1;
   }
 }
 
@@ -327,15 +269,15 @@ $warning-color: #f39c12;
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: $radius-sm;
   border: none;
-  background-color: rgba($error-color, 0.1);
-  color: $error-color;
-  font-size: 0.875rem;
+  background-color: rgba($error, 0.1);
+  color: $error;
+  font-size: $font-size-sm;
   cursor: pointer;
 
   &:hover {
-    background-color: rgba($error-color, 0.2);
+    background-color: rgba($error, 0.2);
   }
 }
 
@@ -343,65 +285,41 @@ $warning-color: #f39c12;
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: $spacing-4;
+  margin-top: $spacing-4;
+
+  @include media-breakpoint-down(sm) {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+    }
+  }
 }
 
 // Buttons
-.primary-button, .secondary-button, .outline-button {
-  padding: 0.625rem 1.25rem;
-  border-radius: 4px;
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 100px;
-}
-
 .primary-button {
-  background-color: $primary-color;
-  color: white;
-  border: 1px solid $primary-color;
+  @include button-primary;
 
-  &:hover:not(:disabled) {
-    background-color: darken($primary-color, 10%);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
-.secondary-button {
-  background-color: $light-gray;
-  color: $text-primary;
-  border: 1px solid $light-gray;
-
-  &:hover {
-    background-color: darken($light-gray, 5%);
+  .spinner-sm {
+    @include spinner($size: 16px, $border-width: 2px, $color: white);
+    margin-right: $spacing-2;
   }
 }
 
 .outline-button {
-  background-color: transparent;
-  color: $text-secondary;
-  border: 1px solid $border-color;
+  @include button-outline;
+}
 
-  &:hover {
-    background-color: $light-gray;
-    color: $text-primary;
-  }
+.secondary-button {
+  @include button-secondary;
 }
 
 // Code
 code {
-  background-color: $light-gray;
-  padding: 0.25rem 0.375rem;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 0.8125rem;
+  background-color: $background-light;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-sm;
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
 }

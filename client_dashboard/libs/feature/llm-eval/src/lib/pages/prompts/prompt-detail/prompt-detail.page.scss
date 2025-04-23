@@ -1,191 +1,183 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/prompts/prompt-detail/prompt-detail.page.scss */
+@import '../../../../../../../styles/variables';
+@import '../../../../../../../styles/mixins';
+
+:host {
+  display: block;
+  width: 100%;
+}
+
 .prompt-detail-container {
-  max-width: 1200px;
+  max-width: $container-lg;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: $spacing-6;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
 
   .back-navigation {
-    margin-bottom: 1.5rem;
+    margin-bottom: $spacing-6;
 
     .back-button {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: $spacing-2;
       background: none;
       border: none;
-      color: #0d6efd;
-      font-size: 0.9rem;
-      padding: 0.5rem;
+      color: $primary;
+      font-size: $font-size-sm;
+      padding: $spacing-2;
       cursor: pointer;
-      border-radius: 4px;
+      border-radius: $radius-sm;
       transition: background-color 0.2s;
 
       &:hover {
-        background-color: #e9ecef;
+        background-color: $background-light;
       }
 
       .back-icon {
-        font-size: 1.2rem;
+        font-size: $font-size-md;
       }
     }
   }
 
-  .loading-container,
+  .loading-container {
+    @include loading-container;
+    @include card-padded;
+    margin-bottom: $spacing-6;
+  }
+
   .error-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 3rem 1.5rem;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-    margin: 1.5rem 0;
-  }
-
-  .spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-radius: 50%;
-    border-top: 4px solid #3498db;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .error-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .error-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
+    @include error-container;
+    @include card-padded;
+    margin-bottom: $spacing-6;
   }
 
   .prompt-details {
     .detail-header {
+      @include card-padded;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid #e9ecef;
+      margin-bottom: $spacing-6;
+
+      @include media-breakpoint-down(md) {
+        flex-direction: column;
+        gap: $spacing-4;
+      }
 
       .header-content {
         .detail-title {
-          font-size: 2rem;
-          font-weight: 700;
-          margin: 0 0 1rem;
-          color: #212529;
+          font-size: $font-size-2xl;
+          font-weight: $font-weight-bold;
+          margin: 0 0 $spacing-4;
+          color: $text-primary;
         }
 
         .detail-badges {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.5rem;
+          gap: $spacing-2;
 
           .detail-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-weight: 500;
+            padding: $spacing-1 $spacing-2;
+            border-radius: $radius-sm;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-medium;
           }
 
           .version-badge {
-            background-color: #e9ecef;
-            color: #495057;
+            background-color: $background-light;
+            color: $text-secondary;
           }
 
           .public-badge {
-            background-color: #d1e7dd;
-            color: #0f5132;
+            @include badge($success-light, $success);
           }
 
           .private-badge {
-            background-color: #f8d7da;
-            color: #842029;
+            @include badge($warning-light, $warning);
           }
 
           .template-badge {
-            background-color: #cfe2ff;
-            color: #084298;
+            @include badge($info-light, $info);
           }
         }
       }
 
       .header-actions {
         display: flex;
-        gap: 0.75rem;
+        gap: $spacing-3;
+
+        @include media-breakpoint-down(md) {
+          width: 100%;
+          justify-content: flex-start;
+        }
       }
     }
 
     .detail-section {
-      margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid #e9ecef;
+      @include card-padded;
+      margin-bottom: $spacing-6;
 
       &:last-child {
-        border-bottom: none;
+        margin-bottom: 0;
       }
 
       .section-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin: 0 0 1rem;
-        color: #343a40;
+        @include section-title;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: $spacing-3;
+        margin-bottom: $spacing-4;
       }
 
       &.metadata-section {
         display: flex;
         flex-wrap: wrap;
-        gap: 1.5rem;
+        gap: $spacing-6;
 
         .meta-item {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
+          min-width: 200px;
 
           .meta-label {
-            font-weight: 500;
-            color: #6c757d;
+            font-weight: $font-weight-medium;
+            color: $text-secondary;
+            margin-bottom: $spacing-1;
+            display: block;
+            font-size: $font-size-sm;
           }
 
           .meta-value {
-            color: #212529;
+            color: $text-primary;
+            font-size: $font-size-base;
           }
         }
       }
 
       &.description-section {
         .description-content {
-          font-size: 1rem;
-          line-height: 1.6;
-          color: #495057;
+          font-size: $font-size-base;
+          line-height: $line-height-normal;
+          color: $text-primary;
           margin: 0;
         }
       }
 
       &.content-section {
         .content-wrapper {
-          background-color: #f8f9fa;
-          border: 1px solid #e9ecef;
-          border-radius: 8px;
-          padding: 1rem;
+          background-color: $background-light;
+          border: 1px solid $border-color;
+          border-radius: $radius-sm;
+          padding: $spacing-4;
           overflow: auto;
 
           .content-preview {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9rem;
-            line-height: 1.5;
+            font-family: $font-family-mono;
+            font-size: $font-size-sm;
+            line-height: $line-height-normal;
             white-space: pre-wrap;
-            color: #212529;
+            color: $text-primary;
             margin: 0;
           }
         }
@@ -195,24 +187,24 @@
         .parameters-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 1rem;
+          gap: $spacing-4;
 
           .parameter-item {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 0.75rem;
+            background-color: $background-light;
+            border: 1px solid $border-color;
+            border-radius: $radius-sm;
+            padding: $spacing-3;
 
             .parameter-name {
-              font-weight: 600;
-              margin-bottom: 0.25rem;
-              color: #495057;
-              font-size: 0.9rem;
+              font-weight: $font-weight-semibold;
+              margin-bottom: $spacing-1;
+              color: $text-primary;
+              font-size: $font-size-sm;
             }
 
             .parameter-value {
-              color: #212529;
-              font-size: 0.9rem;
+              color: $text-secondary;
+              font-size: $font-size-sm;
               word-break: break-word;
             }
           }
@@ -222,34 +214,12 @@
       &.evaluations-section {
         .no-evaluations {
           font-style: italic;
-          color: #6c757d;
+          color: $text-secondary;
+          padding: $spacing-4;
+          background-color: $background-light;
+          border-radius: $radius-sm;
+          text-align: center;
         }
-      }
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .prompt-detail-container {
-    padding: 1rem;
-
-    .prompt-details {
-      .detail-header {
-        flex-direction: column;
-
-        .header-actions {
-          margin-top: 1rem;
-          width: 100%;
-
-          app-qracbutton {
-            flex: 1;
-          }
-        }
-      }
-
-      .metadata-section {
-        flex-direction: column;
-        gap: 0.75rem;
       }
     }
   }

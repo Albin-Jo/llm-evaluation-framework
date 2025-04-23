@@ -1,434 +1,262 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.page.scss */
+@import '../../../../../../styles/variables';
+@import '../../../../../../styles/mixins';
+
 :host {
-    display: block;
-    width: 100%;
-    --primary: #3498db;
-    --primary-dark: #2c3e50;
-    --primary-light: #c5cae9;
-    --text-primary: #212121;
-    --text-secondary: #757575;
-    --background: #f5f5f5;
-    --background-light: #e0e0e0;
-    --border-color: #e0e0e0;
-    --hover-background: #f5f5f5;
-    --error: #f44336;
-    --error-light: #ffebee;
-    --success: #4caf50;
-    --success-light: #e8f5e9;
-    --warning: #ff9800;
-    --warning-light: #fff3e0;
-    --info: #2196f3;
-    --info-light: #e3f2fd;
-  }
+  display: block;
+  width: 100%;
+}
 
-  .evaluations-container {
-    display: flex;
+.evaluations-container {
+  max-width: $container-xl;
+  margin: 0 auto;
+  padding: $spacing-6;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
+}
+
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-6;
+
+  @include media-breakpoint-down(md) {
     flex-direction: column;
-    padding: 1.5rem;
-    gap: 1.5rem;
-  }
-
-  .header-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-
-    .title-section {
-      .page-title {
-        font-size: 1.75rem;
-        font-weight: 600;
-        margin: 0 0 0.5rem 0;
-        color: var(--text-primary);
-      }
-
-      .page-description {
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        margin: 0;
-      }
-    }
+    gap: $spacing-4;
 
     .action-section {
-      .create-button {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background-color: var(--primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 0.625rem 1rem;
-        font-size: 0.875rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color 0.2s;
-
-        &:hover {
-          background-color: var(--primary-dark);
-        }
-
-        .button-icon {
-          font-size: 1rem;
-          font-weight: bold;
-        }
-      }
+      width: 100%;
     }
   }
 
-  .evaluations-content {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+  .title-section {
+    .page-title {
+      @include page-title;
+      margin-bottom: $spacing-2;
+    }
+
+    .page-description {
+      color: $text-secondary;
+      font-size: $font-size-sm;
+    }
   }
 
-  .filters-section {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
+  .action-section {
+    .create-button {
+      @include button-primary;
+      display: inline-flex;
+      align-items: center;
 
-    .filters-form {
+      .button-icon {
+        margin-right: $spacing-2;
+        font-size: $font-size-base;
+      }
+
+      @include media-breakpoint-down(md) {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+.evaluations-content {
+  @include card;
+  overflow: hidden;
+}
+
+.filters-section {
+  padding: $spacing-4;
+  border-bottom: 1px solid $border-color;
+
+  .filters-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-4;
+    align-items: flex-end;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .search-field {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .filter-fields {
       display: flex;
       flex-wrap: wrap;
-      gap: 1rem;
-      align-items: flex-end;
+      gap: $spacing-4;
 
-      .search-field {
-        flex: 1;
-        min-width: 250px;
+      @include media-breakpoint-down(md) {
+        flex-direction: column;
       }
 
-      .filter-fields {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-
-        .filter-field {
-          min-width: 150px;
-        }
+      .filter-field {
+        min-width: 150px;
       }
+    }
 
-      .filter-actions {
-        display: flex;
-        align-items: center;
+    .filter-actions {
+      display: flex;
+      align-items: center;
 
-        .clear-button {
-          background: none;
-          border: 1px solid var(--border-color);
-          border-radius: 4px;
-          padding: 0.5rem 1rem;
-          font-size: 0.75rem;
-          cursor: pointer;
-          transition: background-color 0.2s;
-
-          &:hover {
-            background-color: var(--background-light);
-          }
-        }
+      .clear-button {
+        @include button-secondary;
+        font-size: $font-size-xs;
+        padding: $spacing-2 $spacing-4;
       }
     }
   }
+}
 
-  /* Loading state */
-  .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    color: var(--text-secondary);
+.loading-container {
+  @include loading-container;
+}
 
-    .spinner {
-      border: 3px solid rgba(0, 0, 0, 0.1);
-      border-top: 3px solid var(--primary);
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 1rem;
+.error-container {
+  @include error-container;
+}
+
+.no-results-container {
+  @include empty-state;
+}
+
+.evaluations-list {
+  overflow-x: auto;
+
+  .evaluations-table {
+    @include table;
+
+    .name-col {
+      font-weight: $font-weight-medium;
+      color: $primary;
+      min-width: 160px;
     }
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  }
-
-  /* Error state */
-  .error-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    color: var(--error);
-
-    .error-icon {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-    }
-  }
-
-  /* No results state */
-  .no-results-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    color: var(--text-secondary);
-
-    .no-results-icon {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
+    .description-col {
+      color: $text-secondary;
+      min-width: 200px;
+      max-width: 300px;
     }
 
-    h3 {
-      margin: 0 0 0.5rem 0;
-      color: var(--text-primary);
+    .method-col {
+      min-width: 100px;
     }
 
-    p {
-      margin: 0 0 1.5rem 0;
-    }
-  }
-
-  /* Evaluations list */
-  .evaluations-list {
-    overflow-x: auto;
-
-    .evaluations-table {
-      width: 100%;
-      border-collapse: collapse;
-
-      th, td {
-        padding: 0.75rem 1rem;
-        text-align: left;
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      th {
-        background-color: var(--background-light);
-        font-weight: 600;
-        color: var(--text-secondary);
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        white-space: nowrap;
-
-        .th-content {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          cursor: pointer;
-
-          &:hover {
-            color: var(--primary);
-          }
-
-          i {
-            font-size: 0.75rem;
-          }
-        }
-      }
-
-      tbody tr {
-        cursor: pointer;
-        transition: background-color 0.2s;
-
-        &:hover {
-          background-color: var(--hover-background);
-        }
-      }
-
-      .name-col {
-        font-weight: 500;
-        color: var(--primary);
-        min-width: 160px;
-      }
-
-      .description-col {
-        color: var(--text-secondary);
-        min-width: 200px;
-        max-width: 300px;
-      }
-
-      .method-col {
-        min-width: 100px;
-      }
+    .status-col {
+      min-width: 100px;
 
       .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-transform: capitalize;
-
         &.completed {
-          background-color: var(--success-light);
-          color: var(--success);
+          @include status-badge('success');
         }
 
         &.running {
-          background-color: var(--info-light);
-          color: var(--info);
+          @include status-badge('info');
         }
 
         &.pending {
-          background-color: var(--background-light);
-          color: var(--text-secondary);
+          @include status-badge('warning');
         }
 
         &.failed {
-          background-color: var(--error-light);
-          color: var(--error);
+          @include status-badge('error');
         }
 
         &.cancelled {
-          background-color: var(--warning-light);
-          color: var(--warning);
+          @include status-badge('warning');
         }
       }
+    }
 
-      .actions-col {
-        white-space: nowrap;
-        width: 180px;
+    .date-col {
+      min-width: 120px;
+      white-space: nowrap;
+    }
 
-        .action-buttons {
-          display: flex;
-          gap: 0.5rem;
+    .actions-col {
+      white-space: nowrap;
+      min-width: 180px;
 
-          .action-button {
-            padding: 0.25rem 0.5rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background: none;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
+      .action-buttons {
+        display: flex;
+        gap: $spacing-2;
 
-            &:hover {
-              background-color: var(--background-light);
-            }
+        .action-button {
+          padding: $spacing-1 $spacing-2;
+          border: 1px solid $border-color;
+          border-radius: $radius-sm;
+          background: none;
+          font-size: $font-size-xs;
+          cursor: pointer;
+          transition: $transition-normal;
 
-            &.edit-button:hover {
-              border-color: var(--primary);
-              color: var(--primary);
-            }
+          &:hover {
+            background-color: $background-light;
+          }
 
-            &.delete-button:hover {
-              border-color: var(--error);
-              color: var(--error);
-            }
+          &.edit-button:hover {
+            border-color: $primary;
+            color: $primary;
+          }
 
-            &.start-button:hover {
-              border-color: var(--success);
-              color: var(--success);
-            }
+          &.delete-button:hover {
+            border-color: $error;
+            color: $error;
+          }
 
-            &.cancel-button:hover {
-              border-color: var(--warning);
-              color: var(--warning);
-            }
+          &.start-button:hover {
+            border-color: $success;
+            color: $success;
+          }
+
+          &.cancel-button:hover {
+            border-color: $warning;
+            color: $warning;
           }
         }
       }
     }
-  }
 
-  /* Pagination */
-  .pagination-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    border-top: 1px solid var(--border-color);
+    .evaluation-row {
+      cursor: pointer;
+      transition: background-color 0.2s;
 
-    .pagination-info {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
+      &:hover {
+        background-color: rgba($primary, 0.05);
+      }
     }
+  }
+}
 
-    .pagination-controls {
+.pagination-container {
+  @include pagination;
+  border-top: 1px solid $border-color;
+
+  .pagination-pages {
+    .page-button {
+      width: 2rem;
+      height: 2rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-
-      .pagination-button, .page-button {
-        padding: 0.25rem 0.5rem;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        background: none;
-        font-size: 0.75rem;
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover:not(:disabled) {
-          background-color: var(--background-light);
-        }
-
-        &:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        &.active {
-          background-color: var(--primary);
-          color: white;
-          border-color: var(--primary);
-        }
-      }
-
-      .pagination-pages {
-        display: flex;
-        gap: 0.25rem;
-
-        .pagination-ellipsis {
-          padding: 0.25rem 0.5rem;
-          font-size: 0.75rem;
-        }
-      }
+      justify-content: center;
     }
   }
 
-  /* Responsive adjustments */
-  @media screen and (max-width: 768px) {
-    .header-section {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 1rem;
+  @include media-breakpoint-down(md) {
+    flex-direction: column;
+    gap: $spacing-4;
 
-      .action-section {
-        width: 100%;
-
-        .create-button {
-          width: 100%;
-          justify-content: center;
-        }
-      }
-    }
-
-    .filters-section .filters-form {
-      flex-direction: column;
-      align-items: stretch;
-
-      .search-field, .filter-fields, .filter-actions {
-        width: 100%;
-      }
-
-      .filter-fields {
-        flex-direction: column;
-      }
-    }
-
-    .pagination-container {
-      flex-direction: column;
-      gap: 1rem;
-
-      .pagination-info, .pagination-controls {
-        width: 100%;
-        justify-content: center;
-        text-align: center;
-      }
+    .pagination-info, .pagination-controls {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
     }
   }
+}
