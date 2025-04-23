@@ -1,0 +1,198 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/datasets.page.html -->
+<div class="datasets-container">
+  <div class="header-section">
+    <div class="title-section">
+      <h1 class="page-title">Datasets</h1>
+      <p class="page-description">Manage document collections for RAG evaluation</p>
+    </div>
+    <div class="action-section">
+      <button class="create-button" (click)="createNewDataset($event)">
+        <span class="button-icon">+</span> Upload New Dataset
+      </button>
+    </div>
+  </div>
+
+  <div class="datasets-content">
+    <!-- Filters Section -->
+<!--    <div class="filters-section">-->
+<!--      <form [formGroup]="filterForm" class="filters-form">-->
+<!--        <div class="search-field">-->
+<!--          <qrac-textbox-->
+<!--            [label]="'Search'"-->
+<!--            [controlName]="'search'"-->
+<!--            formControlName="search"-->
+<!--            [placeholder]="'Search datasets by name or description'"-->
+<!--            [size]="'medium'">-->
+<!--          </qrac-textbox>-->
+<!--        </div>-->
+
+<!--        <div class="filter-fields">-->
+<!--          <div class="filter-field">-->
+<!--            <qrac-select-->
+<!--              [label]="'Status'"-->
+<!--              [controlName]="'status'"-->
+<!--              formControlName="status"-->
+<!--              [options]="statusOptions">-->
+<!--            </qrac-select>-->
+<!--          </div>-->
+
+<!--          <div class="filter-field">-->
+<!--            <qrac-select-->
+<!--              [label]="'Format'"-->
+<!--              [controlName]="'type'"-->
+<!--              formControlName="type"-->
+<!--              [options]="formatOptions">-->
+<!--            </qrac-select>-->
+<!--          </div>-->
+
+<!--          <div class="filter-field visibility-field">-->
+<!--            <qrac-select-->
+<!--              [label]="'Visibility'"-->
+<!--              [controlName]="'isPublic'"-->
+<!--              formControlName="isPublic"-->
+<!--              [options]="visibilityOptions">-->
+<!--            </qrac-select>-->
+<!--          </div>-->
+<!--        </div>-->
+
+<!--        <div class="filter-actions">-->
+<!--          <button class="clear-button" type="button" (click)="clearFilters()">-->
+<!--            Clear Filters-->
+<!--          </button>-->
+<!--        </div>-->
+<!--      </form>-->
+<!--    </div>-->
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading datasets...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error }}</p>
+      <qrac-button
+        label="Try Again"
+        type="secondary"
+        (buttonClick)="loadDatasets()">
+      </qrac-button>
+    </div>
+
+    <!-- No Results State -->
+    <div *ngIf="!isLoading && datasets.length === 0" class="no-results-container">
+      <div class="no-results-icon">📚</div>
+      <h3>No datasets found</h3>
+      <p>Upload a new dataset or adjust your filters</p>
+      <qrac-button
+        label="Upload Dataset"
+        type="primary"
+        (buttonClick)="createNewDataset($event)">
+      </qrac-button>
+    </div>
+
+    <!-- Datasets List View -->
+    <div *ngIf="datasets.length > 0 && !isLoading" class="datasets-list">
+      <table class="datasets-table">
+        <thead>
+          <tr>
+            <th class="name-col">
+              <span class="th-content" (click)="onSortChange('name')">
+                Name
+                <i *ngIf="filterParams.sortBy === 'name'"
+                  [class.icon-arrow-up]="filterParams.sortDirection === 'asc'"
+                  [class.icon-arrow-down]="filterParams.sortDirection === 'desc'">
+                </i>
+              </span>
+            </th>
+            <th class="description-col">Description</th>
+            <th class="type-col">Type</th>
+            <th class="count-col">
+              <span class="th-content" (click)="onSortChange('documentCount')">
+                Documents
+                <i *ngIf="filterParams.sortBy === 'documentCount'"
+                  [class.icon-arrow-up]="filterParams.sortDirection === 'asc'"
+                  [class.icon-arrow-down]="filterParams.sortDirection === 'desc'">
+                </i>
+              </span>
+            </th>
+            <th class="date-col">
+              <span class="th-content" (click)="onSortChange('createdAt')">
+                Created
+                <i *ngIf="filterParams.sortBy === 'createdAt'"
+                  [class.icon-arrow-up]="filterParams.sortDirection === 'asc'"
+                  [class.icon-arrow-down]="filterParams.sortDirection === 'desc'">
+                </i>
+              </span>
+            </th>
+            <th class="status-col">Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let dataset of datasets" class="dataset-row" (click)="onDatasetClick(dataset)">
+            <td class="name-col">{{ dataset.name }}</td>
+            <td class="description-col">{{ truncateText(dataset.description, 80) }}</td>
+            <td class="type-col">
+              <span class="type-badge">{{ dataset.type || dataset.format || 'Custom' }}</span>
+            </td>
+            <td class="count-col">{{ dataset.documentCount || 'N/A' }}</td>
+            <td class="date-col">{{ formatDate(dataset.createdAt) }}</td>
+            <td class="status-col">
+              <span class="status-badge" [ngClass]="dataset.status.toLowerCase() || 'ready'">
+                {{ dataset.status || 'Ready' }}
+              </span>
+            </td>
+            <td class="actions-col">
+              <div class="action-buttons">
+                <button class="action-button edit-button" title="Edit dataset" (click)="onEditDataset($event, dataset.id)">
+                  Edit
+                </button>
+                <button class="action-button delete-button" title="Delete dataset" (click)="confirmDeleteDataset($event, dataset.id)">
+                  Del
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="datasets.length > 0 && totalCount > itemsPerPage" class="pagination-container">
+      <div class="pagination-info">
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
+        {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} datasets
+      </div>
+      <div class="pagination-controls">
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page === 1"
+          (click)="onPageChange(filterParams.page! - 1, $event)">
+          Previous
+        </button>
+
+        <div class="pagination-pages">
+          <ng-container *ngFor="let page of visiblePages">
+            <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
+            <button
+              *ngIf="page > 0"
+              class="page-button"
+              [class.active]="page === filterParams.page"
+              (click)="onPageChange(page, $event)">
+              {{ page }}
+            </button>
+          </ng-container>
+        </div>
+
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
+          (click)="onPageChange(filterParams.page! + 1, $event)">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

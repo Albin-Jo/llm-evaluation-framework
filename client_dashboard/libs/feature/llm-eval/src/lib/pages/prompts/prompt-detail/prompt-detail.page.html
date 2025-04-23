@@ -1,0 +1,105 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/prompt-detail/prompt-detail.page.html -->
+<div class="prompt-detail-container">
+  <!-- Back Navigation -->
+  <div class="back-navigation">
+    <button class="back-button" (click)="goBack()">
+      <span class="back-icon">←</span>
+      <span>Back to Prompts</span>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading prompt details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="error-container">
+    <div class="error-icon">❌</div>
+    <p>{{ error }}</p>
+    <div class="error-actions">
+      <app-qracbutton
+        label="Try Again"
+        btnType="secondary"
+        (click)="loadPrompt()">
+      </app-qracbutton>
+      <app-qracbutton
+        label="Go Back"
+        btnType="outline"
+        (click)="goBack()">
+      </app-qracbutton>
+    </div>
+  </div>
+
+  <!-- Prompt Details -->
+  <div *ngIf="prompt && !isLoading && !error" class="prompt-details">
+    <div class="detail-header">
+      <div class="header-content">
+        <h1 class="detail-title">{{ prompt.name }}</h1>
+        <div class="detail-badges">
+          <span class="detail-badge version-badge">v{{ prompt.version }}</span>
+          <span class="detail-badge" [ngClass]="prompt.is_public ? 'public-badge' : 'private-badge'">
+            {{ prompt.is_public ? 'Public' : 'Private' }}
+          </span>
+          <span *ngIf="prompt.template_id" class="detail-badge template-badge">Template</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <app-qracbutton
+          label="Edit"
+          btnType="primary"
+          [iconLeft]="'edit'"
+          (click)="editPrompt()">
+        </app-qracbutton>
+        <app-qracbutton
+          label="Delete"
+          btnType="danger"
+          [iconLeft]="'delete'"
+          (click)="deletePrompt()">
+        </app-qracbutton>
+      </div>
+    </div>
+
+    <div class="detail-section metadata-section">
+      <div class="meta-item">
+        <span class="meta-label">Created:</span>
+        <span class="meta-value">{{ formatDate(prompt.created_at) }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Last Updated:</span>
+        <span class="meta-value">{{ formatDate(prompt.updated_at) }}</span>
+      </div>
+    </div>
+
+    <div *ngIf="prompt.description" class="detail-section description-section">
+      <h2 class="section-title">Description</h2>
+      <p class="description-content">{{ prompt.description }}</p>
+    </div>
+
+    <div class="detail-section content-section">
+      <h2 class="section-title">Prompt Content</h2>
+      <div class="content-wrapper">
+        <pre class="content-preview">{{ prompt.content }}</pre>
+      </div>
+    </div>
+
+    <div *ngIf="prompt && prompt.parameters && hasParameters(prompt.parameters)" class="detail-section parameters-section">
+      <h2 class="section-title">Parameters</h2>
+      <div class="parameters-grid">
+        <div *ngFor="let param of getParameterEntries(prompt.parameters)" class="parameter-item">
+          <div class="parameter-name">{{ param.key }}</div>
+          <div class="parameter-value">{{ param.value }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section evaluations-section">
+      <h2 class="section-title">Evaluations</h2>
+      <div class="section-content">
+        <p *ngIf="true" class="no-evaluations">No evaluations have used this prompt yet.</p>
+        <!-- Evaluations will be listed here when available -->
+      </div>
+    </div>
+  </div>
+</div>

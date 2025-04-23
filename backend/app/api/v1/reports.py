@@ -386,6 +386,8 @@ async def download_report(
             )
 
 
+# File: backend/app/api/v1/reports.py
+
 @router.get("/{report_id}/preview")
 async def preview_report(
         report_id: UUID,
@@ -423,7 +425,8 @@ async def preview_report(
                 detail="Report content not available"
             )
 
-        html_content = await report_service._generate_html_report(report.content)
+        # Fixed to call without await
+        html_content = report_service._generate_html_report(report.content)
 
         # Return HTML response
         return Response(content=html_content, media_type="text/html")

@@ -1,0 +1,145 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.html -->
+<div class="dataset-detail-container">
+  <!-- Back Navigation -->
+  <div class="back-navigation">
+    <button class="back-button" (click)="goBack($event)">
+      <span class="back-icon">←</span>
+      <span>Back to Datasets</span>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading dataset details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!isLoading && !dataset" class="error-container">
+    <div class="error-icon">❌</div>
+    <h2>Dataset Not Found</h2>
+    <p>The requested dataset could not be found or may have been deleted.</p>
+    <div class="error-actions">
+      <button class="primary-button" (click)="goBack($event)">
+        Back to Datasets
+      </button>
+    </div>
+  </div>
+
+  <!-- Dataset Details -->
+  <div *ngIf="!isLoading && dataset" class="dataset-details">
+    <form [formGroup]="editForm" (ngSubmit)="saveChanges($event)">
+      <div class="detail-header">
+        <div class="header-content">
+          <input
+            type="text"
+            class="detail-title"
+            placeholder="Dataset Name"
+            formControlName="name"
+            [class.is-invalid]="nameControl && nameControl.invalid && nameControl.touched">
+          <div class="detail-badges">
+            <span class="detail-badge" [ngClass]="statusClass">{{ statusText }}</span>
+          </div>
+          <div *ngIf="nameControl && nameControl.invalid && nameControl.touched" class="error-message">
+            <span *ngIf="nameControl.errors?.['required']">Name is required</span>
+            <span *ngIf="nameControl.errors?.['maxlength']">Name cannot exceed 100 characters</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="outline-button" (click)="deleteDataset($event)">
+            <span class="button-icon">🗑️</span> Delete
+          </button>
+        </div>
+      </div>
+
+      <div class="detail-section metadata-section">
+        <div class="meta-item">
+          <span class="meta-label">Created:</span>
+          <span class="meta-value">{{ formattedDate }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Last Updated:</span>
+          <span class="meta-value">{{ formatDate(dataset.updatedAt) }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Document Count:</span>
+          <span class="meta-value">{{ dataset.documentCount || 0 }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Total Size:</span>
+          <span class="meta-value">{{ formattedSize }}</span>
+        </div>
+      </div>
+
+      <div class="detail-section description-section">
+        <h2 class="section-title">Description</h2>
+        <textarea
+          class="description-content"
+          formControlName="description"
+          placeholder="Add a description for this dataset (optional)"
+          rows="3"></textarea>
+        <div *ngIf="descriptionControl && descriptionControl.invalid && descriptionControl.touched" class="error-message">
+          <span *ngIf="descriptionControl.errors?.['maxlength']">
+            Description cannot exceed 500 characters
+          </span>
+        </div>
+      </div>
+
+      <div class="detail-section tags-section">
+        <h2 class="section-title">Tags</h2>
+        <div class="tags-container">
+          <button
+            *ngFor="let tag of availableTags"
+            type="button"
+            class="tag-button"
+            [class.active]="selectedTags.includes(tag)"
+            (click)="toggleTag(tag)">
+            {{ tag }}
+          </button>
+        </div>
+        <div class="help-text">Select tags to categorize your dataset</div>
+      </div>
+
+      <div class="detail-section documents-section">
+        <div class="section-header">
+          <h2 class="section-title">Documents</h2>
+          <button type="button" class="add-button" (click)="uploadDocuments($event)">
+            <span class="add-icon">+</span> Upload Documents
+          </button>
+        </div>
+
+        <div class="documents-list" *ngIf="documents.length > 0">
+          <div class="document-item" *ngFor="let doc of documents">
+            <div class="document-icon">
+              <i class="icon-document">📄</i>
+            </div>
+            <div class="document-info">
+              <h3 class="document-name">{{ doc.name }}</h3>
+              <div class="document-metadata">
+                <span class="document-date">Added: {{ formatDate(doc.createdAt) }}</span>
+                <span class="document-embeddings" *ngIf="doc.embeddings">
+                  <i class="icon-check">✓</i> Embeddings generated
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-documents" *ngIf="documents.length === 0">
+          <div class="empty-icon">📄</div>
+          <p>No documents found in this dataset</p>
+          <button type="button" class="primary-button" (click)="uploadDocuments($event)">
+            Upload Documents
+          </button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="primary-button" [disabled]="editForm.invalid || isSaving">
+          <span *ngIf="isSaving" class="spinner-sm"></span>
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

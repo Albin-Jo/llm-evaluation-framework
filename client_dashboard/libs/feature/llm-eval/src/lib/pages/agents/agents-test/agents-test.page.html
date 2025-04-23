@@ -1,0 +1,108 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-test/agents-test.page.html -->
+<div class="agent-test-container">
+  <div class="test-header">
+    <button class="back-button" (click)="onBackClick()">
+      <span class="back-icon">←</span> Back to Agent
+    </button>
+
+    <div class="title-container">
+      <h1 class="page-title">Test Agent</h1>
+      <p *ngIf="agent" class="agent-name">{{ agent.name }}</p>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading agent details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="error-container">
+    <div class="error-icon">❌</div>
+    <p>{{ error }}</p>
+    <qrac-button
+      *ngIf="agentId"
+      label="Try Again"
+      type="secondary"
+      (buttonClick)="loadAgent(agentId)">
+    </qrac-button>
+  </div>
+
+  <!-- Test Interface -->
+  <div *ngIf="agent && !isLoading" class="test-interface">
+    <div class="test-form-container">
+      <form [formGroup]="testForm" (ngSubmit)="onSubmit()" class="test-form">
+        <div class="form-section">
+          <h2 class="section-title">Test Input</h2>
+
+          <div class="form-row">
+            <div class="form-field">
+              <qrac-textbox
+                [label]="'Query'"
+                [controlName]="'query'"
+                formControlName="query"
+                [placeholder]="'Enter your query or question'"
+                [required]="true">
+              </qrac-textbox>
+              <div *ngIf="testForm.get('query')?.touched && testForm.get('query')?.hasError('required')" class="error-message">
+                Query is required
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <qrac-text-area
+                [label]="'Context (Optional)'"
+                [controlName]="'context'"
+                formControlName="context"
+                [placeholder]="'Enter context information'"
+                [rows]="4">
+              </qrac-text-area>
+              <div class="field-hint">
+                Provide any relevant context for the agent to use when processing your query
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <qrac-text-area
+                [label]="'Additional Parameters (JSON)'"
+                [controlName]="'parameters'"
+                formControlName="parameters"
+                [placeholder]="'Enter additional parameters as JSON'"
+                [rows]="3">
+              </qrac-text-area>
+              <div class="field-hint">
+                Optional parameters in JSON format (e.g., {{ "{" }}"temperature": 0.7{{ "}" }})
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="test-button" [disabled]="testForm.invalid || isTesting">
+              <span *ngIf="isTesting" class="spinner-small"></span>
+              {{ isTesting ? 'Testing...' : 'Run Test' }}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Test Results -->
+    <div *ngIf="testResult" class="test-results-container">
+      <h2 class="section-title">
+        Test Results
+        <span class="result-status" [ngClass]="testSuccess ? 'success' : 'error'">
+          {{ testSuccess ? 'Success' : 'Error' }}
+        </span>
+      </h2>
+
+      <div class="results-content">
+        <pre class="result-json">{{ formatJson(testResult) }}</pre>
+      </div>
+    </div>
+  </div>
+</div>

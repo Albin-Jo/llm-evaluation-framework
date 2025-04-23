@@ -536,17 +536,15 @@ class ReportService:
             with open(f"{settings.STORAGE_LOCAL_PATH}/{file_path}", "w") as f:
                 json.dump(content, f, indent=2)
         elif format == ReportFormat.HTML:
-            # Generate HTML report
-            html_content = await self._generate_html_report(content)
+            # Generate HTML report - Fixed to call without await
+            html_content = self._generate_html_report(content)
 
             with open(f"{settings.STORAGE_LOCAL_PATH}/{file_path}", "w") as f:
                 f.write(html_content)
         elif format == ReportFormat.PDF:
             # For PDF, we'll first generate HTML, then convert to PDF
-            # For implementation simplicity, we'll use a placeholder PDF generation
-            # In a real implementation, you'd use a library like WeasyPrint or a service like wkhtmltopdf
-
-            html_content = await self._generate_html_report(content)
+            # Fixed to call without await
+            html_content = self._generate_html_report(content)
 
             # Write HTML to temporary file
             temp_html_path = f"{dir_path}/temp_{report_id}.html"
@@ -566,7 +564,8 @@ class ReportService:
 
         return file_path
 
-    async def _generate_html_report(self, content: Dict[str, Any]) -> str:
+    # Changed from async def to def (removed async keyword)
+    def _generate_html_report(self, content: Dict[str, Any]) -> str:
         """
         Generate an HTML report from the content.
 

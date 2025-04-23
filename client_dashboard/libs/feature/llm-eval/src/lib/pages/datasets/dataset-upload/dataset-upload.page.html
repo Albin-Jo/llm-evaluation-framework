@@ -1,0 +1,122 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-upload/dataset-upload.page.html -->
+<div class="page-container">
+  <div class="back-navigation">
+    <button class="back-button" (click)="cancel($event)">
+      <span class="back-icon">←</span>
+      <span>Back to Datasets</span>
+    </button>
+  </div>
+
+  <div class="page-header">
+    <h1 class="page-title">{{ existingDatasetId ? 'Add Documents to Dataset' : 'Upload New Dataset' }}</h1>
+    <p class="page-description">
+      {{ existingDatasetId ? 'Upload additional documents to your existing dataset.' : 'Upload document files to create a new dataset for RAG evaluation.' }}
+      Supported file formats: PDF, TXT, DOCX, CSV, JSON.
+    </p>
+  </div>
+
+  <form [formGroup]="uploadForm" (ngSubmit)="onSubmit()" class="upload-form">
+    <div class="form-card" *ngIf="!existingDatasetId">
+      <h2 class="card-title">Basic Information</h2>
+
+      <div class="form-group">
+        <label for="name" class="form-label required">Dataset Name</label>
+        <qrac-textbox
+          id="name"
+          formControlName="name"
+          [placeholder]="'Enter dataset name'"
+          [error]="nameControl && nameControl.invalid && nameControl.touched">
+        </qrac-textbox>
+        <div *ngIf="nameControl && nameControl.invalid && nameControl.touched" class="error-message">
+          <span *ngIf="nameControl.errors?.['required']">Name is required</span>
+          <span *ngIf="nameControl.errors?.['maxlength']">Name cannot exceed 100 characters</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="description" class="form-label">Description</label>
+        <qrac-textarea
+          id="description"
+          formControlName="description"
+          [placeholder]="'Enter dataset description (optional)'">
+        </qrac-textarea>
+        <div *ngIf="descriptionControl && descriptionControl.invalid && descriptionControl.touched" class="error-message">
+          <span *ngIf="descriptionControl.errors?.['maxlength']">
+            Description cannot exceed 500 characters
+          </span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tags (Optional)</label>
+        <div class="tags-container">
+          <button
+            *ngFor="let tag of availableTags"
+            type="button"
+            class="tag-button"
+            [class.active]="selectedTags.includes(tag)"
+            (click)="toggleTag(tag)">
+            {{ tag }}
+          </button>
+        </div>
+        <div class="help-text">Select tags to categorize your dataset</div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h2 class="card-title">File Upload</h2>
+      <p class="card-description">
+        Upload one or more files {{ existingDatasetId ? 'to add to your dataset' : 'to create your dataset' }}.
+        Supported formats include PDF, TXT, DOCX, CSV, and JSON.
+      </p>
+
+      <div class="form-group">
+        <div class="file-upload-area">
+          <qrac-upload
+            (select)="onFileSelected($any($event))">
+          </qrac-upload>
+        </div>
+
+        <div *ngIf="filesControl && filesControl.invalid && filesControl.touched" class="error-message">
+          <span *ngIf="filesControl.errors?.['required']">
+            At least one file is required
+          </span>
+        </div>
+
+        <div class="selected-files" *ngIf="selectedFiles.length > 0">
+          <h3 class="selected-files-title">Selected Files ({{ selectedFiles.length }})</h3>
+          <ul class="file-list">
+            <li *ngFor="let file of selectedFiles; let i = index" class="file-item">
+              <div class="file-info">
+                <span class="file-icon">📄</span>
+                <div class="file-details">
+                  <span class="file-name">{{ file.name }}</span>
+                  <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                </div>
+              </div>
+              <button class="remove-file-button" (click)="removeFile(i)" type="button">
+                Remove
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button
+        type="button"
+        class="outline-button"
+        (click)="cancel($event)">
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="primary-button"
+        [disabled]="(uploadForm.invalid && !existingDatasetId) || isUploading || selectedFiles.length === 0">
+        <span *ngIf="isUploading" class="spinner-sm"></span>
+        {{ isUploading ? 'Uploading...' : (existingDatasetId ? 'Add Documents' : 'Upload Dataset') }}
+      </button>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,119 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/prompts.page.html -->
+<div class="prompts-container">
+  <div class="header-section">
+    <div class="title-section">
+      <h1 class="page-title">Prompts</h1>
+      <p class="page-description">Create and manage prompt templates for your LLM evaluations</p>
+    </div>
+    <div class="action-section">
+      <button class="create-button" (click)="onCreatePrompt()">
+        <span class="button-icon">+</span> Create New Prompt
+      </button>
+    </div>
+  </div>
+
+  <div class="prompts-content">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading prompts...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error }}</p>
+      <app-qracbutton
+        label="Try Again"
+        btnType="secondary"
+        (click)="loadPrompts()">
+      </app-qracbutton>
+    </div>
+
+    <!-- No Results State -->
+    <div *ngIf="noResults && !isLoading && !error" class="no-results-container">
+      <div class="no-results-icon">📝</div>
+      <h3>No prompts found</h3>
+      <p>Create a new prompt or adjust your filters</p>
+      <app-qracbutton
+        label="Create Prompt"
+        btnType="primary"
+        (click)="onCreatePrompt()">
+      </app-qracbutton>
+    </div>
+
+    <!-- Prompts List View -->
+    <div *ngIf="prompts.length > 0 && !isLoading" class="prompts-list">
+      <table class="prompts-table">
+        <thead>
+          <tr>
+            <th class="name-col">Name</th>
+            <th class="description-col">Description</th>
+            <th class="version-col">Version</th>
+            <th class="visibility-col">Visibility</th>
+            <th class="date-col">Updated</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let prompt of prompts" class="prompt-row" (click)="onPromptClick($event, prompt.id)">
+            <td class="name-col">{{ prompt.name }}</td>
+            <td class="description-col">{{ truncateText(prompt.description, 80) }}</td>
+            <td class="version-col">v{{ prompt.version }}</td>
+            <td class="visibility-col">
+              <span class="visibility-badge" [ngClass]="prompt.is_public ? 'public' : 'private'">
+                {{ prompt.is_public ? 'Public' : 'Private' }}
+              </span>
+            </td>
+            <td class="date-col">{{ formatDate(prompt.updated_at) }}</td>
+            <td class="actions-col">
+              <div class="action-buttons">
+                <button class="action-button edit-button" title="Edit prompt" (click)="onEditPrompt($event, prompt.id)">
+                  Edit
+                </button>
+                <button class="action-button delete-button" title="Delete prompt" (click)="onDeletePromptClick($event, prompt.id)">
+                  Del
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="prompts.length > 0" class="pagination-container">
+      <div class="pagination-info">
+        Showing {{ startItem }}-{{ endItem }} of {{ totalCount }} prompts
+      </div>
+      <div class="pagination-controls">
+        <button
+          class="pagination-button"
+          [disabled]="currentPage === 1"
+          (click)="goToPage(currentPage - 1)">
+          Previous
+        </button>
+
+        <div class="pagination-pages">
+          <ng-container *ngFor="let page of visiblePages">
+            <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
+            <button
+              *ngIf="page > 0"
+              class="page-button"
+              [class.active]="page === currentPage"
+              (click)="goToPage(page)">
+              {{ page }}
+            </button>
+          </ng-container>
+        </div>
+
+        <button
+          class="pagination-button"
+          [disabled]="currentPage === totalPages"
+          (click)="goToPage(currentPage + 1)">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
