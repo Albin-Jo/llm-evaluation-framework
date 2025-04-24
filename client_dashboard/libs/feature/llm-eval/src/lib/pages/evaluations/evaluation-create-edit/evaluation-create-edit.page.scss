@@ -9,9 +9,6 @@
 
 .evaluation-create-edit-container {
   padding: $spacing-6;
-  display: flex;
-  justify-content: center;
-  width: 100%;
   max-width: $container-lg;
   margin: 0 auto;
 
@@ -23,19 +20,21 @@
 // Card styles
 .evaluation-card {
   @include card;
-  width: 100%;
+  background-color: white;
+  border-radius: $radius-lg;
   overflow: hidden;
+  box-shadow: $shadow-sm;
 }
 
 // Header styles
 .evaluation-header {
-  padding: $spacing-4 $spacing-6;
+  padding: $spacing-6;
   background-color: $background-light;
   border-bottom: 1px solid $border-color;
 
   .evaluation-title {
     margin: 0;
-    font-size: $font-size-xl;
+    font-size: $font-size-2xl;
     font-weight: $font-weight-semibold;
     color: $text-primary;
   }
@@ -44,26 +43,48 @@
 // Tabs styles
 .tabs-container {
   display: flex;
-  border-bottom: 1px solid $border-color;
   background-color: white;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: $border-color;
+    z-index: 0;
+  }
 
   .tab {
     padding: $spacing-4 $spacing-6;
     cursor: pointer;
     text-align: center;
     font-weight: $font-weight-medium;
-    transition: all 0.2s ease;
-    flex: 1;
+    color: $text-secondary;
+    transition: all 0.3s ease;
+    position: relative;
+    min-width: 150px;
     border-bottom: 3px solid transparent;
+    z-index: 1;
+
+    @include media-breakpoint-down(md) {
+      padding: $spacing-3 $spacing-4;
+      min-width: auto;
+      flex: 1;
+      font-size: $font-size-sm;
+    }
 
     &:hover:not(.active) {
-      background-color: rgba($primary, 0.05);
+      color: darken($text-secondary, 15%);
+      background-color: rgba($primary, 0.03);
     }
 
     &.active {
       color: $primary;
-      border-bottom: 3px solid $primary;
-      background-color: rgba($primary, 0.05);
+      border-bottom-color: $primary;
+      font-weight: $font-weight-semibold;
     }
   }
 }
@@ -71,37 +92,56 @@
 // Tab content
 .tab-content {
   padding: $spacing-6;
-  min-height: 400px; // Ensure consistent height across tabs
-  max-width: 100%;
-  width: 100%;
+  min-height: 400px;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
 }
 
 // Form layout
 .two-column-layout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $spacing-8;
-  width: 100%;
-
-  .column {
-    flex: 1;
-    min-width: 280px;
-  }
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-6;
 
   @include media-breakpoint-down(md) {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: $spacing-4;
   }
 }
 
 // Form controls
 .form-control {
-  @include form-control;
-}
+  width: 100%;
+  padding: $spacing-3;
+  font-size: $font-size-sm;
+  color: $text-primary;
+  background-color: white;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  transition: all 0.2s ease;
+  height: 44px;
 
-textarea.form-control {
-  min-height: 100px;
-  resize: vertical;
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+  }
+
+  &.is-invalid {
+    border-color: $error;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($error, 0.1);
+    }
+  }
+
+  &.textarea {
+    height: auto;
+    min-height: 120px;
+    resize: vertical;
+  }
 }
 
 select.form-control {
@@ -110,7 +150,7 @@ select.form-control {
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 8px 10px;
-  padding-right: 2rem;
+  padding-right: 2.5rem;
 }
 
 // Invalid feedback
@@ -124,13 +164,20 @@ select.form-control {
 
 // Form group
 .form-group {
-  margin-bottom: $spacing-6;
+  margin-bottom: $spacing-5;
 
   label {
     display: block;
     margin-bottom: $spacing-2;
     font-weight: $font-weight-medium;
     color: $text-primary;
+    font-size: $font-size-sm;
+
+    &.required::after {
+      content: '*';
+      margin-left: $spacing-1;
+      color: $error;
+    }
   }
 
   .helper-text {
@@ -144,10 +191,17 @@ select.form-control {
 .toggle-group {
   display: flex;
   flex-direction: column;
+  margin-top: $spacing-4;
+
+  .toggle-container {
+    margin-top: $spacing-2;
+  }
 
   .toggle-wrapper {
     position: relative;
-    margin: $spacing-1 0;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
 
     .toggle-input {
       opacity: 0;
@@ -160,19 +214,23 @@ select.form-control {
       }
 
       &:checked + .toggle-label:before {
-        transform: translateX(16px);
+        transform: translateX(20px);
+      }
+
+      &:focus + .toggle-label {
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
       }
     }
 
     .toggle-label {
       display: block;
-      width: 40px;
+      width: 44px;
       height: 24px;
       border-radius: 12px;
       background-color: $border-color;
       position: relative;
       cursor: pointer;
-      transition: background-color 0.3s;
+      transition: background-color 0.3s ease;
 
       &:before {
         content: '';
@@ -183,9 +241,16 @@ select.form-control {
         top: 3px;
         left: 3px;
         background-color: white;
-        transition: transform 0.3s;
+        transition: transform 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       }
     }
+  }
+
+  .toggle-text {
+    margin-left: $spacing-3;
+    font-size: $font-size-sm;
+    color: $text-primary;
   }
 }
 
@@ -199,9 +264,11 @@ select.form-control {
   display: flex;
   align-items: center;
   color: darken($warning, 20%);
+  font-size: $font-size-sm;
 
   .warning-icon {
     margin-right: $spacing-2;
+    font-size: $font-size-lg;
   }
 }
 
@@ -211,7 +278,7 @@ select.form-control {
 
   h2 {
     margin: 0 0 $spacing-1 0;
-    font-size: $font-size-md;
+    font-size: $font-size-lg;
     font-weight: $font-weight-semibold;
     color: $text-primary;
   }
@@ -250,6 +317,13 @@ select.form-control {
 
   input[type="checkbox"] {
     margin-right: $spacing-2;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+
+    &:checked {
+      accent-color: $primary;
+    }
   }
 
   .metric-label {
@@ -267,21 +341,31 @@ select.form-control {
 .empty-message {
   color: $text-secondary;
   font-style: italic;
-}
-
-.error-container {
-  padding: $spacing-6;
-  color: $error;
+  padding: $spacing-4;
+  background-color: $background-light;
+  border-radius: $radius-sm;
   text-align: center;
 }
 
-.error-message {
-  margin: 0;
+.status-container {
+  @include card-padded;
+  padding: $spacing-12;
+  margin-bottom: $spacing-6;
+  text-align: center;
 }
 
-// Loading
 .loading-container {
   @include loading-container;
+}
+
+.error-container {
+  @include error-container;
+
+  .error-actions {
+    display: flex;
+    gap: $spacing-3;
+    margin-top: $spacing-4;
+  }
 }
 
 // Form actions
@@ -291,19 +375,20 @@ select.form-control {
   padding: $spacing-4 $spacing-6;
   border-top: 1px solid $border-color;
   background-color: $background-light;
+  margin-top: $spacing-6;
 
   button {
-    margin-left: $spacing-4;
-    padding: $spacing-2 $spacing-4;
+    padding: $spacing-2 $spacing-5;
     border-radius: $radius-sm;
     font-weight: $font-weight-medium;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     font-size: $font-size-sm;
-
-    &:first-child {
-      margin-left: 0;
-    }
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
 
     &:disabled {
       opacity: 0.6;
@@ -312,12 +397,13 @@ select.form-control {
   }
 
   .outline-button {
-    border: 1px solid $border-color;
     background-color: white;
     color: $text-primary;
+    border: 1px solid $border-color;
 
     &:hover:not(:disabled) {
       background-color: $background;
+      border-color: darken($border-color, 10%);
     }
   }
 
@@ -327,41 +413,24 @@ select.form-control {
     border: none;
 
     &:hover:not(:disabled) {
-      background-color: $primary-dark;
+      background-color: darken($primary, 10%);
     }
-  }
-
-  // Push the primary button (next/save) to the right
-  .primary-button {
-    margin-left: auto;
   }
 
   // Loading spinner
   .spinner-sm {
-    @include spinner($size: 16px, $border-width: 2px, $color: white);
+    @include spinner($size: 18px, $border-width: 2px, $color: white);
     margin-right: $spacing-2;
-    vertical-align: middle;
-  }
-}
-
-// Responsive adjustments
-@media (max-width: 768px) {
-  .two-column-layout {
-    flex-direction: column;
-    gap: $spacing-4;
   }
 
-  .tabs-container .tab {
-    padding: $spacing-4 $spacing-2;
-  }
-
-  .form-actions {
+  @include media-breakpoint-down(md) {
+    padding: $spacing-3 $spacing-4;
     flex-wrap: wrap;
-    gap: $spacing-2;
+    gap: $spacing-3;
 
     button {
       flex: 1;
-      margin-left: 0;
+      min-width: auto;
     }
   }
 }

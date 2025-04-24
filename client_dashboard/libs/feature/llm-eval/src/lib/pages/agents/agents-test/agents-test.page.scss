@@ -29,9 +29,12 @@
     font-size: $font-size-sm;
     cursor: pointer;
     margin-bottom: $spacing-4;
+    padding: $spacing-2;
+    border-radius: $radius-sm;
+    transition: background-color 0.2s;
 
     &:hover {
-      text-decoration: underline;
+      background-color: rgba($primary, 0.05);
     }
 
     .back-icon {
@@ -43,6 +46,8 @@
   .title-container {
     .page-title {
       @include page-title;
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-bold;
       margin-bottom: $spacing-1;
     }
 
@@ -58,13 +63,17 @@
 .loading-container {
   @include loading-container;
   @include card-padded;
+  padding: $spacing-12;
   margin-bottom: $spacing-6;
+  border-radius: $radius-lg;
 }
 
 .error-container {
   @include error-container;
   @include card-padded;
+  padding: $spacing-12;
   margin-bottom: $spacing-6;
+  border-radius: $radius-lg;
 }
 
 // Test interface
@@ -79,7 +88,14 @@
 
   .test-form-container {
     @include card;
+    border-radius: $radius-lg;
     overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: $shadow-md;
+    }
   }
 
   .test-form {
@@ -92,6 +108,9 @@
 
       .section-title {
         @include section-title;
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
         border-bottom: 1px solid $border-color;
         padding-bottom: $spacing-3;
         margin-bottom: $spacing-4;
@@ -126,11 +145,16 @@
 
         .test-button {
           @include button-primary;
+          height: 44px;
+          min-width: 140px;
+          font-weight: $font-weight-semibold;
+          font-size: $font-size-sm;
           display: inline-flex;
           align-items: center;
+          justify-content: center;
 
           .spinner-small {
-            @include spinner($size: 16px, $border-width: 2px, $color: white);
+            @include spinner($size: 18px, $border-width: 2px, $color: white);
             margin-right: $spacing-2;
           }
         }
@@ -141,22 +165,66 @@
   // Results section
   .test-results-container {
     @include card-padded;
+    padding: $spacing-6;
+    border-radius: $radius-lg;
     height: fit-content;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: $shadow-md;
+    }
+
+    // Decorative elements
+    &::before {
+      content: '';
+      position: absolute;
+      top: -30px;
+      left: -30px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: rgba($primary, 0.03);
+      z-index: 0;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      right: -20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: rgba($primary, 0.05);
+      z-index: 0;
+    }
 
     .section-title {
       @include section-title;
+      font-size: $font-size-xl;
+      font-weight: $font-weight-bold;
+      color: $text-primary;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid $border-color;
       padding-bottom: $spacing-3;
       margin-bottom: $spacing-4;
+      position: relative;
+      z-index: 1;
 
       .result-status {
         font-size: $font-size-xs;
-        padding: $spacing-1 $spacing-2;
-        border-radius: $radius-sm;
-        font-weight: $font-weight-medium;
+        padding: $spacing-1 $spacing-3;
+        border-radius: $radius-full;
+        font-weight: $font-weight-semibold;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
 
         &.success {
           @include status-badge('success');
@@ -169,6 +237,9 @@
     }
 
     .results-content {
+      position: relative;
+      z-index: 1;
+
       .result-json {
         background-color: $background-light;
         padding: $spacing-4;
@@ -179,6 +250,80 @@
         max-height: 500px;
         overflow-y: auto;
         margin: 0;
+      }
+    }
+  }
+}
+
+// Form controls styling
+:host ::ng-deep {
+  // Textbox inputs
+  .textbox-container {
+    width: 100%;
+
+    .textbox-label {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      margin-bottom: $spacing-2;
+      display: block;
+
+      &.required::after {
+        content: '*';
+        color: $error;
+        margin-left: $spacing-1;
+      }
+    }
+
+    .textbox-input {
+      width: 100%;
+      height: 44px;
+      padding: $spacing-3;
+      font-size: $font-size-sm;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      transition: all 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
+      }
+    }
+  }
+
+  // Textarea
+  .textarea-container {
+    width: 100%;
+
+    .textarea-label {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      margin-bottom: $spacing-2;
+      display: block;
+
+      &.required::after {
+        content: '*';
+        color: $error;
+        margin-left: $spacing-1;
+      }
+    }
+
+    .textarea-input {
+      width: 100%;
+      min-height: 120px;
+      padding: $spacing-3;
+      font-size: $font-size-sm;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      transition: all 0.2s ease;
+      resize: vertical;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
       }
     }
   }

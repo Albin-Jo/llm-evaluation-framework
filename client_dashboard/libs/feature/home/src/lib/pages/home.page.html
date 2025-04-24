@@ -9,40 +9,40 @@
   <div class="dashboard-stats">
     <div class="stat-card" (click)="viewAllDatasets()">
       <div class="stat-icon datasets-icon">
-        <img src="assets/images/llmeval/datasets.svg" alt="Datasets">
+        <i class="bi bi-database"></i>
       </div>
       <div class="stat-content">
-        <span class="stat-count">{{datasetsCount}}</span>
+        <span class="stat-count">{{datasetsCount || 0}}</span>
         <span class="stat-label">Datasets</span>
       </div>
     </div>
 
     <div class="stat-card" (click)="viewAllPrompts()">
       <div class="stat-icon prompts-icon">
-        <img src="assets/images/llmeval/prompts.svg" alt="Prompts">
+        <i class="bi bi-chat-text"></i>
       </div>
       <div class="stat-content">
-        <span class="stat-count">{{promptsCount}}</span>
+        <span class="stat-count">{{promptsCount || 0}}</span>
         <span class="stat-label">Prompts</span>
       </div>
     </div>
 
     <div class="stat-card" (click)="viewAllEvaluations()">
       <div class="stat-icon evaluations-icon">
-        <img src="assets/images/llmeval/evaluations.svg" alt="Evaluations">
+        <i class="bi bi-clipboard-check"></i>
       </div>
       <div class="stat-content">
-        <span class="stat-count">{{evaluationsCount}}</span>
+        <span class="stat-count">{{evaluationsCount || 0}}</span>
         <span class="stat-label">Evaluations</span>
       </div>
     </div>
 
     <div class="stat-card" (click)="viewAllReports()">
       <div class="stat-icon reports-icon">
-        <img src="assets/images/llmeval/reports.svg" alt="Reports">
+        <i class="bi bi-file-earmark-bar-graph"></i>
       </div>
       <div class="stat-content">
-        <span class="stat-count">{{reportsCount}}</span>
+        <span class="stat-count">{{reportsCount || 0}}</span>
         <span class="stat-label">Reports</span>
       </div>
     </div>
@@ -63,23 +63,27 @@
         <qrac-button label="Create Dataset" theme="primary" (click)="createDataset()"></qrac-button>
       </div>
 
-      <div class="datasets-list" *ngIf="datasets.length > 0">
+      <div *ngIf="isLoading" class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading datasets...</p>
+      </div>
+
+      <div class="datasets-list" *ngIf="!isLoading && datasets.length > 0">
         <div class="dataset-card" *ngFor="let dataset of datasets" (click)="viewDataset(dataset)">
           <div class="dataset-header">
             <h4>{{dataset.name}}</h4>
-            <span class="status-badge" [ngClass]="dataset.status">{{dataset.status}}</span>
+            <span class="status-badge" [ngClass]="dataset.status.toLowerCase()">{{dataset.status}}</span>
           </div>
           <div class="dataset-description" *ngIf="dataset.description">
-            <p>{{dataset.description | slice:0:100}}{{dataset.description.length > 100 ? '...' : ''}}</p>
+            <p>{{dataset.description | slice:0:120}}{{dataset.description.length > 120 ? '...' : ''}}</p>
           </div>
           <div class="dataset-stats">
-            <span class="stat">{{dataset.documentCount}} documents</span>
+            <span class="stat">{{dataset.documentCount || 0}} documents</span>
             <span class="stat" *ngIf="dataset.size">{{formatFileSize(dataset.size)}}</span>
             <span class="stat" *ngIf="dataset.format">{{dataset.format}}</span>
-            <span class="stat" *ngIf="dataset.tags && dataset.tags.length > 0">{{dataset.tags.join(', ')}}</span>
           </div>
           <div class="dataset-date">
-            Created: {{dataset.createdAt | date:'mediumDate'}}
+            <span>Created: {{dataset.createdAt | date:'MMM d, y'}}</span>
           </div>
         </div>
       </div>
@@ -89,8 +93,8 @@
         <qrac-button label="Create Dataset" theme="primary" (click)="createDataset()"></qrac-button>
       </div>
 
-      <div class="view-all-link" *ngIf="datasets.length > 0">
-        <a (click)="viewAllDatasets()">View all datasets →</a>
+      <div class="view-all-link" *ngIf="!isLoading && datasets.length > 0">
+        <a (click)="viewAllDatasets()">View all datasets</a>
       </div>
     </div>
 
@@ -98,23 +102,28 @@
     <div class="tab-content" *ngIf="activeTab === 'prompts'">
       <div class="tab-header-actions">
         <h3>Recent Prompts</h3>
-        <qrac-button label="Create Prompt" theme="primary" routerLink="/llm-eval/prompts/create"></qrac-button>
+        <qrac-button label="Create Prompt" theme="primary" (click)="viewAllPrompts()"></qrac-button>
       </div>
 
-      <div class="prompts-list" *ngIf="recentPrompts.length > 0">
+      <div *ngIf="isLoading" class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading prompts...</p>
+      </div>
+
+      <div class="prompts-list" *ngIf="!isLoading && recentPrompts.length > 0">
         <div class="prompt-card" *ngFor="let prompt of recentPrompts" (click)="viewPrompt(prompt)">
           <div class="prompt-header">
             <h4>{{prompt.name}}</h4>
-            <span class="prompt-public-badge" *ngIf="prompt.is_public">Public</span>
+            <span class="status-badge" [ngClass]="prompt.is_public ? 'ready' : 'processing'">{{prompt.is_public ? 'Public' : 'Private'}}</span>
           </div>
           <div class="prompt-description" *ngIf="prompt.description">
-            <p>{{prompt.description}}</p>
+            <p>{{prompt.description | slice:0:120}}{{prompt.description.length > 120 ? '...' : ''}}</p>
           </div>
           <div class="prompt-preview">
             <p>{{prompt.content | slice:0:100}}{{prompt.content.length > 100 ? '...' : ''}}</p>
           </div>
           <div class="prompt-meta">
-            <span>Created: {{prompt.created_at | date:'mediumDate'}}</span>
+            <span>Created: {{prompt.created_at | date:'MMM d, y'}}</span>
             <span *ngIf="prompt.version">v{{prompt.version}}</span>
           </div>
         </div>
@@ -122,11 +131,11 @@
 
       <div class="empty-state" *ngIf="!isLoading && recentPrompts.length === 0">
         <p>No prompts available. Create your first prompt template to get started.</p>
-        <qrac-button label="Create Prompt" theme="primary" routerLink="/llm-eval/prompts/create"></qrac-button>
+        <qrac-button label="Create Prompt" theme="primary" (click)="viewAllPrompts()"></qrac-button>
       </div>
 
-      <div class="view-all-link" *ngIf="recentPrompts.length > 0">
-        <a (click)="viewAllPrompts()">View all prompts →</a>
+      <div class="view-all-link" *ngIf="!isLoading && recentPrompts.length > 0">
+        <a (click)="viewAllPrompts()">View all prompts</a>
       </div>
     </div>
 
@@ -137,11 +146,16 @@
         <qrac-button label="Start New Evaluation" theme="primary" (click)="startNewEvaluation()"></qrac-button>
       </div>
 
-      <div class="evaluations-list" *ngIf="recentEvaluations.length > 0">
+      <div *ngIf="isLoading" class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading evaluations...</p>
+      </div>
+
+      <div class="evaluations-list" *ngIf="!isLoading && recentEvaluations.length > 0">
         <div class="evaluation-card" *ngFor="let evaluation of recentEvaluations" (click)="viewEvaluation(evaluation)">
           <div class="evaluation-header">
             <h4>{{evaluation.name}}</h4>
-            <span class="status-badge" [ngClass]="evaluation.status">{{evaluation.status}}</span>
+            <span class="status-badge" [ngClass]="evaluation.status.toLowerCase()">{{evaluation.status}}</span>
           </div>
           <div class="evaluation-details">
             <div class="detail"><span class="label">Dataset:</span> {{evaluation.datasetName}}</div>
@@ -150,16 +164,16 @@
           </div>
           <div class="evaluation-metrics" *ngIf="evaluation.status === 'completed'">
             <div class="metric">
-              <span class="metric-label">Avg. Relevance</span>
+              <span class="metric-label">Relevance</span>
               <span class="metric-value">{{evaluation.avgRelevance | number:'1.2-2'}}</span>
             </div>
             <div class="metric">
-              <span class="metric-label">Avg. Latency</span>
+              <span class="metric-label">Latency</span>
               <span class="metric-value">{{evaluation.avgLatency}}ms</span>
             </div>
           </div>
           <div class="evaluation-date">
-            Created: {{evaluation.createdAt | date:'mediumDate'}}
+            <span>Created: {{evaluation.createdAt | date:'MMM d, y'}}</span>
           </div>
         </div>
       </div>
@@ -169,14 +183,11 @@
         <qrac-button label="Start New Evaluation" theme="primary" (click)="startNewEvaluation()"></qrac-button>
       </div>
 
-      <div class="view-all-link" *ngIf="recentEvaluations.length > 0">
-        <a (click)="viewAllEvaluations()">View all evaluations →</a>
+      <div class="view-all-link" *ngIf="!isLoading && recentEvaluations.length > 0">
+        <a (click)="viewAllEvaluations()">View all evaluations</a>
       </div>
     </div>
   </div>
-
-  <!-- Toast Component for Notifications -->
-  <qrsc-sys-toast #qrscsystoast></qrsc-sys-toast>
 
   <!-- Loading Indicator -->
   <div class="loading-overlay" *ngIf="isLoading">
