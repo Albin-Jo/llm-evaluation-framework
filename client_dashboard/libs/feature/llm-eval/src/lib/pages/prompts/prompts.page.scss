@@ -66,6 +66,7 @@
 .prompts-content {
   @include card;
   overflow: hidden;
+  width: 100%;
 }
 
 .filters-section {
@@ -117,40 +118,49 @@
 
 .loading-container {
   @include loading-container;
+  padding: $spacing-12;
 }
 
 .error-container {
   @include error-container;
+  padding: $spacing-12;
 }
 
 .no-results-container {
   @include empty-state;
+  padding: $spacing-12;
 }
 
 .prompts-list {
   overflow-x: auto;
+  width: 100%;
 
   .prompts-table {
     @include table;
+    table-layout: fixed;
 
     .name-col {
       font-weight: $font-weight-medium;
       color: $primary;
       min-width: 160px;
+      width: 18%;
     }
 
     .description-col {
       color: $text-secondary;
       min-width: 200px;
       max-width: 300px;
+      width: 28%;
     }
 
     .version-col {
       min-width: 80px;
+      width: 10%;
     }
 
     .visibility-col {
       min-width: 100px;
+      width: 14%;
 
       .visibility-badge {
         @include badge;
@@ -167,12 +177,14 @@
 
     .date-col {
       min-width: 120px;
+      width: 15%;
       white-space: nowrap;
     }
 
     .actions-col {
       white-space: nowrap;
       min-width: 120px;
+      width: 15%;
 
       .action-buttons {
         display: flex;

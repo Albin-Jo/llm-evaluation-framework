@@ -133,12 +133,15 @@
 
 /* Status Badges */
 .status-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: $spacing-1 $spacing-2;
   border-radius: $radius-sm;
   font-size: $font-size-xs;
   font-weight: $font-weight-medium;
   text-transform: capitalize;
+  height: 24px;
 
   &.completed {
     @include status-badge('success');
@@ -240,6 +243,7 @@
 
   .info-card {
     @include card-padded;
+    height: 100%;
 
     .card-title {
       @include section-title;
@@ -382,6 +386,7 @@
 
   .results-table {
     @include table;
+    width: 100%;
 
     .view-button {
       padding: $spacing-1 $spacing-2;

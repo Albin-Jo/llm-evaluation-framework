@@ -3,11 +3,11 @@
   <div class="header-section">
     <div class="title-section">
       <h1 class="page-title">Datasets</h1>
-      <p class="page-description">Manage document collections for RAG evaluation</p>
+      <p class="page-description">Manage RAG evaluation datasets</p>
     </div>
     <div class="action-section">
       <button class="create-button" (click)="createNewDataset($event)">
-        <span class="button-icon">+</span> Upload New Dataset
+        <span class="button-icon">+</span> Create New Dataset
       </button>
     </div>
   </div>
@@ -21,7 +21,7 @@
             label="Search"
             controlName="search"
             formControlName="search"
-            placeholder="Search datasets by name or description"
+            placeholder="Search datasets by name"
             size="medium">
           </qrac-textbox>
         </div>
@@ -42,6 +42,15 @@
               controlName="type"
               formControlName="type"
               [options]="formatOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              label="Visibility"
+              controlName="isPublic"
+              formControlName="isPublic"
+              [options]="visibilityOptions">
             </qrac-select>
           </div>
         </div>
@@ -73,11 +82,11 @@
 
     <!-- No Results State -->
     <div *ngIf="!isLoading && datasets.length === 0" class="no-results-container">
-      <div class="no-results-icon">📚</div>
+      <div class="no-results-icon">📊</div>
       <h3>No datasets found</h3>
-      <p>Upload a new dataset or adjust your filters</p>
+      <p>Create a new dataset or adjust your filters</p>
       <qrac-button
-        label="Upload Dataset"
+        label="Create Dataset"
         type="primary"
         (buttonClick)="createNewDataset($event)">
       </qrac-button>
@@ -98,7 +107,7 @@
               </span>
             </th>
             <th class="description-col">Description</th>
-            <th class="type-col">Type</th>
+            <th class="format-col">Format</th>
             <th class="count-col">
               <span class="th-content" (click)="onSortChange('documentCount')">
                 Documents
@@ -125,14 +134,12 @@
           <tr *ngFor="let dataset of datasets" class="dataset-row" (click)="onDatasetClick(dataset)">
             <td class="name-col">{{ dataset.name }}</td>
             <td class="description-col">{{ truncateText(dataset.description, 80) }}</td>
-            <td class="type-col">
-              <span class="type-badge">{{ dataset.type || dataset.format || 'Custom' }}</span>
-            </td>
-            <td class="count-col">{{ dataset.documentCount || 'N/A' }}</td>
+            <td class="format-col">{{ dataset.format || 'N/A' }}</td>
+            <td class="count-col">{{ dataset.documentCount || 0 }}</td>
             <td class="date-col">{{ formatDate(dataset.createdAt) }}</td>
             <td class="status-col">
               <span class="status-badge" [ngClass]="dataset.status.toLowerCase()">
-                {{ dataset.status || 'Ready' }}
+                {{ dataset.status }}
               </span>
             </td>
             <td class="actions-col">

@@ -66,6 +66,7 @@
 .evaluations-content {
   @include card;
   overflow: hidden;
+  width: 100%; // Ensure full width
 }
 
 .filters-section {
@@ -117,40 +118,49 @@
 
 .loading-container {
   @include loading-container;
+  padding: $spacing-12;
 }
 
 .error-container {
   @include error-container;
+  padding: $spacing-12;
 }
 
 .no-results-container {
   @include empty-state;
+  padding: $spacing-12;
 }
 
 .evaluations-list {
   overflow-x: auto;
+  width: 100%;
 
   .evaluations-table {
     @include table;
+    table-layout: fixed; // Improve table layout
 
     .name-col {
       font-weight: $font-weight-medium;
       color: $primary;
       min-width: 160px;
+      width: 18%;
     }
 
     .description-col {
       color: $text-secondary;
       min-width: 200px;
       max-width: 300px;
+      width: 28%;
     }
 
     .method-col {
       min-width: 100px;
+      width: 12%;
     }
 
     .status-col {
       min-width: 100px;
+      width: 12%;
 
       .status-badge {
         &.completed {
@@ -177,12 +187,14 @@
 
     .date-col {
       min-width: 120px;
+      width: 15%;
       white-space: nowrap;
     }
 
     .actions-col {
       white-space: nowrap;
       min-width: 180px;
+      width: 15%;
 
       .action-buttons {
         display: flex;

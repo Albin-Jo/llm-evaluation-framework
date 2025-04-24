@@ -68,6 +68,16 @@ input, select, textarea {
   @include form-control;
 }
 
+// Standardize select dropdowns
+select.form-control {
+  appearance: none;
+  padding-right: $spacing-8;
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right $spacing-3 center;
+  background-size: 8px 10px;
+}
+
 button {
   cursor: pointer;
   border: none;
@@ -195,6 +205,12 @@ button {
   @include table;
 }
 
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .pagination {
   @include pagination;
 }
@@ -280,6 +296,12 @@ button {
       font-size: $font-size-sm;
     }
   }
+}
+
+// Consistent list layout
+.list-container {
+  width: 100%;
+  @include card;
 }
 
 // Spinner animations

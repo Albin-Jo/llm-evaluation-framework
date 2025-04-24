@@ -49,6 +49,7 @@
   border-radius: $radius-lg;
   box-shadow: $shadow-sm;
   border: 1px solid $border-color;
+  width: 100%;
 }
 
 // Card with padding
@@ -83,6 +84,8 @@
   border: 1px solid $border-color;
   border-radius: $radius-sm;
   transition: $transition-normal;
+  line-height: 1.5;
+  height: auto;
 
   &:focus {
     outline: none;
@@ -111,6 +114,8 @@
   cursor: pointer;
   transition: $transition-normal;
   border: 1px solid transparent;
+  line-height: 1.5;
+  height: auto;
 
   &:disabled {
     opacity: 0.6;
@@ -171,27 +176,46 @@
 
 // Badge/Tag style
 @mixin badge($bg-color: $primary-light, $text-color: $primary) {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: $spacing-1 $spacing-2;
   border-radius: $radius-sm;
   font-size: $font-size-xs;
   font-weight: $font-weight-medium;
   background-color: $bg-color;
   color: $text-color;
+  text-transform: capitalize;
+  height: 24px;
 }
 
 // Status badge mixin
 @mixin status-badge($status) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  text-transform: capitalize;
+  height: 24px;
+
   @if $status == 'success' or $status == 'completed' or $status == 'ready' or $status == 'active' {
-    @include badge($success-light, $success);
+    background-color: $success-light;
+    color: $success;
   } @else if $status == 'warning' or $status == 'pending' or $status == 'processing' {
-    @include badge($warning-light, $warning);
+    background-color: $warning-light;
+    color: darken($warning, 10%);
   } @else if $status == 'error' or $status == 'failed' or $status == 'inactive' {
-    @include badge($error-light, $error);
+    background-color: $error-light;
+    color: $error;
   } @else if $status == 'info' or $status == 'running' {
-    @include badge($info-light, $info);
+    background-color: $info-light;
+    color: $info;
   } @else {
-    @include badge($secondary-dark, $text-secondary);
+    background-color: $background-light;
+    color: $text-secondary;
   }
 }
 
@@ -255,11 +279,15 @@
 @mixin table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 
   th, td {
     padding: $spacing-4;
     text-align: left;
     border-bottom: 1px solid $border-light;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
   }
 
   thead th {
@@ -269,6 +297,9 @@
     font-size: $font-size-xs;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
   tbody tr {
@@ -342,6 +373,8 @@
 @mixin pagination {
   @include flex(row, space-between, center);
   padding: $spacing-4;
+  flex-wrap: wrap;
+  gap: $spacing-4;
 
   .pagination-info {
     font-size: $font-size-xs;
@@ -376,6 +409,17 @@
       background-color: $primary;
       color: white;
       border-color: $primary;
+    }
+  }
+
+  @include media-breakpoint-down(md) {
+    flex-direction: column;
+    align-items: center;
+
+    .pagination-info, .pagination-controls {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
     }
   }
 }

@@ -8,9 +8,9 @@
 }
 
 .datasets-container {
-  padding: $spacing-6;
   max-width: $container-xl;
   margin: 0 auto;
+  padding: $spacing-6;
 
   @include media-breakpoint-down(md) {
     padding: $spacing-4;
@@ -66,6 +66,7 @@
 .datasets-content {
   @include card;
   overflow: hidden;
+  width: 100%; // Ensure full width
 }
 
 .filters-section {
@@ -117,75 +118,60 @@
 
 .loading-container {
   @include loading-container;
-
-  .spinner {
-    @include spinner;
-    margin-bottom: $spacing-4;
-  }
+  padding: $spacing-12;
 }
 
 .error-container {
   @include error-container;
-
-  .error-icon {
-    font-size: $font-size-3xl;
-    color: $error;
-    margin-bottom: $spacing-4;
-  }
+  padding: $spacing-12;
 }
 
 .no-results-container {
   @include empty-state;
-
-  h3 {
-    margin: $spacing-4 0 $spacing-2;
-    font-size: $font-size-lg;
-  }
-
-  p {
-    color: $text-secondary;
-    margin-bottom: $spacing-6;
-  }
+  padding: $spacing-12;
 }
 
 .datasets-list {
   overflow-x: auto;
+  width: 100%;
 
   .datasets-table {
     @include table;
+    table-layout: fixed; // Improve table layout
 
     .name-col {
       font-weight: $font-weight-medium;
       color: $primary;
       min-width: 160px;
+      width: 18%;
     }
 
     .description-col {
       color: $text-secondary;
       min-width: 200px;
       max-width: 300px;
+      width: 28%;
     }
 
     .type-col {
       min-width: 100px;
-
-      .type-badge {
-        @include badge($primary-light, $primary);
-      }
+      width: 12%;
     }
 
     .count-col {
-      min-width: 80px;
-      text-align: center;
+      min-width: 120px;
+      width: 12%;
     }
 
     .date-col {
       min-width: 120px;
+      width: 15%;
       white-space: nowrap;
     }
 
     .status-col {
       min-width: 100px;
+      width: 12%;
 
       .status-badge {
         text-transform: capitalize;
@@ -207,6 +193,7 @@
     .actions-col {
       white-space: nowrap;
       min-width: 120px;
+      width: 15%;
 
       .action-buttons {
         display: flex;
