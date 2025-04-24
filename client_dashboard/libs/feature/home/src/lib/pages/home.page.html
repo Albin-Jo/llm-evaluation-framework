@@ -1,16 +1,16 @@
 <!-- Path: libs/feature/home/src/lib/pages/home.page.html -->
 <div class="dashboard-container">
-  <!-- Dashboard Header -->
   <header class="dashboard-header">
     <h1>RAG Evaluation Framework</h1>
     <p class="subtitle">Monitor and analyze your RAG system performance</p>
   </header>
-
   <!-- Dashboard Stats -->
   <div class="dashboard-stats">
     <div class="stat-card datasets-card" (click)="viewAllDatasets()">
       <div class="stat-icon datasets-icon">
-        <i class="bi bi-database"></i>
+        <i class="bi bi-database">
+          <img src="assets/images/llmeval/datasets.svg" alt="Datasets icon">
+        </i>
       </div>
       <div class="stat-content">
         <span class="stat-count">{{datasetsCount || 0}}</span>
@@ -21,7 +21,9 @@
 
     <div class="stat-card prompts-card" (click)="viewAllPrompts()">
       <div class="stat-icon prompts-icon">
-        <i class="bi bi-chat-text"></i>
+        <i class="bi bi-chat-text">
+          <img src="assets/images/llmeval/prompts.svg" alt="Prompts icon">
+        </i>
       </div>
       <div class="stat-content">
         <span class="stat-count">{{promptsCount || 0}}</span>
@@ -32,7 +34,9 @@
 
     <div class="stat-card agents-card" (click)="viewAllAgents()">
       <div class="stat-icon agents-icon">
-        <i class="bi bi-person-gear"></i>
+        <i class="bi bi-person-gear">
+          <img src="assets/images/llmeval/agents.svg" alt="Agents icon">
+        </i>
       </div>
       <div class="stat-content">
         <span class="stat-count">{{agentsCount || 0}}</span>
@@ -43,7 +47,9 @@
 
     <div class="stat-card evaluations-card" (click)="viewAllEvaluations()">
       <div class="stat-icon evaluations-icon">
-        <i class="bi bi-clipboard-check"></i>
+        <i class="bi bi-clipboard-check">
+          <img src="assets/images/llmeval/evaluations.svg" alt="Evaluations icon">
+        </i>
       </div>
       <div class="stat-content">
         <span class="stat-count">{{evaluationsCount || 0}}</span>
@@ -52,12 +58,13 @@
       <span class="stat-arrow">→</span>
     </div>
 
-    <div class="stat-card reports-card" (click)="viewAllReports()">
+    <div class="stat-card reports-card">
       <div class="stat-icon reports-icon">
-        <i class="bi bi-file-earmark-bar-graph"></i>
+        <i class="bi bi-file-earmark-bar-graph">
+          <img src="assets/images/llmeval/reports.svg" alt="Reports icon">
+        </i>
       </div>
       <div class="stat-content">
-        <span class="stat-count">-</span>
         <span class="stat-label">Reports</span>
         <span class="coming-soon">Coming soon</span>
       </div>
@@ -70,7 +77,9 @@
     <div class="recent-section datasets-section">
       <div class="section-header">
         <h3>Recent Datasets</h3>
-        <qrac-button label="Create Dataset" theme="primary" class="create-button datasets-button" (click)="createDataset()"></qrac-button>
+        <button class="create-button datasets-button" (click)="createDataset()">
+          <span class="button-icon">+</span> Create Dataset
+        </button>
       </div>
 
       <div *ngIf="loadingStates.datasets" class="loader-inline">
@@ -95,8 +104,6 @@
             <span class="detail">• Created: {{dataset.createdAt | date:'MMM d, y'}}</span>
           </div>
         </div>
-
-        <a *ngIf="datasets.length > 0" class="view-all-link" (click)="viewAllDatasets()">View all datasets →</a>
       </div>
     </div>
 
@@ -104,7 +111,9 @@
     <div class="recent-section prompts-section">
       <div class="section-header">
         <h3>Recent Prompts</h3>
-        <qrac-button label="Create Prompt" theme="primary" class="create-button prompts-button" (click)="createPrompt()"></qrac-button>
+        <button class="create-button prompts-button" (click)="createPrompt()">
+          <span class="button-icon">+</span> Create Prompt
+        </button>
       </div>
 
       <div *ngIf="loadingStates.prompts" class="loader-inline">
@@ -128,8 +137,6 @@
             <span class="detail">• Created: {{prompt.created_at | date:'MMM d, y'}}</span>
           </div>
         </div>
-
-        <a *ngIf="recentPrompts.length > 0" class="view-all-link" (click)="viewAllPrompts()">View all prompts →</a>
       </div>
     </div>
 
@@ -137,7 +144,9 @@
     <div class="recent-section agents-section">
       <div class="section-header">
         <h3>Recent Agents</h3>
-        <qrac-button label="Create Agent" theme="primary" class="create-button agents-button" (click)="createAgent()"></qrac-button>
+        <button class="create-button agents-button" (click)="createAgent()">
+          <span class="button-icon">+</span> Create Agent
+        </button>
       </div>
 
       <div *ngIf="loadingStates.agents" class="loader-inline">
@@ -161,8 +170,6 @@
             <span class="detail">• Created: {{agent.created_at | date:'MMM d, y'}}</span>
           </div>
         </div>
-
-        <a *ngIf="recentAgents.length > 0" class="view-all-link" (click)="viewAllAgents()">View all agents →</a>
       </div>
     </div>
 
@@ -170,7 +177,9 @@
     <div class="recent-section evaluations-section">
       <div class="section-header">
         <h3>Recent Evaluations</h3>
-        <qrac-button label="Start New Evaluation" theme="primary" class="create-button evaluations-button" (click)="startNewEvaluation()"></qrac-button>
+        <button class="create-button evaluations-button" (click)="startNewEvaluation()">
+          <span class="button-icon">+</span> Start New Evaluation
+        </button>
       </div>
 
       <div *ngIf="loadingStates.evaluations" class="loader-inline">
@@ -193,23 +202,23 @@
             <span class="detail">{{evaluation.method}}</span>
             <span class="detail" *ngIf="evaluation.start_time">• Started: {{evaluation.start_time | date:'MMM d, y'}}</span>
           </div>
-          <!-- Show metrics if completed -->
-          <ng-container *ngIf="evaluation.status === evaluationStatus.COMPLETED">
-            <div class="item-metrics" *ngIf="hasMetricsResults(evaluation)">
-              <span class="metric-chip">{{getMetricValue(evaluation, 'relevance') | number:'1.2-2'}} relevance</span>
-              <span class="metric-chip">{{getMetricValue(evaluation, 'latency')}}ms</span>
-            </div>
-          </ng-container>
+<!--          &lt;!&ndash; Show metrics if completed &ndash;&gt;-->
+<!--          <ng-container *ngIf="evaluation.status === evaluationStatus.COMPLETED">-->
+<!--            <div class="item-metrics" *ngIf="hasMetricsResults(evaluation)">-->
+<!--              <span class="metric-chip">Relevance: {{getMetricValue(evaluation, 'relevance') | number:'1.2-2'}}</span>-->
+<!--              <span class="metric-chip">{{getMetricValue(evaluation, 'latency')}}ms</span>-->
+<!--            </div>-->
+<!--          </ng-container>-->
           <!-- Show progress bar if running -->
           <ng-container *ngIf="evaluation.status === evaluationStatus.RUNNING">
-            <div class="progress-bar" *ngIf="hasProgress(evaluation)">
-              <div class="progress-fill" [style.width.%]="getProgressValue(evaluation)"></div>
-              <span class="progress-text">{{getProgressValue(evaluation) | number:'1.0-0'}}% complete</span>
+            <div class="progress-container" *ngIf="hasProgress(evaluation)">
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="getProgressValue(evaluation)"></div>
+              </div>
+              <span class="progress-text">Progress: {{getProgressValue(evaluation) | number:'1.0-0'}}% complete</span>
             </div>
           </ng-container>
         </div>
-
-        <a *ngIf="recentEvaluations.length > 0" class="view-all-link" (click)="viewAllEvaluations()">View all evaluations →</a>
       </div>
     </div>
   </div>

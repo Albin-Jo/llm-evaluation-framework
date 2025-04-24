@@ -2,140 +2,22 @@
 @import '../../../../../styles/variables';
 @import '../../../../../styles/mixins';
 
+// Main container
 .dashboard-container {
-  padding: $spacing-6;
+  padding: $spacing-3;
   display: flex;
   flex-direction: column;
-  gap: $spacing-6;
+  gap: $spacing-3;
   max-width: 100%;
   margin: 0 auto;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-4;
-    gap: $spacing-4;
-
-
-// View all link
-.view-all-link {
-  align-self: flex-end;
-  color: $primary;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-medium;
-  margin-top: auto;
-  padding-top: $spacing-2;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
-
-  &::after {
-    content: "";
-    display: inline-block;
-    width: 0;
-    transition: width 0.2s;
-  }
-
-  // Color variations for different sections
-  .datasets-section & {
-    color: $primary;
-  }
-
-  .prompts-section & {
-    color: $info;
-  }
-
-  .agents-section & {
-    color: #673ab7;
-  }
-
-  .evaluations-section & {
-    color: $success;
+    padding: $spacing-2;
+    gap: $spacing-2;
   }
 }
 
-// Loading states
-.loader-inline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: $spacing-6;
-  color: $text-secondary;
-  font-size: $font-size-sm;
-
-  .spinner-sm {
-    @include spinner($size: 16px, $border-width: 2px);
-    margin-right: $spacing-2;
-  }
-}
-
-.empty-state-inline {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: $spacing-6;
-  text-align: center;
-  background-color: $background-light;
-  border-radius: $radius-md;
-
-  p {
-    color: $text-secondary;
-    margin-bottom: $spacing-3;
-    font-size: $font-size-sm;
-  }
-}
-
-// Loading overlay
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.8);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-
-  .spinner {
-    @include spinner($size: 48px, $border-width: 4px, $color: $primary);
-    margin-bottom: $spacing-4;
-  }
-
-  span {
-    font-size: $font-size-md;
-    color: $text-secondary;
-    font-weight: $font-weight-medium;
-  }
-}
-
-// Responsive adjustments for button styles
-.create-button {
-  &.datasets-button {
-    --qrac-button-bg-color: #{$primary};
-    --qrac-button-hover-bg-color: #{darken($primary, 10%)};
-  }
-
-  &.prompts-button {
-    --qrac-button-bg-color: #{$info};
-    --qrac-button-hover-bg-color: #{darken($info, 10%)};
-  }
-
-  &.agents-button {
-    --qrac-button-bg-color: #673ab7;
-    --qrac-button-hover-bg-color: #{darken(#673ab7, 10%)};
-  }
-
-  &.evaluations-button {
-    --qrac-button-bg-color: #{$success};
-    --qrac-button-hover-bg-color: #{darken($success, 10%)};
-  }
-}
-}
-
+// Dashboard header
 .dashboard-header {
   margin-bottom: $spacing-2;
 
@@ -152,11 +34,11 @@
   }
 }
 
-// Dashboard Stats Section
+// Dashboard stats cards
 .dashboard-stats {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: $spacing-4;
+  gap: $spacing-3;
 
   @include media-breakpoint-down(xl) {
     grid-template-columns: repeat(3, 1fr);
@@ -175,7 +57,8 @@
   @include card;
   background-color: #ffffff;
   border-radius: $radius-lg;
-  padding: $spacing-4;
+  padding: $spacing-2;
+  height: 75px;
   display: flex;
   align-items: center;
   transition: transform 0.3s, box-shadow 0.3s;
@@ -189,16 +72,16 @@
   }
 
   .stat-icon {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: $spacing-3;
+    margin-right: $spacing-2;
     border-radius: $radius-lg;
 
     i {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
     }
   }
 
@@ -208,7 +91,7 @@
     flex-grow: 1;
 
     .stat-count {
-      font-size: $font-size-2xl;
+      font-size: $font-size-xl;
       font-weight: $font-weight-bold;
       color: $text-primary;
       margin-bottom: 0;
@@ -304,11 +187,12 @@
   }
 }
 
-// Recent Items Grid
+// Recent items grid
 .recent-items-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: $spacing-4;
+  grid-template-rows: repeat(2, auto);
+  gap: $spacing-3;
 
   @include media-breakpoint-down(lg) {
     grid-template-columns: 1fr;
@@ -317,7 +201,8 @@
 
 .recent-section {
   @include card;
-  padding: $spacing-4;
+  padding: $spacing-3;
+  height: 220px;
   display: flex;
   flex-direction: column;
 
@@ -331,7 +216,6 @@
       margin: 0;
       font-size: $font-size-lg;
       font-weight: $font-weight-semibold;
-      color: $text-primary;
     }
 
     @include media-breakpoint-down(sm) {
@@ -367,12 +251,13 @@
 .items-list {
   display: flex;
   flex-direction: column;
-  gap: $spacing-3;
+  gap: $spacing-2;
   flex-grow: 1;
+  overflow-y: auto;
 }
 
 .list-item {
-  padding: $spacing-3;
+  padding: $spacing-2;
   border-radius: $radius-md;
   border: 1px solid $border-light;
   background-color: white;
@@ -389,7 +274,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: $spacing-2;
+    margin-bottom: $spacing-1;
 
     .item-title {
       margin: 0;
@@ -401,6 +286,38 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  .status-badge {
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &.ready, &.active, &.completed {
+    background-color: rgba($success, 0.1);
+    color: $success;
+    border: 1px solid rgba($success, 0.3);
+  }
+
+  &.processing, &.pending, &.warning {
+    background-color: rgba($warning, 0.1);
+    color: darken($warning, 15%);
+    border: 1px solid rgba($warning, 0.3);
+  }
+
+  &.error, &.failed, &.inactive {
+    background-color: rgba($error, 0.1);
+    color: $error;
+    border: 1px solid rgba($error, 0.3);
+  }
+
+  &.running {
+    background-color: rgba($info, 0.1);
+    color: $info;
+    border: 1px solid rgba($info, 0.3);
+  }
+}
   }
 
   .item-details {
@@ -431,27 +348,228 @@
     border-radius: $radius-sm;
   }
 
+  .progress-container {
+    margin-top: $spacing-2;
+  }
+
   .progress-bar {
     height: 8px;
     background-color: $background-light;
     border-radius: $radius-full;
-    margin-top: $spacing-2;
-    position: relative;
     overflow: hidden;
+    position: relative;
 
     .progress-fill {
       height: 100%;
       background-color: $success;
       border-radius: $radius-full;
     }
+  }
 
-    .progress-text {
-      position: absolute;
-      top: -1px;
-      right: 0;
-      font-size: $font-size-xs;
-      color: $text-secondary;
+  .progress-text {
+    margin-top: $spacing-1;
+    display: block;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+  }
+}
+
+// View all link
+.view-all-link {
+  align-self: flex-end;
+  color: $primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  margin-top: auto;
+  padding-top: $spacing-2;
+  cursor: pointer;
+  margin-left: auto;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  // Color variations for different sections
+  &.datasets-link {
+    color: $primary;
+  }
+
+  &.prompts-link {
+    color: $info;
+  }
+
+  &.agents-link {
+    color: #673ab7;
+  }
+
+  &.evaluations-link {
+    color: $success;
+  }
+}
+
+// Outline buttons
+.outline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  background-color: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.datasets-button-outline {
+    color: $primary;
+    border: 1px solid $primary;
+
+    &:hover {
+      background-color: rgba($primary, 0.05);
+    }
+  }
+
+  &.prompts-button-outline {
+    color: $info;
+    border: 1px solid $info;
+
+    &:hover {
+      background-color: rgba($info, 0.05);
+    }
+  }
+
+  &.agents-button-outline {
+    color: #673ab7;
+    border: 1px solid #673ab7;
+
+    &:hover {
+      background-color: rgba(#673ab7, 0.05);
+    }
+  }
+
+  &.evaluations-button-outline {
+    color: $success;
+    border: 1px solid $success;
+
+    &:hover {
+      background-color: rgba($success, 0.05);
     }
   }
 }
+
+// Loading states
+.loader-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-6;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+
+  .spinner-sm {
+    @include spinner($size: 16px, $border-width: 2px);
+    margin-right: $spacing-2;
+  }
+}
+
+.empty-state-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-6;
+  text-align: center;
+  background-color: $background-light;
+  border-radius: $radius-md;
+
+  p {
+    color: $text-secondary;
+    margin-bottom: $spacing-3;
+    font-size: $font-size-sm;
+  }
+}
+
+// Loading overlay
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+
+  .spinner {
+    @include spinner($size: 48px, $border-width: 4px, $color: $primary);
+    margin-bottom: $spacing-4;
+  }
+
+  span {
+    font-size: $font-size-md;
+    color: $text-secondary;
+    font-weight: $font-weight-medium;
+  }
+}
+
+// Button styling
+.create-button {
+  // Base button styles
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  height: 32px;
+  border-radius: $radius-sm;
+  padding: $spacing-2 $spacing-3;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+
+  .button-icon {
+    margin-right: $spacing-1;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-bold;
+  }
+
+  // Color variations for different sections
+  &.datasets-button {
+    background-color: $primary;
+
+    &:hover {
+      background-color: darken($primary, 10%);
+    }
+  }
+
+  &.prompts-button {
+    background-color: $info;
+
+    &:hover {
+      background-color: darken($info, 10%);
+    }
+  }
+
+  &.agents-button {
+    background-color: #673ab7;
+
+    &:hover {
+      background-color: darken(#673ab7, 10%);
+    }
+  }
+
+  &.evaluations-button {
+    background-color: $success;
+    min-width: 160px; // Wider button for "Start New Evaluation"
+
+    &:hover {
+      background-color: darken($success, 10%);
+    }
+  }
 }

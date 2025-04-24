@@ -145,7 +145,7 @@ export class HomePage implements OnInit, OnDestroy {
     ).subscribe({
       next: (response) => {
         this.datasetsCount = response.totalCount;
-        this.datasets = response.datasets.slice(0, 2); // Get just the first 3 datasets
+        this.datasets = response.datasets.slice(0, 2); // Get just the first 2 datasets
       },
       error: (err) => {
         console.error('Error loading datasets:', err);
@@ -168,7 +168,7 @@ export class HomePage implements OnInit, OnDestroy {
     ).subscribe({
       next: (allPrompts) => {
         this.promptsCount = allPrompts.length;
-        this.recentPrompts = allPrompts.slice(0, 2); // Just take the 3 most recent prompts
+        this.recentPrompts = allPrompts.slice(0, 2); // Just take the 2 most recent prompts
       },
       error: (err) => {
         console.error('Error loading prompts:', err);
@@ -192,7 +192,7 @@ export class HomePage implements OnInit, OnDestroy {
     ).subscribe({
       next: (response) => {
         this.agentsCount = response.totalCount;
-        this.recentAgents = response.agents.slice(0, 2); // Get just the first 3 agents
+        this.recentAgents = response.agents.slice(0, 2); // Get just the first 2 agents
       },
       error: (err) => {
         console.error('Error loading agents:', err);
@@ -226,7 +226,7 @@ export class HomePage implements OnInit, OnDestroy {
 
       // When we receive evaluation data, enrich it with additional details
       if (response.evaluations.length > 0) {
-        // Get first 3 evaluations and then load details for them
+        // Get first 2 evaluations and then load details for them
         const evaluationsToShow = response.evaluations.slice(0, 2);
 
         // Create a mock response for now since we lack actual evaluation details
@@ -373,21 +373,21 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   // Type guard functions for template
-hasMetricsResults(evaluation: Evaluation | EvaluationDetail): boolean {
-  return !!(evaluation as ExtendedEvaluation).metrics_results;
-}
+  hasMetricsResults(evaluation: Evaluation | EvaluationDetail): boolean {
+    return !!(evaluation as ExtendedEvaluation).metrics_results;
+  }
 
-hasProgress(evaluation: Evaluation | EvaluationDetail): boolean {
-  return !!(evaluation as ExtendedEvaluation).progress;
-}
+  hasProgress(evaluation: Evaluation | EvaluationDetail): boolean {
+    return !!(evaluation as ExtendedEvaluation).progress;
+  }
 
-getMetricValue(evaluation: Evaluation | EvaluationDetail, metric: string): number {
-  return (evaluation as ExtendedEvaluation).metrics_results?.[metric] || 0;
-}
+  getMetricValue(evaluation: Evaluation | EvaluationDetail, metric: string): number {
+    return (evaluation as ExtendedEvaluation).metrics_results?.[metric] || 0;
+  }
 
-getProgressValue(evaluation: Evaluation | EvaluationDetail): number {
-  return (evaluation as ExtendedEvaluation).progress?.percentage_complete || 0;
-}
+  getProgressValue(evaluation: Evaluation | EvaluationDetail): number {
+    return (evaluation as ExtendedEvaluation).progress?.percentage_complete || 0;
+  }
 }
 
 /**
