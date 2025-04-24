@@ -1,3 +1,4 @@
+<!-- Path: libs/feature/home/src/lib/pages/home.page.html -->
 <div class="dashboard-container">
   <!-- Dashboard Header -->
   <header class="dashboard-header">
@@ -7,7 +8,7 @@
 
   <!-- Dashboard Stats -->
   <div class="dashboard-stats">
-    <div class="stat-card" (click)="viewAllDatasets()">
+    <div class="stat-card datasets-card" (click)="viewAllDatasets()">
       <div class="stat-icon datasets-icon">
         <i class="bi bi-database"></i>
       </div>
@@ -15,9 +16,10 @@
         <span class="stat-count">{{datasetsCount || 0}}</span>
         <span class="stat-label">Datasets</span>
       </div>
+      <span class="stat-arrow">→</span>
     </div>
 
-    <div class="stat-card" (click)="viewAllPrompts()">
+    <div class="stat-card prompts-card" (click)="viewAllPrompts()">
       <div class="stat-icon prompts-icon">
         <i class="bi bi-chat-text"></i>
       </div>
@@ -25,9 +27,21 @@
         <span class="stat-count">{{promptsCount || 0}}</span>
         <span class="stat-label">Prompts</span>
       </div>
+      <span class="stat-arrow">→</span>
     </div>
 
-    <div class="stat-card" (click)="viewAllEvaluations()">
+    <div class="stat-card agents-card" (click)="viewAllAgents()">
+      <div class="stat-icon agents-icon">
+        <i class="bi bi-person-gear"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-count">{{agentsCount || 0}}</span>
+        <span class="stat-label">Agents</span>
+      </div>
+      <span class="stat-arrow">→</span>
+    </div>
+
+    <div class="stat-card evaluations-card" (click)="viewAllEvaluations()">
       <div class="stat-icon evaluations-icon">
         <i class="bi bi-clipboard-check"></i>
       </div>
@@ -35,156 +49,167 @@
         <span class="stat-count">{{evaluationsCount || 0}}</span>
         <span class="stat-label">Evaluations</span>
       </div>
+      <span class="stat-arrow">→</span>
     </div>
 
-    <div class="stat-card" (click)="viewAllReports()">
+    <div class="stat-card reports-card" (click)="viewAllReports()">
       <div class="stat-icon reports-icon">
         <i class="bi bi-file-earmark-bar-graph"></i>
       </div>
       <div class="stat-content">
-        <span class="stat-count">{{reportsCount || 0}}</span>
+        <span class="stat-count">-</span>
         <span class="stat-label">Reports</span>
+        <span class="coming-soon">Coming soon</span>
       </div>
     </div>
   </div>
 
-  <!-- Dashboard Tabs -->
-  <div class="dashboard-tabs">
-    <div class="tab-headers">
-      <div class="tab-header" [class.active]="activeTab === 'datasets'" (click)="setActiveTab('datasets')">Recent Datasets</div>
-      <div class="tab-header" [class.active]="activeTab === 'prompts'" (click)="setActiveTab('prompts')">Recent Prompts</div>
-      <div class="tab-header" [class.active]="activeTab === 'evaluations'" (click)="setActiveTab('evaluations')">Recent Evaluations</div>
-    </div>
-
-    <!-- Datasets Tab -->
-    <div class="tab-content" *ngIf="activeTab === 'datasets'">
-      <div class="tab-header-actions">
+  <!-- Recent Items Grid -->
+  <div class="recent-items-grid">
+    <!-- Datasets Section -->
+    <div class="recent-section datasets-section">
+      <div class="section-header">
         <h3>Recent Datasets</h3>
-        <qrac-button label="Create Dataset" theme="primary" (click)="createDataset()"></qrac-button>
+        <qrac-button label="Create Dataset" theme="primary" class="create-button datasets-button" (click)="createDataset()"></qrac-button>
       </div>
 
-      <div *ngIf="isLoading" class="loading-container">
-        <div class="spinner"></div>
-        <p>Loading datasets...</p>
+      <div *ngIf="loadingStates.datasets" class="loader-inline">
+        <div class="spinner-sm"></div>
+        <span>Loading datasets...</span>
       </div>
 
-      <div class="datasets-list" *ngIf="!isLoading && datasets.length > 0">
-        <div class="dataset-card" *ngFor="let dataset of datasets" (click)="viewDataset(dataset)">
-          <div class="dataset-header">
-            <h4>{{dataset.name}}</h4>
+      <div class="items-list" *ngIf="!loadingStates.datasets">
+        <div *ngIf="datasets.length === 0" class="empty-state-inline">
+          <p>No datasets available</p>
+          <qrac-button label="Create Dataset" theme="outline" size="small" (click)="createDataset()"></qrac-button>
+        </div>
+
+        <div class="list-item" *ngFor="let dataset of datasets" (click)="viewDataset(dataset)">
+          <div class="item-header">
+            <h4 class="item-title">{{dataset.name}}</h4>
             <span class="status-badge" [ngClass]="dataset.status.toLowerCase()">{{dataset.status}}</span>
           </div>
-          <div class="dataset-description" *ngIf="dataset.description">
-            <p>{{dataset.description | slice:0:120}}{{dataset.description.length > 120 ? '...' : ''}}</p>
-          </div>
-          <div class="dataset-stats">
-            <span class="stat">{{dataset.documentCount || 0}} documents</span>
-            <span class="stat" *ngIf="dataset.size">{{formatFileSize(dataset.size)}}</span>
-            <span class="stat" *ngIf="dataset.format">{{dataset.format}}</span>
-          </div>
-          <div class="dataset-date">
-            <span>Created: {{dataset.createdAt | date:'MMM d, y'}}</span>
+          <div class="item-details">
+            <span class="detail">{{dataset.documentCount || 0}} documents</span>
+            <span class="detail" *ngIf="dataset.size">• {{formatFileSize(dataset.size)}}</span>
+            <span class="detail">• Created: {{dataset.createdAt | date:'MMM d, y'}}</span>
           </div>
         </div>
-      </div>
 
-      <div class="empty-state" *ngIf="!isLoading && datasets.length === 0">
-        <p>No datasets available. Create your first dataset to get started.</p>
-        <qrac-button label="Create Dataset" theme="primary" (click)="createDataset()"></qrac-button>
-      </div>
-
-      <div class="view-all-link" *ngIf="!isLoading && datasets.length > 0">
-        <a (click)="viewAllDatasets()">View all datasets</a>
+        <a *ngIf="datasets.length > 0" class="view-all-link" (click)="viewAllDatasets()">View all datasets →</a>
       </div>
     </div>
 
-    <!-- Prompts Tab -->
-    <div class="tab-content" *ngIf="activeTab === 'prompts'">
-      <div class="tab-header-actions">
+    <!-- Prompts Section -->
+    <div class="recent-section prompts-section">
+      <div class="section-header">
         <h3>Recent Prompts</h3>
-        <qrac-button label="Create Prompt" theme="primary" (click)="viewAllPrompts()"></qrac-button>
+        <qrac-button label="Create Prompt" theme="primary" class="create-button prompts-button" (click)="createPrompt()"></qrac-button>
       </div>
 
-      <div *ngIf="isLoading" class="loading-container">
-        <div class="spinner"></div>
-        <p>Loading prompts...</p>
+      <div *ngIf="loadingStates.prompts" class="loader-inline">
+        <div class="spinner-sm"></div>
+        <span>Loading prompts...</span>
       </div>
 
-      <div class="prompts-list" *ngIf="!isLoading && recentPrompts.length > 0">
-        <div class="prompt-card" *ngFor="let prompt of recentPrompts" (click)="viewPrompt(prompt)">
-          <div class="prompt-header">
-            <h4>{{prompt.name}}</h4>
+      <div class="items-list" *ngIf="!loadingStates.prompts">
+        <div *ngIf="recentPrompts.length === 0" class="empty-state-inline">
+          <p>No prompts available</p>
+          <qrac-button label="Create Prompt" theme="outline" size="small" (click)="createPrompt()"></qrac-button>
+        </div>
+
+        <div class="list-item" *ngFor="let prompt of recentPrompts" (click)="viewPrompt(prompt)">
+          <div class="item-header">
+            <h4 class="item-title">{{prompt.name}}</h4>
             <span class="status-badge" [ngClass]="prompt.is_public ? 'ready' : 'processing'">{{prompt.is_public ? 'Public' : 'Private'}}</span>
           </div>
-          <div class="prompt-description" *ngIf="prompt.description">
-            <p>{{prompt.description | slice:0:120}}{{prompt.description.length > 120 ? '...' : ''}}</p>
-          </div>
-          <div class="prompt-preview">
-            <p>{{prompt.content | slice:0:100}}{{prompt.content.length > 100 ? '...' : ''}}</p>
-          </div>
-          <div class="prompt-meta">
-            <span>Created: {{prompt.created_at | date:'MMM d, y'}}</span>
-            <span *ngIf="prompt.version">v{{prompt.version}}</span>
+          <div class="item-details">
+            <span class="detail" *ngIf="prompt.version">v{{prompt.version}}</span>
+            <span class="detail">• Created: {{prompt.created_at | date:'MMM d, y'}}</span>
           </div>
         </div>
-      </div>
 
-      <div class="empty-state" *ngIf="!isLoading && recentPrompts.length === 0">
-        <p>No prompts available. Create your first prompt template to get started.</p>
-        <qrac-button label="Create Prompt" theme="primary" (click)="viewAllPrompts()"></qrac-button>
-      </div>
-
-      <div class="view-all-link" *ngIf="!isLoading && recentPrompts.length > 0">
-        <a (click)="viewAllPrompts()">View all prompts</a>
+        <a *ngIf="recentPrompts.length > 0" class="view-all-link" (click)="viewAllPrompts()">View all prompts →</a>
       </div>
     </div>
 
-    <!-- Evaluations Tab -->
-    <div class="tab-content" *ngIf="activeTab === 'evaluations'">
-      <div class="tab-header-actions">
-        <h3>Recent Evaluations</h3>
-        <qrac-button label="Start New Evaluation" theme="primary" (click)="startNewEvaluation()"></qrac-button>
+    <!-- Agents Section -->
+    <div class="recent-section agents-section">
+      <div class="section-header">
+        <h3>Recent Agents</h3>
+        <qrac-button label="Create Agent" theme="primary" class="create-button agents-button" (click)="createAgent()"></qrac-button>
       </div>
 
-      <div *ngIf="isLoading" class="loading-container">
-        <div class="spinner"></div>
-        <p>Loading evaluations...</p>
+      <div *ngIf="loadingStates.agents" class="loader-inline">
+        <div class="spinner-sm"></div>
+        <span>Loading agents...</span>
       </div>
 
-      <div class="evaluations-list" *ngIf="!isLoading && recentEvaluations.length > 0">
-        <div class="evaluation-card" *ngFor="let evaluation of recentEvaluations" (click)="viewEvaluation(evaluation)">
-          <div class="evaluation-header">
-            <h4>{{evaluation.name}}</h4>
-            <span class="status-badge" [ngClass]="evaluation.status.toLowerCase()">{{evaluation.status}}</span>
+      <div class="items-list" *ngIf="!loadingStates.agents">
+        <div *ngIf="recentAgents.length === 0" class="empty-state-inline">
+          <p>No agents available</p>
+          <qrac-button label="Create Agent" theme="outline" size="small" (click)="createAgent()"></qrac-button>
+        </div>
+
+        <div class="list-item" *ngFor="let agent of recentAgents" (click)="viewAgent(agent)">
+          <div class="item-header">
+            <h4 class="item-title">{{agent.name}}</h4>
+            <span class="status-badge" [ngClass]="agent.is_active ? 'ready' : 'error'">{{agent.is_active ? 'Active' : 'Inactive'}}</span>
           </div>
-          <div class="evaluation-details">
-            <div class="detail"><span class="label">Dataset:</span> {{evaluation.datasetName}}</div>
-            <div class="detail"><span class="label">Prompt:</span> {{evaluation.promptName}}</div>
-            <div class="detail"><span class="label">Models:</span> {{evaluation.modelCount}} models</div>
-          </div>
-          <div class="evaluation-metrics" *ngIf="evaluation.status === 'completed'">
-            <div class="metric">
-              <span class="metric-label">Relevance</span>
-              <span class="metric-value">{{evaluation.avgRelevance | number:'1.2-2'}}</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label">Latency</span>
-              <span class="metric-value">{{evaluation.avgLatency}}ms</span>
-            </div>
-          </div>
-          <div class="evaluation-date">
-            <span>Created: {{evaluation.createdAt | date:'MMM d, y'}}</span>
+          <div class="item-details">
+            <span class="detail">{{agent.domain}}</span>
+            <span class="detail">• Created: {{agent.created_at | date:'MMM d, y'}}</span>
           </div>
         </div>
+
+        <a *ngIf="recentAgents.length > 0" class="view-all-link" (click)="viewAllAgents()">View all agents →</a>
+      </div>
+    </div>
+
+    <!-- Evaluations Section -->
+    <div class="recent-section evaluations-section">
+      <div class="section-header">
+        <h3>Recent Evaluations</h3>
+        <qrac-button label="Start New Evaluation" theme="primary" class="create-button evaluations-button" (click)="startNewEvaluation()"></qrac-button>
       </div>
 
-      <div class="empty-state" *ngIf="!isLoading && recentEvaluations.length === 0">
-        <p>No evaluations available. Start your first evaluation to compare models.</p>
-        <qrac-button label="Start New Evaluation" theme="primary" (click)="startNewEvaluation()"></qrac-button>
+      <div *ngIf="loadingStates.evaluations" class="loader-inline">
+        <div class="spinner-sm"></div>
+        <span>Loading evaluations...</span>
       </div>
 
-      <div class="view-all-link" *ngIf="!isLoading && recentEvaluations.length > 0">
-        <a (click)="viewAllEvaluations()">View all evaluations</a>
+      <div class="items-list" *ngIf="!loadingStates.evaluations">
+        <div *ngIf="recentEvaluations.length === 0" class="empty-state-inline">
+          <p>No evaluations available</p>
+          <qrac-button label="Start New Evaluation" theme="outline" size="small" (click)="startNewEvaluation()"></qrac-button>
+        </div>
+
+        <div class="list-item" *ngFor="let evaluation of recentEvaluations" (click)="viewEvaluation(evaluation)">
+          <div class="item-header">
+            <h4 class="item-title">{{evaluation.name}}</h4>
+            <span class="status-badge" [ngClass]="evaluation.status.toLowerCase()">{{evaluation.status}}</span>
+          </div>
+          <div class="item-details">
+            <span class="detail">{{evaluation.method}}</span>
+            <span class="detail" *ngIf="evaluation.start_time">• Started: {{evaluation.start_time | date:'MMM d, y'}}</span>
+          </div>
+          <!-- Show metrics if completed -->
+          <ng-container *ngIf="evaluation.status === evaluationStatus.COMPLETED">
+            <div class="item-metrics" *ngIf="hasMetricsResults(evaluation)">
+              <span class="metric-chip">{{getMetricValue(evaluation, 'relevance') | number:'1.2-2'}} relevance</span>
+              <span class="metric-chip">{{getMetricValue(evaluation, 'latency')}}ms</span>
+            </div>
+          </ng-container>
+          <!-- Show progress bar if running -->
+          <ng-container *ngIf="evaluation.status === evaluationStatus.RUNNING">
+            <div class="progress-bar" *ngIf="hasProgress(evaluation)">
+              <div class="progress-fill" [style.width.%]="getProgressValue(evaluation)"></div>
+              <span class="progress-text">{{getProgressValue(evaluation) | number:'1.0-0'}}% complete</span>
+            </div>
+          </ng-container>
+        </div>
+
+        <a *ngIf="recentEvaluations.length > 0" class="view-all-link" (click)="viewAllEvaluations()">View all evaluations →</a>
       </div>
     </div>
   </div>

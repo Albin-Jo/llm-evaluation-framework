@@ -7,465 +7,82 @@
   display: flex;
   flex-direction: column;
   gap: $spacing-6;
-  max-width: $container-xxl;
+  max-width: 100%;
   margin: 0 auto;
 
   @include media-breakpoint-down(md) {
     padding: $spacing-4;
     gap: $spacing-4;
-  }
-}
 
-.dashboard-header {
-  margin-bottom: $spacing-4;
 
-  h1 {
-    font-size: $font-size-3xl;
-    font-weight: $font-weight-bold;
-    margin-bottom: $spacing-2;
-    color: $text-primary;
-  }
-
-  .subtitle {
-    color: $text-secondary;
-    font-size: $font-size-md;
-  }
-}
-
-// Dashboard Stats Section
-.dashboard-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: $spacing-6;
-
-  @include media-breakpoint-down(lg) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @include media-breakpoint-down(sm) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.stat-card {
-  @include card;
-  background-color: #ffffff;
-  border-radius: $radius-lg;
-  padding: $spacing-6;
-  display: flex;
-  align-items: center;
-  transition: transform 0.3s, box-shadow 0.3s;
-  position: relative;
-  overflow: hidden;
+// View all link
+.view-all-link {
+  align-self: flex-end;
+  color: $primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  margin-top: auto;
+  padding-top: $spacing-2;
+  cursor: pointer;
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: $shadow-md;
+    text-decoration: underline;
   }
 
-  .stat-icon {
-    width: 64px;
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: $spacing-4;
-    border-radius: $radius-lg;
-    background-color: $primary-light;
-    color: $primary;
-
-    img {
-      width: 32px;
-      height: 32px;
-    }
-
-    &.datasets-icon {
-      background-color: rgba($primary, 0.1);
-      color: $primary;
-    }
-
-    &.prompts-icon {
-      background-color: rgba($info, 0.1);
-      color: $info;
-    }
-
-    &.evaluations-icon {
-      background-color: rgba($success, 0.1);
-      color: $success;
-    }
-
-    &.reports-icon {
-      background-color: rgba($warning, 0.1);
-      color: $warning;
-    }
-  }
-
-  .stat-content {
-    display: flex;
-    flex-direction: column;
-
-    .stat-count {
-      font-size: $font-size-3xl;
-      font-weight: $font-weight-bold;
-      color: $text-primary;
-      margin-bottom: $spacing-1;
-    }
-
-    .stat-label {
-      font-size: $font-size-sm;
-      color: $text-secondary;
-      font-weight: $font-weight-medium;
-    }
-  }
-
-  // Decoration element
   &::after {
-    content: '';
-    position: absolute;
-    top: -30px;
-    right: -30px;
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background-color: rgba($primary, 0.05);
-    z-index: 0;
+    content: "";
+    display: inline-block;
+    width: 0;
+    transition: width 0.2s;
+  }
+
+  // Color variations for different sections
+  .datasets-section & {
+    color: $primary;
+  }
+
+  .prompts-section & {
+    color: $info;
+  }
+
+  .agents-section & {
+    color: #673ab7;
+  }
+
+  .evaluations-section & {
+    color: $success;
   }
 }
 
-// Dashboard Tabs
-.dashboard-tabs {
-  @include card;
-  background-color: #ffffff;
-  border-radius: $radius-lg;
-  overflow: hidden;
-}
-
-.tab-headers {
+// Loading states
+.loader-inline {
   display: flex;
-  border-bottom: 1px solid $border-color;
-  background-color: $background-light;
-
-  .tab-header {
-    padding: $spacing-4 $spacing-6;
-    font-weight: $font-weight-semibold;
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s ease;
-    color: $text-secondary;
-
-    &:hover:not(.active) {
-      background-color: rgba($primary, 0.05);
-      color: $primary;
-    }
-
-    &.active {
-      border-bottom-color: $primary;
-      color: $primary;
-      background-color: white;
-    }
-
-    @include media-breakpoint-down(md) {
-      padding: $spacing-3 $spacing-4;
-      font-size: $font-size-sm;
-    }
-
-    @include media-breakpoint-down(sm) {
-      padding: $spacing-2 $spacing-3;
-      font-size: $font-size-xs;
-      flex: 1;
-      text-align: center;
-    }
-  }
-}
-
-.tab-content {
-  padding: $spacing-6;
-  min-height: 300px;
-
-  @include media-breakpoint-down(md) {
-    padding: $spacing-4;
-  }
-
-  @include media-breakpoint-down(sm) {
-    padding: $spacing-3;
-  }
-}
-
-.tab-header-actions {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: $spacing-6;
-
-  @include media-breakpoint-down(sm) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: $spacing-3;
-
-    h3 {
-      margin-bottom: 0;
-    }
-  }
-
-  h3 {
-    margin: 0;
-    font-size: $font-size-xl;
-    font-weight: $font-weight-semibold;
-    color: $text-primary;
-  }
-}
-
-// Cards Grid Layout
-.datasets-list,
-.prompts-list,
-.evaluations-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: $spacing-6;
-
-  @include media-breakpoint-down(md) {
-    gap: $spacing-4;
-  }
-
-  @include media-breakpoint-down(sm) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.dataset-card,
-.prompt-card,
-.evaluation-card {
-  @include card;
-  background-color: white;
-  border-radius: $radius-lg;
+  justify-content: center;
   padding: $spacing-6;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.3s;
-  overflow: hidden;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+
+  .spinner-sm {
+    @include spinner($size: 16px, $border-width: 2px);
+    margin-right: $spacing-2;
+  }
+}
+
+.empty-state-inline {
   display: flex;
   flex-direction: column;
-  border: 1px solid $border-color;
-
-  @include media-breakpoint-down(md) {
-    padding: $spacing-4;
-  }
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: $shadow-md;
-    border-color: rgba($primary, 0.3);
-  }
-
-  // Decorative corner element
-  &::after {
-    content: '';
-    position: absolute;
-    top: -20px;
-    right: -20px;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background-color: rgba($primary, 0.05);
-    z-index: 0;
-  }
-}
-
-.dataset-header,
-.prompt-header,
-.evaluation-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: $spacing-3;
-  position: relative;
-  z-index: 1;
-
-  h4 {
-    margin: 0;
-    font-size: $font-size-lg;
-    font-weight: $font-weight-semibold;
-    color: $text-primary;
-  }
-}
-
-.status-badge {
-  padding: $spacing-1 $spacing-2;
-  border-radius: $radius-full;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-semibold;
-  text-transform: capitalize;
-
-  &.ready {
-    @include status-badge('success');
-  }
-
-  &.processing {
-    @include status-badge('info');
-  }
-
-  &.error {
-    @include status-badge('error');
-  }
-
-  &.running {
-    @include status-badge('info');
-  }
-
-  &.completed {
-    @include status-badge('success');
-  }
-
-  &.failed {
-    @include status-badge('error');
-  }
-
-  &.scheduled {
-    @include status-badge('warning');
-  }
-}
-
-.dataset-description,
-.prompt-description,
-.evaluation-details {
-  margin: $spacing-3 0;
-  font-size: $font-size-sm;
-  color: $text-secondary;
-  position: relative;
-  z-index: 1;
-  flex-grow: 1;
-}
-
-.dataset-stats,
-.evaluation-metrics,
-.evaluation-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $spacing-2;
-  margin-top: auto;
-  position: relative;
-  z-index: 1;
-
-  .stat {
-    font-size: $font-size-xs;
-    color: $text-secondary;
-    background-color: $background-light;
-    padding: $spacing-1 $spacing-2;
-    border-radius: $radius-sm;
-    font-weight: $font-weight-medium;
-  }
-}
-
-.dataset-date,
-.prompt-meta,
-.evaluation-date {
-  margin-top: $spacing-3;
-  font-size: $font-size-xs;
-  color: $text-secondary;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-}
-
-.prompt-preview {
-  margin: $spacing-3 0;
-  font-size: $font-size-xs;
-  color: $text-primary;
-  background-color: $background-light;
-  padding: $spacing-3;
-  border-radius: $radius-sm;
-  font-family: $font-family-mono;
-  position: relative;
-  z-index: 1;
-  max-height: 80px;
-  overflow: hidden;
-}
-
-.evaluation-metrics {
-  display: flex;
-  gap: $spacing-3;
-  margin-top: $spacing-3;
-  position: relative;
-  z-index: 1;
-
-  .metric {
-    display: flex;
-    flex-direction: column;
-    background-color: $background-light;
-    padding: $spacing-2 $spacing-3;
-    border-radius: $radius-sm;
-    flex: 1;
-
-    .metric-label {
-      font-size: $font-size-xs;
-      color: $text-secondary;
-      margin-bottom: $spacing-1;
-    }
-
-    .metric-value {
-      font-size: $font-size-sm;
-      font-weight: $font-weight-semibold;
-      color: $text-primary;
-    }
-  }
-}
-
-.detail {
-  margin-bottom: $spacing-2;
-  font-size: $font-size-sm;
-
-  .label {
-    font-weight: $font-weight-medium;
-    color: $text-secondary;
-  }
-}
-
-.empty-state {
-  background-color: $background-light;
+  align-items: center;
+  justify-content: center;
   padding: $spacing-6;
-  border-radius: $radius-lg;
   text-align: center;
-
-  @include media-breakpoint-down(md) {
-    padding: $spacing-4;
-  }
+  background-color: $background-light;
+  border-radius: $radius-md;
 
   p {
-    margin-bottom: $spacing-4;
     color: $text-secondary;
+    margin-bottom: $spacing-3;
     font-size: $font-size-sm;
-  }
-}
-
-.view-all-link {
-  text-align: right;
-  margin-top: $spacing-6;
-
-  @include media-breakpoint-down(md) {
-    margin-top: $spacing-4;
-  }
-
-  a {
-    color: $primary;
-    cursor: pointer;
-    font-weight: $font-weight-semibold;
-    display: inline-flex;
-    align-items: center;
-
-    &::after {
-      content: "→";
-      margin-left: $spacing-2;
-      transition: transform 0.2s;
-    }
-
-    &:hover {
-      text-decoration: underline;
-
-      &::after {
-        transform: translateX(4px);
-      }
-    }
   }
 }
 
@@ -493,10 +110,348 @@
     color: $text-secondary;
     font-weight: $font-weight-medium;
   }
+}
 
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
+// Responsive adjustments for button styles
+.create-button {
+  &.datasets-button {
+    --qrac-button-bg-color: #{$primary};
+    --qrac-button-hover-bg-color: #{darken($primary, 10%)};
+  }
+
+  &.prompts-button {
+    --qrac-button-bg-color: #{$info};
+    --qrac-button-hover-bg-color: #{darken($info, 10%)};
+  }
+
+  &.agents-button {
+    --qrac-button-bg-color: #673ab7;
+    --qrac-button-hover-bg-color: #{darken(#673ab7, 10%)};
+  }
+
+  &.evaluations-button {
+    --qrac-button-bg-color: #{$success};
+    --qrac-button-hover-bg-color: #{darken($success, 10%)};
+  }
+}
+}
+
+.dashboard-header {
+  margin-bottom: $spacing-2;
+
+  h1 {
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    margin-bottom: $spacing-1;
+    color: $text-primary;
+  }
+
+  .subtitle {
+    color: $text-secondary;
+    font-size: $font-size-md;
+  }
+}
+
+// Dashboard Stats Section
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: $spacing-4;
+
+  @include media-breakpoint-down(xl) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @include media-breakpoint-down(md) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include media-breakpoint-down(sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  @include card;
+  background-color: #ffffff;
+  border-radius: $radius-lg;
+  padding: $spacing-4;
+  display: flex;
+  align-items: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $shadow-md;
+  }
+
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: $spacing-3;
+    border-radius: $radius-lg;
+
+    i {
+      font-size: 1.5rem;
     }
   }
+
+  .stat-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+
+    .stat-count {
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-bold;
+      color: $text-primary;
+      margin-bottom: 0;
+    }
+
+    .stat-label {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      font-weight: $font-weight-medium;
+    }
+
+    .coming-soon {
+      font-size: $font-size-xs;
+      color: $text-tertiary;
+      font-style: italic;
+      margin-top: $spacing-1;
+    }
+  }
+
+  .stat-arrow {
+    margin-left: auto;
+    font-size: $font-size-lg;
+    color: $text-tertiary;
+    opacity: 0.5;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+
+  &:hover .stat-arrow {
+    transform: translateX(4px);
+    opacity: 1;
+  }
+
+  // Color variations for stat cards
+  &.datasets-card {
+    .stat-icon {
+      background-color: rgba($primary, 0.1);
+      color: $primary;
+    }
+
+    &:hover {
+      border-color: rgba($primary, 0.3);
+      .stat-arrow { color: $primary; }
+    }
+  }
+
+  &.prompts-card {
+    .stat-icon {
+      background-color: rgba($info, 0.1);
+      color: $info;
+    }
+
+    &:hover {
+      border-color: rgba($info, 0.3);
+      .stat-arrow { color: $info; }
+    }
+  }
+
+  &.agents-card {
+    .stat-icon {
+      background-color: rgba(#673ab7, 0.1);
+      color: #673ab7;
+    }
+
+    &:hover {
+      border-color: rgba(#673ab7, 0.3);
+      .stat-arrow { color: #673ab7; }
+    }
+  }
+
+  &.evaluations-card {
+    .stat-icon {
+      background-color: rgba($success, 0.1);
+      color: $success;
+    }
+
+    &:hover {
+      border-color: rgba($success, 0.3);
+      .stat-arrow { color: $success; }
+    }
+  }
+
+  &.reports-card {
+    .stat-icon {
+      background-color: rgba($warning, 0.1);
+      color: $warning;
+    }
+
+    cursor: default;
+    &:hover {
+      transform: none;
+      box-shadow: $shadow-sm;
+    }
+  }
+}
+
+// Recent Items Grid
+.recent-items-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-4;
+
+  @include media-breakpoint-down(lg) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recent-section {
+  @include card;
+  padding: $spacing-4;
+  display: flex;
+  flex-direction: column;
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-3;
+
+    h3 {
+      margin: 0;
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+    }
+
+    @include media-breakpoint-down(sm) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $spacing-2;
+
+      .create-button {
+        width: 100%;
+      }
+    }
+  }
+
+  // Color coding for section headers
+  &.datasets-section h3 {
+    color: $primary;
+  }
+
+  &.prompts-section h3 {
+    color: $info;
+  }
+
+  &.agents-section h3 {
+    color: #673ab7;
+  }
+
+  &.evaluations-section h3 {
+    color: $success;
+  }
+}
+
+// Items list styling
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  flex-grow: 1;
+}
+
+.list-item {
+  padding: $spacing-3;
+  border-radius: $radius-md;
+  border: 1px solid $border-light;
+  background-color: white;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-sm;
+    border-color: $border-dark;
+  }
+
+  .item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: $spacing-2;
+
+    .item-title {
+      margin: 0;
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+      max-width: calc(100% - 80px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .item-details {
+    display: flex;
+    flex-wrap: wrap;
+    color: $text-secondary;
+    font-size: $font-size-xs;
+    margin-bottom: $spacing-2;
+  }
+
+  .detail {
+    white-space: nowrap;
+  }
+
+  .item-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-2;
+    margin-top: $spacing-2;
+  }
+
+  .metric-chip {
+    background-color: $background-light;
+    color: $text-primary;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    padding: $spacing-1 $spacing-2;
+    border-radius: $radius-sm;
+  }
+
+  .progress-bar {
+    height: 8px;
+    background-color: $background-light;
+    border-radius: $radius-full;
+    margin-top: $spacing-2;
+    position: relative;
+    overflow: hidden;
+
+    .progress-fill {
+      height: 100%;
+      background-color: $success;
+      border-radius: $radius-full;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: -1px;
+      right: 0;
+      font-size: $font-size-xs;
+      color: $text-secondary;
+    }
+  }
+}
 }
