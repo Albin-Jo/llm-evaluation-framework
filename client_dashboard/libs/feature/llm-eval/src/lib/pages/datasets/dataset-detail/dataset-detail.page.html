@@ -28,118 +28,449 @@
 
   <!-- Dataset Details -->
   <div *ngIf="!isLoading && dataset" class="dataset-details">
-    <form [formGroup]="editForm" (ngSubmit)="saveChanges($event)">
-      <div class="detail-header">
-        <div class="header-content">
-          <input
-            type="text"
-            class="detail-title"
-            placeholder="Dataset Name"
-            formControlName="name"
-            [class.is-invalid]="nameControl && nameControl.invalid && nameControl.touched">
-          <div class="detail-badges">
-            <span class="detail-badge" [ngClass]="statusClass">{{ statusText }}</span>
-          </div>
-          <div *ngIf="nameControl && nameControl.invalid && nameControl.touched" class="error-message">
-            <span *ngIf="nameControl.errors?.['required']">Name is required</span>
-            <span *ngIf="nameControl.errors?.['maxlength']">Name cannot exceed 100 characters</span>
-          </div>
+    <!-- Title and Status Header -->
+    <div class="detail-header">
+      <div class="header-content">
+        <h1 class="detail-title" *ngIf="!isEditing">{{ dataset.name }}</h1>
+        <input
+          *ngIf="isEditing"
+          type="text"
+          class="detail-title-input"
+          placeholder="Dataset Name"
+          [(ngModel)]="editingDataset.name"
+          [class.is-invalid]="!editingDataset.name">
+        <div class="detail-badges">
+          <span class="status-badge" [ngClass]="statusClass">{{ statusText }}</span>
         </div>
-        <div class="header-actions">
-          <button type="button" class="outline-button" (click)="deleteDataset($event)">
-            <span class="button-icon">🗑️</span> Delete
+      </div>
+      <div class="header-actions">
+        <ng-container *ngIf="!isEditing">
+          <button class="outline-button edit-button" (click)="startEditing()">
+            Edit
           </button>
-        </div>
-      </div>
-
-      <div class="detail-section metadata-section">
-        <div class="meta-item">
-          <span class="meta-label">Created:</span>
-          <span class="meta-value">{{ formattedDate }}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Last Updated:</span>
-          <span class="meta-value">{{ formatDate(dataset.updatedAt) }}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Document Count:</span>
-          <span class="meta-value">{{ dataset.documentCount || 0 }}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Total Size:</span>
-          <span class="meta-value">{{ formattedSize }}</span>
-        </div>
-      </div>
-
-      <div class="detail-section description-section">
-        <h2 class="section-title">Description</h2>
-        <textarea
-          class="description-content"
-          formControlName="description"
-          placeholder="Add a description for this dataset (optional)"
-          rows="3"></textarea>
-        <div *ngIf="descriptionControl && descriptionControl.invalid && descriptionControl.touched" class="error-message">
-          <span *ngIf="descriptionControl.errors?.['maxlength']">
-            Description cannot exceed 500 characters
-          </span>
-        </div>
-      </div>
-
-      <div class="detail-section tags-section">
-        <h2 class="section-title">Tags</h2>
-        <div class="tags-container">
-          <button
-            *ngFor="let tag of availableTags"
-            type="button"
-            class="tag-button"
-            [class.active]="selectedTags.includes(tag)"
-            (click)="toggleTag(tag)">
-            {{ tag }}
+          <button class="outline-button delete-button" (click)="deleteDataset($event)">
+            Delete
           </button>
-        </div>
-        <div class="help-text">Select tags to categorize your dataset</div>
-      </div>
-
-      <div class="detail-section documents-section">
-        <div class="section-header">
-          <h2 class="section-title">Documents</h2>
-          <button type="button" class="add-button" (click)="uploadDocuments($event)">
-            <span class="add-icon">+</span> Upload Documents
+        </ng-container>
+        <ng-container *ngIf="isEditing">
+          <button class="outline-button cancel-button" (click)="cancelEditing()">
+            Cancel
           </button>
-        </div>
+          <button class="primary-button save-button" [disabled]="!canSave()" (click)="saveChanges()">
+            Save Changes
+          </button>
+        </ng-container>
+      </div>
+    </div>
 
-        <div class="documents-list" *ngIf="documents.length > 0">
-          <div class="document-item" *ngFor="let doc of documents">
-            <div class="document-icon">
-              <i class="icon-document">📄</i>
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+      <button
+        *ngFor="let tab of tabs"
+        class="tab-button"
+        [class.active]="activeTab === tab.id"
+        (click)="setActiveTab(tab.id)">
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <!-- Overview Tab -->
+      <div *ngIf="activeTab === 'overview'" class="tab-pane overview-tab">
+        <div class="tab-content-columns">
+          <!-- Left Column -->
+          <div class="left-column">
+            <!-- Dataset Information -->
+            <div class="content-card dataset-info-card">
+              <h2 class="card-title">Dataset Information</h2>
+
+              <div class="info-group">
+                <div class="info-label">Description</div>
+                <div class="info-value" *ngIf="!isEditing">{{ dataset.description || 'No description provided' }}</div>
+                <textarea
+                  *ngIf="isEditing"
+                  class="info-textarea"
+                  placeholder="Enter dataset description"
+                  [(ngModel)]="editingDataset.description"></textarea>
+              </div>
+
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Dataset Type</div>
+                  <div class="info-value">{{ dataset.type || 'User Query' }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Created</div>
+                  <div class="info-value">{{ formatDate(dataset.createdAt) }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Last Updated</div>
+                  <div class="info-value">{{ formatDate(dataset.updatedAt) }}</div>
+                </div>
+              </div>
             </div>
-            <div class="document-info">
-              <h3 class="document-name">{{ doc.name }}</h3>
-              <div class="document-metadata">
-                <span class="document-date">Added: {{ formatDate(doc.createdAt) }}</span>
-                <span class="document-embeddings" *ngIf="doc.embeddings">
-                  <i class="icon-check">✓</i> Embeddings generated
-                </span>
+
+            <!-- Tags Section -->
+            <div class="content-card tags-card">
+              <h2 class="card-title">Tags</h2>
+              <div class="tags-container">
+                <ng-container *ngIf="!isEditing">
+                  <span *ngFor="let tag of dataset.tags" class="tag-pill">{{ tag }}</span>
+                  <span *ngIf="!dataset.tags || dataset.tags.length === 0" class="no-tags">No tags added</span>
+                </ng-container>
+                <ng-container *ngIf="isEditing">
+                  <button
+                    *ngFor="let tag of availableTags"
+                    type="button"
+                    class="tag-button"
+                    [class.active]="editingDataset.tags?.includes(tag)"
+                    (click)="toggleTag(tag)">
+                    {{ tag }}
+                  </button>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="right-column">
+            <!-- Statistics Section -->
+            <div class="content-card statistics-card">
+              <h2 class="card-title">Dataset Statistics</h2>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-card">
+                    <div class="stat-label">Document Count</div>
+                    <div class="stat-value">{{ dataset.documentCount || 0 }}</div>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-card">
+                    <div class="stat-label">Total Size</div>
+                    <div class="stat-value">{{ formattedSize }}</div>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-card">
+                    <div class="stat-label">Avg. Length</div>
+                    <div class="stat-value">{{ getAverageDocLength() }}<span class="stat-unit">tokens</span></div>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-card">
+                    <div class="stat-label">File Formats</div>
+                    <div class="stat-value-small">{{ getFileFormatDistribution() }}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="empty-documents" *ngIf="documents.length === 0">
-          <div class="empty-icon">📄</div>
-          <p>No documents found in this dataset</p>
-          <button type="button" class="primary-button" (click)="uploadDocuments($event)">
-            Upload Documents
-          </button>
+        <!-- Recent Documents Section -->
+        <div class="content-card documents-preview-card">
+          <div class="card-header-with-action">
+            <h2 class="card-title">Recent Documents</h2>
+            <button class="add-button" (click)="uploadDocuments($event)">
+              Add Documents +
+            </button>
+          </div>
+
+          <div class="recent-documents">
+            <div *ngIf="documents.length === 0" class="empty-documents">
+              <div class="empty-icon">📄</div>
+              <p>No documents found in this dataset</p>
+              <button class="primary-button" (click)="uploadDocuments($event)">
+                Upload Documents
+              </button>
+            </div>
+
+            <ng-container *ngIf="documents.length > 0">
+              <div class="documents-table">
+                <!-- Table Header -->
+                <div class="table-header">
+                  <div class="filename-col">FILENAME</div>
+                  <div class="format-col">FORMAT</div>
+                  <div class="size-col">SIZE</div>
+                  <div class="added-col">ADDED</div>
+                  <div class="actions-col">ACTIONS</div>
+                </div>
+
+                <!-- Table Body -->
+                <div class="table-body">
+                  <div *ngFor="let doc of getRecentDocuments()" class="table-row">
+                    <div class="filename-col">{{ doc.name }}</div>
+                    <div class="format-col">{{ getDocumentFormat(doc) }}</div>
+                    <div class="size-col">{{ getDocumentSize(doc) }}</div>
+                    <div class="added-col">{{ formatDate(doc.createdAt) }}</div>
+                    <div class="actions-col">
+                      <button class="action-button view-button" (click)="previewDocument(doc)">
+                        View
+                      </button>
+                      <button class="action-button delete-button" (click)="confirmDeleteDocument($event, doc.id)">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="view-all-link" *ngIf="documents.length > 5" (click)="setActiveTab('documents')">
+                View all {{ documents.length }} documents
+              </div>
+            </ng-container>
+          </div>
         </div>
       </div>
 
-      <div class="form-actions">
-        <button type="submit" class="primary-button" [disabled]="editForm.invalid || isSaving">
-          <span *ngIf="isSaving" class="spinner-sm"></span>
-          Save Changes
+      <!-- Documents Tab -->
+      <div *ngIf="activeTab === 'documents'" class="tab-pane documents-tab">
+        <div class="content-card documents-card">
+          <div class="card-header-with-action">
+            <h2 class="card-title">Documents</h2>
+            <button class="add-button" (click)="uploadDocuments($event)">
+              Add Documents +
+            </button>
+          </div>
+
+          <!-- Search and Filter Bar -->
+          <div class="search-filter-bar">
+            <div class="search-field">
+              <input
+                type="text"
+                class="search-input"
+                placeholder="Search documents..."
+                [(ngModel)]="documentSearchQuery"
+                (input)="filterDocuments()">
+            </div>
+            <div class="filter-controls">
+              <select class="filter-select" [(ngModel)]="documentFormatFilter" (change)="filterDocuments()">
+                <option value="">All Formats</option>
+                <option *ngFor="let format of availableFormats" [value]="format">{{ format }}</option>
+              </select>
+              <select class="filter-select" [(ngModel)]="documentSortBy" (change)="filterDocuments()">
+                <option value="name">Sort by Name</option>
+                <option value="createdAt">Sort by Date</option>
+                <option value="size">Sort by Size</option>
+              </select>
+              <button class="filter-button" [class.active]="documentSortDirection === 'asc'" (click)="toggleSortDirection()">
+                {{ documentSortDirection === 'asc' ? '↑' : '↓' }}
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="isLoadingDocuments" class="loading-indicator">
+            <div class="spinner-sm"></div>
+            <span>Loading documents...</span>
+          </div>
+
+          <div *ngIf="!isLoadingDocuments && filteredDocuments.length === 0" class="empty-search-results">
+            <p>No documents match your search criteria</p>
+            <button class="outline-button" (click)="resetDocumentFilters()">
+              Clear Filters
+            </button>
+          </div>
+
+          <!-- Documents Table -->
+          <div *ngIf="!isLoadingDocuments && filteredDocuments.length > 0" class="documents-table">
+            <!-- Table Header -->
+            <div class="table-header">
+              <div class="filename-col">FILENAME</div>
+              <div class="format-col">FORMAT</div>
+              <div class="size-col">SIZE</div>
+              <div class="added-col">ADDED</div>
+              <div class="actions-col">ACTIONS</div>
+            </div>
+
+            <!-- Table Body -->
+            <div class="table-body">
+              <div *ngFor="let doc of paginatedDocuments" class="table-row">
+                <div class="filename-col">{{ doc.name }}</div>
+                <div class="format-col">{{ getDocumentFormat(doc) }}</div>
+                <div class="size-col">{{ getDocumentSize(doc) }}</div>
+                <div class="added-col">{{ formatDate(doc.createdAt) }}</div>
+                <div class="actions-col">
+                  <button class="action-button view-button" (click)="previewDocument(doc)">
+                    View
+                  </button>
+                  <button class="action-button delete-button" (click)="confirmDeleteDocument($event, doc.id)">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div *ngIf="filteredDocuments.length > 0" class="pagination">
+            <div class="page-info">
+              Showing {{ paginationStart }} to {{ paginationEnd }} of {{ filteredDocuments.length }} documents
+            </div>
+            <div class="page-controls">
+              <button
+                class="page-button prev-button"
+                [disabled]="currentDocumentsPage === 1"
+                (click)="goToDocumentsPage(currentDocumentsPage - 1)">
+                Previous
+              </button>
+              <div class="page-numbers">
+                <button
+                  *ngFor="let page of getDocumentPageNumbers()"
+                  class="page-number"
+                  [class.active]="page === currentDocumentsPage"
+                  (click)="goToDocumentsPage(page)">
+                  {{ page }}
+                </button>
+              </div>
+              <button
+                class="page-button next-button"
+                [disabled]="currentDocumentsPage === totalDocumentsPages"
+                (click)="goToDocumentsPage(currentDocumentsPage + 1)">
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statistics Tab -->
+      <div *ngIf="activeTab === 'statistics'" class="tab-pane statistics-tab">
+        <div class="content-card">
+          <h2 class="card-title">Statistics & Analytics</h2>
+          <div class="stats-charts">
+            <div class="chart-container">
+              <h3 class="chart-title">Document Types Distribution</h3>
+              <div class="chart-placeholder">
+                <!-- Chart visualization would be rendered here -->
+                <div class="placeholder-text">Document type distribution chart</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <h3 class="chart-title">Document Sizes</h3>
+              <div class="chart-placeholder">
+                <!-- Chart visualization would be rendered here -->
+                <div class="placeholder-text">Document size distribution chart</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <h3 class="chart-title">Upload Activity</h3>
+              <div class="chart-placeholder">
+                <!-- Chart visualization would be rendered here -->
+                <div class="placeholder-text">Document upload timeline chart</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div *ngIf="activeTab === 'settings'" class="tab-pane settings-tab">
+        <div class="content-card">
+          <h2 class="card-title">Dataset Settings</h2>
+          <div class="settings-form">
+            <div class="form-group">
+              <label class="form-label">Dataset Visibility</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="visibility" value="public" checked>
+                  <span class="radio-text">Public</span>
+                  <span class="radio-description">Visible to all members of your organization</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="visibility" value="private">
+                  <span class="radio-text">Private</span>
+                  <span class="radio-description">Only visible to you</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Export Settings</label>
+              <div class="export-options">
+                <button class="outline-button">
+                  Export as CSV
+                </button>
+                <button class="outline-button">
+                  Export as JSON
+                </button>
+              </div>
+            </div>
+            <div class="form-group danger-zone">
+              <label class="form-label danger-label">Danger Zone</label>
+              <div class="danger-actions">
+                <button class="delete-button" (click)="deleteDataset($event)">
+                  Delete Dataset
+                </button>
+              </div>
+              <p class="danger-description">This action cannot be undone. All data will be permanently deleted.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Preview Modal -->
+  <div *ngIf="previewingDocument" class="document-preview-modal">
+    <div class="modal-backdrop" (click)="closeDocumentPreview()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Document Preview: {{ currentPreviewDocument?.name }}</h3>
+        <button class="close-button" (click)="closeDocumentPreview()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-content">
+          <div *ngIf="isLoadingPreview" class="preview-loading">
+            <div class="spinner"></div>
+            <p>Loading document content...</p>
+          </div>
+          <div *ngIf="!isLoadingPreview && documentPreviewError" class="preview-error">
+            <div class="error-icon">❌</div>
+            <p>{{ documentPreviewError }}</p>
+          </div>
+          <div *ngIf="!isLoadingPreview && !documentPreviewError" class="preview-container" [ngSwitch]="getDocumentFormat(currentPreviewDocument)">
+            <!-- CSV Preview -->
+            <div *ngSwitchCase="'CSV'" class="csv-preview">
+              <div class="csv-table">
+                <div class="csv-header">
+                  <div *ngFor="let header of documentPreviewHeaders" class="csv-cell">
+                    {{ header }}
+                  </div>
+                </div>
+                <div *ngFor="let row of documentPreviewData" class="csv-row">
+                  <div *ngFor="let header of documentPreviewHeaders" class="csv-cell">
+                    {{ row[header] }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Text Preview -->
+            <div *ngSwitchCase="'TXT'" class="text-preview">
+              <pre>{{ documentPreviewContent }}</pre>
+            </div>
+
+            <!-- JSON Preview -->
+            <div *ngSwitchCase="'JSON'" class="json-preview">
+              <pre>{{ formatJson(documentPreviewContent) }}</pre>
+            </div>
+
+            <!-- Fallback Preview -->
+            <div *ngSwitchDefault class="fallback-preview">
+              <p>Preview not available for this file type.</p>
+              <p>You can download the file to view its contents.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="outline-button" (click)="downloadDocument()">
+          Download
+        </button>
+        <button class="primary-button" (click)="closeDocumentPreview()">
+          Close
         </button>
       </div>
-    </form>
+    </div>
   </div>
 </div>
