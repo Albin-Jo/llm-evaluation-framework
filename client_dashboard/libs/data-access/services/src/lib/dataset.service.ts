@@ -26,66 +26,102 @@ export class DatasetService {
     console.log('DatasetService initialized with baseUrl:', this.baseUrl);
   }
 
-  /**
-   * Get a list of datasets with optional filtering
-   */
-  getDatasets(filters: DatasetFilterParams = {}): Observable<DatasetListResponse> {
-    // Convert the filters object to HttpParams
-    let params = new HttpParams();
+/**
+ * Get a list of datasets with optional filtering
+ */
+getDatasets(filters: DatasetFilterParams = {}): Observable<DatasetListResponse> {
+  // Convert the filters object to HttpParams
+  let params = new HttpParams();
 
-    // Add each parameter if it exists
-    if (filters.page !== undefined) {
-      params = params.set('skip', ((filters.page - 1) * (filters.limit || 10)).toString());
-    } else {
-      params = params.set('skip', '0');
-    }
-
-    if (filters.limit !== undefined) {
-      params = params.set('limit', filters.limit.toString());
-    } else {
-      params = params.set('limit', '100');
-    }
-
-    if (filters.search) {
-      params = params.set('search', filters.search);
-    }
-
-    if (filters.status) {
-      params = params.set('status', filters.status);
-    }
-
-    // Handle is_public parameter
-    const isPublic = filters.is_public !== undefined ? filters.is_public : true;
-    params = params.set('is_public', isPublic.toString());
-
-    console.log('Fetching datasets with params:', params.toString());
-
-    return this.httpClient.get<any>(this.baseUrl, params)
-      .pipe(
-        tap(response => console.log('Raw dataset list response:', response)),
-        map(response => {
-          // Transform the API response to match the expected structure
-          if (Array.isArray(response)) {
-            console.log('Response is an array, transforming');
-            return {
-              datasets: response.map(item => this.transformDataset(item)),
-              totalCount: response.length
-            } as DatasetListResponse;
-          } else if (response.items && Array.isArray(response.items)) {
-            // Handle paginated response format
-            return {
-              datasets: response.items.map((item: any) => this.transformDataset(item)),
-              totalCount: response.total || response.items.length
-            } as DatasetListResponse;
-          }
-
-          // Return the response as is if it already matches our format
-          console.log('Returning response as is');
-          return response as DatasetListResponse;
-        }),
-        catchError(error => this.handleError('Failed to fetch datasets', error))
-      );
+  // Add each parameter if it exists
+  if (filters.page !== undefined) {
+    params = params.set('skip', ((filters.page - 1) * (filters.limit || 10)).toString());
+  } else {
+    params = params.set('skip', '0');
   }
+
+  if (filters.limit !== undefined) {
+    params = params.set('limit', filters.limit.toString());
+  } else {
+    params = params.set('limit', '100');
+  }
+
+  if (filters.search) {
+    params = params.set('search', filters.search);
+  }
+
+  if (filters.status) {
+    params = params.set('status', filters.status);
+  }
+
+  if (filters.type) {
+    params = params.set('type', filters.type);
+  }
+
+  // Handle is_public parameter
+  const isPublic = filters.is_public !== undefined ? filters.is_public : true;
+  params = params.set('is_public', isPublic.toString());
+
+  // Add date filtering if provided
+  if (filters.dateFrom) {
+    params = params.set('date_from', filters.dateFrom);
+  }
+
+  if (filters.dateTo) {
+    params = params.set('date_to', filters.dateTo);
+  }
+
+  // Add size filtering if provided
+  if (filters.sizeMin !== undefined) {
+    params = params.set('size_min', filters.sizeMin.toString());
+  }
+
+  if (filters.sizeMax !== undefined) {
+    params = params.set('size_max', filters.sizeMax.toString());
+  }
+
+  // Add sorting parameters
+  if (filters.sortBy) {
+    params = params.set('sort_by', filters.sortBy);
+  }
+
+  if (filters.sortDirection) {
+    params = params.set('sort_direction', filters.sortDirection);
+  }
+
+  // Add tags filtering if provided
+  if (filters.tags && filters.tags.length > 0) {
+    params = params.set('tags', filters.tags.join(','));
+  }
+
+  console.log('Fetching datasets with params:', params.toString());
+
+  return this.httpClient.get<any>(this.baseUrl, params)
+    .pipe(
+      tap(response => console.log('Raw dataset list response:', response)),
+      map(response => {
+        // Transform the API response to match the expected structure
+        if (Array.isArray(response)) {
+          console.log('Response is an array, transforming');
+          return {
+            datasets: response.map(item => this.transformDataset(item)),
+            totalCount: response.length
+          } as DatasetListResponse;
+        } else if (response.items && Array.isArray(response.items)) {
+          // Handle paginated response format
+          return {
+            datasets: response.items.map((item: any) => this.transformDataset(item)),
+            totalCount: response.total || response.items.length
+          } as DatasetListResponse;
+        }
+
+        // Return the response as is if it already matches our format
+        console.log('Returning response as is');
+        return response as DatasetListResponse;
+      }),
+      catchError(error => this.handleError('Failed to fetch datasets', error))
+    );
+}
 
   /**
    * Get a single dataset by ID
