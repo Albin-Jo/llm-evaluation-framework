@@ -1,729 +1,692 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.ts */
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Subject, takeUntil, switchMap, of, catchError, BehaviorSubject } from 'rxjs';
-import {
-  Dataset,
-  DatasetStatus,
-  DatasetUpdateRequest,
-  Document
-} from '@ngtx-apps/data-access/models';
-import { DatasetService } from '@ngtx-apps/data-access/services';
-import { AlertService } from '@ngtx-apps/utils/services';
+/* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.scss */
+@import '../../../../../../../styles/variables';
+@import '../../../../../../../styles/mixins';
 
-interface TabDefinition {
-  id: string;
-  label: string;
+:host {
+  display: block;
+  width: 100%;
 }
 
-@Component({
-  selector: 'app-dataset-detail',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    ReactiveFormsModule
-  ],
-  schemas: [NO_ERRORS_SCHEMA],
-  templateUrl: './dataset-detail.page.html',
-  styleUrls: ['./dataset-detail.page.scss']
-})
-export class DatasetDetailPage implements OnInit, OnDestroy {
-  // Dataset data
-  dataset: Dataset | null = null;
-  documents: Document[] = [];
+.dataset-detail-container {
+  padding: $spacing-6;
+  max-width: $container-xxl;
+  margin: 0 auto;
 
-  // UI state
-  isLoading = true;
-  isEditing = false;
-  isSaving = false;
-  errorMessage: string | null = null;
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
+}
 
-  // Tab navigation
-  activeTab = 'overview';
-  tabs: TabDefinition[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'documents', label: 'Documents' },
-    { id: 'statistics', label: 'Statistics' },
-    { id: 'settings', label: 'Settings' }
-  ];
+// Back Navigation
+.back-navigation {
+  margin-bottom: $spacing-6;
 
-  // Editing state
-  editingDataset: Partial<Dataset> = {};
+  .back-button {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: $primary;
+    font-size: $font-size-sm;
+    padding: $spacing-2 0;
+    cursor: pointer;
 
-  // Documents list state
-  documentSearchQuery = '';
-  documentFormatFilter = '';
-  documentSortBy = 'name';
-  documentSortDirection: 'asc' | 'desc' = 'asc';
-  filteredDocuments: Document[] = [];
-  isLoadingDocuments = false;
+    &:hover {
+      text-decoration: underline;
+    }
 
-  // Pagination
-  itemsPerPage = 10;
-  currentDocumentsPage = 1;
-  totalDocumentsPages = 1;
+    .back-icon {
+      margin-right: $spacing-2;
+      font-size: $font-size-md;
+    }
+  }
 
   // Document Preview Modal
-  previewingDocument = false;
-  currentPreviewDocument: Document | null = null;
-  isLoadingPreview = false;
-  documentPreviewContent = '';
-  documentPreviewError: string | null = null;
-  documentPreviewHeaders: string[] = [];
-  documentPreviewData: any[] = [];
+  .document-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-  // Available Tags and Formats
-  availableTags = [
-    'documentation',
-    'technical',
-    'marketing',
-    'support',
-    'knowledge-base',
-    'training',
-    'api',
-    'legal'
-  ];
+    .modal-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
 
-  availableFormats: string[] = [];
+    .modal-content {
+      position: relative;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      background-color: white;
+      border-radius: $radius-md;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: $shadow-lg;
 
-  private destroy$ = new Subject<void>();
+      .modal-header {
+        padding: $spacing-4 $spacing-6;
+        border-bottom: 1px solid $border-light;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private datasetService: DatasetService,
-    private alertService: AlertService
-  ) {}
-
-  ngOnInit(): void {
-    this.loadDatasetDetails();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  /**
-   * Load dataset details from the API
-   */
-  loadDatasetDetails(): void {
-    this.isLoading = true;
-    this.errorMessage = null;
-
-    this.route.paramMap.pipe(
-      switchMap(params => {
-        const id = params.get('id');
-
-        if (!id) {
-          this.router.navigate(['app/datasets/datasets']);
-          return of(null);
+        .modal-title {
+          margin: 0;
+          font-size: $font-size-lg;
+          font-weight: $font-weight-semibold;
         }
 
-        return this.datasetService.getDataset(id).pipe(
-          catchError(error => {
-            this.errorMessage = 'Failed to load dataset. Please try again.';
-            console.error('Error loading dataset:', error);
-            return of(null);
-          })
-        );
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (response) => {
-        if (response) {
-          this.dataset = response.dataset;
-          this.documents = response.documents || [];
+        .close-button {
+          background: none;
+          border: none;
+          font-size: $font-size-xl;
+          cursor: pointer;
+          color: $text-secondary;
 
-          if (this.dataset) {
-            // Extract unique formats
-            this.availableFormats = Array.from(
-              new Set(this.documents.map(doc => this.getDocumentFormat(doc)))
-            ).filter(format => format);
-
-            // Initialize filtered documents
-            this.filterDocuments();
+          &:hover {
+            color: $text-primary;
           }
         }
-        this.isLoading = false;
-      },
-      error: (error) => {
-        this.alertService.showAlert({
-          show: true,
-          message: 'Failed to load dataset details. Please try again.',
-          title: 'Error'
-        });
-        this.isLoading = false;
-        console.error('Unexpected error:', error);
       }
-    });
-  }
 
-  /**
-   * Set active tab
-   */
-  setActiveTab(tabId: string): void {
-    this.activeTab = tabId;
+      .modal-body {
+        flex: 1;
+        overflow: auto;
+        padding: $spacing-4 $spacing-6;
 
-    // Reset document pagination when switching to documents tab
-    if (tabId === 'documents') {
-      this.currentDocumentsPage = 1;
-      this.filterDocuments();
-    }
-  }
+        .preview-content {
+          height: 100%;
+          min-height: 300px;
 
-  /**
-   * Start editing dataset
-   */
-  startEditing(): void {
-    if (!this.dataset) return;
+          .preview-loading, .preview-error {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: $text-secondary;
 
-    this.editingDataset = {
-      ...this.dataset,
-      tags: [...(this.dataset.tags || [])]
-    };
+            .spinner {
+              @include spinner;
+              margin-bottom: $spacing-4;
+            }
 
-    this.isEditing = true;
-  }
-
-  /**
-   * Cancel editing
-   */
-  cancelEditing(): void {
-    this.isEditing = false;
-    this.editingDataset = {};
-  }
-
-  /**
-   * Toggle tag selection during editing
-   */
-  toggleTag(tag: string): void {
-    if (!this.editingDataset.tags) {
-      this.editingDataset.tags = [];
-    }
-
-    if (this.editingDataset.tags.includes(tag)) {
-      this.editingDataset.tags = this.editingDataset.tags.filter(t => t !== tag);
-    } else {
-      this.editingDataset.tags = [...this.editingDataset.tags, tag];
-    }
-  }
-
-  /**
-   * Check if save is allowed
-   */
-  canSave(): boolean {
-    return !!(this.editingDataset.name && this.editingDataset.name.trim());
-  }
-
-  /**
-   * Save dataset changes
-   */
-  saveChanges(): void {
-    if (!this.canSave() || !this.dataset) return;
-
-    this.isSaving = true;
-
-    const updateRequest: DatasetUpdateRequest = {
-      name: this.editingDataset.name,
-      description: this.editingDataset.description,
-      tags: this.editingDataset.tags
-    };
-
-    this.datasetService.updateDataset(this.dataset.id, updateRequest)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          this.dataset = response;
-          this.alertService.showAlert({
-            show: true,
-            message: 'Dataset updated successfully',
-            title: 'Success'
-          });
-          this.isSaving = false;
-          this.isEditing = false;
-        },
-        error: (error) => {
-          this.alertService.showAlert({
-            show: true,
-            message: 'Failed to update dataset. Please try again.',
-            title: 'Error'
-          });
-          this.isSaving = false;
-          console.error('Error updating dataset:', error);
-        }
-      });
-  }
-
-  /**
-   * Delete dataset with confirmation
-   */
-  deleteDataset(event?: Event): void {
-    if (event) {
-      event.preventDefault();
-    }
-
-    if (!this.dataset) return;
-
-    if (confirm('Are you sure you want to delete this dataset? This action cannot be undone.')) {
-      this.datasetService.deleteDataset(this.dataset.id)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: () => {
-            this.alertService.showAlert({
-              show: true,
-              message: 'Dataset deleted successfully',
-              title: 'Success'
-            });
-            this.router.navigate(['app/datasets/datasets']);
-          },
-          error: (error) => {
-            this.alertService.showAlert({
-              show: true,
-              message: 'Failed to delete dataset. Please try again.',
-              title: 'Error'
-            });
-            console.error('Error deleting dataset:', error);
+            .error-icon {
+              font-size: $font-size-2xl;
+              color: $error;
+              margin-bottom: $spacing-4;
+            }
           }
-        });
-    }
-  }
 
-  /**
-   * Get recent documents for overview tab
-   */
-  getRecentDocuments(): Document[] {
-    return this.documents.slice(0, 5);
-  }
+          .preview-container {
+            height: 100%;
 
-  /**
-   * Format file size for a document
-   */
-  getDocumentSize(document: Document | null): string {
-    if (!document || !document.metadata?.size) return 'N/A';
+            .csv-preview, .text-preview, .json-preview, .fallback-preview {
+              height: 100%;
+              overflow: auto;
+            }
 
-    const bytes = document.metadata.size as number;
-    return this.formatFileSize(bytes);
-  }
+            .csv-table {
+              border: 1px solid $border-light;
+              border-radius: $radius-sm;
+              overflow: hidden;
 
-  /**
-   * Get format/type of a document
-   */
-  getDocumentFormat(document: Document | null): string {
-    if (!document) return '';
+              .csv-header {
+                display: flex;
+                background-color: $background-light;
+                font-weight: $font-weight-semibold;
 
-    if (document.metadata?.format) {
-      return document.metadata.format as string;
-    }
+                .csv-cell {
+                  padding: $spacing-3;
+                  flex: 1;
+                  min-width: 100px;
+                  border-right: 1px solid $border-light;
 
-    // Try to determine format from filename
-    const name = document.name || '';
-    const extension = name.split('.').pop()?.toUpperCase() || '';
+                  &:last-child {
+                    border-right: none;
+                  }
+                }
+              }
 
-    return extension || 'Unknown';
-  }
+              .csv-row {
+                display: flex;
+                border-top: 1px solid $border-light;
 
-  /**
-   * Get average document length
-   */
-  getAverageDocLength(): string {
-    if (!this.documents || this.documents.length === 0) return '0';
+                &:nth-child(even) {
+                  background-color: $background-light;
+                }
 
-    // Try to get average token count from metadata
-    let totalTokens = 0;
-    let documentsWithTokens = 0;
+                .csv-cell {
+                  padding: $spacing-3;
+                  flex: 1;
+                  min-width: 100px;
+                  border-right: 1px solid $border-light;
+                  word-break: break-word;
 
-    this.documents.forEach(doc => {
-      if (doc.metadata?.token_count) {
-        totalTokens += doc.metadata.token_count as number;
-        documentsWithTokens++;
-      }
-    });
+                  &:last-child {
+                    border-right: none;
+                  }
+                }
+              }
+            }
 
-    if (documentsWithTokens > 0) {
-      return Math.round(totalTokens / documentsWithTokens).toString();
-    }
+            .text-preview, .json-preview {
+              pre {
+                margin: 0;
+                padding: $spacing-4;
+                background-color: $background-light;
+                border-radius: $radius-sm;
+                font-family: monospace;
+                white-space: pre-wrap;
+                word-break: break-word;
+              }
+            }
 
-    // Fallback: estimate based on content length
-    const totalChars = this.documents.reduce((sum, doc) => sum + (doc.content?.length || 0), 0);
-    const avgChars = totalChars / this.documents.length;
+            .fallback-preview {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              color: $text-secondary;
+              padding: $spacing-8;
 
-    // Rough estimate: ~4 chars per token
-    return Math.round(avgChars / 4).toString();
-  }
-
-  /**
-   * Get file format distribution
-   */
-  getFileFormatDistribution(): string {
-    if (!this.documents || this.documents.length === 0) return 'N/A';
-
-    const formatCounts: Record<string, number> = {};
-
-    this.documents.forEach(doc => {
-      const format = this.getDocumentFormat(doc);
-      formatCounts[format] = (formatCounts[format] || 0) + 1;
-    });
-
-    // Sort by count and format string
-    const formats = Object.entries(formatCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 2) // Take top 2
-      .map(([format, count]) => {
-        const percentage = Math.round((count / this.documents.length) * 100);
-        return `${format} (${percentage}%)`;
-      });
-
-    return formats.join(', ');
-  }
-
-  /**
-   * Navigate to document upload
-   */
-  uploadDocuments(event: Event): void {
-    event.preventDefault();
-    if (!this.dataset) return;
-
-    // Navigate to the upload page with the dataset ID
-    this.router.navigate(['app/datasets/datasets/upload'], {
-      queryParams: { datasetId: this.dataset.id }
-    });
-  }
-
-  /**
-   * Filter documents based on search and filters
-   */
-  filterDocuments(): void {
-    if (!this.documents) {
-      this.filteredDocuments = [];
-      this.updatePagination();
-      return;
-    }
-
-    let result = [...this.documents];
-
-    // Apply search filter
-    if (this.documentSearchQuery) {
-      const query = this.documentSearchQuery.toLowerCase();
-      result = result.filter(doc =>
-        doc.name.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply format filter
-    if (this.documentFormatFilter) {
-      result = result.filter(doc =>
-        this.getDocumentFormat(doc) === this.documentFormatFilter
-      );
-    }
-
-    // Apply sorting
-    result.sort((a, b) => {
-      let valueA: any;
-      let valueB: any;
-
-      switch (this.documentSortBy) {
-        case 'name':
-          valueA = a.name;
-          valueB = b.name;
-          break;
-        case 'createdAt':
-          valueA = new Date(a.createdAt).getTime();
-          valueB = new Date(b.createdAt).getTime();
-          break;
-        case 'size':
-          valueA = a.metadata?.size || 0;
-          valueB = b.metadata?.size || 0;
-          break;
-        default:
-          valueA = a.name;
-          valueB = b.name;
-      }
-
-      // Handle string comparisons
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
-        const compareResult = valueA.localeCompare(valueB);
-        return this.documentSortDirection === 'asc' ? compareResult : -compareResult;
-      }
-
-      // Handle number comparisons
-      const compareResult = valueA - valueB;
-      return this.documentSortDirection === 'asc' ? compareResult : -compareResult;
-    });
-
-    this.filteredDocuments = result;
-    this.updatePagination();
-  }
-
-  /**
-   * Toggle sort direction
-   */
-  toggleSortDirection(): void {
-    this.documentSortDirection = this.documentSortDirection === 'asc' ? 'desc' : 'asc';
-    this.filterDocuments();
-  }
-
-  /**
-   * Reset document filters
-   */
-  resetDocumentFilters(): void {
-    this.documentSearchQuery = '';
-    this.documentFormatFilter = '';
-    this.documentSortBy = 'name';
-    this.documentSortDirection = 'asc';
-    this.filterDocuments();
-  }
-
-  /**
-   * Update pagination after filtering
-   */
-  updatePagination(): void {
-    this.totalDocumentsPages = Math.max(1, Math.ceil(this.filteredDocuments.length / this.itemsPerPage));
-
-    if (this.currentDocumentsPage > this.totalDocumentsPages) {
-      this.currentDocumentsPage = 1;
-    }
-  }
-
-  /**
-   * Get currently visible documents based on pagination
-   */
-  get paginatedDocuments(): Document[] {
-    const startIndex = (this.currentDocumentsPage - 1) * this.itemsPerPage;
-    const endIndex = Math.min(startIndex + this.itemsPerPage, this.filteredDocuments.length);
-
-    return this.filteredDocuments.slice(startIndex, endIndex);
-  }
-
-  /**
-   * Get pagination display info
-   */
-  get paginationStart(): number {
-    if (this.filteredDocuments.length === 0) return 0;
-    return (this.currentDocumentsPage - 1) * this.itemsPerPage + 1;
-  }
-
-  get paginationEnd(): number {
-    return Math.min(
-      this.currentDocumentsPage * this.itemsPerPage,
-      this.filteredDocuments.length
-    );
-  }
-
-  /**
-   * Navigate to specific page
-   */
-  goToDocumentsPage(page: number): void {
-    if (page < 1 || page > this.totalDocumentsPages) return;
-    this.currentDocumentsPage = page;
-  }
-
-  /**
-   * Get array of page numbers to display
-   */
-  getDocumentPageNumbers(): number[] {
-    const totalPages = this.totalDocumentsPages;
-    const currentPage = this.currentDocumentsPage;
-    const maxVisiblePages = 5;
-
-    if (totalPages <= maxVisiblePages) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = startPage + maxVisiblePages - 1;
-
-    if (endPage > totalPages) {
-      endPage = totalPages;
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-  }
-
-  /**
-   * Preview a document
-   */
-  previewDocument(document: Document): void {
-    this.currentPreviewDocument = document;
-    this.previewingDocument = true;
-    this.isLoadingPreview = true;
-    this.documentPreviewContent = '';
-    this.documentPreviewError = null;
-    this.documentPreviewHeaders = [];
-    this.documentPreviewData = [];
-
-    const format = this.getDocumentFormat(document);
-
-    // For a real implementation, we would call an API to get the document content
-    // This is a simplified simulation for demonstration
-    setTimeout(() => {
-      this.isLoadingPreview = false;
-
-      // Simulate preview based on format
-      if (format === 'CSV') {
-        this.documentPreviewHeaders = ['ID', 'Query', 'Category', 'Response'];
-        this.documentPreviewData = [
-          { ID: '001', Query: 'How do I reset my password?', Category: 'Account', Response: 'You can reset your password by...' },
-          { ID: '002', Query: 'Where can I find billing information?', Category: 'Billing', Response: 'Your billing information is available in...' },
-          { ID: '003', Query: 'Product doesn\'t start after update', Category: 'Technical', Response: 'Please try the following troubleshooting steps...' }
-        ];
-      } else if (format === 'TXT') {
-        this.documentPreviewContent = document.content || 'No content available for preview.';
-      } else if (format === 'JSON') {
-        try {
-          // Try to pretty-print JSON if content is available
-          const jsonContent = document.content || '{"message": "Sample JSON data for preview."}';
-          this.documentPreviewContent = JSON.stringify(JSON.parse(jsonContent), null, 2);
-        } catch (e) {
-          this.documentPreviewContent = '{"error": "Invalid JSON content"}';
+              p:first-child {
+                margin-bottom: $spacing-3;
+              }
+            }
+          }
         }
-      } else {
-        this.documentPreviewError = `Preview not available for ${format} files`;
       }
-    }, 1000);
+
+      .modal-footer {
+        padding: $spacing-4 $spacing-6;
+        border-top: 1px solid $border-light;
+        display: flex;
+        justify-content: flex-end;
+        gap: $spacing-3;
+
+        .outline-button {
+          @include button-outline;
+        }
+
+        .primary-button {
+          @include button-primary;
+        }
+      }
+    }
+  }
+}
+
+// Loading & Error States
+.loading-container, .error-container {
+  @include card-padded;
+  margin-bottom: $spacing-6;
+  text-align: center;
+  padding: $spacing-12;
+}
+
+.loading-container {
+  @include loading-container;
+}
+
+.error-container {
+  @include error-container;
+
+  h2 {
+    color: $error;
+    margin-bottom: $spacing-2;
   }
 
-  /**
-   * Format JSON for display
-   */
-  formatJson(jsonString: string): string {
-    try {
-      return JSON.stringify(JSON.parse(jsonString), null, 2);
-    } catch (e) {
-      return jsonString;
+  p {
+    margin-bottom: $spacing-6;
+  }
+
+  .error-actions {
+    display: flex;
+    justify-content: center;
+    gap: $spacing-4;
+  }
+
+  .primary-button {
+    @include button-primary;
+  }
+}
+
+// Dataset Details
+.dataset-details {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-6;
+
+  // Header with Title and Actions
+  .detail-header {
+    @include card-padded;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-4 $spacing-6;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $spacing-4;
+    }
+
+    .header-content {
+      flex: 1;
+
+      .detail-title {
+        margin: 0 0 $spacing-2 0;
+        font-size: $font-size-2xl;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+      }
+
+      .detail-title-input {
+        width: 100%;
+        max-width: 500px;
+        font-size: $font-size-2xl;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+        padding: $spacing-2;
+        border: 1px solid $border-color;
+        border-radius: $radius-sm;
+        margin-bottom: $spacing-2;
+
+        &:focus {
+          outline: none;
+          border-color: $primary;
+        }
+
+        &.is-invalid {
+          border-color: $error;
+        }
+      }
+
+      .detail-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-2;
+      }
+
+      .status-badge {
+        padding: $spacing-1 $spacing-3;
+        border-radius: $radius-full;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-medium;
+        text-transform: uppercase;
+
+        &.status-ready {
+          background-color: $success-light;
+          color: $success;
+        }
+
+        &.status-processing {
+          background-color: $warning-light;
+          color: darken($warning, 10%);
+        }
+
+        &.status-error {
+          background-color: $error-light;
+          color: $error;
+        }
+      }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: $spacing-3;
+
+      @include media-breakpoint-down(md) {
+        width: 100%;
+      }
+
+      .outline-button {
+        @include button-outline;
+
+        &.edit-button {
+          color: $primary;
+          border-color: $primary;
+        }
+
+        &.delete-button {
+          color: $error;
+          border-color: $error;
+        }
+
+        &.cancel-button {
+          color: $text-secondary;
+          border-color: $border-color;
+        }
+      }
+
+      .primary-button {
+        @include button-primary;
+      }
     }
   }
 
-  /**
-   * Close document preview modal
-   */
-  closeDocumentPreview(): void {
-    this.previewingDocument = false;
-    this.currentPreviewDocument = null;
-  }
+  // Main Content Layout
+  .content-layout {
+    display: flex;
+    gap: $spacing-6;
 
-  /**
-   * Download document
-   */
-  downloadDocument(): void {
-    if (!this.currentPreviewDocument) return;
+    @include media-breakpoint-down(lg) {
+      flex-direction: column;
+    }
 
-    // For demo purposes, we'll just show an alert
-    // In a real application, this would initiate a file download
-    this.alertService.showAlert({
-      show: true,
-      message: `Download started for ${this.currentPreviewDocument.name}`,
-      title: 'Info'
-    });
-  }
+    .left-column, .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-6;
+    }
 
-  /**
-   * Confirm and delete document
-   */
-  confirmDeleteDocument(event: Event, documentId: string): void {
-    event.stopPropagation(); // Prevent triggering other click events
+    .left-column {
+      flex: 3;
+    }
 
-    if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-      // Simulated delete - In a real application, this would call an API
-      this.documents = this.documents.filter(doc => doc.id !== documentId);
-      this.filterDocuments();
-
-      this.alertService.showAlert({
-        show: true,
-        message: 'Document deleted successfully',
-        title: 'Success'
-      });
+    .right-column {
+      flex: 2;
     }
   }
 
-  /**
-   * Go back to datasets list
-   */
-  goBack(event: Event): void {
-    event.preventDefault();
-    this.router.navigate(['app/datasets/datasets']);
-  }
+  // Content Cards
+  .content-card {
+    background-color: white;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    padding: $spacing-6;
+    box-shadow: $shadow-sm;
 
-  /**
-   * Format date for display
-   */
-  formatDate(dateString: string | undefined): string {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      }).format(date);
-    } catch (e) {
-      return 'Invalid date';
+    @include media-breakpoint-down(md) {
+      padding: $spacing-4;
+    }
+
+    .card-title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+      margin-top: 0;
+      margin-bottom: $spacing-4;
+      padding-bottom: $spacing-3;
+      border-bottom: 1px solid $border-light;
     }
   }
 
-  /**
-   * Format file size for display
-   */
-  formatFileSize(bytes: number | undefined): string {
-    if (bytes === undefined || bytes === 0) return 'N/A';
+  // Dataset Info Card
+  .dataset-info-card {
+    .info-group {
+      margin-bottom: $spacing-4;
 
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let value = bytes;
-    let unitIndex = 0;
+      &:last-child {
+        margin-bottom: 0;
+      }
 
-    while (value >= 1024 && unitIndex < units.length - 1) {
-      value /= 1024;
-      unitIndex++;
+      .info-label {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        margin-bottom: $spacing-1;
+      }
+
+      .info-value {
+        color: $text-primary;
+      }
+
+      .info-textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: $spacing-3;
+        border: 1px solid $border-color;
+        border-radius: $radius-sm;
+        font-size: $font-size-sm;
+        resize: vertical;
+
+        &:focus {
+          outline: none;
+          border-color: $primary;
+        }
+      }
     }
 
-    return `${value.toFixed(1)} ${units[unitIndex]}`;
-  }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: $spacing-4;
+      margin-bottom: $spacing-4;
 
-  /**
-   * Get status text for display
-   */
-  get statusText(): string {
-    if (!this.dataset) return '';
+      .info-item {
+        .info-label {
+          font-size: $font-size-sm;
+          color: $text-secondary;
+          margin-bottom: $spacing-1;
+        }
 
-    switch (this.dataset.status) {
-      case DatasetStatus.READY:
-        return 'Ready';
-      case DatasetStatus.PROCESSING:
-        return 'Processing';
-      case DatasetStatus.ERROR:
-        return 'Error';
-      default:
-        return 'Unknown';
+        .info-value {
+          color: $text-primary;
+        }
+      }
+    }
+
+    // Tags Section
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $spacing-2;
+
+      .tag-pill {
+        display: inline-flex;
+        padding: $spacing-1 $spacing-3;
+        border-radius: $radius-full;
+        background-color: $primary-light;
+        color: $primary;
+        font-size: $font-size-sm;
+      }
+
+      .no-tags {
+        color: $text-secondary;
+        font-style: italic;
+        font-size: $font-size-sm;
+      }
+
+      .tag-button {
+        background-color: $background-light;
+        border: 1px solid $border-color;
+        border-radius: $radius-full;
+        padding: $spacing-2 $spacing-3;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background-color: darken($background-light, 5%);
+        }
+
+        &.active {
+          background-color: $primary-light;
+          border-color: $primary;
+          color: $primary;
+        }
+      }
     }
   }
 
-  /**
-   * Get status CSS class
-   */
-  get statusClass(): string {
-    if (!this.dataset) return '';
+  // Statistics Card
+  .statistics-card {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-4;
 
-    switch (this.dataset.status) {
-      case DatasetStatus.READY:
-        return 'status-ready';
-      case DatasetStatus.PROCESSING:
-        return 'status-processing';
-      case DatasetStatus.ERROR:
-        return 'status-error';
-      default:
-        return '';
+      @include media-breakpoint-down(sm) {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-item {
+        .stat-card {
+          background-color: $background-light;
+          border-radius: $radius-sm;
+          padding: $spacing-4;
+
+          .stat-label {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            margin-bottom: $spacing-2;
+          }
+
+          .stat-value {
+            font-size: $font-size-2xl;
+            font-weight: $font-weight-bold;
+            color: $primary;
+
+            .stat-unit {
+              font-size: $font-size-sm;
+              color: $text-secondary;
+              font-weight: $font-weight-regular;
+              margin-left: $spacing-1;
+            }
+          }
+
+          .stat-value-small {
+            font-size: $font-size-base;
+            color: $text-primary;
+          }
+        }
+      }
     }
   }
 
-  /**
-   * Get formatted file size
-   */
-  get formattedSize(): string {
-    if (!this.dataset || !this.dataset.size) return 'N/A';
-    return this.formatFileSize(this.dataset.size);
+  // Documents Card
+  .documents-card {
+    .empty-documents {
+      @include empty-state;
+      padding: $spacing-8;
+      text-align: center;
+
+      .empty-icon {
+        font-size: $font-size-3xl;
+        color: $text-tertiary;
+        margin-bottom: $spacing-4;
+      }
+
+      p {
+        color: $text-secondary;
+        margin-bottom: $spacing-6;
+      }
+
+      .primary-button {
+        @include button-primary;
+      }
+    }
+
+    .document-display {
+      .document-list {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .table-header {
+        display: flex;
+        background-color: $background-light;
+        border: 1px solid $border-color;
+        font-weight: $font-weight-semibold;
+        color: $text-secondary;
+        font-size: $font-size-xs;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+
+        > div {
+          padding: $spacing-3 $spacing-4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      .table-body {
+        .table-row {
+          display: flex;
+          border-bottom: 1px solid $border-light;
+          align-items: center;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: rgba($primary, 0.05);
+          }
+
+          > div {
+            padding: $spacing-3 $spacing-4;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+
+      // Column widths
+      .filename-col {
+        width: 35%;
+        min-width: 180px;
+      }
+
+      .format-col {
+        width: 10%;
+        min-width: 80px;
+      }
+
+      .size-col {
+        width: 15%;
+        min-width: 80px;
+      }
+
+      .added-col {
+        width: 20%;
+        min-width: 120px;
+      }
+
+      .actions-col {
+        width: 20%;
+        min-width: 160px;
+        display: flex;
+        justify-content: flex-end;
+        gap: $spacing-2;
+
+        .action-button {
+          padding: $spacing-1 $spacing-3;
+          border: 1px solid $border-color;
+          border-radius: $radius-sm;
+          background: none;
+          font-size: $font-size-xs;
+          cursor: pointer;
+          transition: $transition-normal;
+
+          &:hover {
+            background-color: $background-light;
+          }
+
+          &.view-button:hover {
+            border-color: $primary;
+            color: $primary;
+          }
+
+          &.delete-button:hover {
+            border-color: $error;
+            color: $error;
+          }
+        }
+      }
+    }
   }
 }
