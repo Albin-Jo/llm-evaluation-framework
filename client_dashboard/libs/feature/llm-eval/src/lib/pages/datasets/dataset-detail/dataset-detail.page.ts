@@ -1,692 +1,575 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.scss */
-@import '../../../../../../../styles/variables';
-@import '../../../../../../../styles/mixins';
+/* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.ts */
+import { Component, OnInit, OnDestroy, NO_ERRORS_SCHEMA } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription, finalize } from 'rxjs';
+import { Location } from '@angular/common';
+import {
+  Dataset,
+  DatasetUpdateRequest,
+  Document,
+  DatasetDetailResponse
+} from '@ngtx-apps/data-access/models';
+import { DatasetService } from '@ngtx-apps/data-access/services';
+import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
 
-:host {
-  display: block;
-  width: 100%;
-}
+@Component({
+  selector: 'app-dataset-detail',
+  templateUrl: './dataset-detail.page.html',
+  styleUrls: ['./dataset-detail.page.scss'],
+  schemas: [NO_ERRORS_SCHEMA]
+})
+export class DatasetDetailPage implements OnInit, OnDestroy {
+  // Dataset information
+  datasetId: string = '';
+  dataset: Dataset | null = null;
+  documents: Document[] = [];
 
-.dataset-detail-container {
-  padding: $spacing-6;
-  max-width: $container-xxl;
-  margin: 0 auto;
+  // UI state
+  isLoading: boolean = true;
+  isEditing: boolean = false;
+  error: string | null = null;
 
-  @include media-breakpoint-down(md) {
-    padding: $spacing-4;
-  }
-}
+  // Document preview
+  previewingDocument: boolean = false;
+  currentPreviewDocument: Document | null = null;
+  isLoadingPreview: boolean = false;
+  documentPreviewContent: string = '';
+  documentPreviewHeaders: string[] = [];
+  documentPreviewData: any[] = [];
+  documentPreviewError: string | null = null;
 
-// Back Navigation
-.back-navigation {
-  margin-bottom: $spacing-6;
+  // File upload
+  selectedFiles: File[] = [];
+  uploadProgress: number = 0;
+  isUploading: boolean = false;
 
-  .back-button {
-    display: inline-flex;
-    align-items: center;
-    background: none;
-    border: none;
-    color: $primary;
-    font-size: $font-size-sm;
-    padding: $spacing-2 0;
-    cursor: pointer;
+  // Editing state
+  editingDataset: DatasetUpdateRequest = {
+    name: '',
+    description: '',
+    tags: []
+  };
 
-    &:hover {
-      text-decoration: underline;
-    }
+  // Available tags for selection
+  availableTags: string[] = [
+    'support', 'sales', 'marketing', 'technical', 'feedback',
+    'queries', 'internal', 'external', 'training', 'evaluation'
+  ];
 
-    .back-icon {
-      margin-right: $spacing-2;
-      font-size: $font-size-md;
-    }
-  }
+  // Subscriptions
+  private subscriptions: Subscription = new Subscription();
 
-  // Document Preview Modal
-  .document-preview-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private datasetService: DatasetService,
+    private location: Location,
+    private confirmationService: ConfirmationDialogService
+  ) {}
 
-    .modal-backdrop {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-content {
-      position: relative;
-      width: 90%;
-      max-width: 800px;
-      max-height: 90vh;
-      background-color: white;
-      border-radius: $radius-md;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      box-shadow: $shadow-lg;
-
-      .modal-header {
-        padding: $spacing-4 $spacing-6;
-        border-bottom: 1px solid $border-light;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        .modal-title {
-          margin: 0;
-          font-size: $font-size-lg;
-          font-weight: $font-weight-semibold;
+  ngOnInit(): void {
+    // Get dataset ID from route
+    this.subscriptions.add(
+      this.route.paramMap.subscribe(params => {
+        const id = params.get('id');
+        if (id) {
+          this.datasetId = id;
+          this.loadDatasetDetails();
+        } else {
+          this.router.navigate(['/datasets']);
         }
+      })
+    );
+  }
 
-        .close-button {
-          background: none;
-          border: none;
-          font-size: $font-size-xl;
-          cursor: pointer;
-          color: $text-secondary;
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
 
-          &:hover {
-            color: $text-primary;
-          }
+  /**
+   * Load dataset details including documents
+   */
+  loadDatasetDetails(): void {
+    this.isLoading = true;
+
+    this.subscriptions.add(
+      this.datasetService.getDataset(this.datasetId).subscribe({
+        next: (response: DatasetDetailResponse) => {
+          console.log('Dataset detail response:', response);
+          this.dataset = response.dataset;
+          this.documents = response.documents || [];
+
+          // Reset error state
+          this.error = null;
+        },
+        error: (err: any) => {
+          console.error('Error loading dataset:', err);
+          this.error = 'Failed to load dataset details. Please try again.';
+          this.showErrorMessage('Error', 'Failed to load dataset details');
+        },
+        complete: () => {
+          this.isLoading = false;
         }
+      })
+    );
+  }
+
+  /**
+   * Navigate back to datasets list
+   */
+  goBack(event: Event): void {
+    event.preventDefault();
+    this.location.back();
+  }
+
+  /**
+   * Format a date string
+   */
+  formatDate(dateString: string | undefined): string {
+    if (!dateString) return 'N/A';
+
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+
+  /**
+   * Get CSS class for status badge
+   */
+  get statusClass(): string {
+    if (!this.dataset) return '';
+
+    switch (this.dataset.status?.toLowerCase()) {
+      case 'ready':
+        return 'status-ready';
+      case 'processing':
+        return 'status-processing';
+      case 'error':
+        return 'status-error';
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Get display text for status
+   */
+  get statusText(): string {
+    return this.dataset?.status || 'Unknown';
+  }
+
+  /**
+   * Get formatted size of dataset
+   */
+  get formattedSize(): string {
+    if (!this.dataset) return '0 B';
+
+    const bytes = this.dataset.size || 0;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+    if (bytes === 0) return '0 B';
+
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+  }
+
+  /**
+   * Get average document length in tokens (placeholder calculation)
+   */
+  getAverageDocLength(): number {
+    if (!this.dataset || !this.dataset.documentCount || this.dataset.documentCount === 0) {
+      return 0;
+    }
+
+    // This is a placeholder. In a real application, this would come from the API
+    return Math.round((this.dataset.size || 0) / (this.dataset.documentCount * 4)); // Average 4 bytes per token
+  }
+
+  /**
+   * Get file format distribution (placeholder implementation)
+   */
+  getFileFormatDistribution(): string {
+    if (this.documents.length === 0) {
+      return 'No documents';
+    }
+
+    // Group documents by file extension
+    const formats: Record<string, number> = {};
+
+    this.documents.forEach(doc => {
+      const format = this.getDocumentFormat(doc);
+      formats[format] = (formats[format] || 0) + 1;
+    });
+
+    // Convert to readable string
+    return Object.entries(formats)
+      .map(([format, count]) => `${format}: ${count}`)
+      .join(', ');
+  }
+
+  /**
+   * Get document format based on filename
+   */
+  getDocumentFormat(document: Document | null): string {
+    if (!document || !document.name) return 'Unknown';
+
+    const filename = document.name.toLowerCase();
+
+    if (filename.endsWith('.csv')) return 'CSV';
+    if (filename.endsWith('.txt')) return 'TXT';
+    if (filename.endsWith('.json')) return 'JSON';
+    if (filename.endsWith('.pdf')) return 'PDF';
+    if (filename.endsWith('.docx')) return 'DOCX';
+
+    // Extract extension
+    const extension = filename.split('.').pop();
+    return extension ? extension.toUpperCase() : 'Unknown';
+  }
+
+  /**
+   * Get document size formatted
+   */
+  getDocumentSize(document: Document): string {
+    // Checking for size safely
+    const docSize = document?.metadata?.size || 0;
+
+    const bytes = docSize;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+    if (bytes === 0) return '0 B';
+
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+  }
+
+  /**
+   * Open document preview modal
+   */
+  previewDocument(document: Document): void {
+    if (!document || !document.id || !this.datasetId) {
+      this.showErrorMessage('Error', 'Cannot preview document: Missing document information');
+      return;
+    }
+
+    this.previewingDocument = true;
+    this.currentPreviewDocument = document;
+    this.isLoadingPreview = true;
+    this.documentPreviewError = null;
+
+    // Get the document format to determine how to handle the preview
+    const documentFormat = this.getDocumentFormat(document);
+
+    // Simple timeout-based preview for now
+    // In a real implementation, you would call an API endpoint
+    setTimeout(() => {
+      this.isLoadingPreview = false;
+
+      if (documentFormat === 'CSV') {
+        // Example CSV data
+        this.documentPreviewHeaders = ['id', 'name', 'email', 'message'];
+        this.documentPreviewData = [
+          { id: 1, name: 'John Doe', email: 'john@example.com', message: 'I need help with my account' },
+          { id: 2, name: 'Jane Smith', email: 'jane@example.com', message: 'How do I reset my password?' }
+        ];
+      } else if (documentFormat === 'TXT' || documentFormat === 'JSON') {
+        // Example text content
+        this.documentPreviewContent = documentFormat === 'JSON'
+          ? '{\n  "id": 1,\n  "name": "Sample Document",\n  "content": "This is a sample content"\n}'
+          : 'This is a sample text document content.\nLine 2 of the document.\nLine 3 with more text.';
+      } else {
+        this.documentPreviewError = 'Preview not available for this file type';
       }
+    }, 800);
+  }
 
-      .modal-body {
-        flex: 1;
-        overflow: auto;
-        padding: $spacing-4 $spacing-6;
+  /**
+   * Format JSON for display
+   */
+  formatJson(json: string): string {
+    try {
+      const parsed = JSON.parse(json);
+      return JSON.stringify(parsed, null, 2);
+    } catch (e) {
+      return json;
+    }
+  }
 
-        .preview-content {
-          height: 100%;
-          min-height: 300px;
+  /**
+   * Close document preview modal
+   */
+  closeDocumentPreview(): void {
+    this.previewingDocument = false;
+    this.currentPreviewDocument = null;
+    this.documentPreviewContent = '';
+    this.documentPreviewHeaders = [];
+    this.documentPreviewData = [];
+    this.documentPreviewError = null;
+  }
 
-          .preview-loading, .preview-error {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: $text-secondary;
+  /**
+   * Download current preview document
+   */
+  downloadDocument(): void {
+    if (!this.currentPreviewDocument) return;
 
-            .spinner {
-              @include spinner;
-              margin-bottom: $spacing-4;
-            }
+    // In a real application, this would call an API endpoint to download the file
+    this.showInfoMessage('Download', 'Document download started...');
 
-            .error-icon {
-              font-size: $font-size-2xl;
-              color: $error;
-              margin-bottom: $spacing-4;
-            }
+    // Simulate a download
+    setTimeout(() => {
+      this.showSuccessMessage('Success', 'Document downloaded successfully');
+    }, 1500);
+  }
+
+  /**
+   * Start editing dataset
+   */
+  startEditing(): void {
+    if (!this.dataset) return;
+
+    this.editingDataset = {
+      name: this.dataset.name,
+      description: this.dataset.description || '',
+      tags: [...(this.dataset.tags || [])]
+    };
+
+    this.isEditing = true;
+  }
+
+  /**
+   * Cancel editing
+   */
+  cancelEditing(): void {
+    this.isEditing = false;
+  }
+
+  /**
+   * Toggle tag selection
+   */
+  toggleTag(tag: string): void {
+    if (!this.editingDataset.tags) {
+      this.editingDataset.tags = [];
+    }
+
+    const index = this.editingDataset.tags.indexOf(tag);
+
+    if (index === -1) {
+      this.editingDataset.tags.push(tag);
+    } else {
+      this.editingDataset.tags.splice(index, 1);
+    }
+  }
+
+  /**
+   * Check if changes can be saved
+   */
+  canSave(): boolean {
+    return !!this.editingDataset.name && this.editingDataset.name.trim() !== '';
+  }
+
+  /**
+   * Save dataset changes
+   */
+  saveChanges(): void {
+    if (!this.canSave() || !this.dataset) return;
+
+    // Create clean update request
+    const updateRequest: DatasetUpdateRequest = {
+      name: this.editingDataset.name?.trim() || '',
+      description: this.editingDataset.description?.trim() || '',
+      tags: this.editingDataset.tags || []
+    };
+
+    // Update dataset
+    this.isLoading = true;
+
+    this.subscriptions.add(
+      this.datasetService.updateDataset(this.datasetId, updateRequest)
+        .pipe(finalize(() => {
+          this.isLoading = false;
+          this.isEditing = false;
+        }))
+        .subscribe({
+          next: (updatedDataset) => {
+            this.dataset = updatedDataset;
+            this.showSuccessMessage('Success', 'Dataset updated successfully');
+          },
+          error: (err: any) => {
+            console.error('Error updating dataset:', err);
+            this.showErrorMessage('Error', 'Failed to update dataset');
           }
+        })
+    );
+  }
 
-          .preview-container {
-            height: 100%;
+  /**
+   * Delete dataset
+   */
+  deleteDataset(event: Event): void {
+    event.preventDefault();
 
-            .csv-preview, .text-preview, .json-preview, .fallback-preview {
-              height: 100%;
-              overflow: auto;
-            }
+    // Show confirmation dialog
+    this.confirmationService.confirm({
+      title: 'Delete Dataset',
+      message: 'Are you sure you want to delete this dataset? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'danger'
+    }).subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        this.isLoading = true;
 
-            .csv-table {
-              border: 1px solid $border-light;
-              border-radius: $radius-sm;
-              overflow: hidden;
-
-              .csv-header {
-                display: flex;
-                background-color: $background-light;
-                font-weight: $font-weight-semibold;
-
-                .csv-cell {
-                  padding: $spacing-3;
-                  flex: 1;
-                  min-width: 100px;
-                  border-right: 1px solid $border-light;
-
-                  &:last-child {
-                    border-right: none;
-                  }
-                }
+        this.subscriptions.add(
+          this.datasetService.deleteDataset(this.datasetId)
+            .pipe(finalize(() => this.isLoading = false))
+            .subscribe({
+              next: () => {
+                this.showSuccessMessage('Success', 'Dataset deleted successfully');
+                this.router.navigate(['/datasets']);
+              },
+              error: (err: any) => {
+                console.error('Error deleting dataset:', err);
+                this.showErrorMessage('Error', 'Failed to delete dataset');
               }
+            })
+        );
+      }
+    });
+  }
 
-              .csv-row {
-                display: flex;
-                border-top: 1px solid $border-light;
+  /**
+   * Open file upload dialog
+   */
+  uploadDocuments(event: Event): void {
+    event.preventDefault();
 
-                &:nth-child(even) {
-                  background-color: $background-light;
-                }
+    // Create a hidden file input and trigger click
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = true;
+    fileInput.accept = '.csv,.txt,.json,.pdf,.docx';
 
-                .csv-cell {
-                  padding: $spacing-3;
-                  flex: 1;
-                  min-width: 100px;
-                  border-right: 1px solid $border-light;
-                  word-break: break-word;
+    fileInput.onchange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.files && target.files.length > 0) {
+        this.handleFileSelection(target.files);
+      }
+    };
 
-                  &:last-child {
-                    border-right: none;
-                  }
-                }
-              }
-            }
+    fileInput.click();
+  }
 
-            .text-preview, .json-preview {
-              pre {
-                margin: 0;
-                padding: $spacing-4;
-                background-color: $background-light;
-                border-radius: $radius-sm;
-                font-family: monospace;
-                white-space: pre-wrap;
-                word-break: break-word;
-              }
-            }
+  /**
+   * Handle file selection
+   */
+  private handleFileSelection(files: FileList): void {
+    this.selectedFiles = Array.from(files);
+    this.uploadSelectedFiles();
+  }
 
-            .fallback-preview {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              text-align: center;
-              color: $text-secondary;
-              padding: $spacing-8;
+  /**
+   * Upload selected files
+   */
+  private uploadSelectedFiles(): void {
+    if (this.selectedFiles.length === 0) return;
 
-              p:first-child {
-                margin-bottom: $spacing-3;
-              }
-            }
+    this.isUploading = true;
+    this.uploadProgress = 0;
+
+    // Upload interval simulation (for demo)
+    const interval = setInterval(() => {
+      this.uploadProgress += 10;
+      if (this.uploadProgress >= 100) {
+        clearInterval(interval);
+        this.completeUpload();
+      }
+    }, 300);
+
+    // In a real application, call the API
+    this.subscriptions.add(
+      this.datasetService.uploadDocumentsToDataset(this.datasetId, this.selectedFiles)
+        .subscribe({
+          next: (updatedDataset) => {
+            // Clear interval
+            clearInterval(interval);
+            this.uploadProgress = 100;
+
+            // Update dataset and fetch updated document list
+            this.dataset = updatedDataset;
+            this.loadDatasetDetails();
+
+            this.showSuccessMessage('Success', 'Documents uploaded successfully');
+            this.completeUpload();
+          },
+          error: (err: any) => {
+            // Clear interval
+            clearInterval(interval);
+
+            console.error('Error uploading documents:', err);
+            this.showErrorMessage('Error', 'Failed to upload documents');
+            this.completeUpload();
           }
-        }
-      }
-
-      .modal-footer {
-        padding: $spacing-4 $spacing-6;
-        border-top: 1px solid $border-light;
-        display: flex;
-        justify-content: flex-end;
-        gap: $spacing-3;
-
-        .outline-button {
-          @include button-outline;
-        }
-
-        .primary-button {
-          @include button-primary;
-        }
-      }
-    }
-  }
-}
-
-// Loading & Error States
-.loading-container, .error-container {
-  @include card-padded;
-  margin-bottom: $spacing-6;
-  text-align: center;
-  padding: $spacing-12;
-}
-
-.loading-container {
-  @include loading-container;
-}
-
-.error-container {
-  @include error-container;
-
-  h2 {
-    color: $error;
-    margin-bottom: $spacing-2;
+        })
+    );
   }
 
-  p {
-    margin-bottom: $spacing-6;
+  /**
+   * Complete upload process
+   */
+  private completeUpload(): void {
+    this.isUploading = false;
+    this.selectedFiles = [];
+    this.uploadProgress = 0;
   }
 
-  .error-actions {
-    display: flex;
-    justify-content: center;
-    gap: $spacing-4;
+  /**
+   * Confirm document deletion
+   */
+  confirmDeleteDocument(event: Event, documentId: string): void {
+    event.preventDefault();
+
+    this.confirmationService.confirm({
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'danger'
+    }).subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        this.showInfoMessage('Info', 'Document deletion initiated');
+
+        // Update local document list (in a real app would call API)
+        this.documents = this.documents.filter(doc => doc.id !== documentId);
+
+        // If dataset information exists, decrement document count
+        if (this.dataset && this.dataset.documentCount !== undefined) {
+          this.dataset.documentCount = Math.max(0, this.dataset.documentCount - 1);
+        }
+
+        this.showSuccessMessage('Success', 'Document deleted successfully');
+      }
+    });
   }
 
-  .primary-button {
-    @include button-primary;
-  }
-}
-
-// Dataset Details
-.dataset-details {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-6;
-
-  // Header with Title and Actions
-  .detail-header {
-    @include card-padded;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: $spacing-4 $spacing-6;
-
-    @include media-breakpoint-down(md) {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: $spacing-4;
-    }
-
-    .header-content {
-      flex: 1;
-
-      .detail-title {
-        margin: 0 0 $spacing-2 0;
-        font-size: $font-size-2xl;
-        font-weight: $font-weight-semibold;
-        color: $text-primary;
-      }
-
-      .detail-title-input {
-        width: 100%;
-        max-width: 500px;
-        font-size: $font-size-2xl;
-        font-weight: $font-weight-semibold;
-        color: $text-primary;
-        padding: $spacing-2;
-        border: 1px solid $border-color;
-        border-radius: $radius-sm;
-        margin-bottom: $spacing-2;
-
-        &:focus {
-          outline: none;
-          border-color: $primary;
-        }
-
-        &.is-invalid {
-          border-color: $error;
-        }
-      }
-
-      .detail-badges {
-        display: flex;
-        flex-wrap: wrap;
-        gap: $spacing-2;
-      }
-
-      .status-badge {
-        padding: $spacing-1 $spacing-3;
-        border-radius: $radius-full;
-        font-size: $font-size-xs;
-        font-weight: $font-weight-medium;
-        text-transform: uppercase;
-
-        &.status-ready {
-          background-color: $success-light;
-          color: $success;
-        }
-
-        &.status-processing {
-          background-color: $warning-light;
-          color: darken($warning, 10%);
-        }
-
-        &.status-error {
-          background-color: $error-light;
-          color: $error;
-        }
-      }
-    }
-
-    .header-actions {
-      display: flex;
-      gap: $spacing-3;
-
-      @include media-breakpoint-down(md) {
-        width: 100%;
-      }
-
-      .outline-button {
-        @include button-outline;
-
-        &.edit-button {
-          color: $primary;
-          border-color: $primary;
-        }
-
-        &.delete-button {
-          color: $error;
-          border-color: $error;
-        }
-
-        &.cancel-button {
-          color: $text-secondary;
-          border-color: $border-color;
-        }
-      }
-
-      .primary-button {
-        @include button-primary;
-      }
-    }
+  // Toast message helpers
+  private showSuccessMessage(title: string, message: string): void {
+    console.log(`Success: ${title} - ${message}`);
+    // In a real implementation, this would use a toast service
+    // this.toastService.success(title, message);
   }
 
-  // Main Content Layout
-  .content-layout {
-    display: flex;
-    gap: $spacing-6;
-
-    @include media-breakpoint-down(lg) {
-      flex-direction: column;
-    }
-
-    .left-column, .right-column {
-      display: flex;
-      flex-direction: column;
-      gap: $spacing-6;
-    }
-
-    .left-column {
-      flex: 3;
-    }
-
-    .right-column {
-      flex: 2;
-    }
+  private showErrorMessage(title: string, message: string): void {
+    console.error(`Error: ${title} - ${message}`);
+    // In a real implementation, this would use a toast service
+    // this.toastService.error(title, message);
   }
 
-  // Content Cards
-  .content-card {
-    background-color: white;
-    border: 1px solid $border-color;
-    border-radius: $radius-sm;
-    padding: $spacing-6;
-    box-shadow: $shadow-sm;
-
-    @include media-breakpoint-down(md) {
-      padding: $spacing-4;
-    }
-
-    .card-title {
-      font-size: $font-size-lg;
-      font-weight: $font-weight-semibold;
-      color: $text-primary;
-      margin-top: 0;
-      margin-bottom: $spacing-4;
-      padding-bottom: $spacing-3;
-      border-bottom: 1px solid $border-light;
-    }
-  }
-
-  // Dataset Info Card
-  .dataset-info-card {
-    .info-group {
-      margin-bottom: $spacing-4;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      .info-label {
-        font-size: $font-size-sm;
-        color: $text-secondary;
-        margin-bottom: $spacing-1;
-      }
-
-      .info-value {
-        color: $text-primary;
-      }
-
-      .info-textarea {
-        width: 100%;
-        min-height: 80px;
-        padding: $spacing-3;
-        border: 1px solid $border-color;
-        border-radius: $radius-sm;
-        font-size: $font-size-sm;
-        resize: vertical;
-
-        &:focus {
-          outline: none;
-          border-color: $primary;
-        }
-      }
-    }
-
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: $spacing-4;
-      margin-bottom: $spacing-4;
-
-      .info-item {
-        .info-label {
-          font-size: $font-size-sm;
-          color: $text-secondary;
-          margin-bottom: $spacing-1;
-        }
-
-        .info-value {
-          color: $text-primary;
-        }
-      }
-    }
-
-    // Tags Section
-    .tags-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: $spacing-2;
-
-      .tag-pill {
-        display: inline-flex;
-        padding: $spacing-1 $spacing-3;
-        border-radius: $radius-full;
-        background-color: $primary-light;
-        color: $primary;
-        font-size: $font-size-sm;
-      }
-
-      .no-tags {
-        color: $text-secondary;
-        font-style: italic;
-        font-size: $font-size-sm;
-      }
-
-      .tag-button {
-        background-color: $background-light;
-        border: 1px solid $border-color;
-        border-radius: $radius-full;
-        padding: $spacing-2 $spacing-3;
-        font-size: $font-size-sm;
-        color: $text-secondary;
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover {
-          background-color: darken($background-light, 5%);
-        }
-
-        &.active {
-          background-color: $primary-light;
-          border-color: $primary;
-          color: $primary;
-        }
-      }
-    }
-  }
-
-  // Statistics Card
-  .statistics-card {
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: $spacing-4;
-
-      @include media-breakpoint-down(sm) {
-        grid-template-columns: 1fr;
-      }
-
-      .stat-item {
-        .stat-card {
-          background-color: $background-light;
-          border-radius: $radius-sm;
-          padding: $spacing-4;
-
-          .stat-label {
-            font-size: $font-size-sm;
-            color: $text-secondary;
-            margin-bottom: $spacing-2;
-          }
-
-          .stat-value {
-            font-size: $font-size-2xl;
-            font-weight: $font-weight-bold;
-            color: $primary;
-
-            .stat-unit {
-              font-size: $font-size-sm;
-              color: $text-secondary;
-              font-weight: $font-weight-regular;
-              margin-left: $spacing-1;
-            }
-          }
-
-          .stat-value-small {
-            font-size: $font-size-base;
-            color: $text-primary;
-          }
-        }
-      }
-    }
-  }
-
-  // Documents Card
-  .documents-card {
-    .empty-documents {
-      @include empty-state;
-      padding: $spacing-8;
-      text-align: center;
-
-      .empty-icon {
-        font-size: $font-size-3xl;
-        color: $text-tertiary;
-        margin-bottom: $spacing-4;
-      }
-
-      p {
-        color: $text-secondary;
-        margin-bottom: $spacing-6;
-      }
-
-      .primary-button {
-        @include button-primary;
-      }
-    }
-
-    .document-display {
-      .document-list {
-        width: 100%;
-        overflow-x: auto;
-      }
-
-      .table-header {
-        display: flex;
-        background-color: $background-light;
-        border: 1px solid $border-color;
-        font-weight: $font-weight-semibold;
-        color: $text-secondary;
-        font-size: $font-size-xs;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-
-        > div {
-          padding: $spacing-3 $spacing-4;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-
-      .table-body {
-        .table-row {
-          display: flex;
-          border-bottom: 1px solid $border-light;
-          align-items: center;
-          transition: background-color 0.2s;
-
-          &:hover {
-            background-color: rgba($primary, 0.05);
-          }
-
-          > div {
-            padding: $spacing-3 $spacing-4;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-        }
-      }
-
-      // Column widths
-      .filename-col {
-        width: 35%;
-        min-width: 180px;
-      }
-
-      .format-col {
-        width: 10%;
-        min-width: 80px;
-      }
-
-      .size-col {
-        width: 15%;
-        min-width: 80px;
-      }
-
-      .added-col {
-        width: 20%;
-        min-width: 120px;
-      }
-
-      .actions-col {
-        width: 20%;
-        min-width: 160px;
-        display: flex;
-        justify-content: flex-end;
-        gap: $spacing-2;
-
-        .action-button {
-          padding: $spacing-1 $spacing-3;
-          border: 1px solid $border-color;
-          border-radius: $radius-sm;
-          background: none;
-          font-size: $font-size-xs;
-          cursor: pointer;
-          transition: $transition-normal;
-
-          &:hover {
-            background-color: $background-light;
-          }
-
-          &.view-button:hover {
-            border-color: $primary;
-            color: $primary;
-          }
-
-          &.delete-button:hover {
-            border-color: $error;
-            color: $error;
-          }
-        }
-      }
-    }
+  private showInfoMessage(title: string, message: string): void {
+    console.log(`Info: ${title} - ${message}`);
+    // In a real implementation, this would use a toast service
+    // this.toastService.info(title, message);
   }
 }

@@ -2,7 +2,8 @@
 import { Component, OnDestroy, OnInit, ViewChild, ElementRef, NgZone, ChangeDetectionStrategy, ChangeDetectorRef, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router'; // Add NavigationEnd
+import { filter } from 'rxjs/operators'; // Add filter operator
 import { Subject, Observable, BehaviorSubject, of, combineLatest, EMPTY } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged, catchError, map, tap, switchMap, finalize, startWith, shareReplay } from 'rxjs/operators';
 import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
@@ -135,6 +136,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.setupFilterListeners();
+    this.setupRouterListener(); // Add router listener for navigation events
 
     // Subscribe to filter changes to load datasets
     this.filterParams$
@@ -160,6 +162,23 @@ export class DatasetsPage implements OnInit, OnDestroy {
 
     // Initialize the first load
     this.loadDatasets();
+  }
+
+  /**
+   * Set up listener for router navigation events to reload data when navigating back
+   */
+  setupRouterListener(): void {
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      takeUntil(this.destroy$)
+    ).subscribe((event: any) => {
+      // If we've navigated to this component, reload the datasets
+      if (event.url === '/app/datasets/datasets') {
+        // Clear cache when navigating back to ensure fresh data
+        this.clearCache();
+        this.loadDatasets();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -374,6 +393,9 @@ export class DatasetsPage implements OnInit, OnDestroy {
    * Trigger dataset loading
    */
   loadDatasets(): void {
+    // Force a reload by setting loading to true
+    this.isLoading$.next(true);
+
     // Just update the current filter params to trigger the loading
     this.filterParams$.next({ ...this.filterParams$.value });
   }
@@ -628,7 +650,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
   /**
    * Clear the cache
    */
-  private clearCache(): void {
+  clearCache(): void {
     this.cache.clear();
   }
 

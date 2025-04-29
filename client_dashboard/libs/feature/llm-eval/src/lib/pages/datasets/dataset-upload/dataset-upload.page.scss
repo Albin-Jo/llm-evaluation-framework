@@ -11,6 +11,7 @@
   padding: $spacing-6;
   max-width: $container-xxl;
   margin: 0 auto;
+  position: relative; /* For positioning the progress indicator */
 
   @include media-breakpoint-down(md) {
     padding: $spacing-4;
@@ -19,7 +20,7 @@
 
 // Back Navigation
 .back-navigation {
-  margin-bottom: $spacing-6;
+  margin-bottom: $spacing-4;
 
   .back-button {
     display: inline-flex;
@@ -44,7 +45,7 @@
 
 // Page Header
 .page-header {
-  margin-bottom: $spacing-6;
+  margin-bottom: $spacing-4;
 
   .page-title {
     font-size: $font-size-2xl;
@@ -60,45 +61,92 @@
   }
 }
 
+// Upload Progress Indicator
+.upload-progress-indicator {
+  position: absolute;
+  top: $spacing-6;
+  right: $spacing-6;
+  width: 150px;
+  background-color: white;
+  border: 1px solid $primary-light;
+  border-radius: $radius-full;
+  padding: $spacing-2 $spacing-3;
+  display: flex;
+  align-items: center;
+  box-shadow: $shadow-sm;
+  z-index: 10;
+
+  .progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: $background-light;
+    border-radius: $radius-full;
+    overflow: hidden;
+    margin-right: $spacing-2;
+
+    .progress-fill {
+      height: 100%;
+      background-color: $primary;
+      border-radius: $radius-full;
+      transition: width 0.3s ease;
+    }
+  }
+
+  .progress-percentage {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    color: $primary;
+    min-width: 35px;
+    text-align: right;
+  }
+}
+
 // Upload Form
 .upload-form {
   display: flex;
   flex-direction: column;
-  gap: $spacing-6;
+  gap: $spacing-4;
 }
 
-// Form Cards
-.form-card {
-  background-color: white;
-  border: 1px solid $border-color;
-  border-radius: $radius-sm;
-  padding: $spacing-6;
-  box-shadow: $shadow-sm;
+// Form Cards Container
+.form-cards-container {
+  display: flex;
+  gap: $spacing-4;
+  width: 100%;
 
-  @include media-breakpoint-down(md) {
-    padding: $spacing-4;
+  @include media-breakpoint-down(lg) {
+    flex-direction: column;
   }
 
-  .card-title {
-    font-size: $font-size-lg;
-    font-weight: $font-weight-semibold;
-    color: $text-primary;
-    margin-top: 0;
-    margin-bottom: $spacing-4;
-    padding-bottom: $spacing-3;
-    border-bottom: 1px solid $border-light;
-  }
+  .form-card {
+    flex: 1;
+    background-color: white;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    padding: $spacing-5;
+    box-shadow: $shadow-sm;
+    min-height: 380px;
 
-  .card-description {
-    color: $text-secondary;
-    margin-bottom: $spacing-5;
-    font-size: $font-size-sm;
+    @include media-breakpoint-down(md) {
+      padding: $spacing-4;
+      min-height: auto;
+    }
+
+    .card-title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+      margin-top: 0;
+      margin-bottom: $spacing-4;
+      padding-bottom: $spacing-3;
+      border-bottom: 1px solid $border-light;
+    }
   }
 }
 
 // Form Elements
 .form-group {
-  margin-bottom: $spacing-5;
+  margin-bottom: $spacing-4;
 
   &:last-child {
     margin-bottom: 0;
@@ -138,7 +186,7 @@
 
   .form-textarea {
     resize: vertical;
-    min-height: 100px;
+    min-height: 80px;
   }
 
   .error-message {
@@ -146,15 +194,13 @@
     font-size: $font-size-xs;
     margin-top: $spacing-2;
   }
-
-  .help-text {
-    font-size: $font-size-xs;
-    color: $text-secondary;
-    margin-top: $spacing-2;
-  }
 }
 
 // Tags
+.tags-group {
+  margin-bottom: 0; // Ensures proper spacing at the bottom of the card
+}
+
 .tags-container {
   display: flex;
   flex-wrap: wrap;
@@ -188,11 +234,15 @@
   position: relative;
   border: 2px dashed $border-color;
   border-radius: $radius-sm;
-  padding: $spacing-8;
+  padding: $spacing-6;
   margin-bottom: $spacing-4;
   background-color: $background-light;
   transition: all 0.2s;
   cursor: pointer;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover, &.drag-over {
     border-color: $primary;
@@ -241,12 +291,12 @@
 
 // Selected Files
 .selected-files {
-  margin-top: $spacing-6;
+  margin-top: $spacing-4;
 
   .selected-files-title {
     font-size: $font-size-base;
     font-weight: $font-weight-medium;
-    margin-bottom: $spacing-4;
+    margin-bottom: $spacing-3;
   }
 
   .file-list {
@@ -383,94 +433,12 @@
   }
 }
 
-// Upload Progress
-.upload-progress-card {
-  .progress-container {
-    margin-bottom: $spacing-6;
-
-    .progress-bar {
-      height: 8px;
-      background-color: $background-light;
-      border-radius: $radius-full;
-      margin-bottom: $spacing-2;
-      overflow: hidden;
-
-      .progress-fill {
-        height: 100%;
-        background-color: $primary;
-        border-radius: $radius-full;
-        transition: width 0.3s ease;
-      }
-    }
-
-    .progress-text {
-      display: flex;
-      justify-content: space-between;
-      color: $text-secondary;
-      font-size: $font-size-sm;
-
-      .progress-percentage {
-        font-weight: $font-weight-medium;
-        color: $primary;
-      }
-    }
-  }
-
-  .file-progress-list {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-3;
-
-    .file-progress-item {
-      .file-progress-info {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: $spacing-1;
-
-        .file-progress-name {
-          font-size: $font-size-sm;
-          color: $text-primary;
-        }
-
-        .file-progress-status {
-          font-size: $font-size-xs;
-
-          &.success {
-            color: $success;
-          }
-
-          &.error {
-            color: $error;
-          }
-
-          &.uploading {
-            color: $primary;
-          }
-        }
-      }
-
-      .file-progress-bar {
-        height: 4px;
-        background-color: $background-light;
-        border-radius: $radius-full;
-        overflow: hidden;
-
-        .file-progress-fill {
-          height: 100%;
-          background-color: $primary;
-          border-radius: $radius-full;
-          transition: width 0.3s ease;
-        }
-      }
-    }
-  }
-}
-
 // Form Actions
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: $spacing-3;
+  margin-top: $spacing-4;
 
   @include media-breakpoint-down(sm) {
     flex-direction: column-reverse;
@@ -499,8 +467,8 @@
   }
 }
 
-// Upload Success Overlay
-.upload-success-overlay {
+// Result Modals (Success and Error)
+.result-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -513,7 +481,7 @@
   z-index: 1000;
   animation: fadeIn 0.3s ease;
 
-  .success-modal {
+  .result-modal {
     background-color: white;
     border-radius: $radius-md;
     padding: $spacing-8;
@@ -523,31 +491,38 @@
     box-shadow: $shadow-lg;
     animation: slideUp 0.4s ease;
 
-    .success-icon {
-      width: 80px;
-      height: 80px;
+    .result-icon {
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
-      background-color: $success;
       color: white;
-      font-size: 40px;
+      font-size: 30px;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto $spacing-6;
     }
 
-    .success-title {
+    .success-icon {
+      background-color: $success;
+    }
+
+    .error-icon {
+      background-color: $error;
+    }
+
+    .result-title {
       font-size: $font-size-xl;
       color: $text-primary;
       margin-bottom: $spacing-3;
     }
 
-    .success-message {
+    .result-message {
       color: $text-secondary;
       margin-bottom: $spacing-6;
     }
 
-    .success-actions {
+    .result-actions {
       display: flex;
       justify-content: center;
       gap: $spacing-3;

@@ -3,17 +3,10 @@ import { Component, OnDestroy, OnInit, ViewChild, ElementRef, NO_ERRORS_SCHEMA }
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Subject, takeUntil, finalize, Observable, of } from 'rxjs';
-import { HttpEvent, HttpEventType, HttpResponse } from '@angular/common/http';
+import { Subject, takeUntil, finalize } from 'rxjs';
 import { DatasetUploadRequest } from '@ngtx-apps/data-access/models';
 import { DatasetService } from '@ngtx-apps/data-access/services';
 import { AlertService } from '@ngtx-apps/utils/services';
-
-interface FileProgress {
-  name: string;
-  progress: number;
-  status: string;
-}
 
 @Component({
   selector: 'app-dataset-upload',
@@ -40,10 +33,9 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   selectedTags: string[] = [];
   existingDatasetId: string | null = null;
   uploadCompleted = false;
+  uploadError = false;
+  errorMessage: string | null = null;
   createdDatasetId: string | null = null;
-
-  // Upload progress tracking
-  uploadProgressFiles: FileProgress[] = [];
 
   // Validation
   validFileTypes = [
@@ -68,6 +60,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   ];
 
   private destroy$ = new Subject<void>();
+  private pendingUploadRequest: DatasetUploadRequest | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -159,11 +152,8 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
    * Add files to selection
    */
   addFiles(files: File[]): void {
-    // Filter out any existing files with the same name
-    const existingFilenames = new Set(this.selectedFiles.map(f => f.name));
-    const newFiles = files.filter(file => !existingFilenames.has(file.name));
-
-    this.selectedFiles = [...this.selectedFiles, ...newFiles];
+    // Only allow one file, replace existing selection
+    this.selectedFiles = files.slice(0, 1);
     this.uploadForm.patchValue({ files: this.selectedFiles });
     this.uploadForm.markAsDirty();
   }
@@ -282,18 +272,34 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     }
 
     this.isUploading = true;
-
-    // Initialize progress tracking
     this.uploadProgress = 0;
-    this.uploadProgressFiles = this.selectedFiles.map(file => ({
-      name: file.name,
-      progress: 0,
-      status: 'Pending'
-    }));
+    this.uploadError = false;
+    this.errorMessage = null;
+
+    // Set up progress simulation
+    const progressInterval = setInterval(() => {
+      if (this.uploadProgress < 90) {
+        this.uploadProgress += Math.floor(Math.random() * 5) + 1;
+      }
+    }, 200);
 
     // If existing dataset ID, upload to that dataset
     if (this.existingDatasetId) {
-      this.uploadToExistingDataset();
+      this.datasetService.uploadDocumentsToDataset(this.existingDatasetId, this.selectedFiles)
+        .pipe(
+          takeUntil(this.destroy$),
+          finalize(() => clearInterval(progressInterval))
+        )
+        .subscribe({
+          next: (response) => {
+            this.uploadProgress = 100;
+            this.handleUploadSuccess();
+          },
+          error: (error) => {
+            this.handleUploadError(error);
+            clearInterval(progressInterval);
+          }
+        });
     } else {
       // Create a new dataset
       const formValues = this.uploadForm.value;
@@ -303,140 +309,80 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
         tags: this.selectedTags,
         files: this.selectedFiles
       };
-      this.createNewDataset(uploadRequest);
+
+      this.pendingUploadRequest = uploadRequest;
+      this.datasetService.uploadDataset(uploadRequest)
+        .pipe(
+          takeUntil(this.destroy$),
+          finalize(() => clearInterval(progressInterval))
+        )
+        .subscribe({
+          next: (response) => {
+            this.uploadProgress = 100;
+            this.createdDatasetId = response.id;
+            this.handleUploadSuccess();
+          },
+          error: (error) => {
+            this.handleUploadError(error);
+            clearInterval(progressInterval);
+          }
+        });
     }
   }
 
   /**
-   * Create a new dataset with uploaded files
+   * Handle successful upload
    */
-  private createNewDataset(uploadRequest: DatasetUploadRequest): void {
-    // Simulated progress updates
-    const progressInterval = setInterval(() => {
-      if (this.uploadProgress < 95) {
-        this.uploadProgress += 5;
-
-        // Update individual file progress
-        this.uploadProgressFiles.forEach((file, index) => {
-          if (file.progress < 100) {
-            file.progress += Math.floor(Math.random() * 10) + 5;
-            file.progress = Math.min(file.progress, 100);
-
-            if (file.progress >= 100) {
-              file.status = 'Completed';
-            } else {
-              file.status = 'Uploading';
-            }
-          }
-        });
-      }
-    }, 300);
-
-    this.datasetService.uploadDataset(uploadRequest)
-      .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => clearInterval(progressInterval))
-      )
-      .subscribe({
-        next: (response) => {
-          // Simulate 100% progress on success
-          this.uploadProgress = 100;
-          this.uploadProgressFiles.forEach(file => {
-            file.progress = 100;
-            file.status = 'Completed';
-          });
-
-          this.createdDatasetId = response.id;
-
-          // Show success message after a short delay
-          setTimeout(() => {
-            this.isUploading = false;
-            this.uploadCompleted = true;
-          }, 500);
-        },
-        error: (error) => {
-          this.alertService.showAlert({
-            show: true,
-            message: 'Failed to upload dataset. Please try again.',
-            title: 'Error'
-          });
-          this.isUploading = false;
-          console.error('Error uploading dataset:', error);
-
-          // Mark files as failed
-          this.uploadProgressFiles.forEach(file => {
-            if (file.progress < 100) {
-              file.status = 'Failed';
-            }
-          });
-        }
-      });
+  private handleUploadSuccess(): void {
+    // Show success message after a short delay to ensure progress reaches 100%
+    setTimeout(() => {
+      this.isUploading = false;
+      this.uploadCompleted = true;
+      this.pendingUploadRequest = null;
+    }, 500);
   }
 
   /**
-   * Upload files to an existing dataset
+   * Handle upload error
    */
-  private uploadToExistingDataset(): void {
-    if (!this.existingDatasetId) return;
+  private handleUploadError(error: any): void {
+    console.error('Error uploading:', error);
+    this.isUploading = false;
+    this.uploadError = true;
 
-    // Simulated progress updates
-    const progressInterval = setInterval(() => {
-      if (this.uploadProgress < 95) {
-        this.uploadProgress += 5;
+    if (error?.error?.detail) {
+      this.errorMessage = typeof error.error.detail === 'string'
+        ? error.error.detail
+        : 'Failed to upload. Please try again.';
+    } else if (error?.message) {
+      this.errorMessage = error.message;
+    } else {
+      this.errorMessage = 'Failed to upload dataset. Please try again.';
+    }
+  }
 
-        // Update individual file progress
-        this.uploadProgressFiles.forEach((file, index) => {
-          if (file.progress < 100) {
-            file.progress += Math.floor(Math.random() * 10) + 5;
-            file.progress = Math.min(file.progress, 100);
+  /**
+   * Retry a failed upload
+   */
+  retryUpload(): void {
+    this.uploadError = false;
+    this.errorMessage = null;
 
-            if (file.progress >= 100) {
-              file.status = 'Completed';
-            } else {
-              file.status = 'Uploading';
-            }
-          }
-        });
-      }
-    }, 300);
+    if (this.pendingUploadRequest) {
+      // Re-submit the form with the same values
+      this.onSubmit();
+    } else {
+      // Just close the error dialog and let user try again manually
+      this.dismissError();
+    }
+  }
 
-    this.datasetService.uploadDocumentsToDataset(this.existingDatasetId, this.selectedFiles)
-      .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => clearInterval(progressInterval))
-      )
-      .subscribe({
-        next: (response) => {
-          // Simulate 100% progress on success
-          this.uploadProgress = 100;
-          this.uploadProgressFiles.forEach(file => {
-            file.progress = 100;
-            file.status = 'Completed';
-          });
-
-          // Show success message after a short delay
-          setTimeout(() => {
-            this.isUploading = false;
-            this.uploadCompleted = true;
-          }, 500);
-        },
-        error: (error) => {
-          this.alertService.showAlert({
-            show: true,
-            message: 'Failed to upload documents. Please try again.',
-            title: 'Error'
-          });
-          this.isUploading = false;
-          console.error('Error uploading documents:', error);
-
-          // Mark files as failed
-          this.uploadProgressFiles.forEach(file => {
-            if (file.progress < 100) {
-              file.status = 'Failed';
-            }
-          });
-        }
-      });
+  /**
+   * Dismiss error dialog
+   */
+  dismissError(): void {
+    this.uploadError = false;
+    this.errorMessage = null;
   }
 
   /**
@@ -492,19 +438,8 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Continue adding more documents
-   */
-  continueAdding(): void {
-    this.uploadCompleted = false;
-    this.selectedFiles = [];
-    this.uploadForm.patchValue({ files: null });
-    this.uploadForm.markAsPristine();
-  }
-
-  /**
    * Form control getters
    */
   get nameControl() { return this.uploadForm.get('name'); }
   get descriptionControl() { return this.uploadForm.get('description'); }
   get filesControl() { return this.uploadForm.get('files'); }
-}

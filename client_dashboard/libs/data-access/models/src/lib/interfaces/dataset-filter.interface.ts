@@ -13,4 +13,5 @@ export interface DatasetFilterParams {
   dateTo?: string;
   sizeMin?: number;
   sizeMax?: number;
+  size?: number;
 }
