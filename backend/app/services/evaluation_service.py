@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy import asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models.orm import (
@@ -218,8 +219,28 @@ class EvaluationService:
                 detail=f"Failed to update evaluation: {str(e)}"
             )
 
+    async def count_evaluations(self, filters: Dict[str, Any] = None) -> int:
+        """
+        Count evaluations with optional filtering.
+
+        Args:
+            filters: Optional filters
+
+        Returns:
+            int: Count of matching evaluations
+        """
+        try:
+            return await self.evaluation_repo.count(filters=filters)
+        except Exception as e:
+            logger.error(f"Error counting evaluations: {str(e)}")
+            return 0
+
     async def list_evaluations(
-            self, skip: int = 0, limit: int = 100, filters: Dict[str, Any] = None
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            filters: Dict[str, Any] = None,
+            sort_options: Dict[str, str] = None
     ) -> List[Evaluation]:
         """
         List evaluations with pagination and optional filtering.
@@ -231,9 +252,24 @@ class EvaluationService:
 
         Returns:
             List[Evaluation]: List of evaluations
+            :param filters:
+            :param skip:
+            :param limit:
+            :param sort_options:
         """
         try:
-            return await self.evaluation_repo.get_multi(skip=skip, limit=limit, filters=filters)
+            # Apply sorting if provided
+            sort_expr = None
+            if sort_options and "sort_by" in sort_options:
+                sort_by = sort_options["sort_by"]
+                sort_dir = sort_options.get("sort_dir", "desc")
+
+                # Create sort expression
+                if sort_dir.lower() == "asc":
+                    sort_expr = asc(sort_by)
+                else:
+                    sort_expr = desc(sort_by)
+            return await self.evaluation_repo.get_multi(skip=skip, limit=limit, filters=filters, sort=sort_expr)
         except Exception as e:
             logger.error(f"Error listing evaluations: {str(e)}")
             return []

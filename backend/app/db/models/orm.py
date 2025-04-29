@@ -238,7 +238,6 @@ class ReportStatus(str, Enum):
     FAILED = "failed"
 
 
-# Add this enum for report format
 class ReportFormat(str, Enum):
     PDF = "pdf"
     HTML = "html"
@@ -265,7 +264,6 @@ class Report(Base, TimestampMixin, ModelMixin):
     content: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     file_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships

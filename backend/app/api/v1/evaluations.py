@@ -1,12 +1,12 @@
 # backend/app/api/v1/evaluations.py
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm import EvaluationStatus
+from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod
 from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationDetailResponse,
     EvaluationResponse, EvaluationUpdate
@@ -42,17 +42,22 @@ async def create_evaluation(
         raise
 
 
-@router.get("/", response_model=List[EvaluationResponse])
+@router.get("/", response_model=Dict[str, Any])
 async def list_evaluations(
         skip: int = 0,
-        limit: int = 100,
+        limit: int = 10,
         status: Optional[EvaluationStatus] = None,
         agent_id: Optional[UUID] = None,
         dataset_id: Optional[UUID] = None,
+        name: Optional[str] = None,
+        method: Optional[EvaluationMethod] = None,
+        sort_by: Optional[str] = None,
+        sort_dir: Optional[str] = "desc",
         db: AsyncSession = Depends(get_db)
 ):
     """
-    List evaluations with optional filtering.
+    List evaluations with optional filtering, sorting and pagination.
+    Returns both the evaluations array and a total count.
     """
     filters = {}
 
@@ -63,14 +68,35 @@ async def list_evaluations(
         filters["agent_id"] = agent_id
     if dataset_id:
         filters["dataset_id"] = dataset_id
+    if name:
+        filters["name"] = name
+    if method:
+        filters["method"] = method
 
-    logger.info(f"Listing evaluations with filters={filters}, skip={skip}, limit={limit}")
+    # Add sorting instructions
+    sort_options = {}
+    if sort_by:
+        # Default to descending order (newest first)
+        sort_options["sort_by"] = sort_by
+        sort_options["sort_dir"] = sort_dir.lower()
+
+    logger.info(f"Listing evaluations with filters={filters}, skip={skip}, limit={limit}, sort={sort_options}")
 
     evaluation_service = EvaluationService(db)
     try:
-        evaluations = await evaluation_service.list_evaluations(skip, limit, filters)
-        logger.debug(f"Retrieved {len(evaluations)} evaluations")
-        return evaluations
+        # Get total count first for pagination
+        total_count = await evaluation_service.count_evaluations(filters)
+
+        # Then get the actual page of results
+        evaluations = await evaluation_service.list_evaluations(skip, limit, filters, sort_options)
+
+        logger.debug(f"Retrieved {len(evaluations)} evaluations from total of {total_count}")
+
+        # Return both results and total count
+        return {
+            "items": evaluations,
+            "total": total_count
+        }
     except Exception as e:
         logger.error(f"Error listing evaluations: {str(e)}", exc_info=True)
         raise
@@ -442,7 +468,7 @@ async def get_evaluation_results(
         raise
 
 
-@router.get("/metrics/{dataset_type}", response_model=Dict[str, List[str]])
+@router.get("/metrics/{dataset_type}", response_model=Dict[str, Union[str, List[str]]])
 async def get_supported_metrics(
         dataset_type: str,
         db: AsyncSession = Depends(get_db)

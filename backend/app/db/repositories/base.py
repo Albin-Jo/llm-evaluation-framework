@@ -1,7 +1,7 @@
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, update, func, BinaryExpression
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models.orm import Base
@@ -27,7 +27,8 @@ class BaseRepository(Generic[ModelType]):
     async def get_multi(
             self, *, skip: int = 0, limit: int = 100,
             filters: Dict[str, Any] = None,
-            load_relationships: List[str] = None
+            load_relationships: List[str] = None,
+            sort: Optional[BinaryExpression] = None
     ) -> List[ModelType]:
         """Get multiple records with optional filtering and relationship loading."""
         from sqlalchemy.orm import selectinload
@@ -45,6 +46,10 @@ class BaseRepository(Generic[ModelType]):
             for relationship in load_relationships:
                 if hasattr(self.model, relationship):
                     query = query.options(selectinload(getattr(self.model, relationship)))
+
+        # Apply sorting if provided
+        if sort:
+            query = query.order_by(sort)
 
         # Add pagination
         query = query.offset(skip).limit(limit)
@@ -101,3 +106,24 @@ class BaseRepository(Generic[ModelType]):
         stmt = delete(self.model).where(self.model.id == id)
         result = await self.session.execute(stmt)
         return result.rowcount > 0
+
+    async def count(self, filters: Dict[str, Any] = None) -> int:
+        """
+        Count records with optional filtering.
+
+        Args:
+            filters: Optional filters
+
+        Returns:
+            int: Count of matching records
+        """
+        query = select(func.count()).select_from(self.model)
+
+        # Apply filters if provided
+        if filters:
+            for key, value in filters.items():
+                if hasattr(self.model, key):
+                    query = query.where(getattr(self.model, key) == value)
+
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none() or 0
