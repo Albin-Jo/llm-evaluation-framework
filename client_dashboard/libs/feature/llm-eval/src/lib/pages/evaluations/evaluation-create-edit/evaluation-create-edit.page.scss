@@ -9,7 +9,7 @@
 
 .evaluation-create-edit-container {
   padding: $spacing-6;
-  max-width: $container-lg;
+  max-width: $container-xxl;
   margin: 0 auto;
 
   @include media-breakpoint-down(md) {
@@ -92,7 +92,8 @@
 // Tab content
 .tab-content {
   padding: $spacing-6;
-  min-height: 400px;
+  min-height: 300px;
+  max-height: 390px;
 
   @include media-breakpoint-down(md) {
     padding: $spacing-4;

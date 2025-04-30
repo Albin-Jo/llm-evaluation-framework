@@ -34,29 +34,49 @@ export class EvaluationService {
     let params = new HttpParams();
 
     // Add each parameter if it exists
+    // Convert page to skip parameter (for pagination)
     if (filters.page !== undefined) {
       params = params.set('skip', ((filters.page - 1) * (filters.limit || 10)).toString());
     } else {
       params = params.set('skip', '0');
     }
 
+    // Add limit parameter for pagination
     if (filters.limit !== undefined) {
       params = params.set('limit', filters.limit.toString());
     } else {
-      params = params.set('limit', '100');
+      params = params.set('limit', '10'); // Default limit
     }
 
+    // Add status filter
     if (filters.status) {
       params = params.set('status', filters.status);
     }
 
+    // Add agent_id filter
     if (filters.agent_id) {
       params = params.set('agent_id', filters.agent_id);
     }
 
+    // Add dataset_id filter
     if (filters.dataset_id) {
       params = params.set('dataset_id', filters.dataset_id);
     }
+
+    // Add name filter if provided
+    if (filters.name) {
+      params = params.set('name', filters.name);
+    }
+
+    // Add method filter if provided
+    if (filters.method) {
+      params = params.set('method', filters.method);
+    }
+
+    // Add sort parameters - always sending these parameters to match backend expectations
+    // Default to created_at and desc if not provided
+    params = params.set('sort_by', filters.sortBy || 'created_at');
+    params = params.set('sort_dir', filters.sortDirection || 'desc');
 
     console.log('Fetching evaluations with params:', params.toString());
 
@@ -65,17 +85,19 @@ export class EvaluationService {
         tap(response => console.log('Raw evaluation list response:', response)),
         map(response => {
           // Transform the API response to match the expected structure
-          if (Array.isArray(response)) {
+          if (response && response.items && Array.isArray(response.items)) {
+            // The updated API now returns {items: [...], total: number}
+            console.log(`Response contains ${response.items.length} evaluations out of ${response.total} total`);
+            return {
+              evaluations: response.items,
+              totalCount: response.total || response.items.length
+            } as EvaluationsResponse;
+          } else if (Array.isArray(response)) {
+            // Fallback for backward compatibility
             console.log('Response is an array, transforming');
             return {
               evaluations: response,
               totalCount: response.length
-            } as EvaluationsResponse;
-          } else if (response.items && Array.isArray(response.items)) {
-            // Handle paginated response format
-            return {
-              evaluations: response.items,
-              totalCount: response.total || response.items.length
             } as EvaluationsResponse;
           }
 

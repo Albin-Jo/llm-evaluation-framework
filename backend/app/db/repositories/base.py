@@ -1,7 +1,7 @@
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 from uuid import UUID
 
-from sqlalchemy import delete, select, update, func, BinaryExpression
+from sqlalchemy import delete, select, update, func, BinaryExpression, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models.orm import Base
@@ -23,7 +23,6 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.execute(query)
         return result.scalars().first()
 
-    # Optimize get_multi in base.py to use selectinload for relationships
     async def get_multi(
             self, *, skip: int = 0, limit: int = 100,
             filters: Dict[str, Any] = None,
@@ -39,7 +38,11 @@ class BaseRepository(Generic[ModelType]):
         if filters:
             for field, value in filters.items():
                 if hasattr(self.model, field):
-                    query = query.where(getattr(self.model, field) == value)
+                    # Handle special case for string fields with LIKE operation
+                    if isinstance(value, str) and field not in ["status", "method"]:
+                        query = query.where(getattr(self.model, field).ilike(f"%{value}%"))
+                    else:
+                        query = query.where(getattr(self.model, field) == value)
 
         # Add relationship loading
         if load_relationships:
@@ -107,6 +110,31 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.execute(stmt)
         return result.rowcount > 0
 
+    async def delete_multi(self, filters: Dict[str, Any] = None) -> int:
+        """
+        Delete multiple records with filtering.
+
+        Args:
+            filters: Filters to apply
+
+        Returns:
+            Number of records deleted
+        """
+        stmt = delete(self.model)
+
+        # Apply filters
+        if filters:
+            filter_conditions = []
+            for field, value in filters.items():
+                if hasattr(self.model, field):
+                    filter_conditions.append(getattr(self.model, field) == value)
+
+            if filter_conditions:
+                stmt = stmt.where(*filter_conditions)
+
+        result = await self.session.execute(stmt)
+        return result.rowcount
+
     async def count(self, filters: Dict[str, Any] = None) -> int:
         """
         Count records with optional filtering.
@@ -123,7 +151,11 @@ class BaseRepository(Generic[ModelType]):
         if filters:
             for key, value in filters.items():
                 if hasattr(self.model, key):
-                    query = query.where(getattr(self.model, key) == value)
+                    # Handle special case for string fields with LIKE operation
+                    if isinstance(value, str) and key not in ["status", "method"]:
+                        query = query.where(getattr(self.model, key).ilike(f"%{value}%"))
+                    else:
+                        query = query.where(getattr(self.model, key) == value)
 
-        result = await self.db.execute(query)
+        result = await self.session.execute(query)
         return result.scalar_one_or_none() or 0

@@ -1,9 +1,9 @@
 # backend/app/api/v1/evaluations.py
 import logging
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Path, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod
@@ -14,6 +14,7 @@ from backend.app.db.schema.evaluation_schema import (
 from backend.app.db.session import get_db
 from backend.app.services.evaluation_service import EvaluationService
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
+from backend.app.api.dependencies.rate_limiter import rate_limit
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -24,10 +25,18 @@ router = APIRouter()
 @router.post("/", response_model=EvaluationResponse)
 async def create_evaluation(
         evaluation_data: EvaluationCreate,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        _: None = Depends(rate_limit(max_requests=10, period_seconds=60))
 ):
     """
     Create a new evaluation.
+
+    This endpoint creates a new evaluation configuration with the specified parameters.
+    After creation, you'll need to call the `/start` endpoint to begin the evaluation process.
+
+    - **evaluation_data**: Required evaluation configuration data
+
+    Returns the created evaluation object with an ID that can be used for future operations.
     """
     logger.info(f"Creating new evaluation with dataset_id={evaluation_data.dataset_id}, "
                 f"agent_id={evaluation_data.agent_id}")
@@ -39,25 +48,45 @@ async def create_evaluation(
         return evaluation
     except Exception as e:
         logger.error(f"Failed to create evaluation: {str(e)}", exc_info=True)
-        raise
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create evaluation: {str(e)}"
+        )
 
 
 @router.get("/", response_model=Dict[str, Any])
 async def list_evaluations(
-        skip: int = 0,
-        limit: int = 10,
-        status: Optional[EvaluationStatus] = None,
-        agent_id: Optional[UUID] = None,
-        dataset_id: Optional[UUID] = None,
-        name: Optional[str] = None,
-        method: Optional[EvaluationMethod] = None,
-        sort_by: Optional[str] = None,
-        sort_dir: Optional[str] = "desc",
-        db: AsyncSession = Depends(get_db)
+        skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+        limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of records to return")] = 10,
+        status: Annotated[Optional[EvaluationStatus], Query(description="Filter by evaluation status")] = None,
+        agent_id: Annotated[Optional[UUID], Query(description="Filter by agent ID")] = None,
+        dataset_id: Annotated[Optional[UUID], Query(description="Filter by dataset ID")] = None,
+        name: Annotated[
+            Optional[str], Query(description="Filter by evaluation name (case-insensitive, partial match)")] = None,
+        method: Annotated[Optional[EvaluationMethod], Query(description="Filter by evaluation method")] = None,
+        sort_by: Annotated[Optional[str], Query(description="Field to sort by")] = "created_at",
+        sort_dir: Annotated[Optional[str], Query(description="Sort direction (asc or desc)")] = "desc",
+        db: AsyncSession = Depends(get_db),
+        _: None = Depends(rate_limit(max_requests=50, period_seconds=60))
 ):
     """
     List evaluations with optional filtering, sorting and pagination.
-    Returns both the evaluations array and a total count.
+
+    This endpoint returns both the evaluations array and a total count for pagination purposes.
+
+    - **skip**: Number of records to skip (for pagination)
+    - **limit**: Maximum number of records to return
+    - **status**: Optional filter by evaluation status
+    - **agent_id**: Optional filter by agent ID
+    - **dataset_id**: Optional filter by dataset ID
+    - **name**: Optional filter by evaluation name (case-insensitive, supports partial matching)
+    - **method**: Optional filter by evaluation method
+    - **sort_by**: Field to sort results by (default: created_at)
+    - **sort_dir**: Sort direction, either "asc" or "desc" (default: desc)
+
+    Returns a dictionary containing the list of evaluations and the total count.
     """
     filters = {}
 
@@ -73,12 +102,22 @@ async def list_evaluations(
     if method:
         filters["method"] = method
 
+    # Validate sort_by parameter
+    valid_sort_fields = ["created_at", "updated_at", "name", "status", "method", "start_time", "end_time"]
+    if sort_by not in valid_sort_fields:
+        logger.warning(f"Invalid sort field: {sort_by}, defaulting to created_at")
+        sort_by = "created_at"
+
+    # Validate sort_dir parameter
+    if sort_dir.lower() not in ["asc", "desc"]:
+        logger.warning(f"Invalid sort direction: {sort_dir}, defaulting to desc")
+        sort_dir = "desc"
+
     # Add sorting instructions
-    sort_options = {}
-    if sort_by:
-        # Default to descending order (newest first)
-        sort_options["sort_by"] = sort_by
-        sort_options["sort_dir"] = sort_dir.lower()
+    sort_options = {
+        "sort_by": sort_by,
+        "sort_dir": sort_dir.lower()
+    }
 
     logger.info(f"Listing evaluations with filters={filters}, skip={skip}, limit={limit}, sort={sort_options}")
 
@@ -99,67 +138,41 @@ async def list_evaluations(
         }
     except Exception as e:
         logger.error(f"Error listing evaluations: {str(e)}", exc_info=True)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error listing evaluations: {str(e)}"
+        )
 
 
 @router.get("/{evaluation_id}", response_model=EvaluationDetailResponse)
 async def get_evaluation(
-        evaluation_id: UUID,
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to retrieve")],
         db: AsyncSession = Depends(get_db),
 ):
     """
     Get evaluation by ID with all related details.
+
+    This endpoint retrieves comprehensive information about an evaluation, including:
+    - Basic evaluation metadata
+    - Configuration details
+    - All results with their metrics
+
+    - **evaluation_id**: The unique identifier of the evaluation
+
+    Returns the complete evaluation object with nested results and metrics.
     """
     try:
         # Create evaluation service
         evaluation_service = EvaluationService(db)
 
-        # Get the evaluation without triggering lazy loading
-        evaluation = await evaluation_service.get_evaluation(evaluation_id)
+        # Get the evaluation with all relationships in one query
+        evaluation, result_responses = await evaluation_service.get_evaluation_with_relationships(evaluation_id)
 
         if not evaluation:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Evaluation with ID {evaluation_id} not found"
             )
-
-        # Get results separately to avoid lazy loading issues
-        results = await evaluation_service.get_evaluation_results(evaluation_id)
-
-        # Process results to add their metric scores
-        result_responses = []
-        for result in results:
-            # Get metric scores for this result
-            metric_scores = await evaluation_service.get_metric_scores(result.id)
-
-            # Create a dictionary for result data
-            result_dict = {
-                "id": result.id,
-                "evaluation_id": result.evaluation_id,
-                "overall_score": result.overall_score,
-                "raw_results": result.raw_results,
-                "dataset_sample_id": result.dataset_sample_id,
-                "input_data": result.input_data,
-                "output_data": result.output_data,
-                "processing_time_ms": result.processing_time_ms,
-                "created_at": result.created_at,
-                "updated_at": result.updated_at,
-                "metric_scores": [
-                    {
-                        "id": score.id,
-                        "name": score.name,
-                        "value": score.value,
-                        "weight": score.weight,
-                        "meta_info": score.meta_info,
-                        "result_id": score.result_id,
-                        "created_at": score.created_at,
-                        "updated_at": score.updated_at
-                    }
-                    for score in metric_scores
-                ]
-            }
-
-            result_responses.append(result_dict)
 
         # Create response dictionary with all needed fields
         response_dict = {
@@ -196,12 +209,20 @@ async def get_evaluation(
 
 @router.put("/{evaluation_id}", response_model=EvaluationResponse)
 async def update_evaluation(
-        evaluation_id: UUID,
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to update")],
         evaluation_data: EvaluationUpdate,
         db: AsyncSession = Depends(get_db)
 ):
     """
     Update evaluation by ID.
+
+    This endpoint allows updating various properties of an existing evaluation.
+    Note that some properties cannot be changed once an evaluation has started.
+
+    - **evaluation_id**: The unique identifier of the evaluation to update
+    - **evaluation_data**: The evaluation properties to update
+
+    Returns the updated evaluation object.
     """
     logger.info(f"Updating evaluation id={evaluation_id}")
 
@@ -216,6 +237,19 @@ async def update_evaluation(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Evaluation with ID {evaluation_id} not found"
             )
+
+        # Check if we're trying to update fields that shouldn't be changed after certain states
+        if evaluation.status not in [EvaluationStatus.PENDING, EvaluationStatus.FAILED]:
+            protected_fields = ["method", "metrics", "config"]
+            update_dict = evaluation_data.model_dump(exclude_unset=True)
+
+            if any(field in update_dict for field in protected_fields):
+                logger.warning(
+                    f"Attempted to update protected fields of evaluation {evaluation_id} in {evaluation.status} state")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot update method, metrics, or config for an evaluation in {evaluation.status} status"
+                )
 
         # Update the evaluation
         logger.debug(f"Updating evaluation id={evaluation_id} with data: {evaluation_data}")
@@ -237,16 +271,26 @@ async def update_evaluation(
         raise
     except Exception as e:
         logger.error(f"Error updating evaluation id={evaluation_id}: {str(e)}", exc_info=True)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating evaluation: {str(e)}"
+        )
 
 
 @router.delete("/{evaluation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_evaluation(
-        evaluation_id: UUID,
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to delete")],
         db: AsyncSession = Depends(get_db)
 ):
     """
     Delete evaluation by ID.
+
+    This endpoint completely removes an evaluation and all its associated data,
+    including results and metric scores. This operation cannot be undone.
+
+    - **evaluation_id**: The unique identifier of the evaluation to delete
+
+    Returns no content on success (HTTP 204).
     """
     logger.info(f"Deleting evaluation id={evaluation_id}")
 
@@ -260,6 +304,14 @@ async def delete_evaluation(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Evaluation with ID {evaluation_id} not found"
+            )
+
+        # Check if evaluation is running before deleting
+        if evaluation.status == EvaluationStatus.RUNNING:
+            logger.warning(f"Attempted to delete running evaluation {evaluation_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete an evaluation while it's running. Cancel it first."
             )
 
         # Delete the evaluation
@@ -278,13 +330,18 @@ async def delete_evaluation(
         raise
     except Exception as e:
         logger.error(f"Error deleting evaluation id={evaluation_id}: {str(e)}", exc_info=True)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting evaluation: {str(e)}"
+        )
 
 
 @router.post("/{evaluation_id}/start", response_model=EvaluationResponse)
 async def start_evaluation(
-        evaluation_id: UUID,
-        db: AsyncSession = Depends(get_db)
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to start")],
+        background_tasks: BackgroundTasks,
+        db: AsyncSession = Depends(get_db),
+        _: None = Depends(rate_limit(max_requests=5, period_seconds=60))
 ):
     """
     Start an evaluation.
@@ -292,6 +349,10 @@ async def start_evaluation(
     This endpoint initiates the evaluation process, which will run asynchronously.
     The status will change from PENDING to RUNNING, and eventually to COMPLETED or FAILED.
     You can check the progress using the /progress endpoint.
+
+    - **evaluation_id**: The unique identifier of the evaluation to start
+
+    Returns the updated evaluation object with RUNNING status.
     """
     logger.info(f"Starting evaluation id={evaluation_id}")
 
@@ -342,19 +403,27 @@ async def start_evaluation(
         raise
     except Exception as e:
         logger.error(f"Error starting evaluation id={evaluation_id}: {str(e)}", exc_info=True)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error starting evaluation: {str(e)}"
+        )
 
 
 @router.get("/{evaluation_id}/progress", response_model=Dict)
 async def get_evaluation_progress(
-        evaluation_id: UUID,
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to check progress")],
         db: AsyncSession = Depends(get_db)
 ):
     """
     Get the progress of an evaluation.
 
     This endpoint returns detailed information about the evaluation progress,
-    including the current status, number of processed items, and percentage complete.
+    including the current status, number of processed items, percentage complete,
+    and estimated time remaining.
+
+    - **evaluation_id**: The unique identifier of the evaluation
+
+    Returns a dictionary with detailed progress information.
     """
     logger.info(f"Getting progress for evaluation id={evaluation_id}")
 
@@ -375,11 +444,18 @@ async def get_evaluation_progress(
 
 @router.post("/{evaluation_id}/cancel", response_model=EvaluationResponse)
 async def cancel_evaluation(
-        evaluation_id: UUID,
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to cancel")],
         db: AsyncSession = Depends(get_db)
 ):
     """
     Cancel a running evaluation.
+
+    This endpoint allows you to stop an evaluation that is currently running.
+    The evaluation's status will be changed to CANCELLED.
+
+    - **evaluation_id**: The unique identifier of the evaluation to cancel
+
+    Returns the updated evaluation object with CANCELLED status.
     """
     logger.info(f"Cancelling evaluation id={evaluation_id}")
 
@@ -400,7 +476,7 @@ async def cancel_evaluation(
             logger.warning(f"Cannot cancel evaluation id={evaluation_id} because it is not running")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Evaluation is not in RUNNING status"
+                detail=f"Evaluation is not in RUNNING status (current status: {evaluation.status})"
             )
 
         # Cancel the evaluation
@@ -417,16 +493,30 @@ async def cancel_evaluation(
         raise
     except Exception as e:
         logger.error(f"Error cancelling evaluation id={evaluation_id}: {str(e)}", exc_info=True)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error cancelling evaluation: {str(e)}"
+        )
 
 
-@router.get("/{evaluation_id}/results", response_model=List[Dict])
+@router.get("/{evaluation_id}/results", response_model=Dict[str, Any])
 async def get_evaluation_results(
-        evaluation_id: UUID,
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to get results for")],
+        skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+        limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of records to return")] = 100,
         db: AsyncSession = Depends(get_db)
 ):
     """
-    Get results for an evaluation.
+    Get results for an evaluation with pagination.
+
+    This endpoint returns the detailed results for an evaluation, including all metric scores.
+    Results are paginated for better performance with large evaluations.
+
+    - **evaluation_id**: The unique identifier of the evaluation
+    - **skip**: Number of records to skip (for pagination)
+    - **limit**: Maximum number of records to return
+
+    Returns a dictionary containing the list of results and the total count.
     """
     logger.info(f"Requesting results for evaluation id={evaluation_id}")
 
@@ -444,7 +534,14 @@ async def get_evaluation_results(
 
         # Get evaluation results
         logger.debug(f"Fetching results for evaluation id={evaluation_id}")
-        results = await evaluation_service.get_evaluation_results(evaluation_id)
+        results = await evaluation_service.get_evaluation_results(evaluation_id, skip, limit)
+
+        # Get total count for pagination
+        total_query = select(func.count()).select_from(EvaluationResult).where(
+            EvaluationResult.evaluation_id == evaluation_id
+        )
+        total_result = await db.execute(total_query)
+        total_count = total_result.scalar_one_or_none() or 0
 
         # Process results for response
         processed_results = []
@@ -459,24 +556,34 @@ async def get_evaluation_results(
             processed_results.append(result_dict)
 
         logger.info(f"Successfully retrieved {len(processed_results)} results for evaluation id={evaluation_id}")
-        return processed_results
+        return {
+            "items": processed_results,
+            "total": total_count
+        }
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
         logger.error(f"Error retrieving results for evaluation id={evaluation_id}: {str(e)}", exc_info=True)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving results: {str(e)}"
+        )
 
 
 @router.get("/metrics/{dataset_type}", response_model=Dict[str, Union[str, List[str]]])
 async def get_supported_metrics(
-        dataset_type: str,
+        dataset_type: Annotated[str, Path(description="The dataset type to get supported metrics for")],
         db: AsyncSession = Depends(get_db)
 ):
     """
     Get supported metrics for a specific dataset type.
 
     This endpoint returns the list of metrics that can be calculated for a given dataset type.
+
+    - **dataset_type**: The type of dataset (e.g., user_query, context, question_answer, etc.)
+
+    Returns a dictionary with the dataset type and list of supported metrics.
     """
     try:
         if dataset_type not in DATASET_TYPE_METRICS:
@@ -501,9 +608,15 @@ async def get_supported_metrics(
 
 @router.post("/{evaluation_id}/test", response_model=Dict)
 async def test_evaluation(
-        evaluation_id: UUID,
-        test_data: Dict = Body(...),
-        db: AsyncSession = Depends(get_db)
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to test")],
+        test_data: Dict = Body(..., example={
+            "query": "What is the capital of France?",
+            "context": "France is a country in Western Europe. Its capital is Paris.",
+            "answer": "The capital of France is Paris.",
+            "ground_truth": "Paris"
+        }),
+        db: AsyncSession = Depends(get_db),
+        _: None = Depends(rate_limit(max_requests=20, period_seconds=60))
 ):
     """
     Test an evaluation with sample data without creating results.
@@ -512,12 +625,19 @@ async def test_evaluation(
     before running a full evaluation.
 
     The request body should contain test data in the format:
+    ```
     {
         "query": "Sample query",
         "context": "Sample context",
         "answer": "Sample answer",
         "ground_truth": "Optional ground truth"
     }
+    ```
+
+    - **evaluation_id**: The unique identifier of the evaluation to test
+    - **test_data**: Sample data for testing the metrics
+
+    Returns the calculated metrics and overall score for the test data.
     """
     logger.info(f"Testing evaluation id={evaluation_id}")
 
@@ -535,13 +655,14 @@ async def test_evaluation(
 
         # Validate minimum required test data
         required_fields = ["query", "context", "answer"]
-        for field in required_fields:
-            if field not in test_data:
-                logger.warning(f"Missing required field '{field}' in test data for evaluation id={evaluation_id}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Missing required field: {field}"
-                )
+        missing_fields = [field for field in required_fields if field not in test_data]
+
+        if missing_fields:
+            logger.warning(f"Missing required fields {missing_fields} in test data for evaluation id={evaluation_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Missing required fields: {', '.join(missing_fields)}"
+            )
 
         # Get evaluation method
         logger.debug(f"Getting evaluation method handler for method={evaluation.method}")

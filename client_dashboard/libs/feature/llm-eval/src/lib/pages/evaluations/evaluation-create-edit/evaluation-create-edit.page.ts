@@ -174,10 +174,9 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
   /**
    * Load reference data for dropdowns (agents, datasets, prompts)
    */
-  private loadReferenceData(): void {
+   private loadReferenceData(): void {
     this.isLoading = true;
     this.error = null;
-
     forkJoin({
       agents: this.agentService.getAgents(),
       datasets: this.datasetService.getDatasets(),
@@ -190,12 +189,19 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
           this.agents = data.agents.agents || [];
           this.datasets = data.datasets.datasets || [];
 
-          // Handle prompts data with proper type checking
-          if (Array.isArray(data.prompts)) {
+          // Handle prompts data with proper type checking for PromptsResponse
+          if (data.prompts && 'prompts' in data.prompts && Array.isArray(data.prompts.prompts)) {
+            // New response format with { prompts: [...], totalCount: number }
+            this.prompts = data.prompts.prompts;
+          } else if (data.prompts && 'items' in data.prompts && Array.isArray(data.prompts.items)) {
+            // Alternative format with { items: [...], total: number }
+            this.prompts = data.prompts.items;
+          } else if (Array.isArray(data.prompts)) {
+            // Direct array format (backwards compatibility)
             this.prompts = data.prompts;
-          } else if (data.prompts && typeof data.prompts === 'object' && 'items' in data.prompts) {
-            this.prompts = data.prompts || [];
           } else {
+            // Fallback to empty array if no valid format is found
+            console.warn('Unexpected prompts response format:', data.prompts);
             this.prompts = [];
           }
 
@@ -225,7 +231,6 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         }
       });
   }
-
   /**
    * Load dataset metrics when a dataset is selected
    */

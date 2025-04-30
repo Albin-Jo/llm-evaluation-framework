@@ -1,4 +1,4 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.page.scss */
+/* Path: libs/feature/llm-eval/src/lib/pages/reports/reports.page.scss */
 @import '../../../../../../styles/variables';
 @import '../../../../../../styles/mixins';
 
@@ -7,13 +7,13 @@
   width: 100%;
 }
 
-.evaluations-container {
+.reports-container {
   max-width: $container-xxl;
   margin: 0 auto;
-  padding: $spacing-3;
+  padding: $spacing-4;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-3;
+    padding: $spacing-4;
   }
 }
 
@@ -21,11 +21,11 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: $spacing-2;
+  margin-bottom: $spacing-6;
 
   @include media-breakpoint-down(md) {
     flex-direction: column;
-    gap: $spacing-2;
+    gap: $spacing-4;
 
     .action-section {
       width: 100%;
@@ -63,20 +63,20 @@
   }
 }
 
-.evaluations-content {
+.reports-content {
   @include card;
   overflow: hidden;
   width: 100%; // Ensure full width
 }
 
 .filters-section {
-  padding: $spacing-2;
+  padding: $spacing-4;
   border-bottom: 1px solid $border-color;
 
   .filters-form {
     display: flex;
     flex-wrap: wrap;
-    gap: $spacing-2;
+    gap: $spacing-4;
     align-items: flex-end;
 
     @include media-breakpoint-down(md) {
@@ -92,7 +92,7 @@
     .filter-fields {
       display: flex;
       flex-wrap: wrap;
-      gap: $spacing-2;
+      gap: $spacing-4;
 
       @include media-breakpoint-down(md) {
         flex-direction: column;
@@ -131,11 +131,11 @@
   padding: $spacing-12;
 }
 
-.evaluations-list {
+.reports-list {
   overflow-x: auto;
   width: 100%;
 
-  .evaluations-table {
+  .reports-table {
     @include table;
     table-layout: fixed; // Improve table layout
 
@@ -143,43 +143,31 @@
       font-weight: $font-weight-medium;
       color: $primary;
       min-width: 160px;
-      width: 18%;
+      width: 20%;
     }
 
     .description-col {
       color: $text-secondary;
       min-width: 200px;
       max-width: 300px;
-      width: 28%;
+      width: 30%;
     }
 
-    .method-col {
-      min-width: 100px;
-      width: 12%;
+    .format-col {
+      min-width: 80px;
+      width: 10%;
     }
 
     .status-col {
       min-width: 100px;
-      width: 12%;
+      width: 15%;
 
       .status-badge {
-        &.completed {
+        &.generated {
           @include status-badge('success');
         }
 
-        &.running {
-          @include status-badge('info');
-        }
-
-        &.pending {
-          @include status-badge('warning');
-        }
-
-        &.failed {
-          @include status-badge('error');
-        }
-
-        &.cancelled {
+        &.draft {
           @include status-badge('warning');
         }
       }
@@ -193,58 +181,50 @@
 
     .actions-col {
       white-space: nowrap;
-      min-width: 180px;
-      width: 15%;
+      min-width: 120px;
+      width: 10%;
 
       .action-buttons {
         display: flex;
-        justify-content: flex-end;
         gap: $spacing-2;
 
         .action-button {
-          padding: 6px 10px;
-          font-size: 12px;
-          border: none;
+          padding: $spacing-1 $spacing-2;
+          border: 1px solid $border-color;
           border-radius: $radius-sm;
+          background: none;
+          font-size: $font-size-xs;
           cursor: pointer;
           transition: $transition-normal;
 
           &:hover {
-            background-color: #bbdefb;
+            background-color: $background-light;
           }
 
-          &.edit-button {
-            background-color: #e3f2fd;
-            color: #0277bd;
-
-            &:hover {
-              background-color: #bbdefb;
-            }
+          &.edit-button:hover {
+            border-color: $primary;
+            color: $primary;
           }
 
-          &.delete-button {
-            background-color: #ffebee;
-            color: #c62828;
-
-            &:hover {
-              background-color: #ffcdd2;
-            }
+          &.delete-button:hover {
+            border-color: $error;
+            color: $error;
           }
 
-          &.start-button {
-            background-color: #d6f0cc;
-            color: #55c628;
+          &.generate-button:hover {
+            border-color: $info;
+            color: $info;
           }
 
-          &.cancel-button:hover {
-            border-color: $warning;
-            color: #ca802a;
+          &.download-button:hover {
+            border-color: $success;
+            color: $success;
           }
         }
       }
     }
 
-    .evaluation-row {
+    .report-row {
       cursor: pointer;
       transition: background-color 0.2s;
 

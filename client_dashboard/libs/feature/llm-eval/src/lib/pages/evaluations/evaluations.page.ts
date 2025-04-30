@@ -1,4 +1,4 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.page.ts (Update) */
+/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -44,14 +44,14 @@ export class EvaluationsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 10;
+  itemsPerPage = 5;
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: EvaluationFilterParams = {
     page: 1,
-    limit: 10,
+    limit: 5,
     sortBy: 'created_at',
     sortDirection: 'desc'
   };
@@ -139,6 +139,8 @@ export class EvaluationsPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
+    console.log('Loading evaluations with params:', this.filterParams);
+
     this.evaluationService.getEvaluations(this.filterParams)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -146,6 +148,8 @@ export class EvaluationsPage implements OnInit, OnDestroy {
           this.evaluations = response.evaluations;
           this.totalCount = response.totalCount;
           this.isLoading = false;
+
+          console.log(`Loaded ${this.evaluations.length} evaluations. Total: ${this.totalCount}`);
 
           // Calculate pagination
           this.updateVisiblePages();
@@ -166,6 +170,8 @@ export class EvaluationsPage implements OnInit, OnDestroy {
     const maxVisiblePages = 5;
     const totalPages = Math.ceil(this.totalCount / this.itemsPerPage);
     const pages: number[] = [];
+
+    console.log(`Updating pagination. Total pages: ${totalPages}, Current page: ${this.filterParams.page}`);
 
     if (totalPages <= maxVisiblePages) {
       // If total pages are less than max visible, show all pages
@@ -208,12 +214,14 @@ export class EvaluationsPage implements OnInit, OnDestroy {
     }
 
     this.visiblePages = pages;
+    console.log('Visible pages:', this.visiblePages);
   }
 
   onPageChange(page: number, event: Event): void {
     event.preventDefault();
     if (page < 1) return;
 
+    console.log(`Changing to page ${page}`);
     this.filterParams.page = page;
     this.loadEvaluations();
   }
@@ -231,21 +239,36 @@ export class EvaluationsPage implements OnInit, OnDestroy {
     this.filterParams.method = undefined;
     this.filterParams.page = 1;
 
+    console.log('Filters cleared');
     this.loadEvaluations();
   }
 
   onSortChange(sortBy: string): void {
-    if (this.filterParams.sortBy === sortBy) {
-      // Toggle direction if same sort field
-      this.filterParams.sortDirection =
-        this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      // Default to desc for new sort field
-      this.filterParams.sortBy = sortBy as "created_at" | "name" | "status" | "updated_at";
-      this.filterParams.sortDirection = 'desc';
-    }
+    console.log(`Sorting by ${sortBy}, current sort: ${this.filterParams.sortBy}, direction: ${this.filterParams.sortDirection}`);
 
-    this.loadEvaluations();
+    // Define all valid sort fields
+    const validSortFields = ["created_at", "updated_at", "name", "status", "method", "start_time", "end_time"];
+
+    // Ensure the sort field is valid
+    if (validSortFields.includes(sortBy)) {
+      if (this.filterParams.sortBy === sortBy) {
+        // Toggle direction if same sort field
+        this.filterParams.sortDirection =
+          this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
+        console.log(`Changed sort direction to ${this.filterParams.sortDirection}`);
+      } else {
+        // Default to desc for new sort field
+        this.filterParams.sortBy = sortBy as "created_at" | "name" | "status" | "updated_at";
+        this.filterParams.sortDirection = 'desc';
+        console.log(`Changed sort field to ${sortBy} with direction desc`);
+      }
+
+      // Reset to page 1 when sorting changes
+      this.filterParams.page = 1;
+      this.loadEvaluations();
+    } else {
+      console.warn(`Invalid sort field: ${sortBy}. Using default sort.`);
+    }
   }
 
   onEvaluationClick(evaluation: Evaluation): void {
