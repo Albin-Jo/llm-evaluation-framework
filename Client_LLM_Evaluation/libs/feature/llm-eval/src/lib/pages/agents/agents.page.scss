@@ -1,0 +1,272 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents.page.scss */
+@import '../../../../../../styles/variables';
+@import '../../../../../../styles/mixins';
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.agents-container {
+  max-width: $container-xxl;
+  margin: 0 auto;
+  padding: $spacing-6;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
+}
+
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-6;
+
+  @include media-breakpoint-down(md) {
+    flex-direction: column;
+    gap: $spacing-4;
+
+    .action-section {
+      width: 100%;
+    }
+  }
+
+  .title-section {
+    .page-title {
+      @include page-title;
+      margin-bottom: $spacing-2;
+    }
+
+    .page-description {
+      color: $text-secondary;
+      font-size: $font-size-sm;
+    }
+  }
+
+  .action-section {
+    .create-button {
+      @include button-primary;
+      display: inline-flex;
+      align-items: center;
+
+      .button-icon {
+        margin-right: $spacing-2;
+        font-size: $font-size-base;
+      }
+
+      @include media-breakpoint-down(md) {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+.agents-content {
+  @include card;
+  overflow: hidden;
+  width: 100%; // Ensure full width
+}
+
+.filters-section {
+  padding: $spacing-4;
+  border-bottom: 1px solid $border-color;
+
+  .filters-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-4;
+    align-items: flex-end;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .search-field {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .filter-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $spacing-4;
+
+      @include media-breakpoint-down(md) {
+        flex-direction: column;
+      }
+
+      .filter-field {
+        min-width: 150px;
+      }
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+
+      .clear-button {
+        @include button-secondary;
+        font-size: $font-size-xs;
+        padding: $spacing-2 $spacing-4;
+      }
+    }
+  }
+}
+
+.loading-container {
+  @include loading-container;
+  padding: $spacing-12;
+}
+
+.error-container {
+  @include error-container;
+  padding: $spacing-12;
+}
+
+.no-results-container {
+  @include empty-state;
+  padding: $spacing-12;
+}
+
+.agents-list {
+  overflow-x: auto;
+  width: 100%;
+
+  .agents-table {
+    @include table;
+    table-layout: fixed; // Improve table layout
+
+    .name-col {
+      font-weight: $font-weight-medium;
+      color: $primary;
+      min-width: 160px;
+      width: 18%;
+    }
+
+    .description-col {
+      color: $text-secondary;
+      min-width: 200px;
+      max-width: 300px;
+      width: 28%;
+    }
+
+    .domain-col {
+      min-width: 120px;
+      width: 12%;
+
+      .domain-badge {
+        @include badge($primary-light, $primary);
+      }
+    }
+
+    .model-col {
+      min-width: 100px;
+      width: 12%;
+    }
+
+    .date-col {
+      min-width: 120px;
+      width: 15%;
+      white-space: nowrap;
+    }
+
+    .status-col {
+      min-width: 100px;
+      width: 12%;
+
+      .status-badge {
+        text-transform: capitalize;
+      }
+    }
+
+    .actions-col {
+      white-space: nowrap;
+      min-width: 120px;
+      width: 15%;
+
+      .action-buttons {
+        display: flex;
+        gap: $spacing-2;
+
+        .action-button {
+          padding: $spacing-1 $spacing-2;
+          border: 1px solid $border-color;
+          border-radius: $radius-sm;
+          background: none;
+          font-size: $font-size-xs;
+          cursor: pointer;
+          transition: $transition-normal;
+
+          &:hover {
+            background-color: $background-light;
+          }
+
+          &.edit-button:hover {
+            border-color: $primary;
+            color: $primary;
+          }
+
+          &.delete-button:hover {
+            border-color: $error;
+            color: $error;
+          }
+        }
+      }
+    }
+
+    .agent-row {
+      cursor: pointer;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: rgba($primary, 0.05);
+      }
+    }
+
+    th {
+      .th-content {
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
+        cursor: pointer;
+
+        &:hover {
+          color: $primary;
+        }
+
+        i {
+          font-size: $font-size-xs;
+        }
+      }
+    }
+  }
+}
+
+.pagination-container {
+  @include pagination;
+  border-top: 1px solid $border-color;
+
+  .pagination-pages {
+    .page-button {
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  @include media-breakpoint-down(md) {
+    flex-direction: column;
+    gap: $spacing-4;
+
+    .pagination-info, .pagination-controls {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+  }
+}

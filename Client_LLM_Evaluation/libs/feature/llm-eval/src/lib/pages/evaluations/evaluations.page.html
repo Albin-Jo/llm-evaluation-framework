@@ -1,0 +1,200 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.page.html (Sort indicators update) -->
+<div class="evaluations-container">
+   <div class="header-section">
+      <div class="title-section">
+         <h1 class="page-title">Evaluations</h1>
+         <p class="page-description">Oversee and track the evaluation process of LLM-based Retrieval-Augmented Generation (RAG) systems, monitoring and effective management of evaluation workflows</p>
+      </div>
+      <div class="action-section">
+         <button class="create-button" (click)="createNewEvaluation($event)">
+         <span class="button-icon">+</span> Create New Evaluation
+         </button>
+      </div>
+   </div>
+   <div class="evaluations-content">
+      <!-- Filters Section -->
+      <div class="filters-section">
+         <form [formGroup]="filterForm" class="filters-form">
+            <div class="search-field">
+               <qrac-textbox
+               [controlName]="'search'"
+               formControlName="search"
+               [placeholder]="'Search evaluations by name'"
+               [size]="'small'">
+               </qrac-textbox>
+            </div>
+            <div class="filter-fields">
+               <div class="filter-field">
+                  <qrac-select
+                  [controlName]="'status'"
+                  formControlName="status"
+                  [options]="statusOptions">
+                  </qrac-select>
+               </div>
+               <div class="filter-field">
+                  <qrac-select
+                  [controlName]="'method'"
+                  formControlName="method"
+                  [options]="methodOptions">
+                  </qrac-select>
+               </div>
+            </div>
+            <div class="filter-actions">
+               <button class="clear-button" type="button" (click)="clearFilters()">
+               Clear Filters
+               </button>
+            </div>
+         </form>
+      </div>
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="loading-container">
+         <div class="spinner"></div>
+         <p>Loading evaluations...</p>
+      </div>
+      <!-- Error State -->
+      <div *ngIf="error" class="error-container">
+         <div class="error-icon">❌</div>
+         <p>{{ error }}</p>
+         <qrac-button
+            label="Try Again"
+            type="secondary"
+            (buttonClick)="loadEvaluations()">
+         </qrac-button>
+      </div>
+      <!-- No Results State -->
+      <div *ngIf="!isLoading && evaluations.length === 0" class="no-results-container">
+         <div class="no-results-icon">📊</div>
+         <h3>No evaluations found</h3>
+         <p>Create a new evaluation or adjust your filters</p>
+         <qrac-button
+            label="Create Evaluation"
+            type="primary"
+            (buttonClick)="createNewEvaluation($event)">
+         </qrac-button>
+      </div>
+      <!-- Evaluations List View -->
+      <div *ngIf="evaluations.length > 0 && !isLoading" class="evaluations-list">
+         <table class="evaluations-table">
+            <thead>
+               <tr>
+                  <th class="name-col">
+                     <span class="th-content sortable" (click)="onSortChange('name')">
+                     Name
+                     <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
+                     {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                     </span>
+                     </span>
+                  </th>
+                  <th class="description-col">Description</th>
+                  <th class="method-col">
+                     <span class="th-content sortable" (click)="onSortChange('method')">
+                     Method
+                     <span class="sort-indicator" *ngIf="filterParams.sortBy === 'method'">
+                     {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                     </span>
+                     </span>
+                  </th>
+                  <th class="status-col">
+                     <span class="th-content sortable" (click)="onSortChange('status')">
+                     Status
+                     <span class="sort-indicator" *ngIf="filterParams.sortBy === 'status'">
+                     {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                     </span>
+                     </span>
+                  </th>
+                  <th class="date-col">
+                     <span class="th-content sortable" (click)="onSortChange('created_at')">
+                     Created
+                     <span class="sort-indicator" *ngIf="filterParams.sortBy === 'created_at'">
+                     {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                     </span>
+                     </span>
+                  </th>
+                  <th class="date-col">
+                     <span class="th-content sortable" (click)="onSortChange('updated_at')">
+                     Updated
+                     <span class="sort-indicator" *ngIf="filterParams.sortBy === 'updated_at'">
+                     {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                     </span>
+                     </span>
+                  </th>
+                  <th class="actions-col">Actions</th>
+               </tr>
+            </thead>
+            <tbody>
+               <tr *ngFor="let evaluation of evaluations" class="evaluation-row" (click)="onEvaluationClick(evaluation)">
+               <td class="name-col">{{ evaluation.name }}</td>
+               <td class="description-col">{{ truncateText(evaluation.description, 80) }}</td>
+               <td class="method-col">{{ evaluation.method }}</td>
+               <td class="status-col">
+                  <span class="status-badge" [ngClass]="getStatusBadgeClass(evaluation.status)">
+                  {{ evaluation.status }}
+                  </span>
+               </td>
+               <td class="date-col">{{ formatDate(evaluation.created_at) }}</td>
+               <td class="date-col">{{ formatDate(evaluation.updated_at) }}</td>
+               <td class="actions-col">
+                  <div class="action-buttons">
+                     <button *ngIf="canStartEvaluation(evaluation.status)"
+                     class="action-button start-button"
+                     title="Start evaluation"
+                     (click)="startEvaluation($event, evaluation.id)">
+                     Start
+                     </button>
+                     <button *ngIf="canCancelEvaluation(evaluation.status)"
+                     class="action-button cancel-button"
+                     title="Cancel evaluation"
+                     (click)="cancelEvaluation($event, evaluation.id)">
+                     Cancel
+                     </button>
+                     <button class="action-button edit-button"
+                        title="Edit evaluation"
+                        (click)="onEditEvaluation($event, evaluation.id)">
+                     Edit
+                     </button>
+                     <button class="action-button delete-button"
+                        title="Delete evaluation"
+                        (click)="confirmDeleteEvaluation($event, evaluation.id)">
+                     Del
+                     </button>
+                  </div>
+               </td>
+               </tr>
+            </tbody>
+         </table>
+      </div>
+      <!-- Pagination -->
+      <div *ngIf="evaluations.length > 0 && totalCount > itemsPerPage" class="pagination-container">
+         <div class="pagination-info">
+            Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
+            {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} evaluations
+         </div>
+         <div class="pagination-controls">
+            <button
+            class="pagination-button"
+            [disabled]="filterParams.page === 1"
+            (click)="onPageChange(filterParams.page! - 1, $event)">
+            Previous
+            </button>
+            <div class="pagination-pages">
+               <ng-container *ngFor="let page of visiblePages">
+                  <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
+                  <button
+                  *ngIf="page > 0"
+                  class="page-button"
+                  [class.active]="page === filterParams.page"
+                  (click)="onPageChange(page, $event)">
+                  {{ page }}
+                  </button>
+               </ng-container>
+            </div>
+            <button
+            class="pagination-button"
+            [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
+            (click)="onPageChange(filterParams.page! + 1, $event)">
+            Next
+            </button>
+         </div>
+      </div>
+   </div>
+</div>

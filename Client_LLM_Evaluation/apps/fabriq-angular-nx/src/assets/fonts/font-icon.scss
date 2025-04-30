@@ -1,0 +1,323 @@
+  /* Font variables for icons -- Rajesh */
+@import "variables-icon.scss";
+
+@font-face {
+  font-family: '#{$icomoon-font-family}';
+  src:
+    url('#{$icomoon-font-family}.ttf?u69o4m') format('truetype'),
+    url('#{$icomoon-font-family}.woff?u69o4m') format('woff'),
+    url('#{$icomoon-font-family}.svg?u69o4m##{$icomoon-font-family}') format('svg');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+[class^="ex-"], [class*=" ex-"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: '#{$icomoon-font-family}' !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ex-addnew {
+  &:before {
+    content: $ex-addnew;     
+    color: #7f858d;
+  }
+}
+.ex-burger-menu {
+  &:before {
+    content: $ex-burger-menu;     
+    color: var( --qrds-brand-color-secondary-grey);
+  }
+}
+.ex-celebrate .path1 {
+  &:before {
+    content: $ex-celebrate-path1;  
+    color: rgb(217, 181, 108);
+  }
+}
+.ex-celebrate .path2 {
+  &:before {
+    content: $ex-celebrate-path2;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path3 {
+  &:before {
+    content: $ex-celebrate-path3;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path4 {
+  &:before {
+    content: $ex-celebrate-path4;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path5 {
+  &:before {
+    content: $ex-celebrate-path5;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path6 {
+  &:before {
+    content: $ex-celebrate-path6;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path7 {
+  &:before {
+    content: $ex-celebrate-path7;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path8 {
+  &:before {
+    content: $ex-celebrate-path8;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path9 {
+  &:before {
+    content: $ex-celebrate-path9;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path10 {
+  &:before {
+    content: $ex-celebrate-path10;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path11 {
+  &:before {
+    content: $ex-celebrate-path11;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path12 {
+  &:before {
+    content: $ex-celebrate-path12;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path13 {
+  &:before {
+    content: $ex-celebrate-path13;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path14 {
+  &:before {
+    content: $ex-celebrate-path14;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path15 {
+  &:before {
+    content: $ex-celebrate-path15;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path16 {
+  &:before {
+    content: $ex-celebrate-path16;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path17 {
+  &:before {
+    content: $ex-celebrate-path17;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path18 {
+  &:before {
+    content: $ex-celebrate-path18;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path19 {
+  &:before {
+    content: $ex-celebrate-path19;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path20 {
+  &:before {
+    content: $ex-celebrate-path20;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path21 {
+  &:before {
+    content: $ex-celebrate-path21;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path22 {
+  &:before {
+    content: $ex-celebrate-path22;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path23 {
+  &:before {
+    content: $ex-celebrate-path23;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path24 {
+  &:before {
+    content: $ex-celebrate-path24;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path25 {
+  &:before {
+    content: $ex-celebrate-path25;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-celebrate .path26 {
+  &:before {
+    content: $ex-celebrate-path26;  
+    margin-left: -1em;  
+    color: rgb(255, 255, 255);
+  }
+}
+.ex-notify {
+  &:before {
+    content: $ex-notify;     
+    color: var(--qrds-brand-color-white);
+  }
+}
+.ex-broadcast .path1 {
+  &:before {
+    content: $ex-broadcast-path1;  
+    color: rgba(177, 214, 177, 0.5);
+  }
+}
+.ex-broadcast .path2 {
+  &:before {
+    content: $ex-broadcast-path2;  
+    margin-left: -1em;  
+    color: rgb(57, 126, 57);  
+    opacity: 0.5;
+  }
+}
+.ex-broadcast .path3 {
+  &:before {
+    content: $ex-broadcast-path3;  
+    margin-left: -1em;  
+    color: rgb(57, 126, 57);  
+    opacity: 0.5;
+  }
+}
+.ex-broadcast .path4 {
+  &:before {
+    content: $ex-broadcast-path4;  
+    margin-left: -1em;  
+    color: rgb(57, 126, 57);  
+    opacity: 0.5;
+  }
+}
+.ex-broadcast .path5 {
+  &:before {
+    content: $ex-broadcast-path5;  
+    margin-left: -1em;  
+    color: rgb(57, 126, 57);  
+    opacity: 0.5;
+  }
+}
+.ex-broadcast .path6 {
+  &:before {
+    content: $ex-broadcast-path6;  
+    margin-left: -1em;  
+    color: rgb(57, 126, 57);  
+    opacity: 0.5;
+  }
+}
+.ex-calendar {
+  &:before {
+    content: $ex-calendar;
+    color: var(--qrds-brand-color-primary-grey);
+  }
+}
+.ex-coffee {
+  &:before {
+    content: $ex-coffee;     
+    color:var(--qrds-brand-color-primary-grey);
+  }
+}
+.ex-icon-dashboard {
+  &:before {
+    content: $ex-icon-dashboard; 
+    color: var(--qrds-brand-color-primary-grey);
+  }
+}
+.ex-home {
+  &:before {
+    content: $ex-home;     
+    color: var(--qrds-brand-color-primary-burgundy)
+  }
+}
+.ex-location {
+  &:before {
+    content: $ex-location;     
+    color: var(--qrds-brand-color-primary-burgundy);
+  }
+}
+.ex-myteam {
+  &:before {
+    content: $ex-myteam;
+    color: var(--qrds-brand-color-primary-grey);
+  }
+}
+.ex-mytodo {
+  &:before {
+    content: $ex-mytodo;     
+    color: #7f858d;
+  }
+}
+.ex-broad-notify {
+  &:before {
+    content: $ex-broad-notify;     
+    color: #7f858d;
+  }
+}
+

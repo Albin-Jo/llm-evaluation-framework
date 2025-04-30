@@ -1,0 +1,15 @@
+<div class="wrapper">
+    <label *ngIf="label" for="qracRange" class="form-label label" [ngClass]="{'required': isMandatory}">{{label}}</label>
+<div class="'range">
+  {{min}}
+  <input type="range" class="custom-range" [(ngModel)]="inputValue" min={{min}} max={{max}} step="1" id="qracRange" (input)="valueChange.emit(inputValue)">
+  {{max}}
+</div>
+<div>
+  value {{inputValue}}
+</div>
+    <div *ngIf="control.invalid && (control.dirty || control.touched)" class="invalid-feedback">
+      {{errorMessage}}
+  </div>
+</div>
+

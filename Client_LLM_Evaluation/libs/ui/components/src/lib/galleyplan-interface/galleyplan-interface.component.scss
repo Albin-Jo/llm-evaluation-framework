@@ -1,0 +1,85 @@
+.galleyplan-interface {
+    display: flex;
+    height: 100vh;
+}
+
+.lftpanel {
+    width: 300px;
+    padding: 10px;
+    border-right: 1px solid #ccc;
+}
+
+.righpanel {
+    flex: 1;
+    padding: 10px;
+}
+
+.listitems .content ul {
+    list-style: none;
+    padding: 0;
+}
+
+.galley-structure {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ccc;
+    min-height: 40rem;
+}
+
+.galley-row {
+    display: flex;
+}
+
+.galley-col {
+    flex: 1;
+    border: 1px solid #ccc;
+    padding: 10px;
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+}
+
+.partition {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    border: 2px solid green;
+}
+
+.partition-row {
+    display: flex;
+    flex: 1;
+}
+
+.partition-col {
+    flex: 1;
+    border: 1px solid #ccc;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.context-menu {
+    position: absolute;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+.context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.context-menu ul li {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.context-menu ul li:hover {
+    background: #f0f0f0;
+}

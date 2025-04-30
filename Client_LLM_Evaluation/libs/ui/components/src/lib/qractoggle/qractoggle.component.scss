@@ -1,0 +1,10 @@
+.toggle {
+    width: 2.5rem;
+    height: 1.4rem;
+    border: var(--bs-border-width) solid gray;
+
+}
+
+.toggle:checked {
+    border: var(--bs-border-width) solid var(--qrds-brand-color-primary-burgundy);
+}

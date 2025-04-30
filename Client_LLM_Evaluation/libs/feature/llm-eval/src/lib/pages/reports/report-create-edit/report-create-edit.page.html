@@ -1,0 +1,281 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/reports/report-create-edit/report-create-edit.page.html -->
+<div class="report-create-edit-container">
+  <div class="report-card">
+    <!-- Header -->
+    <div class="report-header">
+      <div class="back-navigation">
+        <a routerLink="/app/reports" class="back-link">
+          <span class="back-icon">←</span> Back to Reports
+        </a>
+      </div>
+      <h1 class="report-title">{{ pageTitle }}</h1>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-container" *ngIf="isLoading">
+      <div class="loading-spinner"></div>
+      <p>Loading report data...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div class="error-container" *ngIf="error">
+      <p class="error-message">{{ error }}</p>
+    </div>
+
+    <!-- Form Content -->
+    <form [formGroup]="reportForm" (ngSubmit)="saveReport()" *ngIf="!isLoading && !error">
+      <!-- Tabs Navigation -->
+      <div class="tabs-container">
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 0"
+          (click)="selectedTabIndex = 0">
+          Basic Information
+        </div>
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 1"
+          (click)="selectedTabIndex = 1">
+          Content Configuration
+        </div>
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 2"
+          (click)="selectedTabIndex = 2">
+          Appearance Settings
+        </div>
+      </div>
+
+      <!-- Tab Content - Basic Information -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 0">
+        <div class="form-group">
+          <label for="name" class="required">Report Name</label>
+          <input
+            type="text"
+            id="name"
+            class="form-control"
+            formControlName="name"
+            placeholder="Enter report name"
+            [ngClass]="{'is-invalid': isFieldInvalid('name')}">
+          <div *ngIf="isFieldInvalid('name')" class="invalid-feedback">
+            {{getErrorMessage('name')}}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea
+            id="description"
+            class="form-control textarea"
+            formControlName="description"
+            placeholder="Enter report description (optional)"
+            rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="evaluation_id" class="required">Evaluation</label>
+          <select
+            id="evaluation_id"
+            class="form-control"
+            formControlName="evaluation_id"
+            [ngClass]="{'is-invalid': isFieldInvalid('evaluation_id')}">
+            <option value="">Select evaluation</option>
+            <option *ngFor="let evaluation of evaluations" [value]="evaluation.id">
+              {{evaluation.name}}
+            </option>
+          </select>
+          <div *ngIf="isFieldInvalid('evaluation_id')" class="invalid-feedback">
+            {{getErrorMessage('evaluation_id')}}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Report Format</label>
+          <div class="format-options">
+            <div
+              class="format-option"
+              [class.selected]="isFormatSelected(ReportFormat.PDF)"
+              (click)="setFormat(ReportFormat.PDF)">
+              <div class="format-radio">
+                <div class="radio-inner" *ngIf="isFormatSelected(ReportFormat.PDF)"></div>
+              </div>
+              <span class="format-label">PDF</span>
+            </div>
+
+            <div
+              class="format-option"
+              [class.selected]="isFormatSelected(ReportFormat.HTML)"
+              (click)="setFormat(ReportFormat.HTML)">
+              <div class="format-radio">
+                <div class="radio-inner" *ngIf="isFormatSelected(ReportFormat.HTML)"></div>
+              </div>
+              <span class="format-label">HTML</span>
+            </div>
+
+            <div
+              class="format-option"
+              [class.selected]="isFormatSelected(ReportFormat.JSON)"
+              (click)="setFormat(ReportFormat.JSON)">
+              <div class="format-radio">
+                <div class="radio-inner" *ngIf="isFormatSelected(ReportFormat.JSON)"></div>
+              </div>
+              <span class="format-label">JSON</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content - Content Configuration -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 1">
+        <div class="config-section" formGroupName="config">
+          <h3 class="section-heading">Report Content</h3>
+          <p class="section-description">Select which sections to include in your report</p>
+
+          <div class="config-options">
+            <div class="config-option">
+              <div class="toggle-wrapper">
+                <input
+                  type="checkbox"
+                  id="include_executive_summary"
+                  formControlName="include_executive_summary"
+                  class="toggle-input">
+                <label for="include_executive_summary" class="toggle-label"></label>
+              </div>
+              <div class="option-details">
+                <label for="include_executive_summary" class="option-label">Include Executive Summary</label>
+                <p class="option-description">Add a comprehensive overview of the evaluation results</p>
+              </div>
+            </div>
+
+            <div class="config-option">
+              <div class="toggle-wrapper">
+                <input
+                  type="checkbox"
+                  id="include_evaluation_details"
+                  formControlName="include_evaluation_details"
+                  class="toggle-input">
+                <label for="include_evaluation_details" class="toggle-label"></label>
+              </div>
+              <div class="option-details">
+                <label for="include_evaluation_details" class="option-label">Include Evaluation Details</label>
+                <p class="option-description">Include details about the evaluation setup and configuration</p>
+              </div>
+            </div>
+
+            <div class="config-option">
+              <div class="toggle-wrapper">
+                <input
+                  type="checkbox"
+                  id="include_metrics_overview"
+                  formControlName="include_metrics_overview"
+                  class="toggle-input">
+                <label for="include_metrics_overview" class="toggle-label"></label>
+              </div>
+              <div class="option-details">
+                <label for="include_metrics_overview" class="option-label">Include Metrics Overview</label>
+                <p class="option-description">Add visualizations of key performance metrics</p>
+              </div>
+            </div>
+
+            <div class="config-option">
+              <div class="toggle-wrapper">
+                <input
+                  type="checkbox"
+                  id="include_detailed_results"
+                  formControlName="include_detailed_results"
+                  class="toggle-input">
+                <label for="include_detailed_results" class="toggle-label"></label>
+              </div>
+              <div class="option-details">
+                <label for="include_detailed_results" class="option-label">Include Detailed Results</label>
+                <p class="option-description">Include detailed breakdown of individual evaluation results</p>
+              </div>
+            </div>
+
+            <div class="config-option">
+              <div class="toggle-wrapper">
+                <input
+                  type="checkbox"
+                  id="include_agent_responses"
+                  formControlName="include_agent_responses"
+                  class="toggle-input">
+                <label for="include_agent_responses" class="toggle-label"></label>
+              </div>
+              <div class="option-details">
+                <label for="include_agent_responses" class="option-label">Include Agent Responses</label>
+                <p class="option-description">Show raw agent responses in the detailed results</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group number-input">
+            <label for="max_examples">Maximum Examples</label>
+            <input
+              type="number"
+              id="max_examples"
+              formControlName="max_examples"
+              class="form-control"
+              min="1"
+              max="100">
+            <p class="helper-text">Maximum number of examples to include in detailed results</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content - Appearance Settings -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 2">
+        <div class="preview-section">
+          <h3 class="section-heading">Report Preview</h3>
+          <p class="section-description">Preview of how your report will look</p>
+
+          <div class="preview-placeholder">
+            <div class="preview-icon">📊</div>
+            <p>Preview will be available after selecting an evaluation</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <!-- Cancel button -->
+        <button
+          type="button"
+          class="outline-button"
+          (click)="cancel()">
+          Cancel
+        </button>
+
+        <div class="action-buttons">
+          <!-- Previous button on tabs 1 and 2 -->
+          <button
+            *ngIf="selectedTabIndex > 0"
+            type="button"
+            class="outline-button"
+            (click)="previousTab()">
+            Previous
+          </button>
+
+          <!-- Next button on tabs 0 and 1 -->
+          <button
+            *ngIf="selectedTabIndex < 2"
+            type="button"
+            class="primary-button"
+            (click)="nextTab()"
+            [disabled]="selectedTabIndex === 0 && !isBasicInfoValid()">
+            Next
+          </button>
+
+          <!-- Save button on the final tab -->
+          <button
+            *ngIf="selectedTabIndex === 2"
+            type="submit"
+            class="primary-button"
+            [disabled]="reportForm.invalid || isSaving">
+            <span *ngIf="isSaving" class="spinner-sm"></span>
+            {{ isEditMode ? 'Update Report' : 'Create Report' }}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

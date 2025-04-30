@@ -1,0 +1,52 @@
+<div class="verticalmenubarcontainer">
+    <div class="verticalmenubarpnl">
+        <button class="menuicon">&nbsp;</button>
+        <ul class="static menumainicons">
+            <li class="search" (click)="TemplateLoader('search')" style="line-height: 2rem; padding-bottom:1rem; color: #FFF; cursor: pointer;">Search<span style="display:none">Search</span></li>
+        </ul>
+        <ul class="dynamic menumainicons">
+            <li *ngFor="let menu of dynamicMenus" class="menu {{menu.class}}" [ngClass]="{'selected': menu.selected}" (click)="selectMenu(menu)" data-bs-toggle="tooltip" data-bs-placement="right" title="{{menu.name}}">
+                &nbsp;<span style="display:none">{{menu.name}}</span>
+            </li>
+        </ul>
+        <ul class="static bottomnenuicons">
+            <li class="search" (click)="TemplateLoader('settings')" style="line-height: 2rem; padding-bottom:1rem; color: #FFF;  cursor: pointer;">Help<span style="display:none">Help</span></li>
+            <li class="search" (click)="TemplateLoader('help')" style="line-height: 2rem; padding-bottom:1rem; color: #FFF;  cursor: pointer;">Settings<span style="display:none">Settings</span></li>
+        </ul>
+    </div>
+    <div [ngClass]="{'verticalmenudetailedpnl': true, 'expanded': menuExpanded, 'closed': !menuExpanded}">
+        <div class="verticalmenudetailed" *ngIf="currentMenu">
+            <div class="titlemenubar">{{ currentMenu.name }}</div>
+            <div class="contentpnl">
+                <ul *ngFor="let submenuHeader of currentMenu.subMenus">
+                    <li>{{ submenuHeader.header }}</li>
+                    <li *ngFor="let submenu of submenuHeader.items" (click)="selectSubMenu(submenu)">
+                        {{ submenu.name }}
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <!-- <div *ngIf="!currentMenu">
+            <div id="dynamic-template"></div>
+        </div> -->
+        <div class="verticalmenudetailed" *ngIf="Issearchmenupnl">
+            <div class="titlemenubar">search</div>
+            <div class="contentpnl">
+                Checking
+            </div>
+        </div>
+        <div class="verticalmenudetailed" *ngIf="Ishelpmenupnl">
+            <div class="titlemenubar">Help</div>
+            <div class="contentpnl">
+                Checking
+            </div>
+        </div>
+        <div class="verticalmenudetailed" *ngIf="Issettingmenupnl">
+            <div class="titlemenubar">Settings</div>
+            <div class="contentpnl">
+                Checking
+            </div>
+        </div>
+        <div class="verticalmenudetailed-blank" (click)="closeMenu()"></div>
+    </div>
+</div>

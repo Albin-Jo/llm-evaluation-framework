@@ -1,0 +1,23 @@
+<!-- Path: libs/feature/llm-eval/src/lib/components/feature-placeholder/feature-placeholder.component.html -->
+<div class="placeholder-container">
+  <div class="placeholder-content">
+    <div class="feature-icon" *ngIf="featureIcon">
+      <img [src]="'assets/images/llmeval/' + featureIcon" [alt]="featureTitle">
+    </div>
+
+    <h1 class="feature-title">{{ featureTitle }}</h1>
+
+    <div class="feature-description">
+      <p>{{ description }}</p>
+      <p>We're working hard to bring you this feature soon.</p>
+    </div>
+
+    <div class="action-buttons">
+      <qrac-button
+        [primary]="true"
+        label="Go to Datasets"
+        (click)="navigateToDatasets()">
+      </qrac-button>
+    </div>
+  </div>
+</div>

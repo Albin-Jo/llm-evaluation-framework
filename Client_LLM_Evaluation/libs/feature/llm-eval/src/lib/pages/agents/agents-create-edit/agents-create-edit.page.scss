@@ -1,0 +1,298 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-create-edit/agents-create-edit.page.scss */
+@import '../../../../../../../styles/variables';
+@import '../../../../../../../styles/mixins';
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.agent-create-edit-container {
+  padding: $spacing-6;
+  max-width: $container-xxl;
+  margin: 0 auto;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
+}
+
+.form-header {
+  margin-bottom: $spacing-6;
+
+  .page-title {
+    @include page-title;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    margin-bottom: $spacing-2;
+    color: $text-primary;
+  }
+
+  .page-description {
+    color: $text-secondary;
+    font-size: $font-size-base;
+  }
+}
+
+// Loading and error states
+.loading-container, .error-container {
+  @include card-padded;
+  padding: $spacing-12;
+  margin-bottom: $spacing-6;
+  text-align: center;
+  border-radius: $radius-lg;
+}
+
+.loading-container {
+  @include loading-container;
+}
+
+.error-container {
+  @include error-container;
+
+  .retry-button {
+    @include button-secondary;
+    margin-top: $spacing-4;
+    min-width: 120px;
+  }
+}
+
+// Form container
+.form-container {
+  width: 100%;
+}
+
+.agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-6;
+
+  .form-section {
+    @include card-padded;
+    border-radius: $radius-lg;
+    background-color: white;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: $shadow-md;
+    }
+
+    .section-title {
+      @include section-title;
+      font-size: $font-size-xl;
+      color: $text-primary;
+      font-weight: $font-weight-semibold;
+      border-bottom: 1px solid $border-color;
+      padding-bottom: $spacing-4;
+      margin-bottom: $spacing-6;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-6;
+      margin-bottom: $spacing-6;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      @include media-breakpoint-down(md) {
+        grid-template-columns: 1fr;
+        gap: $spacing-4;
+      }
+    }
+
+    .form-field {
+      flex: 1;
+      min-width: 0; // prevent flex items from overflowing
+
+      .error-message {
+        color: $error;
+        font-size: $font-size-xs;
+        margin-top: $spacing-1;
+        display: block;
+      }
+
+      .field-hint {
+        font-size: $font-size-xs;
+        color: $text-secondary;
+        margin-top: $spacing-1;
+      }
+    }
+  }
+
+  .form-actions {
+    @include card-padded;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: $background-light;
+    border-radius: $radius-lg;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column-reverse;
+      gap: $spacing-3;
+    }
+
+    .cancel-button {
+      @include button-secondary;
+      height: 44px;
+      min-width: 100px;
+      font-weight: $font-weight-medium;
+
+      @include media-breakpoint-down(sm) {
+        width: 100%;
+      }
+    }
+
+    .submit-button {
+      @include button-primary;
+      height: 44px;
+      min-width: 140px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: $font-weight-semibold;
+
+      @include media-breakpoint-down(sm) {
+        width: 100%;
+      }
+
+      .spinner-small {
+        @include spinner($size: 18px, $border-width: 2px, $color: white);
+        margin-right: $spacing-2;
+      }
+    }
+  }
+}
+
+// Form controls styling
+:host ::ng-deep {
+  // Textbox inputs
+  .textbox-container {
+    width: 100%;
+
+    .textbox-label {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      margin-bottom: $spacing-2;
+      display: block;
+    }
+
+    .textbox-input {
+      width: 100%;
+      height: 44px;
+      padding: $spacing-3;
+      font-size: $font-size-sm;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      transition: all 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
+      }
+    }
+  }
+
+  // Select dropdowns
+  .select-container {
+    width: 100%;
+
+    .select-label {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      margin-bottom: $spacing-2;
+      display: block;
+    }
+
+    .select-input {
+      width: 100%;
+      height: 44px;
+      padding: $spacing-3;
+      font-size: $font-size-sm;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      background-color: white;
+      transition: all 0.2s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 8px 10px;
+      padding-right: 2.5rem;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
+      }
+    }
+  }
+
+  // Textarea
+  .textarea-container {
+    width: 100%;
+
+    .textarea-label {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      margin-bottom: $spacing-2;
+      display: block;
+    }
+
+    .textarea-input {
+      width: 100%;
+      min-height: 120px;
+      padding: $spacing-3;
+      font-size: $font-size-sm;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      resize: vertical;
+      transition: all 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
+      }
+    }
+  }
+
+  // Checkbox styling
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    margin-top: $spacing-4;
+
+    .checkbox-input {
+      margin-right: $spacing-2;
+      width: 20px;
+      height: 20px;
+      accent-color: $primary;
+    }
+
+    .checkbox-label {
+      font-size: $font-size-sm;
+      color: $text-primary;
+    }
+  }
+}
+
+// Responsive adjustments
+@media screen and (max-width: 576px) {
+  .agent-create-edit-container {
+    padding: $spacing-3;
+  }
+
+  .form-section,
+  .form-actions {
+    padding: $spacing-4;
+  }
+}

@@ -1,0 +1,71 @@
+$primary: var(--qrds-brand-color-primary-burgundy);
+$success: var(--qrds-brand-color-success);
+$info: var(--qrds-brand-color-info);
+$warning: var(--qrds-brand-color-warning);
+$danger: var(--qrds-brand-color-danger);
+.btn {
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-align: center;
+    display: inline-block;
+}
+
+.filter-bar {
+    display: flex;
+    overflow-y: auto;
+    button {
+        margin: 0rem 0.2rem;
+        padding: 0.3rem 0.9rem;
+        border-radius: 1rem;
+        cursor: pointer;
+        font-size: 0.8rem;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        &.active {
+            background-color: $primary;
+            color: white;
+            border: 1px solid var(--qrds-brand-color-primary-burgundy);
+        }
+        &.inactive {
+            background-color: white;
+            border: 1px solid #dee2e6;
+        }
+        .status-color {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-icon {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            color: var(--qrds-brand-color-info);
+            margin-right: 5px;
+        }
+        .badge {
+            border-radius: 1rem;
+            margin-left: 0.3rem;
+            padding: 6px;
+            &.badge-light {
+                background-color: white;
+                color: black;
+            }
+            &.badge-dark {
+                background-color: #66003330;
+                color: $primary;
+            }
+        }
+    }
+}
+
+.no-wrap {
+    white-space: nowrap;
+}

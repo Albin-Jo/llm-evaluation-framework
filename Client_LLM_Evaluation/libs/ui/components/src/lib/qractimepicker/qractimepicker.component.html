@@ -1,0 +1,10 @@
+<div class="wrapper">
+    <label *ngIf="label" for="qracTimePicker" class="form-label" [ngClass]="{'required': isMandatory}">{{label}}</label>
+<div>
+    <ejs-timepicker id="qracTimePicker" [value]='dateValue' [min]='minValue' [max]='maxValue' (change)="control.setValue($event.value); value = $event.value;"></ejs-timepicker>
+</div>
+<div *ngIf="control.errors && control.errors['required'] && (control.dirty || control.touched)" class="invalid-feedback">
+ {{errorMessage}}
+</div>
+</div>
+

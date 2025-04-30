@@ -1,0 +1,9 @@
+<div class="wrapper">
+    <label *ngIf="label" for="qracDatePicker" class="form-label label" [ngClass]="{'required': isMandatory}">{{label}}</label>
+<div>
+    <ejs-multiselect id='multiselectelement' [dataSource]='data' [fields]='fields' [placeholder]='placeholder' (filtering)='onFiltering($event)' (change)="control.setValue($event.value); value = $event.value;" ></ejs-multiselect>
+</div>
+<div *ngIf="control.errors && control.errors['required'] && (control.dirty || control.touched)" class="invalid-feedback">
+    {{errorMessage}}
+</div>
+</div>

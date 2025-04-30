@@ -1,0 +1,23 @@
+{
+  "name": "feature-profile",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/features/profile/src",
+  "projectType": "library",
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/feature"],
+      "options": {
+        "jestConfig": "libs/jest.config.ts",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["libs/feature/profile/**/*.ts", "libs/feature/profile/**/*.html"]
+      }
+    }
+  },
+  "tags": []
+}

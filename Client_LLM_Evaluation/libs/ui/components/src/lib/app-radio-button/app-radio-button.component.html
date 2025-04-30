@@ -1,0 +1,4 @@
+<div *ngFor="let option of options">
+  <input type="radio" [value]="option.value" [(ngModel)]="value" (ngModelChange)="onChange($event)" (blur)="onTouched()">
+  <label>{{ option.label }}</label>
+</div>

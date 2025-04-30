@@ -1,0 +1,54 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    .form-label {
+        text-align: left;
+        &.required::after {
+            content: "*";
+            color: #F00;
+            margin-left: 0.2rem;
+            display: inline-block;
+        }
+    }
+    .invalid-feedback {
+        display: block;
+        text-align: left;
+    }
+}
+
+
+/* To specify background color and font size */
+
+.e-input-group .e-input-group-icon:last-child,
+.e-input-group.e-control-wrapper .e-input-group-icon:last-child {
+    font-size: 12px;
+    background-color: var(--qrds-brand-color-primary-burgundy);
+    color: white;
+}
+
+.e-input-group .e-input-group-icon:last-child:hover,
+.e-input-group.e-control-wrapper .e-input-group-icon:last-child:hover,
+.e-datepicker .e-btn.e-today.e-flat.e-primary:hover,
+.e-datepicker .e-css.e-btn.e-today.e-flat.e-primary:hover {
+    background-color: var(--app-brand-dark-color);
+}
+
+
+/* To specify background color, color, and border-color  */
+
+.e-datepicker .e-btn.e-today.e-flat.e-primary,
+.e-datepicker .e-css.e-btn.e-today.e-flat.e-primary {
+    background-color: var(--qrds-brand-color-primary-burgundy);
+    color: white;
+}
+
+.e-datepicker .e-content td.e-today.e-selected:hover span.e-day,
+.e-calendar .e-content td.e-selected:hover span.e-day,
+.e-calendar .e-content td.e-selected.e-focused-date span.e-day,
+.e-bigger.e-small .e-calendar .e-content td.e-today.e-selected:hover span.e-day,
+.e-bigger.e-small .e-calendar .e-content td.e-selected:hover span.e-day,
+.e-bigger.e-small .e-calendar .e-content td.e-selected.e-focused-date span.e-day,
+.e-calendar .e-content td.e-selected span.e-day,
+.e-bigger.e-small .e-calendar .e-content td.e-selected span.e-day {
+    background-color: var(--qrds-brand-color-primary-burgundy)!important;
+}

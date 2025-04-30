@@ -1,0 +1,11 @@
+<div [ngClass]="{'wrapper': true, 'form-floating': isFloat}">
+    <label *ngIf="label && !isFloat" for="qracTextbox" class="form-label label">{{label}}</label>
+    <select class="form-select" id="qracSelect" [formControl]="control" (change)="valueChange.emit(control.value)" (keypress)="onKeyPress($event)">
+        <option *ngFor="let option of options" [value]="option.value">{{option.label}}</option>
+    </select>
+    <label *ngIf="label && isFloat" for="qracTextbox" class="form-label label">{{label}}</label>
+    <div *ngIf="control.invalid && control.touched" class="invalid-feedback">
+        {{errorMessage}}
+    </div>
+    <small id="emailHelp" class="form-text text-muted left fst-italic">{{infoText}}</small>
+</div>

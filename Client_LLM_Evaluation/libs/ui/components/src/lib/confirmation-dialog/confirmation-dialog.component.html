@@ -1,0 +1,21 @@
+<!-- Path: libs/ui/components/src/lib/confirmation-dialog/confirmation-dialog.component.html -->
+<div class="dialog-overlay" *ngIf="visible" (click)="onOverlayClick($event)">
+  <div class="dialog-container" [attr.data-type]="config.type">
+    <div class="dialog-header">
+      <h2 class="dialog-title">{{ config.title }}</h2>
+      <button type="button" class="close-button" (click)="onClose()">×</button>
+    </div>
+    <div class="dialog-content">
+      <div class="dialog-icon" [ngClass]="getIconClass()"></div>
+      <div class="dialog-message">{{ config.message }}</div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="cancel-button" (click)="onCancel()">
+        {{ config.cancelText }}
+      </button>
+      <button type="button" class="confirm-button" [ngClass]="config.type" (click)="onConfirm()">
+        {{ config.confirmText }}
+      </button>
+    </div>
+  </div>
+</div>

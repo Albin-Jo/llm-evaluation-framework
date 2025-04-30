@@ -1,0 +1,59 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    .form-label {
+        text-align: left;
+        &.required::after {
+            content: "*";
+            color: #F00;
+            margin-left: 0.2rem;
+            display: inline-block;
+        }
+    }
+    .invalid-feedback {
+        display: block;
+        text-align: left;
+    }
+}
+
+.phonenumber-input {
+    padding-left: 5rem;
+}
+
+.custom-select {
+    position: absolute;
+    display: inline-block;
+    width: fit-content;
+   }
+   .custom-select select {
+ 
+    height: 2rem;
+    opacity: 0; /* Hide the actual select element */
+    position: absolute;
+    top: 0;
+    left: 0;
+   }
+   .custom-select .selected-display {
+    display: flex;
+    gap:0.5rem;
+    // justify-content: space-between;
+    align-items: center;
+    margin: 0.6rem 0.5rem;
+    padding-right: 0.5rem;
+    background-color: #fff;
+    background-size: 2rem;
+    border-right: 1px solid #3a3a3a;
+    box-sizing: border-box;
+    pointer-events: none;
+  
+   }
+
+   .selected-display:after {
+    content: ' ';
+    display: inline-block;
+    border-bottom: 1px solid #3a3a3a;
+    border-right: 1px solid #3a3a3a;
+    height: 0.5rem;
+    width: 0.5rem;
+    transform: rotate(45deg);
+  }

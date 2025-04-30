@@ -1,0 +1,649 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+@import url('assets/fonts/_body_font.css');
+:root {
+    /* Solid Colors */
+    --qrds-brand-color-primary-burgundy: #8E2157;
+    --qrds-brand-color-primary-burgundy-light: #C15384;
+    --qrds-brand-color-primary-violet: #3A35AF;
+    --qrds-brand-color-secondary-violet: #6661CF;
+    --qrds-brand-color-primary-grey: #1F212B;
+    --qrds-brand-color-primary-grey-light: #1F212BB3;
+    --qrds-brand-color-secondary-grey: #4A525D;
+    --qrds-brand-color-deactive-grey: #1A243980;
+    --qrds-brand-color-unavailable-grey: #9DACBC;
+    --qrds-brand-color-outline-grey: #DBDEE8;
+    --qrds-brand-color-background-grey: #F2F3FA;
+    --qrds-brand-color-background-white: #FFFFFF;
+    --qrds-brand-color-background-white-light: #FFFFFF50;
+    --qrds-brand-color-white: #FFF;
+
+    /* Loyalty Colors */
+    --qrds-brand-color-primary-burgundy-dark: #5C0931;
+    --qrds-brand-color-secondary-silver: #8C919B;
+    --qrds-brand-color-primary-gold: #644316;
+    --qrds-brand-color-secondary-gold: #C29352;
+    --qrds-brand-color-primary-platinum: #2F3739;
+    --qrds-brand-color-secondary-platinum: #414A4C;
+    --qrds-brand-color-disabled-grey: #9099A2;
+    --qrds-brand-color-transparent: transparent;
+
+    --qrds-brand-color-success: #328256;
+    --qrds-brand-color-info: #17a2b8;
+    --qrds-brand-color-warning: #ffc107;
+    --qrds-brand-color-danger: #CC4726;
+    --qrds-brand-color-generic-light: #f8f9fa;
+    --qrds-brand-color-generic-dark: #343a40;
+    --qrds-brand-color-brd-focus: #3935AFCC;
+
+    /* Fonts */
+    --qrds-font-family-base: "Roboto", sans-serif;
+    --qrds-font-size-base: 1rem;
+    --qrds-font-weight-normal: 400;
+    --qrds-font-weight-bold: 700;
+    --qrds-body-font-family: "Roboto", sans-serif;
+    /* Main Title */
+    --qrds-main-title-font-size: 3rem;
+    --qrds-main-title-font-weight: 300;
+    /* Navigation Title */
+    --qrds-navigation-title-font-size: 1.5rem;
+    --qrds-navigation-title-font-weight: 300;
+    /* Subtitle */
+    --qrds-sub-title-font-size: 2.25rem;
+    --qrds-sub-title-font-weight: 300;
+    /* Page Title */
+    --qrds-page-title-font-size: 1.75rem;
+    --qrds-page-title-font-weight: 300;
+    /* Card Title */
+    --qrds-card-title-font-size: 1.5rem;
+    --qrds-card-title-font-weight: 300;
+    /* Sub Card Title */
+    --qrds-sub-card-title-font-size: 1.25rem;
+    --qrds-sub-card-title-font-weight: 400;
+    /* Item Title */
+    --qrds-item-title-font-size: 1.125rem;
+    --qrds-item-title-font-weight: 400;
+    /* Item Subtitle */
+    --qrds-item-sub-title-font-size: 1rem;
+    --qrds-item-sub-title-font-weight: 400;
+    /* Item Description */
+    --qrds-item-description-font-size: 1rem;
+    --qrds-item-description-font-weight: 500;
+    /* Item label */
+    --qrds-item-label-font-size: 0.875rem;
+    --qrds-item-label-font-weight: 400;
+    /* Item value */
+    --qrds-item-value-font-size: 0.785rem;
+    --qrds-item-value-font-weight: 400;
+    /* button */
+    --qrds-button-brd: solid 1px;
+    --qrds-button-font-lg-size: 1rem;
+    --qrds-button-font-md-size: 0.875rem;
+    --qrds-button-font-sm-size: 0.75rem;
+    --qrds-button-font-weight: 400;
+    --qrds-button-padding: 0.5rem 1.5rem;
+    --qrds-button-focus-border-color: var(--qrds-brand-color-brd-focus);
+    --qrds-button-brd-radius: 2rem;
+    --qrds-button-primary-bg: var(--qrds-brand-color-primary-burgundy);
+    --qrds-button-primary-brd: var(--qrds-brand-color-primary-burgundy);
+    --qrds-button-primary-color: #FFF;
+    --qrds-button-primary-hover-bg: var(--qrds-brand-color-primary-burgundy-dark);
+    --qrds-button-primary-hover-brd: var(--qrds-brand-color-primary-burgundy-dark);
+    --qrds-button-primary-hover-color: #FFF;
+    --qrds-button-secondary-bg: var(--qrds-brand-color-white);
+    --qrds-button-secondary-brd: var(--qrds-brand-color-primary-burgundy);
+    --qrds-button-secondary-color: var(--qrds-brand-color-primary-burgundy);
+    --qrds-button-secondary-hover-bg: var(--qrds-brand-color-primary-burgundy);
+    --qrds-button-secondary-hover-brd: var(--qrds-brand-color-primary-burgundy);
+    --qrds-button-secondary-hover-color: var(--qrds-brand-color-white);
+    --qrds-button-tertiary-bg: var(--qrds-brand-color-transparent);
+    --qrds-button-tertiary-brd: var(--qrds-brand-color-white);
+    --qrds-button-tertiary-color: var(--qrds-brand-color-white);
+    --qrds-button-tertiary-hover-bg: var(--qrds-brand-color-white);
+    --qrds-button-tertiary-hover-brd: var(--qrds-brand-color-white);
+    --qrds-button-tertiary-hover-color: var(--qrds-brand-color-primary-burgundy);
+
+    /* Item badge */
+    --qrds-item-badge-font-size: 0.875rem;
+    --qrds-item-badge-font-weight: 400;
+    /* Heading Tags */
+    --qrds-h1-font-size: 3rem;
+    --qrds-h1-font-weight: 300;
+    --qrds-h2-font-size: 2.25rem;
+    --qrds-h2-font-weight: 300;
+    --qrds-h3-font-size: 1.75rem;
+    --qrds-h3-font-weight: 400;
+    --qrds-h4-font-size: 1.50rem;
+    --qrds-h4-font-weight: 400;
+    --qrds-h5-font-size: 1.25rem;
+    --qrds-h5-font-weight: 400;
+    --qrds-h6-font-size: 1.125rem;
+    --qrds-h6-font-weight: 300;
+    --qrds-p-font-size: 1rem;
+    --qrds-p-font-weight: 400;
+
+    /*Font weight: ;*/
+
+    --qrds-fw-normal: 500;
+    --qrds-fw-regular: 400;
+    --qrds-fw-light: 300;
+}
+
+.devicetestdiv,
+.devicemobile,
+.deviceipad,
+.deviceipadpro,
+.devicedesktop,
+.devicedesktoplarge {
+    display: none
+}
+
+
+
+/* Mobile */
+
+@media (max-width: 480px) {
+     :root {
+        --qrds-main-title-font-size: 2.25rem;
+        --qrds-main-title-font-weight: 300;
+        --qrds-navigation-title-font-size: 1.5rem;
+        --qrds-navigation-title-font-weight: 300;
+        --qrds-sub-title-font-size: 1.75rem;
+        --qrds-sub-title-font-weight: 300;
+        --qrds-page-title-font-size: 1.5rem;
+        --qrds-page-title-font-weight: 400;
+        --qrds-card-title-font-size: 1rem;
+        --qrds-card-title-font-weight: 400;
+        --qrds-sub-card-title-font-size: 0.75rem;
+        --qrds-sub-card-title-font-weight: 400;
+        --qrds-item-title-font-size: 0.75rem;
+        --qrds-item-title-font-weight: 400;
+        --qrds-item-sub-title-font-size: 0.75rem;
+        --qrds-item-sub-title-font-weight: 400;
+        --qrds-item-description-font-size: 0.75rem;
+        --qrds-item-description-font-weight: 400;
+        --qrds-item-label-font-size: 0.75rem;
+        --qrds-item-label-font-weight: 400;
+        --qrds-item-badge-font-size: 0.687rem;
+        --qrds-item-badge-font-weight: 400;
+        --qrds-item-value-font-size: 0.75rem;
+        --qrds-item-value-font-weight: 400;
+        --qrds-button-font-lg-size: 1rem;
+        --qrds-button-font-md-size: 0.875rem;
+        --qrds-button-font-sm-size: 0.75rem;
+        --qrds-button-font-weight: 400;
+        --qrds-button-padding: 0.5rem 1.5rem;
+        --qrds-button-brd-radius: 2rem;
+        --qrds-h1-font-size: 2.25rem;
+        --qrds-h1-font-weight: 300;
+        --qrds-h2-font-size: 1.75rem;
+        --qrds-h2-font-weight: 300;
+        --qrds-h3-font-size: 1.5rem;
+        --qrds-h3-font-weight: 400;
+        --qrds-h4-font-size: 1.25rem;
+        --qrds-h4-font-weight: 400;
+        --qrds-h5-font-size: 1.125rem;
+        --qrds-h5-font-weight: 400;
+        --qrds-h6-font-size: 1rem;
+        --qrds-h6-font-weight: 300;
+        --qrds-p-font-size: 0.75rem;
+        --qrds-p-font-weight: 300;
+    }
+    .devicemobile {
+        display: block
+    }
+}
+
+
+/* iPad */
+
+@media (min-width: 481px) and (max-width: 768px) {
+     :root {
+        --qrds-main-title-font-size: 2rem;
+        --qrds-main-title-font-weight: 300;
+        --qrds-navigation-title-font-size: 1.5rem;
+        --qrds-navigation-title-font-weight: 300;
+        --qrds-sub-title-font-size: 1.75rem;
+        --qrds-sub-title-font-weight: 300;
+        --qrds-page-title-font-size: 1.5rem;
+        --qrds-page-title-font-weight: 300;
+        --qrds-card-title-font-size: 1.375rem;
+        --qrds-card-title-font-weight: 400;
+        --qrds-sub-card-title-font-size: 1.25rem;
+        --qrds-sub-card-title-font-weight: 400;
+        --qrds-item-title-font-size: 1.125rem;
+        --qrds-item-title-font-weight: 400;
+        --qrds-item-sub-title-font-size: 1rem;
+        --qrds-item-sub-title-font-weight: 400;
+        --qrds-item-description-font-size: 0.875rem;
+        --qrds-item-description-font-weight: 400;
+        --qrds-item-label-font-size: 0.75rem;
+        --qrds-item-label-font-weight: 400;
+        --qrds-item-badge-font-size: 0.75rem;
+        --qrds-item-badge-font-weight: 400;
+        --qrds-item-value-font-size: 0.75rem;
+        --qrds-item-value-font-weight: 400;
+        --qrds-button-font-lg-size: 1rem;
+        --qrds-button-font-md-size: 0.875rem;
+        --qrds-button-font-sm-size: 0.75rem;
+        --qrds-button-font-weight: 400;
+        --qrds-button-padding: 0.5rem 1.5rem;
+        --qrds-button-brd-radius: 2rem;
+        --qrds-h1-font-size: 2.5rem;
+        --qrds-h1-font-weight: 300;
+        --qrds-h2-font-size: 2rem;
+        --qrds-h2-font-weight: 300;
+        --qrds-h3-font-size: 1.75rem;
+        --qrds-h3-font-weight: 400;
+        --qrds-h4-font-size: 1.5rem;
+        --qrds-h4-font-weight: 400;
+        --qrds-h5-font-size: 1.25rem;
+        --qrds-h5-font-weight: 400;
+        --qrds-h6-font-size: 1rem;
+        --qrds-h6-font-weight: 400;
+        --qrds-p-font-size: 1rem;
+        --qrds-p-font-weight: 300;
+    }
+    .deviceipad {
+        display: block
+    }
+}
+
+
+/* iPad Pro */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+     :root {
+        --qrds-main-title-font-size: 2rem;
+        --qrds-main-title-font-weight: 300;
+        --qrds-navigation-title-font-size: 1.5rem;
+        --qrds-navigation-title-font-weight: 300;
+        --qrds-sub-title-font-size: 1.75rem;
+        --qrds-sub-title-font-weight: 300;
+        --qrds-page-title-font-size: 1.5rem;
+        --qrds-page-title-font-weight: 300;
+        --qrds-card-title-font-size: 1.375rem;
+        --qrds-card-title-font-weight: 400;
+        --qrds-sub-card-title-font-size: 1.25rem;
+        --qrds-sub-card-title-font-weight: 400;
+        --qrds-item-title-font-size: 1.125rem;
+        --qrds-item-title-font-weight: 400;
+        --qrds-item-sub-title-font-size: 1rem;
+        --qrds-item-sub-title-font-weight: 400;
+        --qrds-item-description-font-size: 0.875rem;
+        --qrds-item-description-font-weight: 400;
+        --qrds-item-label-font-size: 0.75rem;
+        --qrds-item-label-font-weight: 400;
+        --qrds-item-badge-font-size: 0.75rem;
+        --qrds-item-badge-font-weight: 400;
+        --qrds-item-value-font-size: 0.75rem;
+        --qrds-item-value-font-weight: 400;
+        --qrds-button-font-lg-size: 1rem;
+        --qrds-button-font-md-size: 0.875rem;
+        --qrds-button-font-sm-size: 0.75rem;
+        --qrds-button-font-weight: 400;
+        --qrds-button-padding: 0.5rem 1.5rem;
+        --qrds-button-brd-radius: 2rem;
+        --qrds-h1-font-size: 2.5rem;
+        --qrds-h1-font-weight: 300;
+        --qrds-h2-font-size: 2rem;
+        --qrds-h2-font-weight: 300;
+        --qrds-h3-font-size: 1.75rem;
+        --qrds-h3-font-weight: 400;
+        --qrds-h4-font-size: 1.5rem;
+        --qrds-h4-font-weight: 400;
+        --qrds-h5-font-size: 1.25rem;
+        --qrds-h5-font-weight: 400;
+        --qrds-h6-font-size: 1rem;
+        --qrds-h6-font-weight: 400;
+        --qrds-p-font-size: 1rem;
+        --qrds-p-font-weight: 300;
+    }
+    .deviceipadpro {
+        display: block
+    }
+}
+
+
+/* Desktop */
+
+@media (min-width: 1025px) and (max-width: 1599px) {
+     :root {
+        --qrds-main-title-font-size: 3rem;
+        --qrds-main-title-font-weight: 300;
+        --qrds-navigation-title-font-size: 1.5rem;
+        --qrds-navigation-title-font-weight: 300;
+        --qrds-sub-title-font-size: 2.25rem;
+        --qrds-sub-title-font-weight: 300;
+        --qrds-page-title-font-size: 1.75rem;
+        --qrds-page-title-font-weight: 300;
+        --qrds-card-title-font-size: 1.5rem;
+        --qrds-card-title-font-weight: 300;
+        --qrds-sub-card-title-font-size: 1.25rem;
+        --qrds-sub-card-title-font-weight: 400;
+        --qrds-item-title-font-size: 1.125rem;
+        --qrds-item-title-font-weight: 400;
+        --qrds-item-sub-title-font-size: 1rem;
+        --qrds-item-sub-title-font-weight: 400;
+        --qrds-item-description-font-size: 1rem;
+        --qrds-item-description-font-weight: 500;
+        --qrds-item-label-font-size: 0.875rem;
+        --qrds-item-label-font-weight: 400;
+        --qrds-item-value-font-size: 0.785rem;
+        --qrds-item-value-font-weight: 400;
+        --qrds-button-font-lg-size: 1rem;
+        --qrds-button-font-md-size: 0.875rem;
+        --qrds-button-font-sm-size: 0.75rem;
+        --qrds-button-font-weight: 400;
+        --qrds-button-padding: 0.5rem 1.5rem;
+        --qrds-button-brd-radius: 2rem;
+        --qrds-h1-font-size: 2.5rem;
+        --qrds-h1-font-weight: 300;
+        --qrds-h2-font-size: 2rem;
+        --qrds-h2-font-weight: 300;
+        --qrds-h3-font-size: 1.75rem;
+        --qrds-h3-font-weight: 400;
+        --qrds-h4-font-size: 1.5rem;
+        --qrds-h4-font-weight: 400;
+        --qrds-h5-font-size: 1.25rem;
+        --qrds-h5-font-weight: 400;
+        --qrds-h6-font-size: 1rem;
+        --qrds-h6-font-weight: 400;
+        --qrds-p-font-size: 1rem;
+        --qrds-p-font-weight: 300;
+    }
+    .devicedesktop {
+        display: block
+    }
+}
+
+
+/* Large Desktop */
+
+@media (min-width: 1600px) {
+     :root {
+        --qrds-main-title-font-size: 2rem;
+        --qrds-main-title-font-weight: 300;
+        --qrds-navigation-title-font-size: 1.5rem;
+        --qrds-navigation-title-font-weight: 300;
+        --qrds-sub-title-font-size: 1.75rem;
+        --qrds-sub-title-font-weight: 300;
+        --qrds-page-title-font-size: 1.5rem;
+        --qrds-page-title-font-weight: 300;
+        --qrds-card-title-font-size: 1.375rem;
+        --qrds-card-title-font-weight: 400;
+        --qrds-sub-card-title-font-size: 1.25rem;
+        --qrds-sub-card-title-font-weight: 400;
+        --qrds-item-title-font-size: 1.125rem;
+        --qrds-item-title-font-weight: 400;
+        --qrds-item-sub-title-font-size: 1rem;
+        --qrds-item-sub-title-font-weight: 400;
+        --qrds-item-description-font-size: 0.875rem;
+        --qrds-item-description-font-weight: 500;
+    --qrds-item-label-font-size: 0.875rem;
+        --qrds-item-label-font-weight: 400;
+        --qrds-item-badge-font-size: 0.75rem;
+        --qrds-item-badge-font-weight: 400;
+        --qrds-item-value-font-size: 0.75rem;
+        --qrds-item-value-font-weight: 400;
+        --qrds-button-font-lg-size: 1rem;
+        --qrds-button-font-md-size: 0.875rem;
+        --qrds-button-font-sm-size: 0.75rem;
+        --qrds-button-font-weight: 400;
+        --qrds-button-padding: 0.5rem 1.5rem;
+        --qrds-button-brd-radius: 2rem;
+        --qrds-h1-font-size: 3rem;
+        --qrds-h1-font-weight: 300;
+        --qrds-h2-font-size: 2.25rem;
+        --qrds-h2-font-weight: 300;
+        --qrds-h3-font-size: 1.75rem;
+        --qrds-h3-font-weight: 400;
+        --qrds-h4-font-size: 1.50rem;
+        --qrds-h4-font-weight: 400;
+        --qrds-h5-font-size: 1.25rem;
+        --qrds-h5-font-weight: 400;
+        --qrds-h6-font-size: 1.125rem;
+        --qrds-h6-font-weight: 300;
+        --qrds-p-font-size: 1rem;
+        --qrds-p-font-weight: 400;
+    }
+    .devicedesktoplarge {
+        display: block
+    }
+}
+
+
+/* Applying tokens to elements */
+
+.main-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-main-title-font-size);
+    font-weight: var(--qrds-main-title-font-weight);
+}
+
+.navigation-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-navigation-title-font-size);
+    font-weight: var(--qrds-navigation-title-font-weight);
+}
+
+.sub-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-sub-title-font-size);
+    font-weight: var(--qrds-sub-title-font-weight);
+}
+
+.page-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-page-title-font-size);
+    font-weight: var(--qrds-page-title-font-weight);
+}
+
+.card-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-card-title-font-size);
+    font-weight: var(--qrds-card-title-font-weight);
+}
+
+.sub-card-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-sub-card-title-font-size);
+    font-weight: var(--qrds-sub-card-title-font-weight);
+}
+
+.remarks {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-remarks-font-size);
+    font-weight: var(--qrds-remarks-font-weight);
+}
+
+.item-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-item-title-font-size);
+    font-weight: var(--qrds-item-title-font-weight);
+}
+
+.item-sub-title {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-item-sub-title-font-size);
+    font-weight: var(--qrds-item-sub-title-font-weight);
+}
+
+.item-description {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-item-description-font-size);
+    font-weight: var(--qrds-item-description-font-weight);
+}
+
+.item-badge {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-item-badge-font-size);
+    font-weight: var(--qrds-item-badge-font-weight);
+}
+
+.h1 {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-h1-font-size);
+    font-weight: var(--qrds-h1-font-weight);
+}
+
+.h2 {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-h2-font-size);
+    font-weight: var(--qrds-h2-font-weight);
+}
+
+.h3 {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-h3-font-size);
+    font-weight: var(--qrds-h3-font-weight);
+}
+
+.h4 {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-h4-font-size);
+    font-weight: var(--qrds-h4-font-weight);
+}
+
+.h5 {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-h5-font-size);
+    font-weight: var(--qrds-h5-font-weight);
+}
+
+.h6 {
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-h6-font-size);
+    font-weight: var(--qrds-h6-font-weight);
+}
+
+.p{
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-p-font-size);
+    font-weight: var(--qrds-p-font-weight);
+}
+
+.label{
+    font-family: var(--qrds-body-font-family);
+    font-size: var(--qrds-item-label-font-size);
+    font-weight: var(--qrds-item-label-font-weight);
+}
+
+.float-label{
+    color: var(----qrds-brand-color-disabled-grey);
+}
+
+.form-floating:focus-within .form-label {
+    color: var( --qrds-brand-color-secondary-grey)!important;
+}
+
+.form-textarea {
+    min-height: 8rem!important;
+}
+
+.button {
+    border: var(--qrds-button-brd);
+    font-weight: var(--qrds-button-font-weight);
+    border-radius: var(--qrds-button-brd-radius);
+    padding: var(--qrds-button-padding);
+}
+
+.button:focus, .button:active {
+    box-shadow: 0 0 0 1px var(--qrds-brand-color-white),
+                0 0 0 3px var(--qrds-button-focus-border-color);
+}
+
+.btn-small {
+    font-size: var(--qrds-button-font-sm-size);
+}
+
+.btn-medium {
+    font-size: var(--qrds-button-font-md-size);
+}
+
+.btn-large {
+    font-size: var(--qrds-button-font-lg-size);
+}
+
+.btn-primary{
+    background-color: var(--qrds-button-primary-bg);
+    border-color: var(--qrds-button-primary-brd);
+    color: var(--qrds-button-primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--qrds-button-primary-hover-bg);
+    border-color: var(--qrds-button-primary-hover-brd);
+    color: var(--qrds-button-primary-hover-color);
+}
+
+.btn-primary:focus, .btn-primary:active {
+    background-color: var(--qrds-button-primary-bg);
+    border-color: var(--qrds-button-primary-brd);
+    color: var(--qrds-button-primary-color);
+}
+
+.btn-primary:disabled{
+    background-color: var(--qrds-brand-color-outline-grey);
+    border-color: var(--qrds-brand-color-outline-grey);
+    color: var(----qrds-brand-color-disabled-grey);
+}
+
+.btn-secondary {
+    background-color: var(--qrds-button-secondary-bg);
+    border-color: var(--qrds-button-secondary-brd);
+    color: var(--qrds-button-secondary-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--qrds-button-secondary-hover-bg);
+    border-color: var(--qrds-button-secondary-hover-brd);
+    color: var(--qrds-button-secondary-hover-color);
+}
+
+.btn-secondary:active, .btn-secondary:focus {
+    background-color: var(--qrds-button-secondary-bg);
+    border-color: var(--qrds-button-secondary-brd);
+    color: var(--qrds-button-secondary-color);
+}
+
+.btn-secondary:disabled {
+    background-color: var(--qrds-brand-color-transparent);
+    border-color: var(----qrds-brand-color-disabled-grey);
+    color: var(----qrds-brand-color-disabled-grey);
+}
+
+.btn-tertiary {
+    background-color: var(--qrds-button-tertiary-bg);
+    border-color: var(--qrds-button-tertiary-brd);
+    color: var(--qrds-button-tertiary-color);
+}
+
+.btn-tertiary:hover {
+    background-color: var(--qrds-button-tertiary-hover-bg);
+    border-color: var(--qrds-button-tertiary-hover-brd);
+    color: var(--qrds-button-tertiary-hover-color);
+}
+
+.btn-tertiary:focus, .btn-tertiary:active {
+    background-color: var(--qrds-button-tertiary-bg);
+    border-color: var(--qrds-button-tertiary-brd);
+    color: var(--qrds-button-tertiary-color);
+}
+
+.btn-tertiary:disabled {
+    background-color: var(--qrds-brand-color-transparent);
+    border-color: var(----qrds-brand-color-disabled-grey);
+    color: var(----qrds-brand-color-disabled-grey);
+}
+
+.normal-font {
+    font-weight: var(--qrds-fw-normal);
+}
+
+.regular-font {
+    font-weight: var(--qrds-fw-regular);
+}
+
+.light-font {
+    font-weight: var(--qrds-fw-light);;
+}

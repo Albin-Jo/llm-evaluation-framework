@@ -1,0 +1,35 @@
+@if (showConfirm) {
+<div
+  class="modal fade show"
+  id="conirm"
+  tabindex="-1"
+  aria-labelledby="alert"
+  aria-hidden="true"
+  [ngStyle]="{ 'display': 'block' }"
+ 
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="alertlabel">{{ title }}</h6>
+      </div>
+      <div class="modal-body">
+        {{ message }}
+      </div>
+      <div class="modal-footer">
+        <button
+          (click)="closeConfrim()"
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ closeBtnText }}
+        </button>
+        <button (click)="acceptConfirm()" type="button" class="btn btn-primary">
+          {{ okBtnText }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+}

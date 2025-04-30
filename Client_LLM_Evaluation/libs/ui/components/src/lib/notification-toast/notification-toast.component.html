@@ -1,0 +1,25 @@
+<!-- Path: libs/ui/components/src/lib/notification-toast/notification-toast.component.html -->
+<div class="notifications-container">
+  <div
+    *ngFor="let notification of notifications"
+    class="notification-toast"
+    [ngClass]="[notification.type, notification.visible ? 'visible' : 'hidden']">
+
+    <div class="toast-content">
+      <div class="toast-icon" [ngClass]="getIconClass(notification.type)"></div>
+
+      <div class="toast-message">
+        <div class="toast-title">{{ notification.title }}</div>
+        <div class="toast-text">{{ notification.message }}</div>
+      </div>
+
+      <button type="button" class="toast-close" (click)="dismiss(notification.id)">
+        ×
+      </button>
+    </div>
+
+    <div class="toast-progress">
+      <div class="progress-bar" [ngClass]="notification.type"></div>
+    </div>
+  </div>
+</div>

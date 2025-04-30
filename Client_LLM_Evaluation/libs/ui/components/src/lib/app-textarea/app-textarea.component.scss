@@ -1,0 +1,14 @@
+div {
+    margin-bottom: 15px;
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    textarea {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+        resize: vertical;
+    }
+}

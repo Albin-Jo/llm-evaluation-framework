@@ -1,0 +1,258 @@
+/* Path: libs/ui/components/src/lib/confirmation-dialog/confirmation-dialog.component.scss */
+:host {
+  --primary: #3f51b5;
+  --primary-dark: #303f9f;
+  --primary-light: #c5cae9;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --background: #f5f5f5;
+  --background-light: #e0e0e0;
+  --border-color: #e0e0e0;
+  --hover-background: #f5f5f5;
+  --error: #f44336;
+  --error-light: #ffebee;
+  --success: #4caf50;
+  --success-light: #e8f5e9;
+  --warning: #ff9800;
+  --warning-light: #fff3e0;
+  --info: #2196f3;
+  --info-light: #e3f2fd;
+}
+
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(33, 33, 33, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 450px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: var(--primary);
+  color: white;
+
+  .dialog-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+
+  .close-button {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    padding: 0;
+    margin: 0;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+.dialog-content {
+  padding: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+
+  .dialog-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    position: relative;
+
+    &::before {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    &::after {
+      content: '';
+      display: block;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    &.icon-danger {
+      &::before {
+        background-color: var(--error-light);
+      }
+      &::after {
+        content: '!';
+        color: var(--error);
+        font-weight: bold;
+        font-size: 16px;
+      }
+    }
+
+    &.icon-warning {
+      &::before {
+        background-color: var(--warning-light);
+      }
+      &::after {
+        content: '!';
+        color: var(--warning);
+        font-weight: bold;
+        font-size: 16px;
+      }
+    }
+
+    &.icon-success {
+      &::before {
+        background-color: var(--success-light);
+      }
+      &::after {
+        content: '✓';
+        color: var(--success);
+        font-weight: bold;
+        font-size: 14px;
+      }
+    }
+
+    &.icon-info {
+      &::before {
+        background-color: var(--info-light);
+      }
+      &::after {
+        content: 'i';
+        color: var(--info);
+        font-weight: bold;
+        font-style: italic;
+        font-size: 14px;
+      }
+    }
+  }
+
+  .dialog-message {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    flex: 1;
+  }
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem;
+  gap: 0.75rem;
+  border-top: 1px solid var(--border-color);
+
+  button {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: 1px solid transparent;
+
+    &.cancel-button {
+      background-color: white;
+      color: var(--text-primary);
+      border-color: var(--border-color);
+
+      &:hover {
+        background-color: var(--background-light);
+      }
+    }
+
+    &.confirm-button {
+      color: white;
+
+      &.warning {
+        background-color: var(--warning);
+        &:hover {
+          background-color: darken(#ff9800, 10%);
+        }
+      }
+
+      &.danger {
+        background-color: var(--error);
+        &:hover {
+          background-color: darken(#f44336, 10%);
+        }
+      }
+
+      &.success {
+        background-color: var(--success);
+        &:hover {
+          background-color: darken(#4caf50, 10%);
+        }
+      }
+
+      &.info {
+        background-color: var(--info);
+        &:hover {
+          background-color: darken(#2196f3, 10%);
+        }
+      }
+    }
+  }
+}
+
+// Custom styles for different dialog types
+.dialog-container {
+  &[data-type="danger"] {
+    .dialog-header {
+      background-color: var(--error);
+    }
+  }
+
+  &[data-type="success"] {
+    .dialog-header {
+      background-color: var(--success);
+    }
+  }
+
+  &[data-type="info"] {
+    .dialog-header {
+      background-color: var(--info);
+    }
+  }
+
+  &[data-type="warning"] {
+    .dialog-header {
+      background-color: var(--warning);
+    }
+  }
+}

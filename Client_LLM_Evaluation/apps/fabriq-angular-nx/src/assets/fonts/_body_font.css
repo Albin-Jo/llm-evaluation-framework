@@ -1,0 +1,55 @@
+@font-face {
+    font-family: 'Graphik';
+    src: local('Graphik Bold'), local('Graphik-Bold'), url('Graphik-Bold.woff2') format('woff2'), url('Graphik-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: local('Graphik Light'), local('Graphik-Light'), url('Graphik-Light.woff2') format('woff2'), url('Graphik-Light.woff') format('woff');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: local('Graphik Medium'), local('Graphik-Medium'), url('Graphik-Medium.woff2') format('woff2'), url('Graphik-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: local('Graphik Semibold'), local('Graphik-Semibold'), url('Graphik-Semibold.woff2') format('woff2'), url('Graphik-Semibold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: local('Graphik Regular'), local('Graphik-Regular'), url('Graphik-Regular.woff2') format('woff2'), url('Graphik-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik Super';
+    src: local('Graphik Super'), local('Graphik-Super'), url('Graphik-Super.woff2') format('woff2'), url('Graphik-Super.woff') format('woff');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: local('Graphik Thin'), local('Graphik-Thin'), url('Graphik-Thin.woff2') format('woff2'), url('Graphik-Thin.woff') format('woff');
+    font-weight: 100;
+    font-style: normal;
+    font-display: swap;
+}

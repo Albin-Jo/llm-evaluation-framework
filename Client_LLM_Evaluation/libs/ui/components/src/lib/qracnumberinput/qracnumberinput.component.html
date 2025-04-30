@@ -1,0 +1,29 @@
+<div [ngClass]="{'wrapper': true, 'form-floating': isFloat}" *ngIf="!isCountryCode">
+    <label *ngIf="label && !isFloat" for="qracTextbox" class="form-label label">{{label}}</label>
+    <input type="tel" id="qracTextbox" class="form-control form-control-md" (keydown)="onKeyDown($event)" [formControl]="control" [placeholder]="placeholder" (change)="valueChange.emit(control.value)" [ngClass]="{'is-invalid': control.invalid && (control.dirty || control.touched)}" pattern="\+?[0-9]*" />
+    <label *ngIf="label && isFloat" for="qracTextbox" class="form-label label float-label">{{label}}</label>
+    <div *ngIf="control.invalid && (control.dirty || control.touched)" class="error" class="invalid-feedback">
+      {{errorMessage}}
+  </div> 
+  <small id="emailHelp" class="form-text text-muted left fst-italic">{{infoText}}</small>
+</div>
+
+
+<div class="wrapper" *ngIf="isCountryCode">
+  <label *ngIf="label" for="qracTextbox" class="form-label label">{{label}}</label>
+  <div class="phone-number">
+
+    <div class="custom-select">
+   
+    <select id="countryCode" class="form-control form-control-md country-code" [(ngModel)]="selectedCountryCode" (change)="updateSelectedCode($event)">
+      <option *ngFor="let code of countryCodes" [value]="code.code">{{code.name}} ({{code.code}})</option>
+    </select>
+    <div class="selected-display">({{ selectedCountryCode }})
+    </div>
+  </div>
+    <input type="tel" id="qracTextbox" class="form-control form-control-md phonenumber-input" (keydown)="onKeyDown($event)" [formControl]="control" [placeholder]="placeholder" (change)="valueChange.emit(control.value)" [ngClass]="{'is-invalid': control.invalid && (control.dirty || control.touched)}" pattern="\+?[0-9]*" />
+  </div>
+  <div class="info-txt">
+    {{infoText}}
+  </div>
+</div>

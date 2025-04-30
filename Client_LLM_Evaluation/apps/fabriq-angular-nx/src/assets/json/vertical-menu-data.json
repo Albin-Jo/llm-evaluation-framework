@@ -1,0 +1,131 @@
+[
+  {
+    "name": "Home",
+    "dataurl": "home",
+    "id": "HOME",
+    "icon": "assets/images/stencilimg/menu/dashboard.svg",
+    "roles": [
+      "user",
+      "offline_access"
+    ],
+    "submenu": []
+  },
+  {
+    "name": "Datasets",
+    "dataurl": "/datasets",
+    "id": "DATASET001",
+    "icon": "assets/images/llmeval/datasets.svg",
+    "roles": [
+      "offline_access",
+      "user"
+    ],
+    "submenu": []
+  },
+  {
+    "name": "Prompts",
+    "dataurl": "/prompts",
+    "id": "PROMPT001",
+    "icon": "assets/images/llmeval/prompts.svg",
+    "roles": [
+      "offline_access",
+      "user"
+    ],
+    "submenu": []
+  },
+  {
+    "name": "Agents",
+    "dataurl": "/agents",
+    "id": "AG001",
+    "icon": "assets/images/llmeval/agents.svg",
+    "roles": [
+      "offline_access",
+      "user"
+    ],
+    "submenu": []
+  },
+  {
+    "name": "Evaluations",
+    "dataurl": "/evaluations",
+    "id": "EVAL001",
+    "icon": "assets/images/llmeval/evaluations.svg",
+    "roles": [
+      "offline_access",
+      "user"
+    ],
+    "submenu": []
+  },
+  {
+    "name": "Reports",
+    "dataurl": "/reports",
+    "id": "REPORT001",
+    "icon": "assets/images/llmeval/reports.svg",
+    "roles": [
+      "offline_access",
+      "user"
+    ],
+    "submenu": []
+  },
+  {
+    "name": "admin",
+    "dataurl": "dashboard",
+    "id": "ADMIN",
+    "icon": "assets/images/stencilimg/menu/settings.svg",
+    "roles": [
+      "offline_access"
+    ],
+    "submenu": [
+      {
+        "header": "Activities",
+        "id": "ACT0001",
+        "roles": [
+          "offline_access"
+        ],
+        "items": [
+          {
+            "name": "User Assignment",
+            "dataurl": "dashboard/projects",
+            "id": "UMACOM1",
+            "roles": [
+              "offline_access"
+            ]
+          },
+          {
+            "name": "User Tasks",
+            "dataurl": "dashboard/tasks",
+            "id": "UMACOM1",
+            "roles": [
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "header": "Job Scheduler",
+        "id": "JSC00001",
+        "roles": [
+          "offline_access"
+        ],
+        "items": [
+          {
+            "name": "Create Job",
+            "dataurl": "sub1",
+            "id": "SCHD001",
+            "roles": [
+              "offline_access"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Profile",
+    "dataurl": "profile",
+    "id": "RMP000",
+    "icon": "assets/images/stencilimg/menu/profile.svg",
+    "roles": [
+      "offline_access"
+    ],
+    "submenu": []
+  }
+]

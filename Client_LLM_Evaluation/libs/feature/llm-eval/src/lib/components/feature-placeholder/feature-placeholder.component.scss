@@ -1,0 +1,48 @@
+/* Path: libs/feature/llm-eval/src/lib/components/feature-placeholder/feature-placeholder.component.scss */
+.placeholder-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 24px;
+
+  .placeholder-content {
+    max-width: 500px;
+    text-align: center;
+
+    .feature-icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 24px;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+    }
+
+    .feature-title {
+      font-size: 32px;
+      font-weight: 600;
+      margin: 0 0 16px;
+      color: var(--qrac-primary-text);
+    }
+
+    .feature-description {
+      margin-bottom: 32px;
+
+      p {
+        font-size: 16px;
+        line-height: 1.6;
+        color: var(--qrac-secondary-text);
+        margin: 0 0 12px;
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+    }
+  }
+}

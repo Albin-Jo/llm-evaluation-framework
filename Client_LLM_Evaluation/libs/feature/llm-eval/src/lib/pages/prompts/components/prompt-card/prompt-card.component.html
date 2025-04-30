@@ -1,0 +1,48 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/components/prompt-card/prompt-card.component.html -->
+<div class="prompt-card">
+  <div class="prompt-header">
+    <div class="prompt-badges">
+      <span class="badge badge-version">v{{ prompt.version }}</span>
+      <span class="badge" [ngClass]="getAccessLevelClass()">
+        {{ prompt.is_public ? 'Public' : 'Private' }}
+      </span>
+    </div>
+    <div class="prompt-actions">
+      <button class="action-btn edit-btn" [routerLink]="['/llm-eval/prompts', prompt.id, 'edit']" (click)="$event.stopPropagation()">
+        <i class="action-icon edit-icon">✏️</i>
+      </button>
+      <button class="action-btn delete-btn" (click)="onDeleteClick($event)">
+        <i class="action-icon delete-icon">🗑️</i>
+      </button>
+    </div>
+  </div>
+
+  <div class="prompt-content">
+    <h3 class="prompt-title">{{ prompt.name }}</h3>
+    <p class="prompt-description" *ngIf="prompt.description">
+      {{ truncateText(prompt.description, 120) }}
+    </p>
+    <div class="prompt-preview">
+      <p class="preview-label">Content Preview:</p>
+      <div class="preview-content">
+        {{ truncateText(prompt.content, 150) }}
+      </div>
+    </div>
+  </div>
+
+  <div class="prompt-footer">
+    <div class="prompt-meta">
+      <div class="meta-item">
+        <span class="meta-label">Created:</span>
+        <span class="meta-value">{{ formatDate(prompt.created_at) }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Updated:</span>
+        <span class="meta-value">{{ formatDate(prompt.updated_at) }}</span>
+      </div>
+    </div>
+    <div class="prompt-template" *ngIf="prompt.template_id">
+      <span class="template-badge">Template</span>
+    </div>
+  </div>
+</div>

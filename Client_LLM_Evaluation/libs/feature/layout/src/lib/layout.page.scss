@@ -1,0 +1,38 @@
+
+:host{
+    ion-tab-bar{
+        border:0;
+        display:flex;
+        --background:#fff;
+        justify-content: space-between;
+        border:1px solid #ccc;
+        padding:0px;
+        ion-icon{
+            font-size:1.6rem;
+        }
+         --color-selected: #000 !important;
+    }
+    ion-tab-button{
+        max-width:56px;
+        max-height:36px;
+        transition: all .5s ease-in;
+        flex: 1 0 20%;
+      }
+      ion-tab-button.tab2{
+        margin-right: 76px;
+      }
+    ion-fab-button{
+        --background:#8E2157;
+        --background-activated: #962961;
+        --background-focused: #63003d;
+        --background-hover: #63003d;
+    }
+
+    ion-tab-button[aria-selected=true] {
+      color:#fff;
+   }
+
+  }
+.title{
+  padding: 50px;
+}

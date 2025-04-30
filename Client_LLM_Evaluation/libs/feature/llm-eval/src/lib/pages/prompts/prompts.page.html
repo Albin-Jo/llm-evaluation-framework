@@ -1,0 +1,188 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/prompts.page.html -->
+<div class="prompts-container">
+  <div class="header-section">
+    <div class="title-section">
+  <h1 class="page-title">Prompts</h1>
+  <p class="page-description">
+    Create, customize, and manage LLM prompts for model evaluations. These prompts serve as templates for generating
+    consistent model responses across different evaluation scenarios and benchmarks.
+  </p>
+</div>
+    <div class="action-section">
+      <button class="create-button" (click)="onCreatePrompt()">
+        <span class="button-icon">+</span> Create New Prompt
+      </button>
+    </div>
+  </div>
+
+  <div class="prompts-content">
+    <!-- Filters Section -->
+    <div class="filters-section">
+      <form [formGroup]="filterForm" class="filters-form">
+        <div class="search-field">
+          <qrac-textbox
+            [controlName]="'search'"
+            formControlName="search"
+            [placeholder]="'Search prompts by name'"
+            [size]="'medium'">
+          </qrac-textbox>
+        </div>
+
+        <div class="filter-fields">
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'category'"
+              formControlName="category"
+              [options]="categoryOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'isTemplate'"
+              formControlName="isTemplate"
+              [options]="templateOptions">
+            </qrac-select>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button class="clear-button" type="button" (click)="clearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading prompts...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error }}</p>
+      <button class="retry-button" (click)="loadPrompts()">Try Again</button>
+    </div>
+
+    <!-- No Results State -->
+    <div *ngIf="!isLoading && prompts.length === 0 && !error" class="no-results-container">
+      <div class="no-results-icon">📝</div>
+      <h3>No prompts found</h3>
+      <p>Create a new prompt or adjust your filters</p>
+      <button class="create-prompt-button" (click)="onCreatePrompt()">Create Prompt</button>
+    </div>
+
+    <!-- Prompts Grid -->
+    <div *ngIf="prompts.length > 0 && !isLoading" class="prompts-grid">
+      <!-- Table View for Prompts -->
+      <table class="prompts-table">
+        <thead>
+          <tr>
+            <th class="name-col">
+              <span class="th-content sortable" (click)="onSortChange('name')">
+                Name
+                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="description-col">Description</th>
+            <th class="category-col">
+              <span class="th-content sortable" (click)="onSortChange('category')">
+                Category
+                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'category'">
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="template-col">Type</th>
+            <th class="date-col">
+              <span class="th-content sortable" (click)="onSortChange('created_at')">
+                Created
+                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'created_at'">
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="date-col">
+              <span class="th-content sortable" (click)="onSortChange('updated_at')">
+                Updated
+                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'updated_at'">
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let prompt of prompts" class="prompt-row" (click)="onPromptClick(prompt.id)">
+            <td class="name-col">{{ prompt.name }}</td>
+            <td class="description-col">{{ truncateText(prompt.description || '', 80) }}</td>
+            <td class="category-col">{{ prompt.category || 'General' }}</td>
+            <td class="template-col">
+              <span class="badge" [ngClass]="getTemplateBadgeClass(prompt.is_public)">
+                {{ prompt.is_public ? 'Public' : 'Private' }}
+              </span>
+            </td>
+            <td class="date-col">{{ formatDate(prompt.created_at) }}</td>
+            <td class="date-col">{{ formatDate(prompt.updated_at) }}</td>
+            <td class="actions-col">
+              <div class="action-buttons">
+                <button class="action-button edit-button"
+                  title="Edit prompt"
+                  (click)="onEditPrompt($event, prompt.id)">
+                  Edit
+                </button>
+                <button class="action-button delete-button"
+                  title="Delete prompt"
+                  (click)="onDeletePromptClick($event, prompt.id)">
+                  Del
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="prompts.length > 0 && totalCount > (filterParams.limit || 10)" class="pagination-container">
+      <div class="pagination-info">
+        Showing {{ ((filterParams.page! - 1) * (filterParams.limit || 10)) + 1 }} to
+        {{ Math.min(filterParams.page! * (filterParams.limit || 10), totalCount) }} of {{ totalCount }} prompts
+      </div>
+      <div class="pagination-controls">
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page === 1"
+          (click)="onPageChange(filterParams.page! - 1, $event)">
+          Previous
+        </button>
+
+        <div class="pagination-pages">
+          <ng-container *ngFor="let page of visiblePages">
+            <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
+            <button
+              *ngIf="page > 0"
+              class="page-button"
+              [class.active]="page === filterParams.page"
+              (click)="onPageChange(page, $event)">
+              {{ page }}
+            </button>
+          </ng-container>
+        </div>
+
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page! >= Math.ceil(totalCount / (filterParams.limit || 10))"
+          (click)="onPageChange(filterParams.page! + 1, $event)">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,36 @@
+<div class="qrds-page-container">
+  @defer (when storedUser && userResourceAccessRole && pagetabs) {
+  <qrds-webheader (onClickLogOut)="onClickLogOut()" (profilelinkClicked)="onClickProfile()"
+    (menuClicked)="openmegamenu()" [envlabel]="environment.environment" [empname]="storedUser.name"
+    [empid]="storedUser.preferred_username" [roletxtvalue]="userResourceAccessRole" [verlabel]="'1.1.0'"
+    [userimg]="userimgdata" (notificationClicked)="openModal1()" [dropdownOptions]="dropdownValues"
+    (formSubmit)="handleFormSubmit($event)" [tabs]="pagetabs" [filtervalues]="filtervaluesData">
+  </qrds-webheader>
+  }
+
+  <div class="qrds-page-content">
+    @defer (when menuItems) {
+    <qrsc-verticalmenu #verticalmenu [menuItems]="menuItems" (menuSelect)="handleMenuSelect($event)"
+      (submenuSelect)="handleMenuSelect($event)"></qrsc-verticalmenu>
+    }
+    <router-outlet></router-outlet>
+  </div>
+</div>
+
+@defer {
+<qrsc-modal-slide #SideModalComponent header-title="Notifications">
+  <div slot="modal-content">
+    <div class="item-badge">Notication 1</div>
+    <p>There is a demo notification #1. <a href="javascript:void(0)">Click Here 1</a></p>
+
+    <div class="item-badge">Notication 2</div>
+    <p>There is a demo notification #2. Nothing to click </p>
+
+    <div class="item-badge">Notication 3</div>
+    <p>There is a demo notification #3. <a href="javascript:void(0)">Click Here 3</a></p>
+  </div>
+  <div slot="modal-footer">
+    <qrac-button label="Close Notifications" type="primary" (buttonClick)="closeModal1()"></qrac-button>
+  </div>
+</qrsc-modal-slide>
+}

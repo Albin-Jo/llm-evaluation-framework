@@ -1,0 +1,12 @@
+<div class="wrapper">
+    <label *ngIf="label" for="qracRadio" class="form-label label" [ngClass]="{'required': isMandatory}">{{label}}</label>
+    <div class="form-check-wrap">
+        <div *ngFor="let option of options" class="form-check">
+            <input class="form-check-input" type="radio" [id]="option.value" [value]="option.value" [formControl]="control" [disabled]="disabled" (change)="valueChange.emit(control.value)">
+            <label class="form-check-label label" [for]="option.value">{{option.label}}</label>
+        </div>
+    </div>
+    <div *ngIf="control.invalid && control.touched" class="invalid-feedback">
+        {{errorMessage}}
+    </div>
+</div>

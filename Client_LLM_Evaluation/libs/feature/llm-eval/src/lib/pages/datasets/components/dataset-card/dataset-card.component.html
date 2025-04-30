@@ -1,0 +1,45 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/components/dataset-card/dataset-card.component.html -->
+<div class="dataset-card">
+  <div class="dataset-header">
+    <div class="status-badge" [ngClass]="statusClass">{{ statusText }}</div>
+    <div class="action-buttons">
+      <button class="delete-button" (click)="onDelete($event)" aria-label="Delete dataset">
+        <i class="icon-trash"></i>
+      </button>
+    </div>
+  </div>
+
+  <h3 class="dataset-name">{{ dataset.name }}</h3>
+
+  <p class="dataset-description" *ngIf="dataset.description">
+    {{ dataset.description.length > 100 ? dataset.description.substring(0, 100) + '...' : dataset.description }}
+  </p>
+  <p class="dataset-description empty" *ngIf="!dataset.description">
+    No description provided
+  </p>
+
+  <div class="dataset-tags" *ngIf="dataset.tags && dataset.tags.length > 0">
+    <qractagbutton
+      *ngFor="let tag of dataset.tags.slice(0, 3)"
+      [label]="tag"
+      type="secondary"
+      size="small">
+    </qractagbutton>
+    <span class="more-tags" *ngIf="dataset.tags.length > 3">+{{ dataset.tags.length - 3 }}</span>
+  </div>
+
+  <div class="dataset-metadata">
+    <div class="metadata-item">
+      <i class="icon-document"></i>
+      <span>{{ dataset.documentCount }} documents</span>
+    </div>
+    <div class="metadata-item">
+      <i class="icon-database"></i>
+      <span>{{ formatSize(dataset.size) }}</span>
+    </div>
+    <div class="metadata-item">
+      <i class="icon-calendar"></i>
+      <span>{{ formatDate(dataset.createdAt) }}</span>
+    </div>
+  </div>
+</div>

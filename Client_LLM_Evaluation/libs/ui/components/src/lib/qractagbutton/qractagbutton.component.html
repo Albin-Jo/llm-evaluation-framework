@@ -1,0 +1,14 @@
+<!-- <button [ngClass]="buttonClass" [disabled]="disabled" (click)="onClick($event)">
+  {{label}}
+ </button>
+  -->
+
+<div class="filter-bar">
+  <button *ngFor="let filter of filters" (click)="selectFilter($event, filter)" [ngClass]="{'active': filter.isActive, 'inactive': !filter.isActive, 'no-wrap': true}">
+    <span *ngIf="filter.statusColor" class="status-color" [ngStyle]="{'background-color': filter.statusColor}"></span>
+    <span *ngIf="filter.statusIcon" class="status-icon" [ngStyle]="{'background': 'url(' + filter.statusIcon + ') no-repeat center'}">
+    </span>
+    {{ filter.name }}
+    <span class="badge" [ngClass]="{'badge-light': filter.isActive, 'badge-dark': !filter.isActive}">{{ filter.count }}</span>
+  </button>
+</div>

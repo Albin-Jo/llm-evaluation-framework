@@ -1,0 +1,102 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/datasets/components/dataset-filters/dataset-filters.component.scss */
+
+// Variables
+$primary-color: #3498db;
+$border-color: #e0e0e0;
+$text-primary: #333;
+$text-secondary: #666;
+$light-gray: #f5f5f5;
+
+.filters-wrapper {
+  width: 100%;
+}
+
+.filters-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.search-field {
+  width: 100%;
+
+  ::ng-deep input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    font-size: 0.875rem;
+
+    &:focus {
+      border-color: $primary-color;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba($primary-color, 0.25);
+    }
+  }
+}
+
+.filter-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.filter-field {
+  flex: 1;
+  min-width: 200px;
+
+  @media (max-width: 768px) {
+    min-width: 100%;
+  }
+}
+
+.visibility-field {
+  max-width: 200px;
+
+  @media (max-width: 768px) {
+    max-width: none;
+  }
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.clear-button {
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  color: $text-secondary;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: $light-gray;
+    color: $text-primary;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 576px) {
+  .filters-form {
+    gap: 0.75rem;
+  }
+
+  .filter-fields {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .filter-field {
+    width: 100%;
+  }
+
+  .filter-actions {
+    justify-content: center;
+    margin-top: 1rem;
+  }
+}

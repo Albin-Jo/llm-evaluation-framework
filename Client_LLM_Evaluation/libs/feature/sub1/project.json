@@ -1,0 +1,23 @@
+{
+    "name": "feature-sub1",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/features/sub1/src",
+    "projectType": "library",
+    "targets": {
+        "test": {
+            "executor": "@nrwl/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/libs/feature"],
+            "options": {
+                "jestConfig": "libs/jest.config.ts",
+                "passWithNoTests": true
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint",
+            "options": {
+                "lintFilePatterns": ["libs/feature/sub1/**/*.ts", "libs/feature/sub1/**/*.html"]
+            }
+        }
+    },
+    "tags": []
+}

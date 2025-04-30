@@ -1,0 +1,12 @@
+<div class="wrapper">
+    <label *ngIf="label" for="qracCheckbox" class="form-label label" [ngClass]="{'required': isMandatory}">{{label}}</label>
+    <div class="form-check-wrap">
+        <div *ngFor="let option of options" class="form-check">
+            <input class="form-check-input" type="checkbox" [id]="option.value" [formControl]="controls[option.value]" [disabled]="disabled" (change)="onCheckboxChange(option.value)">
+            <label class="form-check-label label" [for]="option.value">{{option.label}}</label>
+        </div>
+    </div>
+    <div *ngIf="form.invalid && form.touched" class="invalid-feedback">
+        {{errorMessage}}
+    </div>
+</div>

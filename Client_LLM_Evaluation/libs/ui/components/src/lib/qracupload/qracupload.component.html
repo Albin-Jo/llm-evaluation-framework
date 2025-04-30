@@ -1,0 +1,12 @@
+<div id='dropArea'><span id='drop' class="droparea"> Drop files here or <a href="" id='browse'><u>Browse</u></a> </span>
+    <ejs-uploader #defaultupload autoUpload='false' [asyncSettings]='path' (selected)="onSelect($event)" (failure)="onuploadFailed($event)" (progress)="onFileUpload($event)" (success)="onuploadSuccess($event)">
+        <ng-template #template let-data="">
+            <span class='wrapper'><span class='icon sf-icon-'></span>
+            <span class='name file-name'></span></span>
+            <span class='file-size-td file-size'> bytes</span>
+            <span class='e-icons e-file-remove-btn' title='Remove'></span> <br/>
+            <progress id='progressBar' class='progressbar' value='0' max='100'></progress>
+            <span class='percent-td percent'></span>
+        </ng-template>
+    </ejs-uploader>
+</div>

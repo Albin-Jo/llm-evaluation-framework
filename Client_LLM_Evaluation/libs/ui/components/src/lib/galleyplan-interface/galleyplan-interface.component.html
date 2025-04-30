@@ -1,0 +1,50 @@
+<div class="galleyplan-interface">
+    <div class="lftpanel">
+        <div class="listitems">
+            <div class="header">Items</div>
+            <div class="content">
+                <ul>
+                    <li *ngFor="let item of items" draggable="true" (dragstart)="onDragStart(item)">
+                        {{item.type}}
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="righpanel">
+        <div class="galley-structure">
+            <div class="galley-row" *ngFor="let row of galleyStructure; let rowIndex = index">
+                <div class="galley-col" *ngFor="let col of row; let colIndex = index" (drop)="onDrop(rowIndex, colIndex)" (dragover)="($event.preventDefault())" (contextmenu)="showContextMenu($event, rowIndex, colIndex)">
+                    <div *ngIf="isPartition(col)" class="partition">
+                        <div class="partition-row" *ngFor="let partRow of col">
+                            <div class="partition-col" *ngFor="let partCol of partRow">
+                                <div *ngIf="partCol">{{ partCol.type }}</div>
+                                <div *ngIf="!partCol">SEQ-{{rowIndex + 1}}{{colIndex + 1}}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div *ngIf="!isPartition(col)">
+                        <div *ngIf="col">{{col.type}}</div>
+                        <div *ngIf="!col">SEQ-{{rowIndex + 1}}{{colIndex + 1}}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="context-menu" *ngIf="contextMenuVisible" [ngStyle]="{'top': contextMenuPosition.y, 'left': contextMenuPosition.x}">
+        <ul>
+            <li (click)="createRow()">Create Row</li>
+            <li (click)="createRowAbove()">Create Row Above</li>
+            <li (click)="createRowBelow()">Create Row Below</li>
+            <li (click)="createColumn()">Create Column</li>
+            <li (click)="createColumnBefore()">Create Column Before</li>
+            <li (click)="createColumnAfter()">Create Column After</li>
+            <li (click)="createPartition()">Create Partition</li>
+            <li (click)="createPartitionRow()">Create Partition Row</li>
+            <li (click)="createPartitionColumn()">Create Partition Column</li>
+            <li (click)="deleteRow()">Delete Row</li>
+            <li (click)="deleteColumn()">Delete Column</li>
+            <li (click)="deleteItem()">Delete Item</li>
+        </ul>
+    </div>
+</div>

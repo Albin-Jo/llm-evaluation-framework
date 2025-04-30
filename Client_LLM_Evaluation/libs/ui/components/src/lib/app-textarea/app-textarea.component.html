@@ -1,0 +1,4 @@
+<div>
+    <label>{{ label }}</label>
+    <textarea [placeholder]="placeholder" [(ngModel)]="value" (ngModelChange)="onChange($event)" (blur)="onTouched()"></textarea>
+</div>

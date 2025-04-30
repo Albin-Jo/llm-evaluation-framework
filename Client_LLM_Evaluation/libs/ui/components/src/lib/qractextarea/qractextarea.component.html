@@ -1,0 +1,19 @@
+<div [ngClass]="{'wrapper': true, 'form-floating': isFloat}">
+    <label *ngIf="label && !isFloat" for="qracTextbox" class="form-label label">{{label}}</label>
+    <textarea  type="textarea" id="qracTextarea" class="form-control form-control-md form-textarea" [formControl]="control" [placeholder]="placeholder" (change)="valueChange.emit(control.value)" (keypress)="onKeyPress($event)" [ngClass]="{'is-invalid': control.invalid && (control.dirty || control.touched)}" >{{inputValue}}</textarea>
+    <label *ngIf="label && isFloat" for="qracTextbox" class="form-label label float-label">{{label}}</label>
+    <div class="text-area-footer">
+        <div *ngIf="isMaxLimitRequired" class="remaining-chars">{{remainingChars}} / {{maxLimit}}</div>
+        <div>
+            <div *ngIf="control.errors?.['required'] && (control.dirty || control.touched)" class="error" class="invalid-feedback">
+                {{errorMessage}}
+            </div>
+            <div *ngIf="control.errors?.['maxlength'] && (control.dirty || control.touched)" class="invalid-feedback">
+                {{maxLengthErrorMessage}}
+            </div>
+            <small id="emailHelp" class="form-text text-muted left fst-italic">{{infoText}}</small>
+        </div>
+
+    </div>
+
+</div>

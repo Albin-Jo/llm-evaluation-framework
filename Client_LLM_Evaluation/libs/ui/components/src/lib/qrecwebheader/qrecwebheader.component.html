@@ -1,0 +1,81 @@
+<div class="header-container">
+    <div class="item1 menubtn-wrap">
+        <input type="button" value="" class="menubtn" (click)="menuClick()" />
+    </div>
+    <div class="item2 logobtn-wrap">Fabriq<span class="version">{{envlabel}}&nbsp;{{verlabel}}</span></div>
+    <div class="arrowbtnwrap"><input type="button" class="leftarrowbtn" value="" (click)="scrollTabs('left')" [hidden]="!showArrows" /></div>
+    <div class="item3 tab-wrap-pnl" #tabWrapPanel>
+        <ul class="tabs">
+            <li *ngFor="let tab of tabs; let i = index" [class.active]="tab.active" [routerLink]="tab.dataurl" routerLinkActive="active" (click)="selectTab(i)"><span *ngIf="!tab.closable" class="tabicon {{tab.active ? 'icon-active' : 'icon-inactive'}}" [style.backgroundImage]="'url(/assets/images/common/' + tab.icon + '.svg)'">
+
+            </span><span class="tabtitle">{{ tab.title }}</span><span class="close" *ngIf="tab.closable" (click)="removeTab(i); $event.stopPropagation()"></span>
+            </li>
+        </ul>
+    </div>
+    <div class="arrowbtnwrap"><input type="button" class="rightarrowbtn" value="" (click)="scrollTabs('right')" [hidden]="!showArrows" /></div>
+    <div class="qrds-ml2">
+        <div class="btn-group">
+            <button class="notifylink-btn" type="button" (click)="notificationClick()">
+            <span class="count">3</span>
+            <div class="notifylink-btn-img">&nbsp;</div>
+      </button>
+        </div>
+    </div>
+    <div class="qrds-ml2" *ngIf="isdocumentrequired">
+        <div class="btn-group">
+            <button class="doclink-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <div class="doclink-btn-img">&nbsp;</div>
+      </button>
+            <ul class="dropdown-menu documentlinkwrap" *ngIf="documents?.length; else nodocumentlinkTemplate">
+                <li class="header">Documents</li>
+                <li *ngFor="let document of documents | slice:0:10">
+                    <a class="dropdown-item" href="document.url">{{document.txt}}</a></li>
+            </ul>
+            <ng-template #nodocumentlinkTemplate>
+                <ul class="dropdown-menu documentlinkwrap">
+                    <li class="header">Documents</li>
+                    <li class="subheader">No document is added to the list</li>
+                </ul>
+            </ng-template>
+        </div>
+    </div>
+    <div class="qrds-ml2" *ngIf="isquicklinkrequired">
+        <div class="btn-group">
+            <button class="quicklink-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <div class="quicklink-btn-img" style="background-image: url('/assets/images/common/apps.svg');"></div>
+    </button>
+            <ul class="dropdown-menu quicklinkswrap" *ngIf="links?.length; else noLinksTemplate">
+                <li class="header">Quicklinks</li>
+                <li *ngFor="let link of links | slice:0:10">
+                    <a class="dropdown-item" href="link.url">{{link.txt}}</a></li>
+            </ul>
+            <ng-template #noLinksTemplate>
+                <ul class="dropdown-menu quicklinkswrap">
+                    <li class="header">Quicklinks</li>
+                    <li class="subheader">No link is added to the list</li>
+                </ul>
+            </ng-template>
+
+        </div>
+    </div>
+    <div class="qrds-ml2 ">
+        <div class="btn-group">
+            <button class="profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="profile-btn-img" style="background-image: url('{{userimg}}');">&nbsp;</div>
+          </button>
+            <ul class="dropdown-menu dropdown-menu-end userdesc-wrap">
+                <li class="userdesc">
+                    <span class="lblbd">{{welcometxtlabel}}</span>
+                    <span class="username">{{empname}} ({{empid}})</span>
+                    <span class="Role" *ngIf="isroletxtrequired">{{roletxtlabel}}: {{roletxtvalue}}</span>
+                    <div class="profile-btn-img" style="background-image: url('{{userimg}}');">&nbsp;</div>
+                </li>
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+                <li><button class="dropdown-item" type="button" *ngIf="isProfilelinkrequired" (click)="profilelinkClick()">Profile</button></li>
+                <li><button class="dropdown-item" type="button" (click)="logOutClicked()">Logout</button></li>
+            </ul>
+        </div>
+    </div>
+</div>

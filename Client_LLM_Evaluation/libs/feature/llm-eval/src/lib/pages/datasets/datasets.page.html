@@ -1,0 +1,232 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/datasets.page.html -->
+<div class="datasets-container">
+  <div class="header-section">
+    <div class="title-section">
+      <h1 class="page-title">Datasets</h1>
+      <p class="page-description">Manage RAG evaluation datasets</p>
+    </div>
+    <div class="action-section">
+      <button class="create-button" (click)="createNewDataset($event)">
+        <span class="button-icon">+</span> Create New Dataset
+      </button>
+    </div>
+  </div>
+
+  <div class="datasets-content">
+    <!-- Filters Section -->
+    <div class="filters-section">
+      <form [formGroup]="filterForm" class="filters-form">
+        <div class="search-field">
+          <qrac-textbox
+            label="Search"
+            controlName="search"
+            formControlName="search"
+            placeholder="Search datasets by name"
+            size="medium">
+          </qrac-textbox>
+        </div>
+
+        <div class="filter-fields">
+          <div class="filter-field">
+            <qrac-select
+              label="Status"
+              controlName="status"
+              formControlName="status"
+              [options]="statusOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              label="Type"
+              controlName="type"
+              formControlName="type"
+              [options]="formatOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              label="Date"
+              controlName="dateRange"
+              formControlName="dateRange"
+              [options]="dateRangeOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              label="Size"
+              controlName="sizeRange"
+              formControlName="sizeRange"
+              [options]="sizeRangeOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              label="Visibility"
+              controlName="isPublic"
+              formControlName="isPublic"
+              [options]="visibilityOptions">
+            </qrac-select>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button class="clear-button" type="button" (click)="clearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading$ | async" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading datasets...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="(error$ | async) && !(isLoading$ | async)" class="error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error$ | async }}</p>
+      <button class="secondary-button" (click)="loadDatasets()">
+        Try Again
+      </button>
+    </div>
+
+    <!-- Datasets Content -->
+    <ng-container *ngIf="datasets$ | async as datasetsList">
+      <!-- No Results State -->
+      <div *ngIf="datasetsList.length === 0 && !(isLoading$ | async) && !(error$ | async)" class="no-results-container">
+        <div class="no-results-icon">📊</div>
+        <h3>No datasets found</h3>
+        <p>Create a new dataset or adjust your filters</p>
+        <button class="primary-button" (click)="createNewDataset($event)">
+          Create Dataset
+        </button>
+      </div>
+
+      <!-- Datasets List View with Virtual Scrolling -->
+      <ng-container *ngIf="datasetsList.length > 0 && !(isLoading$ | async)">
+        <div class="datasets-list">
+          <!-- Table Header -->
+          <div class="table-header">
+            <div class="name-col">
+              <span class="th-content" (click)="onSortChange('name')">
+                Name
+                <i *ngIf="(filterParams$ | async)?.sortBy === 'name'"
+                  [class.icon-arrow-up]="(filterParams$ | async)?.sortDirection === 'asc'"
+                  [class.icon-arrow-down]="(filterParams$ | async)?.sortDirection === 'desc'">
+                  {{ (filterParams$ | async)?.sortDirection === 'asc' ? '↑' : '↓' }}
+                </i>
+              </span>
+            </div>
+            <div class="type-col">Type</div>
+            <div class="count-col">
+              <span class="th-content" (click)="onSortChange('documentCount')">
+                Documents
+                <i *ngIf="(filterParams$ | async)?.sortBy === 'documentCount'"
+                  [class.icon-arrow-up]="(filterParams$ | async)?.sortDirection === 'asc'"
+                  [class.icon-arrow-down]="(filterParams$ | async)?.sortDirection === 'desc'">
+                  {{ (filterParams$ | async)?.sortDirection === 'asc' ? '↑' : '↓' }}
+                </i>
+              </span>
+            </div>
+            <div class="date-col">
+              <span class="th-content" (click)="onSortChange('createdAt')">
+                Created
+                <i *ngIf="(filterParams$ | async)?.sortBy === 'createdAt'"
+                  [class.icon-arrow-up]="(filterParams$ | async)?.sortDirection === 'asc'"
+                  [class.icon-arrow-down]="(filterParams$ | async)?.sortDirection === 'desc'">
+                  {{ (filterParams$ | async)?.sortDirection === 'asc' ? '↑' : '↓' }}
+                </i>
+              </span>
+            </div>
+            <div class="size-col">Size</div>
+            <div class="status-col">Status</div>
+            <div class="actions-col">Actions</div>
+          </div>
+
+          <!-- Virtual Scrolling Table Body -->
+          <cdk-virtual-scroll-viewport
+            class="virtual-scroll-viewport"
+            [itemSize]="70"
+            [maxBufferPx]="800"
+            [minBufferPx]="400">
+            <div
+              *cdkVirtualFor="let dataset of datasetsList"
+              class="dataset-row"
+              (click)="onDatasetClick(dataset)">
+              <div class="name-col">
+                <h3 class="dataset-name">{{ dataset.name }}</h3>
+                <p class="dataset-description">{{ truncateText(dataset.description, 60) }}</p>
+              </div>
+              <div class="type-col">{{ dataset.type || 'N/A' }}</div>
+              <div class="count-col">{{ dataset.documentCount || 0 }}</div>
+              <div class="date-col">{{ formatDate(dataset.createdAt) }}</div>
+              <div class="size-col">{{ formatFileSize(dataset.size) }}</div>
+              <div class="status-col">
+                <span class="status-badge" [ngClass]="getStatusClass(dataset.status)">
+                  {{ dataset.status }}
+                </span>
+              </div>
+              <div class="actions-col">
+                <div class="action-buttons">
+                  <button class="action-button edit-button" title="Edit dataset" (click)="onEditDataset($event, dataset.id)">
+                    Edit
+                  </button>
+                  <button class="action-button delete-button" title="Delete dataset" (click)="confirmDeleteDataset($event, dataset.id)">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </cdk-virtual-scroll-viewport>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-container">
+          <div class="pagination-info">
+            <ng-container *ngIf="totalCount$ | async as totalCount">
+              <ng-container *ngIf="totalCount > 0">
+                {{ getDisplayedRange().start }} to
+                {{ getDisplayedRange().end }} of
+                {{ getDisplayedRange().total }} datasets
+              </ng-container>
+            </ng-container>
+          </div>
+          <div class="pagination-controls">
+            <button
+              class="pagination-button"
+              [disabled]="isFirstPage()"
+              (click)="goToPreviousPage($event)">
+              Previous
+            </button>
+
+            <div class="pagination-pages">
+              <ng-container *ngFor="let page of visiblePages">
+                <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
+                <button
+                  *ngIf="page > 0"
+                  class="page-button"
+                  [class.active]="page === getCurrentPage()"
+                  (click)="onPageChange(page, $event)">
+                  {{ page }}
+                </button>
+              </ng-container>
+            </div>
+
+            <button
+              class="pagination-button"
+              [disabled]="isLastPage()"
+              (click)="goToNextPage($event)">
+              Next
+            </button>
+          </div>
+        </div>
+      </ng-container>
+    </ng-container>
+  </div>
+</div>

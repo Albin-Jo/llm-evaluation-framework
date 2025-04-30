@@ -1,0 +1,144 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/prompts/components/prompt-filters/prompt-filters.component.scss */
+
+// Variables
+$primary-color: #3498db;
+$light-gray: #f5f5f5;
+$border-color: #e0e0e0;
+$text-primary: #333;
+$text-secondary: #666;
+
+.filters-container {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.filters-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.filter-group {
+  margin-bottom: 0;
+}
+
+.search-group {
+  flex: 1;
+  max-width: 400px;
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+.search-wrapper {
+  position: relative;
+
+  .search-input {
+    width: 100%;
+    padding: 0.625rem 1rem 0.625rem 2.5rem;
+    font-size: 0.875rem;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    transition: border-color 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+    }
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $text-secondary;
+    font-size: 1rem;
+  }
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+}
+
+.visibility-btn {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background-color: white;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+
+  &:hover {
+    background-color: $light-gray;
+  }
+
+  &.active {
+    border-color: $primary-color;
+    color: $primary-color;
+  }
+
+  .filter-label {
+    font-weight: 500;
+    margin-right: 0.25rem;
+  }
+
+  .filter-value {
+    color: $text-secondary;
+  }
+
+  &.active .filter-value {
+    color: $primary-color;
+  }
+}
+
+.reset-btn {
+  padding: 0.5rem 0.75rem;
+  background-color: white;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $text-secondary;
+
+  &:hover {
+    background-color: $light-gray;
+    color: $text-primary;
+  }
+}
+
+// Make sure this works with the qrac components
+:host ::ng-deep {
+  app-qracselect {
+    min-width: 120px;
+
+    // Adjust the select component styling as needed
+    .qrac-select {
+      border: 1px solid $border-color;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      height: 38px;
+    }
+  }
+}

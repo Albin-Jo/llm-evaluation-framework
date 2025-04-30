@@ -1,0 +1,264 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/reports/report-preview/report-preview.page.scss */
+@import '../../../../../../../styles/variables';
+@import '../../../../../../../styles/mixins';
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.report-preview-container {
+  max-width: $container-xl;
+  margin: 0 auto;
+  padding: $spacing-6;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-4;
+  }
+}
+
+// Header section
+.header-section {
+  margin-bottom: $spacing-6;
+
+  .back-navigation {
+    margin-bottom: $spacing-4;
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: $primary;
+      text-decoration: none;
+      font-size: $font-size-sm;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+
+      .back-icon {
+        margin-right: $spacing-2;
+      }
+    }
+  }
+
+  .title-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: $spacing-4;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column;
+    }
+
+    .title-section {
+      .page-title {
+        @include page-title;
+        margin-bottom: $spacing-1;
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: $spacing-3;
+      flex-wrap: wrap;
+
+      @include media-breakpoint-down(md) {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      @include media-breakpoint-down(sm) {
+        flex-direction: column;
+
+        .action-button {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+
+      .action-button {
+        @include button-base;
+        padding: $spacing-2 $spacing-4;
+
+        &.download-button {
+          background-color: $primary;
+          color: white;
+          border-color: $primary;
+
+          &:hover:not(:disabled) {
+            background-color: darken($primary, 10%);
+            border-color: darken($primary, 10%);
+          }
+
+          &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+          }
+        }
+
+        &.send-button {
+          background-color: $success;
+          color: white;
+          border-color: $success;
+
+          &:hover:not(:disabled) {
+            background-color: darken($success, 10%);
+            border-color: darken($success, 10%);
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Loading & Error States */
+.loading-container {
+  @include loading-container;
+  @include card-padded;
+  margin-bottom: $spacing-6;
+}
+
+.error-container {
+  @include error-container;
+  @include card-padded;
+  margin-bottom: $spacing-6;
+
+  .error-actions {
+    display: flex;
+    gap: $spacing-3;
+    margin-top: $spacing-4;
+
+    .action-button {
+      @include button-base;
+      @include button-secondary;
+    }
+  }
+}
+
+/* Preview Content */
+.preview-content {
+  @include card;
+  padding: 0;
+  margin-bottom: $spacing-6;
+  height: 650px;
+  overflow-y: auto;
+
+  .report-document {
+    min-height: 100%;
+    padding: $spacing-6;
+    font-family: $font-family-base;
+
+    // Default styling for preview content
+    h1, h2, h3 {
+      color: $text-primary;
+      font-weight: $font-weight-semibold;
+      margin-bottom: $spacing-4;
+    }
+
+    h1 {
+      font-size: $font-size-2xl;
+      margin-bottom: $spacing-6;
+    }
+
+    h2 {
+      font-size: $font-size-xl;
+      margin-top: $spacing-6;
+      margin-bottom: $spacing-4;
+    }
+
+    h3 {
+      font-size: $font-size-lg;
+      margin-top: $spacing-5;
+      margin-bottom: $spacing-3;
+    }
+
+    p {
+      margin-bottom: $spacing-3;
+      line-height: $line-height-normal;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: $spacing-6;
+
+      th, td {
+        border: 1px solid $border-color;
+        padding: $spacing-2 $spacing-3;
+        text-align: left;
+      }
+
+      th {
+        background-color: $background-light;
+        font-weight: $font-weight-medium;
+      }
+
+      tbody tr:nth-child(even) {
+        background-color: rgba($background-light, 0.5);
+      }
+    }
+
+    ul, ol {
+      margin-bottom: $spacing-4;
+      padding-left: $spacing-6;
+
+      li {
+        margin-bottom: $spacing-2;
+      }
+    }
+
+    // Chart or graph containers
+    .chart-container {
+      margin: $spacing-6 0;
+      padding: $spacing-4;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      background-color: white;
+    }
+  }
+}
+
+/* Pagination */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: $spacing-6;
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    padding: $spacing-2 $spacing-4;
+    background-color: white;
+    border-radius: $radius-full;
+    box-shadow: $shadow-sm;
+
+    .pagination-button {
+      @include button-base;
+      @include button-outline;
+      padding: $spacing-1 $spacing-3;
+      min-width: auto;
+      height: auto;
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+
+    .page-info {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+    }
+  }
+}
+
+// Spinner
+.spinner-sm {
+  @include spinner($size: 16px, $border-width: 2px, $color: white);
+  margin-right: $spacing-2;
+  display: inline-block;
+}

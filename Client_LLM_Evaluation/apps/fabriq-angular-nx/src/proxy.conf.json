@@ -1,0 +1,8 @@
+{
+  "/MenuService/*": {
+    "target": "https://sit-rmcockpit.qatarairways.com.qa",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

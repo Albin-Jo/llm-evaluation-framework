@@ -1,0 +1,49 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/components/dataset-filters/dataset-filters.component.html -->
+<div class="filters-wrapper">
+  <form [formGroup]="filterForm" class="filters-form">
+    <div class="search-field">
+      <qrac-textbox
+        [label]="'Search'"
+        [controlName]="'search'"
+        [formControlName]="'search'"
+        [placeholder]="'Search datasets by name or description'"
+        [size]="'medium'">
+      </qrac-textbox>
+    </div>
+
+    <div class="filter-fields">
+      <div class="filter-field">
+        <qrac-select
+          [label]="'Status'"
+          [controlName]="'status'"
+          [formControlName]="'status'"
+          [options]="statusOptions">
+        </qrac-select>
+      </div>
+
+      <div class="filter-field">
+        <qrac-select
+          [label]="'Format'"
+          [controlName]="'format'"
+          [formControlName]="'format'"
+          [options]="typeOptions">
+        </qrac-select>
+      </div>
+
+      <div class="filter-field visibility-field">
+        <qrac-select
+          [label]="'Visibility'"
+          [controlName]="'isPublic'"
+          [formControlName]="'isPublic'"
+          [options]="visibilityOptions">
+        </qrac-select>
+      </div>
+    </div>
+
+    <div class="filter-actions">
+      <button class="clear-button" type="button" (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+  </form>
+</div>

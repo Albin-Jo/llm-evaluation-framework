@@ -1,0 +1,4 @@
+<div *ngFor="let option of options">
+    <input type="checkbox" [checked]="value[option.value]" (change)="handleChange(option.value, $event)">
+    <label>{{ option.label }}</label>
+</div>

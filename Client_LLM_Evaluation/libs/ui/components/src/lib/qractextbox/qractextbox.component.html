@@ -1,0 +1,12 @@
+<div [ngClass]="{'wrapper': true, 'form-floating': isFloat}">
+  <label *ngIf="label && !isFloat" for="qracTextbox" class="form-label label">{{label}}</label>
+  <input type="text" id="qracTextbox" class="form-control" [formControl]="control" [placeholder]="placeholder" (change)="valueChange.emit(control.value)" [ngClass]="{'is-invalid': control.invalid && (control.dirty || control.touched)}" />
+  <label *ngIf="label && isFloat" for="qracTextbox" class="form-label ellipsis label float-label">{{label}}</label>
+  <div *ngIf="control.errors?.['required'] && (control.dirty || control.touched)" class="invalid-feedback">
+      {{errorMessage}}
+  </div>
+  <div *ngIf="control.errors?.['maxlength'] && (control.dirty || control.touched)" class="invalid-feedback">
+      {{maxLengthErrorMessage}}
+  </div>
+  <small id="emailHelp" class="form-text text-muted left fst-italic">{{infoText}}</small>
+</div>

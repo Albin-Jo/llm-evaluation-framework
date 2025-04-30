@@ -1,0 +1,63 @@
+<div class="error-container">
+
+    @if (data?.error) {
+<div>
+      <h1>ERROR {{ data?.error}}</h1>
+      @if (data?.error === 404) {
+<h5> Resource You are looking for is not found</h5>
+}
+      <a mat-raised-button [routerLink]="'/app/home'">
+        <h5>Go Home</h5>
+      </a>
+    </div>
+}
+  
+    @if (routeParams.message) {
+<div>
+      @if (routeParams?.status) {
+<h1> ERROR {{ routeParams?.status }}</h1>
+}<br/>
+      @if (routeParams?.message) {
+<h3>{{ routeParams?.message }}</h3>
+}<br/>
+      @if (routeParams?.url && routeParams?.url !== '/') {
+<h1>Error in {{ routeParams?.url | uppercase }} page, sorry {{ routeParams?.user }}</h1>
+}
+      @if (routeParams?.id) {
+<h4>This error has been reported to the Administrator with the ID:<br> {{ routeParams?.id}}</h4>
+}
+      @if (routeParams?.url && routeParams.status !== '404') {
+<a mat-raised-button
+        [routerLink]="routeParams?.url"
+       >
+          <h5>Go Back to {{routeParams?.url}}</h5>
+      </a>
+}
+      @if (!routeParams.url || routeParams.status === '404') {
+<a mat-raised-button
+         routerLink="/"
+        >
+          <h5>Go Back to home</h5>
+      </a>
+}
+    </div>
+}
+  
+    @if (!routeParams && !data) {
+<div>
+        <h1>Unknown error</h1>
+        <a mat-raised-button [routerLink]="'/login'">
+          <h5>Go Home</h5>
+        </a>
+    </div>
+}
+  </div>
+  
+  @if (routeParams?.message) {
+<div class="pre-container">
+    <p>Error sent to the server</p>
+    <a mat-raised-button [routerLink]="'/app/home'">
+        <h5>Go Home</h5>
+      </a>
+  </div>
+}

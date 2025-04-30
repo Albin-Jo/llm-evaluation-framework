@@ -1,0 +1,53 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/components/prompt-filters/prompt-filters.component.html -->
+<div class="filters-container" [formGroup]="filterForm">
+  <div class="filters-row">
+    <div class="filter-group search-group">
+      <div class="search-wrapper">
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search prompts..."
+          formControlName="search">
+        <span class="search-icon">🔍</span>
+      </div>
+    </div>
+
+    <div class="filter-actions">
+      <div class="filter-group visibility-group">
+        <button
+          type="button"
+          class="visibility-btn"
+          [class.active]="filterForm.get('is_public')?.value !== null"
+          (click)="toggleVisibility()">
+          <span class="filter-label">Visibility:</span>
+          <span class="filter-value">{{ getVisibilityLabel() }}</span>
+        </button>
+      </div>
+
+      <div class="filter-group template-group">
+        <app-qracselect
+          [label]="''"
+          [placeholder]="'Template'"
+          formControlName="template_id">
+          <option [value]="null">Any template</option>
+          <option value="template_1">Template 1</option>
+          <option value="template_2">Template 2</option>
+        </app-qracselect>
+      </div>
+
+      <div class="filter-group sort-group">
+        <app-qracselect
+          [label]="''"
+          formControlName="sort_by">
+          <option value="updated_at">Sort: Last Updated</option>
+          <option value="created_at">Sort: Creation Date</option>
+          <option value="name">Sort: Name</option>
+        </app-qracselect>
+      </div>
+
+      <button type="button" class="reset-btn" (click)="resetFilters()" title="Reset all filters">
+        Reset
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,52 @@
+<div class="">
+<h3>User Assignment Projects</h3>
+
+<div class="row py-1 align-items-end">
+  <div class="col-md-8 ms-auto">
+    &nbsp;&nbsp;
+  </div>
+  <div class="col-md-4 text-md-end">
+    <button type="button" class="btn btn-primary" (click)="opentoast1()">Save</button>&nbsp;
+    <button type="button" class="btn btn-primary" (click)="openModal1()">December 2024 Peak</button>
+  </div>
+</div>
+
+<qrsc-systoast #qrscsystoast></qrsc-systoast>
+<qrsc-modal-slide #SideModalComponent header-title="December 2024">
+  <div slot="modal-content">
+
+      <ejs-chart id="chart-container" (pointRender)='pointRender($event)' [primaryXAxis]='primaryXAxis' [title]='title'>
+        <e-series-collection>
+            <e-series [dataSource]='chartData' type='Spline' xName='x' yName='y' name='London' [marker]='marker'></e-series>
+        </e-series-collection>
+    </ejs-chart>
+
+  </div>
+  <div slot="modal-footer">FOOTER
+      <qrac-button label="Close Window" type="primary" (buttonClick)="closeModal1()"></qrac-button>
+  </div>
+</qrsc-modal-slide>
+
+<div class="col-12">
+  <div class="col-content">
+      <qrac-tagbutton label="Primary" type="primary" (buttonClick)="onButtonClick($event)"></qrac-tagbutton>
+  </div>
+</div>
+<div class="control-section">
+  <ejs-grid [dataSource]='data' height='700' [allowVirtualization]='true' [enableVirtualization]='true' [enableColumnVirtualization]='true' cssClass="custom-grid" class="qr-sygrid-ums" [allowSelection]="true" [selectionSettings]="selectOptions" [allowSorting]='true' [allowFiltering]='true' [filterSettings]='filterSettings' [editSettings]='editSettings'>
+      <e-columns>
+        <e-column type='checkbox' width='30' ></e-column>
+          <e-column field='OrderID' headerText='Origin' width='100' textAlign='Center' isPrimaryKey='true' [validationRules]='orderidrules'></e-column>
+          <e-column field='CustomerID' headerText='Destination' width='80'  textAlign='Center' [validationRules]='customeridrules'></e-column>
+          <e-column field='OrderDate' headerText='Published Tier Code' width='120'></e-column>
+          <e-column field='Freight' headerText='Cabin Code' width='80'  textAlign='Center'></e-column>
+          <e-column field='ShippedDate' headerText='Created By' width='80'></e-column>
+          <e-column field='ShipRegion' headerText='Created Date' width='100' format="yMd" textAlign='Right' editType='datepickeredit'></e-column>
+          <e-column field='ShippedDate' headerText='Last Modified By' width='100' format="yMd"></e-column>
+          <e-column field='ShipRegion' headerText='Last Modified  Date' width='130' format="yMd" textAlign='Right' editType='datepickeredit'></e-column>
+
+      </e-columns>
+  </ejs-grid>
+</div>
+
+</div>
