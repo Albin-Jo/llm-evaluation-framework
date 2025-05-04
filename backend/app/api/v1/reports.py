@@ -14,6 +14,7 @@ from backend.app.db.schema.report_schema import (
 )
 from backend.app.db.session import get_db
 from backend.app.services.report_service import ReportService
+from backend.app.utils.response_utils import create_paginated_response
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -88,22 +89,29 @@ async def list_reports(
 
     report_service = ReportService(db)
 
-    try:
-        reports = await report_service.list_reports(
-            skip=skip,
-            limit=limit,
-            evaluation_id=evaluation_id,
-            status=status,
-            is_public=is_public,
-            name=name
-        )
-        return reports
-    except Exception as e:
-        logger.error(f"Failed to list reports: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list reports: {str(e)}"
-        )
+    # Get total count
+    filters = {}
+    if evaluation_id:
+        filters["evaluation_id"] = evaluation_id
+    if status:
+        filters["status"] = status
+    if is_public is not None:
+        filters["is_public"] = is_public
+    if name:
+        filters["name"] = name
+
+    total_count = await report_service.report_repo.count(filters)
+
+    reports = await report_service.list_reports(
+        skip=skip,
+        limit=limit,
+        evaluation_id=evaluation_id,
+        status=status,
+        is_public=is_public,
+        name=name
+    )
+
+    return create_paginated_response(reports, total_count, skip, limit)
 
 
 @router.get("/{report_id}", response_model=ReportDetailResponse)

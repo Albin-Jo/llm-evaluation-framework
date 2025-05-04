@@ -14,6 +14,7 @@ from backend.app.db.validators.dataset_validator import (
 )
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.services.dataset_service import DatasetService
+from backend.app.utils.response_utils import create_paginated_response
 
 router = APIRouter()
 
@@ -111,6 +112,15 @@ async def list_datasets(
     """
     dataset_service = DatasetService(db)
 
+    # Get total count first
+    filters = {}
+    if type:
+        filters["type"] = type
+    if is_public is not None:
+        filters["is_public"] = is_public
+
+    total_count = await dataset_service.dataset_repo.count(filters)
+
     datasets = await dataset_service.list_datasets(
         skip=skip,
         limit=limit,
@@ -118,7 +128,7 @@ async def list_datasets(
         is_public=is_public
     )
 
-    return datasets
+    return create_paginated_response(datasets, total_count, skip, limit)
 
 
 @router.get("/{dataset_id}", response_model=DatasetResponse)

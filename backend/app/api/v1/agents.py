@@ -11,6 +11,7 @@ from backend.app.db.schema.agent_schema import (
 )
 from backend.app.db.session import get_db
 from backend.app.services.agent_service import test_agent_service
+from backend.app.utils.response_utils import create_paginated_response
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -83,24 +84,27 @@ async def list_agents(
     logger.debug(f"Listing agents with filters: domain={domain}, is_active={is_active}, name={name}")
 
     filters = {}
-
-    # Add filters if provided
     if domain:
         filters["domain"] = domain
     if is_active is not None:
         filters["is_active"] = is_active
 
-    # Get Agents
     agent_repo = AgentRepository(db)
 
+    # Get total count first
     if name:
-        # Use custom search method for name partial match
+        # Count with name search
+        total_count = await agent_repo.count_with_search(name, filters)
+    else:
+        total_count = await agent_repo.count(filters)
+
+    # Get agents
+    if name:
         agents = await agent_repo.search_by_name(name, skip=skip, limit=limit, additional_filters=filters)
     else:
-        # Use standard get_multi for exact filters
         agents = await agent_repo.get_multi(skip=skip, limit=limit, filters=filters)
 
-    return agents
+    return create_paginated_response(agents, total_count, skip, limit)
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)
