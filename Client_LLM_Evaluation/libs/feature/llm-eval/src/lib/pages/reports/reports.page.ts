@@ -1,5 +1,5 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/reports/reports.page.ts */
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
+import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,7 +14,6 @@ import {
 import { ReportService } from '@ngtx-apps/data-access/services';
 import {
   QracButtonComponent,
-  QracTagButtonComponent,
   QracTextBoxComponent,
   QracSelectComponent
 } from '@ngtx-apps/ui/components';
@@ -36,7 +35,8 @@ import {
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './reports.page.html',
-  styleUrls: ['./reports.page.scss']
+  styleUrls: ['./reports.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReportsPage implements OnInit, OnDestroy {
   reports: Report[] = [];
@@ -44,14 +44,14 @@ export class ReportsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 5;
+  itemsPerPage = 10;
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: ReportFilterParams = {
     page: 1,
-    limit: 5,
+    limit: 10,
     sortBy: 'created_at',
     sortDirection: 'desc'
   };
@@ -68,12 +68,12 @@ export class ReportsPage implements OnInit, OnDestroy {
     { value: '', label: 'All Formats' },
     { value: ReportFormat.PDF, label: 'PDF' },
     { value: ReportFormat.HTML, label: 'HTML' },
-    { value: ReportFormat.MARKDOWN, label: 'Markdown' },
     { value: ReportFormat.JSON, label: 'JSON' }
   ];
 
-  reportStatus = ReportStatus;
-  reportFormat = ReportFormat;
+  // Expose enums for template usage
+  ReportStatus = ReportStatus;
+  ReportFormat = ReportFormat;
 
   private destroy$ = new Subject<void>();
 
@@ -102,7 +102,36 @@ export class ReportsPage implements OnInit, OnDestroy {
   }
 
   setupFilterListeners(): void {
-    // Filter functionality is disabled for now, but UI is set up
+    // Set up search debounce
+    this.filterForm.get('search')?.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((value: string) => {
+        this.filterParams.name = value || undefined;
+        this.filterParams.page = 1;
+        this.loadReports();
+      });
+
+    // Listen to status changes
+    this.filterForm.get('status')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((value: string) => {
+        this.filterParams.status = value ? value as ReportStatus : undefined;
+        this.filterParams.page = 1;
+        this.loadReports();
+      });
+
+    // Listen to format changes
+    this.filterForm.get('format')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((value: string) => {
+        this.filterParams.format = value ? value as ReportFormat : undefined;
+        this.filterParams.page = 1;
+        this.loadReports();
+      });
   }
 
   loadReports(): void {
@@ -118,8 +147,6 @@ export class ReportsPage implements OnInit, OnDestroy {
         next: (response) => {
           this.reports = response.reports;
           this.totalCount = response.totalCount;
-
-          // Calculate pagination
           this.updateVisiblePages();
         },
         error: (error) => {
@@ -139,40 +166,33 @@ export class ReportsPage implements OnInit, OnDestroy {
     const pages: number[] = [];
 
     if (totalPages <= maxVisiblePages) {
-      // If total pages are less than max visible, show all pages
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
 
       let startPage = Math.max(2, this.filterParams.page! - 1);
       let endPage = Math.min(totalPages - 1, this.filterParams.page! + 1);
 
-      // Adjust if we're near the start or end
       if (this.filterParams.page! <= 3) {
         endPage = Math.min(totalPages - 1, 4);
       } else if (this.filterParams.page! >= totalPages - 2) {
         startPage = Math.max(2, totalPages - 3);
       }
 
-      // Add ellipsis if needed
       if (startPage > 2) {
-        pages.push(-1); // -1 represents ellipsis
+        pages.push(-1);
       }
 
-      // Add middle pages
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
 
-      // Add ellipsis if needed
       if (endPage < totalPages - 1) {
-        pages.push(-2); // -2 represents ellipsis
+        pages.push(-2);
       }
 
-      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages);
       }
@@ -196,7 +216,6 @@ export class ReportsPage implements OnInit, OnDestroy {
       format: ''
     });
 
-    // Reset filter params manually
     this.filterParams.name = undefined;
     this.filterParams.status = undefined;
     this.filterParams.format = undefined;
@@ -206,25 +225,33 @@ export class ReportsPage implements OnInit, OnDestroy {
   }
 
   onSortChange(sortBy: string): void {
-    if (this.filterParams.sortBy === sortBy) {
-      // Toggle direction if same sort field
-      this.filterParams.sortDirection =
-        this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      // Default to desc for new sort field
-      this.filterParams.sortBy = sortBy as "created_at" | "name" | "updated_at";
-      this.filterParams.sortDirection = 'desc';
-    }
+    const validSortFields = ["created_at", "updated_at", "name", "status", "format"];
 
-    this.loadReports();
+    if (validSortFields.includes(sortBy)) {
+      if (this.filterParams.sortBy === sortBy) {
+        this.filterParams.sortDirection =
+          this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.filterParams.sortBy = sortBy as "created_at" | "name" | "updated_at";
+        this.filterParams.sortDirection = 'desc';
+      }
+
+      this.filterParams.page = 1;
+      this.loadReports();
+    }
   }
 
   onReportClick(report: Report): void {
     this.router.navigate(['app/reports', report.id]);
   }
 
+  onViewReport(event: Event, reportId: string): void {
+    event.stopPropagation();
+    this.router.navigate(['app/reports', reportId]);
+  }
+
   onEditReport(event: Event, reportId: string): void {
-    event.stopPropagation(); // Prevent row click
+    event.stopPropagation();
     this.router.navigate(['app/reports', reportId, 'edit']);
   }
 
@@ -234,7 +261,7 @@ export class ReportsPage implements OnInit, OnDestroy {
   }
 
   confirmDeleteReport(event: Event, reportId: string): void {
-    event.stopPropagation(); // Prevent navigation to detail page
+    event.stopPropagation();
 
     this.confirmationDialogService.confirmDelete('Report')
       .subscribe(confirmed => {
@@ -250,7 +277,7 @@ export class ReportsPage implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.notificationService.success('Report deleted successfully');
-          this.loadReports(); // Reload the list
+          this.loadReports();
         },
         error: (error) => {
           this.notificationService.error('Failed to delete report. Please try again.');
@@ -260,7 +287,7 @@ export class ReportsPage implements OnInit, OnDestroy {
   }
 
   generateReport(event: Event, reportId: string): void {
-    event.stopPropagation(); // Prevent navigation to detail page
+    event.stopPropagation();
 
     this.confirmationDialogService.confirm({
       title: 'Generate Report',
@@ -275,7 +302,7 @@ export class ReportsPage implements OnInit, OnDestroy {
           .subscribe({
             next: () => {
               this.notificationService.success('Report generated successfully');
-              this.loadReports(); // Reload the list
+              this.loadReports();
             },
             error: (error) => {
               this.notificationService.error('Failed to generate report. Please try again.');
@@ -287,7 +314,10 @@ export class ReportsPage implements OnInit, OnDestroy {
   }
 
   downloadReport(event: Event, reportId: string): void {
-    event.stopPropagation(); // Prevent navigation to detail page
+    event.stopPropagation();
+
+    const report = this.reports.find(r => r.id === reportId);
+    if (!report) return;
 
     this.isLoading = true;
     this.reportService.downloadReport(reportId)
@@ -297,15 +327,12 @@ export class ReportsPage implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (blob) => {
-          // Create a URL for the blob
           const url = window.URL.createObjectURL(blob);
-          // Create an anchor element and trigger download
           const a = document.createElement('a');
           a.href = url;
-          a.download = `report-${reportId}.pdf`; // Default filename
+          a.download = `report-${reportId}.${report.format.toLowerCase()}`;
           document.body.appendChild(a);
           a.click();
-          // Cleanup
           window.URL.revokeObjectURL(url);
           document.body.removeChild(a);
 
@@ -318,7 +345,7 @@ export class ReportsPage implements OnInit, OnDestroy {
       });
   }
 
-  formatDate(dateString: string): string {
+  formatDate(dateString: string | undefined): string {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
@@ -335,7 +362,7 @@ export class ReportsPage implements OnInit, OnDestroy {
   /**
    * Truncate text to specified length
    */
-  truncateText(text: string | undefined, maxLength = 100): string {
+  truncateText(text: string, maxLength = 100): string {
     if (!text) return '';
     return text.length > maxLength
       ? `${text.substring(0, maxLength)}...`
@@ -368,5 +395,12 @@ export class ReportsPage implements OnInit, OnDestroy {
    */
   canDownloadReport(status: ReportStatus): boolean {
     return status === ReportStatus.GENERATED;
+  }
+
+  /**
+   * Track by function for ngFor optimization
+   */
+  trackByReportId(index: number, report: Report): string {
+    return report.id;
   }
 }
