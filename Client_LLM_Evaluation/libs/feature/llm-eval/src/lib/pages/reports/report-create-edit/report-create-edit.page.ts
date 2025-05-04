@@ -101,7 +101,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
         include_metrics_overview: [true],
         include_detailed_results: [true],
         include_agent_responses: [true],
-        max_examples: [10]
+        max_examples: [10, [Validators.min(1), Validators.max(100)]]
       })
     });
   }
@@ -158,7 +158,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
    * Populate form with existing report data
    */
   populateForm(report: Report): void {
-          // Build config form group if needed
+    // Build config form group if needed
     if (report.config) {
       const configGroup = this.fb.group({
         include_executive_summary: [report.config['include_executive_summary'] ?? true],
@@ -194,10 +194,27 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
     this.isSaving = true;
     const formValue = this.reportForm.getRawValue();
 
+    // Transform form values to match the API contract
+    const reportData = {
+      name: formValue.name,
+      description: formValue.description,
+      evaluation_id: formValue.evaluation_id,
+      format: formValue.format,
+      config: formValue.config,
+      ...formValue.config // Spread config values at root level for creation
+    };
+
     if (this.isEditMode) {
-      this.updateReport(formValue);
+      // For updates, don't spread config values
+      const updateData: ReportUpdate = {
+        name: formValue.name,
+        description: formValue.description,
+        format: formValue.format,
+        config: formValue.config
+      };
+      this.updateReport(updateData);
     } else {
-      this.createReport(formValue);
+      this.createReport(reportData as ReportCreate);
     }
   }
 
@@ -259,10 +276,16 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
     if (!control || !control.errors) return '';
 
     if (control.errors['required']) {
-      return `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required`;
+      return `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace('_', ' ')} is required`;
     }
     if (control.errors['maxlength']) {
       return `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} cannot exceed ${control.errors['maxlength'].requiredLength} characters`;
+    }
+    if (control.errors['min']) {
+      return `Value must be at least ${control.errors['min'].min}`;
+    }
+    if (control.errors['max']) {
+      return `Value cannot exceed ${control.errors['max'].max}`;
     }
 
     return 'Invalid value';

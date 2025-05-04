@@ -63,7 +63,7 @@
           </div>
           <div class="info-row">
             <span class="info-label">Format:</span>
-            <span class="info-value">{{ report.format }}</span>
+            <span class="info-value">{{ report.format | uppercase }}</span>
           </div>
           <div class="info-row">
             <span class="info-label">Created:</span>
@@ -86,19 +86,25 @@
         <div class="card-content">
           <div class="info-row clickable" (click)="viewEvaluation()">
             <span class="info-label">Evaluation:</span>
-            <span class="info-value link-value">{{ evaluation?.name || report.evaluation_id }}</span>
+            <span class="info-value link-value">{{ evaluation?.name || 'Loading...' }}</span>
           </div>
           <div class="info-row" *ngIf="evaluation">
             <span class="info-label">Status:</span>
-            <span class="status-badge" [ngClass]="getEvaluationStatusClass()">{{ evaluation.status }}</span>
+            <span class="status-badge" [ngClass]="getEvaluationStatusClass()">
+              {{ evaluation.status }}
+            </span>
           </div>
           <div class="info-row" *ngIf="evaluation?.agent">
             <span class="info-label">Agent:</span>
-            <span class="info-value link-value">{{ evaluation?.agent?.name }}</span>
+            <span class="info-value">{{ evaluation.agent.name }}</span>
           </div>
           <div class="info-row" *ngIf="evaluation?.dataset">
             <span class="info-label">Dataset:</span>
-            <span class="info-value link-value">{{ evaluation?.dataset?.name }}</span>
+            <span class="info-value">{{ evaluation.dataset.name }}</span>
+          </div>
+          <div class="info-row" *ngIf="evaluation?.method">
+            <span class="info-label">Method:</span>
+            <span class="info-value">{{ evaluation.method | uppercase }}</span>
           </div>
         </div>
       </div>
@@ -112,10 +118,10 @@
       </div>
     </div>
 
-    <!-- Report Configuration -->
-    <div class="config-section" *ngIf="report.config">
-      <h3 class="section-title">Report Configuration</h3>
-      <div class="config-content">
+    <!-- Report Configuration Card -->
+    <div class="info-card">
+      <h3 class="card-title">Report Configuration</h3>
+      <div class="card-content">
         <div class="config-grid">
           <!-- Display checkboxes for boolean configs -->
           <div class="config-item" *ngIf="report.config && report.config['include_executive_summary'] !== undefined">

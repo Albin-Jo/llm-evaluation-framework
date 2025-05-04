@@ -431,3 +431,69 @@
   margin-right: $spacing-2;
   display: inline-block;
 }
+
+/* Added config as card to follow the same pattern as other cards */
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: $spacing-3;
+
+  .config-item {
+    display: flex;
+    align-items: center;
+    padding: $spacing-2;
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: $spacing-2;
+
+      .checkbox {
+        width: 18px;
+        height: 18px;
+        border: 2px solid $border-color;
+        border-radius: 3px;
+        background-color: white;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        .checkmark {
+          color: white;
+          font-size: 12px;
+          line-height: 1;
+          display: none;
+        }
+      }
+
+      &.checked .checkbox {
+        background-color: $primary;
+        border-color: $primary;
+
+        .checkmark {
+          display: block;
+        }
+      }
+
+      .checkbox-label {
+        font-size: $font-size-sm;
+        color: $text-primary;
+      }
+    }
+
+    .config-name {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      margin-right: $spacing-2;
+      color: $text-secondary;
+    }
+
+    .config-value {
+      font-size: $font-size-sm;
+      color: $text-primary;
+      font-weight: $font-weight-medium;
+    }
+  }
+}

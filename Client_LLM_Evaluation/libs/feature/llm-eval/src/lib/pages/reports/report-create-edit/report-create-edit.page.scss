@@ -5,12 +5,15 @@
 :host {
   display: block;
   width: 100%;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .report-create-edit-container {
   padding: $spacing-6;
   max-width: $container-xxl;
   margin: 0 auto;
+  min-height: 100%;
 
   @include media-breakpoint-down(md) {
     padding: $spacing-4;
@@ -24,6 +27,8 @@
   border-radius: $radius-lg;
   overflow: hidden;
   box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
 }
 
 // Header styles
@@ -106,134 +111,16 @@
   }
 }
 
-// Number input
-.number-input {
-  max-width: 200px;
-}
-
-// Preview section
-.preview-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: $spacing-6;
-  border-radius: $radius-sm;
-  background-color: $background-light;
-  text-align: center;
-
-  .preview-icon {
-    font-size: $font-size-3xl;
-    margin-bottom: $spacing-4;
-    color: $text-tertiary;
-  }
-
-  p {
-    color: $text-secondary;
-    font-size: $font-size-sm;
-  }
-}
-
-// Loading, error states
-.loading-container {
-  @include loading-container;
-}
-
-.error-container {
-  @include error-container;
-
-  .error-actions {
-    display: flex;
-    gap: $spacing-3;
-    margin-top: $spacing-4;
-  }
-}
-
-// Form actions
-.form-actions {
-  display: flex;
-  justify-content: space-between;
-  padding: $spacing-4 $spacing-6;
-  border-top: 1px solid $border-color;
-  background-color: $background-light;
-
-  button {
-    padding: $spacing-2 $spacing-5;
-    border-radius: $radius-sm;
-    font-weight: $font-weight-medium;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: $font-size-sm;
-    height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 120px;
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-
-  .outline-button {
-    background-color: white;
-    color: $text-primary;
-    border: 1px solid $border-color;
-
-    &:hover:not(:disabled) {
-      background-color: $background;
-      border-color: darken($border-color, 10%);
-    }
-  }
-
-  .primary-button {
-    background-color: $primary;
-    color: white;
-    border: none;
-
-    &:hover:not(:disabled) {
-      background-color: darken($primary, 10%);
-    }
-  }
-
-  .action-buttons {
-    display: flex;
-    gap: $spacing-3;
-  }
-
-  // Loading spinner
-  .spinner-sm {
-    @include spinner($size: 18px, $border-width: 2px, $color: white);
-    margin-right: $spacing-2;
-  }
-
-  @include media-breakpoint-down(md) {
-    padding: $spacing-3 $spacing-4;
-    flex-wrap: wrap;
-    gap: $spacing-3;
-
-    button {
-      flex: 1;
-      min-width: auto;
-    }
-
-    .action-buttons {
-      flex: 1;
-      justify-content: flex-end;
-    }
-  }
-}
-
 // Tab content
 .tab-content {
   padding: $spacing-6;
   min-height: 300px;
-  max-height: 450px;
+  max-height: calc(100vh - 400px); // Dynamic height based on viewport
   overflow-y: auto;
 
   @include media-breakpoint-down(md) {
     padding: $spacing-4;
+    max-height: none; // Allow natural flow on mobile
   }
 }
 
@@ -247,7 +134,8 @@
   border: 1px solid $border-color;
   border-radius: $radius-sm;
   transition: all 0.2s ease;
-  height: 44px;
+  line-height: 1.5;
+  height: auto;
 
   &:focus {
     outline: none;
@@ -311,6 +199,11 @@ select.form-control {
     font-size: $font-size-xs;
     color: $text-secondary;
   }
+}
+
+// Number input
+.number-input {
+  max-width: 200px;
 }
 
 // Format options
@@ -467,6 +360,123 @@ select.form-control {
         color: $text-secondary;
         margin: 0;
       }
+    }
+  }
+}
+
+// Preview section
+.preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-6;
+  border-radius: $radius-sm;
+  background-color: $background-light;
+  text-align: center;
+
+  .preview-icon {
+    font-size: $font-size-3xl;
+    margin-bottom: $spacing-4;
+    color: $text-tertiary;
+  }
+
+  p {
+    color: $text-secondary;
+    font-size: $font-size-sm;
+  }
+}
+
+// Loading, error states
+.loading-container {
+  @include loading-container;
+}
+
+.error-container {
+  @include error-container;
+
+  .error-actions {
+    display: flex;
+    gap: $spacing-3;
+    margin-top: $spacing-4;
+  }
+}
+
+// Form actions
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: $spacing-4 $spacing-6;
+  border-top: 1px solid $border-color;
+  background-color: $background-light;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+
+  button {
+    padding: $spacing-2 $spacing-5;
+    border-radius: $radius-sm;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: $font-size-sm;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .outline-button {
+    background-color: white;
+    color: $text-primary;
+    border: 1px solid $border-color;
+
+    &:hover:not(:disabled) {
+      background-color: $background;
+      border-color: darken($border-color, 10%);
+    }
+  }
+
+  .primary-button {
+    background-color: $primary;
+    color: white;
+    border: none;
+
+    &:hover:not(:disabled) {
+      background-color: darken($primary, 10%);
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: $spacing-3;
+  }
+
+  // Loading spinner
+  .spinner-sm {
+    @include spinner($size: 18px, $border-width: 2px, $color: white);
+    margin-right: $spacing-2;
+  }
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-3 $spacing-4;
+    flex-wrap: wrap;
+    gap: $spacing-3;
+
+    button {
+      flex: 1;
+      min-width: auto;
+    }
+
+    .action-buttons {
+      flex: 1;
+      justify-content: flex-end;
     }
   }
 }

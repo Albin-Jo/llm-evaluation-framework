@@ -40,14 +40,10 @@ export class ReportService {
     // Add each parameter if it exists
     if (filters.page !== undefined) {
       params = params.set('skip', ((filters.page - 1) * (filters.limit || 10)).toString());
-    } else {
-      params = params.set('skip', '0');
     }
 
     if (filters.limit !== undefined) {
       params = params.set('limit', filters.limit.toString());
-    } else {
-      params = params.set('limit', '100');
     }
 
     if (filters.status) {
@@ -83,17 +79,24 @@ export class ReportService {
               reports: response,
               totalCount: response.length
             } as ReportListResponse;
-          } else if (response.items && Array.isArray(response.items)) {
-            // Handle paginated response format
+          }
+          // If response has the expected structure
+          else if (response && response.reports && response.totalCount !== undefined) {
+            return response as ReportListResponse;
+          }
+          // If response has items/total structure (like paginated response)
+          else if (response && response.items && response.total !== undefined) {
             return {
               reports: response.items,
-              totalCount: response.total || response.items.length
+              totalCount: response.total
             } as ReportListResponse;
           }
-
-          // Return the response as is if it already matches our format
-          console.log('Returning response as is');
-          return response as ReportListResponse;
+          // Fallback: return empty list
+          console.log('Unexpected response format, returning empty list');
+          return {
+            reports: [],
+            totalCount: 0
+          } as ReportListResponse;
         }),
         catchError(error => this.handleError('Failed to fetch reports', error))
       );
@@ -210,7 +213,7 @@ export class ReportService {
     // we'll use the direct HttpClient with the transformed URL
 
     // Construct the URL with the same pattern used in the interceptor
-    const url = AppConstant.API_URL + `/reports/${id}/download`;
+    const url = `${AppConstant.API_URL}/reports/${id}/download`;
     console.log(`Download URL: ${url}`);
 
     // Handle authentication manually for this special case
@@ -266,7 +269,7 @@ previewReport(id: string): Observable<string> {
 
   // Use the direct HttpClient for this request since we want the raw HTML
   // Construct the URL with the same pattern used in the interceptor
-  const url = AppConstant.API_URL + `/reports/${id}/preview`;
+  const url = `${AppConstant.API_URL}/reports/${id}/preview`;
 
   // Handle authentication manually for this special case
   let headers = new HttpHeaders();

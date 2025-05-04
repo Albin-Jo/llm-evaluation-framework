@@ -1,5 +1,5 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/reports/reports.page.ts */
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -82,7 +82,8 @@ export class ReportsPage implements OnInit, OnDestroy {
     private confirmationDialogService: ConfirmationDialogService,
     private notificationService: NotificationService,
     private router: Router,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private cdr: ChangeDetectorRef // Added for change detection
   ) {
     this.filterForm = this.fb.group({
       search: [''],
@@ -137,22 +138,28 @@ export class ReportsPage implements OnInit, OnDestroy {
   loadReports(): void {
     this.isLoading = true;
     this.error = null;
+    this.cdr.markForCheck(); // Mark for check at start of loading
 
     this.reportService.getReports(this.filterParams)
       .pipe(
         takeUntil(this.destroy$),
-        finalize(() => this.isLoading = false)
+        finalize(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck(); // Mark for check when loading completes
+        })
       )
       .subscribe({
         next: (response) => {
           this.reports = response.reports;
           this.totalCount = response.totalCount;
           this.updateVisiblePages();
+          this.cdr.markForCheck(); // Mark for check when data is updated
         },
         error: (error) => {
           this.error = 'Failed to load reports. Please try again.';
           this.notificationService.error(this.error);
           console.error('Error loading reports:', error);
+          this.cdr.markForCheck(); // Mark for check on error
         }
       });
   }
@@ -320,10 +327,15 @@ export class ReportsPage implements OnInit, OnDestroy {
     if (!report) return;
 
     this.isLoading = true;
+    this.cdr.markForCheck();
+
     this.reportService.downloadReport(reportId)
       .pipe(
         takeUntil(this.destroy$),
-        finalize(() => this.isLoading = false)
+        finalize(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        })
       )
       .subscribe({
         next: (blob) => {

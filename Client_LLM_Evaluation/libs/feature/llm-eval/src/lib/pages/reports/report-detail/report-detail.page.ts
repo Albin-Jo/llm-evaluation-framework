@@ -2,8 +2,8 @@
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
-import { finalize } from 'rxjs/operators';
+import { Subject, takeUntil, forkJoin, of } from 'rxjs';
+import { finalize, catchError } from 'rxjs/operators';
 
 import {
   Report,
@@ -79,11 +79,15 @@ export class ReportDetailPage implements OnInit, OnDestroy {
     this.error = null;
 
     this.reportService.getReport(id)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
       .subscribe({
         next: (report) => {
           this.report = report;
-          this.isLoading = false;
 
           // Load evaluation data if we have evaluation_id
           if (report.evaluation_id) {
@@ -92,7 +96,6 @@ export class ReportDetailPage implements OnInit, OnDestroy {
         },
         error: (error) => {
           this.error = 'Failed to load report details. Please try again.';
-          this.isLoading = false;
           console.error('Error loading report:', error);
         }
       });
@@ -100,14 +103,17 @@ export class ReportDetailPage implements OnInit, OnDestroy {
 
   loadEvaluationDetails(evaluationId: string): void {
     this.evaluationService.getEvaluation(evaluationId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (evaluation) => {
-          this.evaluation = evaluation;
-        },
-        error: (error) => {
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
           console.error('Error loading evaluation details:', error);
           // Don't set main error - this is supplementary data
+          return of(null);
+        })
+      )
+      .subscribe(evaluation => {
+        if (evaluation) {
+          this.evaluation = evaluation;
         }
       });
   }
