@@ -77,6 +77,7 @@ export class HomePage implements OnInit, OnDestroy {
   promptsCount = 0;
   agentsCount = 0;
   evaluationsCount = 0;
+  reportsCount = 0;
 
   // Dashboard data
   datasets: Dataset[] = [];

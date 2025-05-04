@@ -54,7 +54,7 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
   filterForm: FormGroup;
   filterParams$ = new BehaviorSubject<DatasetFilterParams>({
     page: 1,
-    limit: 20,
+    limit: 6,
     sortBy: 'createdAt',
     sortDirection: 'desc',
     is_public: true
@@ -62,7 +62,7 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
 
   // Constants
   Math = Math;
-  itemsPerPage = 20;
+  itemsPerPage = 6;
 
   // Options for select dropdowns
   statusOptions = [

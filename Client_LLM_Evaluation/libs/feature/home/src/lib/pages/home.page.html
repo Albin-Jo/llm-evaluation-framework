@@ -58,15 +58,15 @@
       <span class="stat-arrow">→</span>
     </div>
 
-    <div class="stat-card reports-card">
+    <div class="stat-card reports-card" (click)="viewAllReports()">
       <div class="stat-icon reports-icon">
         <i class="bi bi-file-earmark-bar-graph">
           <img src="assets/images/llmeval/reports.svg" alt="Reports icon">
         </i>
       </div>
       <div class="stat-content">
+        <span class="stat-count">{{reportsCount || 0}}</span>
         <span class="stat-label">Reports</span>
-        <span class="coming-soon">Coming soon</span>
       </div>
     </div>
   </div>

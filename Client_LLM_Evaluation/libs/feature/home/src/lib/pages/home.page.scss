@@ -179,10 +179,9 @@
       color: $warning;
     }
 
-    cursor: default;
     &:hover {
-      transform: none;
-      box-shadow: $shadow-sm;
+      border-color: rgba($warning, 0.1);
+      .stat-arrow { color: $warning; }
     }
   }
 }

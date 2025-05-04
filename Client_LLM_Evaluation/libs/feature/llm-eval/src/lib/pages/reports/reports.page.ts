@@ -44,14 +44,14 @@ export class ReportsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 10;
+  itemsPerPage = 6;
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: ReportFilterParams = {
     page: 1,
-    limit: 10,
+    limit: 6,
     sortBy: 'created_at',
     sortDirection: 'desc'
   };
