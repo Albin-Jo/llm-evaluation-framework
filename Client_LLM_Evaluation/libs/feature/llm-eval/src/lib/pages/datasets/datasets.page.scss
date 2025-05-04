@@ -7,41 +7,43 @@
   width: 100%;
 }
 
-.datasets-container {
-  max-width: $container-xxl;
-  margin: 0 auto;
-  padding: $spacing-6;
+.title-section {
+  .page-title {
+    @include page-title;
+    margin-bottom: $spacing-2;
+  }
 
-  @include media-breakpoint-down(md) {
-    padding: $spacing-4;
+  .page-description {
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    line-height: 1.5;
+    margin-bottom: $spacing-2;
+    max-width: 650px;
   }
 }
 
-// Header section with title and create button
+.datasets-container {
+  max-width: $container-xxl;
+  margin: 0 auto;
+  padding: $spacing-3;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-3;
+  }
+}
+
 .header-section {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: $spacing-6;
+  margin-bottom: $spacing-2;
 
   @include media-breakpoint-down(md) {
     flex-direction: column;
-    gap: $spacing-4;
+    gap: $spacing-2;
 
     .action-section {
       width: 100%;
-    }
-  }
-
-  .title-section {
-    .page-title {
-      @include page-title;
-      margin-bottom: $spacing-2;
-    }
-
-    .page-description {
-      color: $text-secondary;
-      font-size: $font-size-sm;
     }
   }
 
@@ -64,23 +66,20 @@
   }
 }
 
-// Main content card
 .datasets-content {
   @include card;
   overflow: hidden;
   width: 100%;
 }
 
-// Filters section
 .filters-section {
-  padding: $spacing-4;
+  padding: $spacing-2;
   border-bottom: 1px solid $border-color;
-  background-color: $background-light;
 
   .filters-form {
     display: flex;
     flex-wrap: wrap;
-    gap: $spacing-4;
+    gap: $spacing-2;
     align-items: flex-end;
 
     @include media-breakpoint-down(md) {
@@ -91,18 +90,12 @@
     .search-field {
       flex: 1;
       min-width: 250px;
-      max-width: 350px;
-
-      @include media-breakpoint-down(md) {
-        max-width: 100%;
-      }
     }
 
     .filter-fields {
       display: flex;
       flex-wrap: wrap;
-      gap: $spacing-4;
-      flex: 2;
+      gap: $spacing-2;
 
       @include media-breakpoint-down(md) {
         flex-direction: column;
@@ -110,7 +103,6 @@
 
       .filter-field {
         min-width: 150px;
-        flex: 1;
       }
     }
 
@@ -127,213 +119,167 @@
   }
 }
 
-// Loading state
 .loading-container {
   @include loading-container;
   padding: $spacing-12;
 }
 
-// Error state
 .error-container {
   @include error-container;
   padding: $spacing-12;
 
-  .secondary-button {
-    @include button-secondary;
+  .retry-button {
+    @include button-primary;
+    margin-top: $spacing-4;
   }
 }
 
-// Empty state
 .no-results-container {
   @include empty-state;
   padding: $spacing-12;
 
-  .primary-button {
+  .create-dataset-button {
     @include button-primary;
+    margin-top: $spacing-4;
   }
 }
 
-// Datasets list with virtual scrolling
 .datasets-list {
-  position: relative;
+  overflow-x: auto;
   width: 100%;
-  background-color: white;
 
-  // Table header
-  .table-header {
-    display: flex;
-    background-color: $background-light;
-    border-bottom: 1px solid $border-color;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    font-weight: $font-weight-semibold;
-    color: $text-secondary;
-    font-size: $font-size-xs;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  .datasets-table {
+    @include table;
+    table-layout: fixed;
 
-    > div {
-      padding: $spacing-4;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .th-content {
-      display: flex;
-      align-items: center;
-      gap: $spacing-2;
+    th.sortable {
       cursor: pointer;
+      user-select: none;
 
-      &:hover {
-        color: $primary;
-      }
-
-      i {
-        font-size: $font-size-xs;
-      }
-    }
-  }
-
-  // Virtual scroll container
-  .virtual-scroll-viewport {
-    height: 300px;
-    width: 100%;
-    overflow-x: hidden;
-  }
-
-  // Dataset row
-  .dataset-row {
-    display: flex;
-    border-bottom: 1px solid $border-light;
-    transition: background-color 0.2s;
-    cursor: pointer;
-    height: 70px;
-    align-items: center;
-
-    &:hover {
-      background-color: rgba($primary, 0.05);
-    }
-
-    > div {
-      padding: $spacing-3 $spacing-4;
-      overflow: hidden;
-    }
-  }
-
-  // Column widths
-  .name-col {
-    width: 30%;
-    min-width: 200px;
-
-    .dataset-name {
-      font-weight: $font-weight-medium;
-      color: $primary;
-      margin: 0;
-      font-size: $font-size-base;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .dataset-description {
-      margin: 0;
-      font-size: $font-size-xs;
-      color: $text-secondary;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  }
-
-  .type-col {
-    width: 12%;
-    min-width: 80px;
-  }
-
-  .count-col {
-    width: 12%;
-    min-width: 80px;
-  }
-
-  .date-col {
-    width: 12%;
-    min-width: 100px;
-  }
-
-  .size-col {
-    width: 10%;
-    min-width: 80px;
-  }
-
-  .status-col {
-    width: 10%;
-    min-width: 100px;
-
-    .status-badge {
-      display: inline-flex;
-      padding: $spacing-1 $spacing-3;
-      border-radius: $radius-full;
-      font-size: $font-size-xs;
-      font-weight: $font-weight-medium;
-      text-transform: capitalize;
-
-      &.status-ready {
-        background-color: $success-light;
-        color: $success;
-      }
-
-      &.status-processing {
-        background-color: $warning-light;
-        color: darken($warning, 10%);
-      }
-
-      &.status-error {
-        background-color: $error-light;
-        color: $error;
-      }
-    }
-  }
-
-  .actions-col {
-    width: 14%;
-    min-width: 140px;
-    display: flex;
-    justify-content: flex-end;
-
-    .action-buttons {
-      display: flex;
-      gap: $spacing-2;
-
-      .action-button {
-        padding: $spacing-1 $spacing-3;
-        border: 1px solid $border-color;
-        border-radius: $radius-sm;
-        background: none;
-        font-size: $font-size-xs;
-        cursor: pointer;
-        transition: $transition-normal;
+      .th-content {
+        display: flex;
+        align-items: center;
+        padding: $spacing-1 $spacing-1;
 
         &:hover {
-          background-color: $background-light;
+          background-color: rgba(0, 0, 0, 0.05);
+          border-radius: $radius-sm;
+        }
+      }
+    }
+
+    .sort-indicator {
+      margin-left: $spacing-1;
+      font-size: $font-size-xs;
+      color: $primary;
+    }
+
+    .name-col {
+      font-weight: $font-weight-medium;
+      color: $primary;
+      min-width: 160px;
+      width: 25%;
+    }
+
+    .type-col {
+      min-width: 80px;
+      width: 10%;
+    }
+
+    .count-col {
+      min-width: 100px;
+      width: 12%;
+    }
+
+    .date-col {
+      min-width: 120px;
+      width: 15%;
+    }
+
+    .size-col {
+      min-width: 80px;
+      width: 10%;
+    }
+
+    .status-col {
+      min-width: 100px;
+      width: 12%;
+
+      .status-badge {
+        display: inline-flex;
+        padding: $spacing-1 $spacing-3;
+        border-radius: $radius-full;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-medium;
+        text-transform: capitalize;
+
+        &.status-ready {
+          background-color: $success-light;
+          color: $success;
         }
 
-        &.edit-button:hover {
-          border-color: $primary;
-          color: $primary;
+        &.status-processing {
+          background-color: $warning-light;
+          color: darken($warning, 10%);
         }
 
-        &.delete-button:hover {
-          border-color: $error;
+        &.status-error {
+          background-color: $error-light;
           color: $error;
         }
       }
     }
+
+    .actions-col {
+      white-space: nowrap;
+      min-width: 120px;
+      width: 15%;
+
+      .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: $spacing-2;
+
+        .action-button {
+          padding: 6px 10px;
+          font-size: 12px;
+          border: none;
+          border-radius: $radius-sm;
+          cursor: pointer;
+          transition: $transition-normal;
+
+          &.edit-button {
+            background-color: #e3f2fd;
+            color: #0277bd;
+
+            &:hover {
+              background-color: #bbdefb;
+            }
+          }
+
+          &.delete-button {
+            background-color: #ffebee;
+            color: #c62828;
+
+            &:hover {
+              background-color: #ffcdd2;
+            }
+          }
+        }
+      }
+    }
+
+    .dataset-row {
+      cursor: pointer;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: rgba($primary, 0.05);
+      }
+    }
   }
 }
 
-// Pagination
 .pagination-container {
   @include pagination;
   border-top: 1px solid $border-color;
@@ -350,49 +296,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: white;
-      border: 1px solid $border-color;
-      border-radius: $radius-sm;
-      font-size: $font-size-xs;
-      color: $text-primary;
-      cursor: pointer;
-      transition: $transition-normal;
-
-      &:hover:not(:disabled):not(.active) {
-        background-color: $background-light;
-      }
-
-      &.active {
-        background-color: $primary;
-        color: white;
-        border-color: $primary;
-      }
-    }
-
-    .pagination-ellipsis {
-      font-size: $font-size-sm;
-      color: $text-secondary;
-      padding: 0 $spacing-1;
-    }
-  }
-
-  .pagination-button {
-    padding: $spacing-2 $spacing-3;
-    background-color: white;
-    border: 1px solid $border-color;
-    border-radius: $radius-sm;
-    font-size: $font-size-xs;
-    color: $text-primary;
-    cursor: pointer;
-    transition: $transition-normal;
-
-    &:hover:not(:disabled) {
-      background-color: $background-light;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
     }
   }
 
@@ -404,33 +307,6 @@
       width: 100%;
       justify-content: center;
       text-align: center;
-    }
-  }
-}
-
-// Responsive adjustments for smaller screens
-@media (max-width: 768px) {
-  .datasets-list {
-    .table-header, .dataset-row {
-      .type-col, .size-col, .date-col {
-        display: none;
-      }
-
-      .name-col {
-        width: 40%;
-      }
-
-      .count-col {
-        width: 15%;
-      }
-
-      .status-col {
-        width: 20%;
-      }
-
-      .actions-col {
-        width: 25%;
-      }
     }
   }
 }

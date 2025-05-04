@@ -13,11 +13,10 @@ import {
 import { AgentService } from '@ngtx-apps/data-access/services';
 import {
   QracButtonComponent,
-  QracTagButtonComponent,
   QracTextBoxComponent,
   QracSelectComponent
 } from '@ngtx-apps/ui/components';
-import { AlertService } from '@ngtx-apps/utils/services';
+import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-agents',
@@ -40,14 +39,14 @@ export class AgentsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 10;
+  itemsPerPage = 10; // Updated from 10 to match standard
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: AgentFilterParams = {
     page: 1,
-    limit: 10,
+    limit: 10, // Updated to match standard
     sortBy: 'created_at',
     sortDirection: 'desc'
   };
@@ -77,6 +76,7 @@ export class AgentsPage implements OnInit, OnDestroy {
   constructor(
     private agentService: AgentService,
     private alertService: AlertService,
+    private confirmationDialogService: ConfirmationDialogService,
     private router: Router,
     private fb: FormBuilder
   ) {
@@ -147,8 +147,6 @@ export class AgentsPage implements OnInit, OnDestroy {
           this.agents = response.agents;
           this.totalCount = response.totalCount;
           this.isLoading = false;
-
-          // Calculate pagination
           this.updateVisiblePages();
         },
         error: (error) => {
@@ -159,54 +157,43 @@ export class AgentsPage implements OnInit, OnDestroy {
             title: 'Error'
           });
           this.isLoading = false;
-          console.error('Error loading agents:', error);
         }
       });
   }
 
-  /**
-   * Update the array of visible page numbers
-   */
   updateVisiblePages(): void {
     const maxVisiblePages = 5;
     const totalPages = Math.ceil(this.totalCount / this.itemsPerPage);
     const pages: number[] = [];
 
     if (totalPages <= maxVisiblePages) {
-      // If total pages are less than max visible, show all pages
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
 
       let startPage = Math.max(2, this.filterParams.page! - 1);
       let endPage = Math.min(totalPages - 1, this.filterParams.page! + 1);
 
-      // Adjust if we're near the start or end
       if (this.filterParams.page! <= 3) {
         endPage = Math.min(totalPages - 1, 4);
       } else if (this.filterParams.page! >= totalPages - 2) {
         startPage = Math.max(2, totalPages - 3);
       }
 
-      // Add ellipsis if needed
       if (startPage > 2) {
-        pages.push(-1); // -1 represents ellipsis
+        pages.push(-1);
       }
 
-      // Add middle pages
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
 
-      // Add ellipsis if needed
       if (endPage < totalPages - 1) {
-        pages.push(-2); // -2 represents ellipsis
+        pages.push(-2);
       }
 
-      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages);
       }
@@ -230,7 +217,6 @@ export class AgentsPage implements OnInit, OnDestroy {
       domain: ''
     });
 
-    // Reset filter params manually
     this.filterParams.name = undefined;
     this.filterParams.is_active = undefined;
     this.filterParams.domain = undefined;
@@ -241,11 +227,9 @@ export class AgentsPage implements OnInit, OnDestroy {
 
   onSortChange(sortBy: string): void {
     if (this.filterParams.sortBy === sortBy) {
-      // Toggle direction if same sort field
       this.filterParams.sortDirection =
         this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
     } else {
-      // Default to desc for new sort field
       this.filterParams.sortBy = sortBy as "created_at" | "name" | "domain" | "updated_at";
       this.filterParams.sortDirection = 'desc';
     }
@@ -258,7 +242,7 @@ export class AgentsPage implements OnInit, OnDestroy {
   }
 
   onEditAgent(event: Event, agentId: string): void {
-    event.stopPropagation(); // Prevent row click
+    event.stopPropagation();
     this.router.navigate(['app/agents', agentId, 'edit']);
   }
 
@@ -268,11 +252,14 @@ export class AgentsPage implements OnInit, OnDestroy {
   }
 
   confirmDeleteAgent(event: Event, agentId: string): void {
-    event.stopPropagation(); // Prevent navigation to detail page
+    event.stopPropagation();
 
-    if (confirm('Are you sure you want to delete this agent? This action cannot be undone.')) {
-      this.deleteAgent(agentId);
-    }
+    this.confirmationDialogService.confirmDelete('Agent')
+      .subscribe(confirmed => {
+        if (confirmed) {
+          this.deleteAgent(agentId);
+        }
+      });
   }
 
   private deleteAgent(agentId: string): void {
@@ -285,7 +272,7 @@ export class AgentsPage implements OnInit, OnDestroy {
             message: 'Agent deleted successfully',
             title: 'Success'
           });
-          this.loadAgents(); // Reload the list
+          this.loadAgents();
         },
         error: (error) => {
           this.alertService.showAlert({
@@ -312,9 +299,6 @@ export class AgentsPage implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Truncate text to specified length
-   */
   truncateText(text: string | undefined, maxLength = 100): string {
     if (!text) return '';
     return text.length > maxLength
@@ -322,9 +306,6 @@ export class AgentsPage implements OnInit, OnDestroy {
       : text;
   }
 
-  /**
-   * Get status label
-   */
   getStatusLabel(isActive: boolean): string {
     return isActive ? 'Active' : 'Inactive';
   }

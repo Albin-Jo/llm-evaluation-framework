@@ -4,9 +4,10 @@ from typing import Dict, List, Optional, Union, Any, Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Path, BackgroundTasks
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod
+from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod, EvaluationResult
 from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationDetailResponse,
     EvaluationResponse, EvaluationUpdate
@@ -131,9 +132,27 @@ async def list_evaluations(
 
         logger.debug(f"Retrieved {len(evaluations)} evaluations from total of {total_count}")
 
+        # Convert SQLAlchemy model instances to dictionaries
+        evaluation_dicts = []
+        for evaluation in evaluations:
+            # Use the to_dict method from ModelMixin
+            eval_dict = evaluation.to_dict()
+
+            # Add any relationships that need to be included
+            if hasattr(evaluation, 'agent') and evaluation.agent:
+                eval_dict['agent'] = evaluation.agent.to_dict() if evaluation.agent else None
+
+            if hasattr(evaluation, 'dataset') and evaluation.dataset:
+                eval_dict['dataset'] = evaluation.dataset.to_dict() if evaluation.dataset else None
+
+            if hasattr(evaluation, 'prompt') and evaluation.prompt:
+                eval_dict['prompt'] = evaluation.prompt.to_dict() if evaluation.prompt else None
+
+            evaluation_dicts.append(eval_dict)
+
         # Return both results and total count
         return {
-            "items": evaluations,
+            "items": evaluation_dicts,
             "total": total_count
         }
     except Exception as e:

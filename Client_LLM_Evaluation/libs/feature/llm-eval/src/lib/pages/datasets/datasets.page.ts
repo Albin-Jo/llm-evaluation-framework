@@ -1,11 +1,10 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/datasets/datasets.page.ts */
-import { Component, OnDestroy, OnInit, AfterViewInit, NgZone, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, NO_ERRORS_SCHEMA } from '@angular/core';
-import { CommonModule, Location } from '@angular/common';
+import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, Observable, BehaviorSubject, of, timer } from 'rxjs';
-import { takeUntil, debounceTime, distinctUntilChanged, catchError, map, tap, switchMap, finalize } from 'rxjs/operators';
-import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
+import { Subject, takeUntil } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import {
   Dataset,
@@ -15,11 +14,10 @@ import {
 import { DatasetService } from '@ngtx-apps/data-access/services';
 import {
   QracButtonComponent,
-  QracTagButtonComponent,
   QracTextBoxComponent,
   QracSelectComponent
 } from '@ngtx-apps/ui/components';
-import { AlertService } from '@ngtx-apps/utils/services';
+import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-datasets',
@@ -28,43 +26,34 @@ import { AlertService } from '@ngtx-apps/utils/services';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    ScrollingModule,
     QracButtonComponent,
     QracTextBoxComponent,
-    QracSelectComponent,
-    QracTagButtonComponent
+    QracSelectComponent
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './datasets.page.html',
-  styleUrls: ['./datasets.page.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrls: ['./datasets.page.scss']
 })
-export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
-
-  // Loading and error states
-  isLoading$ = new BehaviorSubject<boolean>(true); // Start with loading true
-  error$ = new BehaviorSubject<string | null>(null);
-  totalCount$ = new BehaviorSubject<number>(0);
-
-  // Dataset collection
-  datasets$ = new BehaviorSubject<Dataset[]>([]);
-
-  // Filter state
+export class DatasetsPage implements OnInit, OnDestroy {
+  datasets: Dataset[] = [];
+  totalCount = 0;
+  isLoading = false;
+  error: string | null = null;
+  currentPage = 1;
+  itemsPerPage = 10; // Standardized to 10
+  Math = Math;
+  visiblePages: number[] = [];
   filterForm: FormGroup;
-  filterParams$ = new BehaviorSubject<DatasetFilterParams>({
+
+  filterParams: DatasetFilterParams = {
     page: 1,
-    limit: 6,
+    limit: 10, // Standardized to 10
     sortBy: 'createdAt',
     sortDirection: 'desc',
     is_public: true
-  });
+  };
 
-  // Constants
-  Math = Math;
-  itemsPerPage = 6;
-
-  // Options for select dropdowns
+  // Options for filters
   statusOptions = [
     { value: '', label: 'All Statuses' },
     { value: DatasetStatus.READY, label: 'Ready' },
@@ -72,7 +61,6 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
     { value: DatasetStatus.ERROR, label: 'Error' }
   ];
 
-  // Format options
   formatOptions = [
     { value: '', label: 'All Types' },
     { value: 'csv', label: 'CSV' },
@@ -81,14 +69,12 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
     { value: 'custom', label: 'Custom' }
   ];
 
-  // Visibility options
   visibilityOptions = [
     { value: 'true', label: 'Public' },
     { value: 'false', label: 'Private' },
     { value: '', label: 'All' }
   ];
 
-  // Date range options
   dateRangeOptions = [
     { value: '', label: 'Any Time' },
     { value: 'today', label: 'Today' },
@@ -98,7 +84,6 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
     { value: 'custom', label: 'Custom Range' }
   ];
 
-  // Size range options
   sizeRangeOptions = [
     { value: '', label: 'Any Size' },
     { value: 'small', label: 'Small (<1MB)' },
@@ -106,21 +91,14 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
     { value: 'large', label: 'Large (>10MB)' }
   ];
 
-  // Pagination related
-  visiblePages: number[] = [];
-
-  // Cache management - disable caching to ensure fresh data always
-  private shouldUseCache = false;
   private destroy$ = new Subject<void>();
 
   constructor(
     private datasetService: DatasetService,
     private alertService: AlertService,
+    private confirmationDialogService: ConfirmationDialogService,
     private router: Router,
-    private location: Location,
-    private fb: FormBuilder,
-    private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private fb: FormBuilder
   ) {
     this.filterForm = this.fb.group({
       search: [''],
@@ -133,71 +111,15 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Set up filter listeners
     this.setupFilterListeners();
-
-    // Subscribe to filter changes to load datasets
-    this.filterParams$
-      .pipe(
-        takeUntil(this.destroy$),
-        switchMap(params => this.fetchDatasetsFromApi(params))
-      )
-      .subscribe({
-        next: ({ data, totalCount }) => {
-          this.datasets$.next(data);
-          this.totalCount$.next(totalCount);
-          this.updateVisiblePages(totalCount);
-          this.isLoading$.next(false);
-          this.cdr.markForCheck();
-        },
-        error: (error) => {
-          console.error('Error loading datasets:', error);
-          this.error$.next('Failed to load datasets. Please try again.');
-          this.isLoading$.next(false);
-          this.cdr.markForCheck();
-        }
-      });
-  }
-
-  ngAfterViewInit(): void {
-    // Force refresh after view init - this is crucial for back navigation
-    timer(0).pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.forceRefresh();
-    });
-  }
-
-  /**
-   * Force a refresh of the data - useful when navigating back
-   */
-  forceRefresh(): void {
-    // Show loading indicator
-    this.isLoading$.next(true);
-    this.datasets$.next([]);
-
-    // Use a small delay to ensure the loading state is displayed
-    timer(50).pipe(takeUntil(this.destroy$)).subscribe(() => {
-      // Trigger reload with current filters
-      const currentParams = { ...this.filterParams$.value };
-      this.filterParams$.next(currentParams);
-      this.cdr.markForCheck();
-    });
+    this.loadDatasets();
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-
-    // Clear BehaviorSubjects to prevent memory leaks
-    this.datasets$.complete();
-    this.isLoading$.complete();
-    this.error$.complete();
-    this.totalCount$.complete();
-    this.filterParams$.complete();
   }
 
-  /**
-   * Set up listeners for filter form controls to update filter params
-   */
   setupFilterListeners(): void {
     // Search with debounce
     this.filterForm.get('search')?.valueChanges
@@ -207,27 +129,27 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe((value: string) => {
-        this.updateFilterParams({ search: value, page: 1 });
+        this.filterParams.search = value || undefined;
+        this.filterParams.page = 1;
+        this.loadDatasets();
       });
 
     // Status filter
     this.filterForm.get('status')?.valueChanges
       .pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
-        this.updateFilterParams({
-          status: value || undefined,
-          page: 1
-        });
+        this.filterParams.status = value || undefined;
+        this.filterParams.page = 1;
+        this.loadDatasets();
       });
 
     // Type filter
     this.filterForm.get('type')?.valueChanges
       .pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
-        this.updateFilterParams({
-          type: value || undefined,
-          page: 1
-        });
+        this.filterParams.type = value || undefined;
+        this.filterParams.page = 1;
+        this.loadDatasets();
       });
 
     // Visibility filter
@@ -244,271 +166,161 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
           isPublic = undefined;
         }
 
-        this.updateFilterParams({
-          is_public: isPublic,
-          page: 1
-        });
+        this.filterParams.is_public = isPublic;
+        this.filterParams.page = 1;
+        this.loadDatasets();
       });
 
     // Date range filter
     this.filterForm.get('dateRange')?.valueChanges
       .pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
-        const dateFilter: Partial<DatasetFilterParams> = { page: 1 };
-
-        // Map date range options to actual date values
-        if (value) {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-          switch (value) {
-            case 'today':
-              dateFilter.dateFrom = today.toISOString();
-              break;
-            case 'yesterday':
-              const yesterday = new Date(today);
-              yesterday.setDate(yesterday.getDate() - 1);
-              dateFilter.dateFrom = yesterday.toISOString();
-              dateFilter.dateTo = today.toISOString();
-              break;
-            case 'week':
-              const weekStart = new Date(today);
-              weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-              dateFilter.dateFrom = weekStart.toISOString();
-              break;
-            case 'month':
-              const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-              dateFilter.dateFrom = monthStart.toISOString();
-              break;
-            // 'custom' and other values handled in the UI with a date picker
-          }
-        } else {
-          dateFilter.dateFrom = undefined;
-          dateFilter.dateTo = undefined;
-        }
-
-        this.updateFilterParams(dateFilter);
+        this.updateDateRangeFilter(value);
       });
 
     // Size range filter
     this.filterForm.get('sizeRange')?.valueChanges
       .pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
-        const sizeFilter: Partial<DatasetFilterParams> = { page: 1 };
-
-        // Map size options to byte ranges
-        if (value) {
-          switch (value) {
-            case 'small':
-              sizeFilter.sizeMax = 1024 * 1024; // 1MB
-              break;
-            case 'medium':
-              sizeFilter.sizeMin = 1024 * 1024; // 1MB
-              sizeFilter.sizeMax = 10 * 1024 * 1024; // 10MB
-              break;
-            case 'large':
-              sizeFilter.sizeMin = 10 * 1024 * 1024; // 10MB
-              break;
-          }
-        } else {
-          sizeFilter.sizeMin = undefined;
-          sizeFilter.sizeMax = undefined;
-        }
-
-        this.updateFilterParams(sizeFilter);
+        this.updateSizeRangeFilter(value);
       });
   }
 
-  /**
-   * Update filter parameters and trigger reload
-   */
-  private updateFilterParams(params: Partial<DatasetFilterParams>): void {
-    this.filterParams$.next({
-      ...this.filterParams$.value,
-      ...params
-    });
+  private updateDateRangeFilter(value: string): void {
+    const dateFilter: Partial<DatasetFilterParams> = { page: 1 };
+
+    if (value) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      switch (value) {
+        case 'today':
+          dateFilter.dateFrom = today.toISOString();
+          break;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          dateFilter.dateFrom = yesterday.toISOString();
+          dateFilter.dateTo = today.toISOString();
+          break;
+        case 'week':
+          const weekStart = new Date(today);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          dateFilter.dateFrom = weekStart.toISOString();
+          break;
+        case 'month':
+          const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+          dateFilter.dateFrom = monthStart.toISOString();
+          break;
+      }
+    } else {
+      dateFilter.dateFrom = undefined;
+      dateFilter.dateTo = undefined;
+    }
+
+    this.filterParams = { ...this.filterParams, ...dateFilter };
+    this.loadDatasets();
   }
 
-  /**
-   * Fetch datasets from the API
-   */
-  private fetchDatasetsFromApi(params: DatasetFilterParams): Observable<{ data: Dataset[], totalCount: number }> {
-    this.isLoading$.next(true);
-    this.error$.next(null);
+  private updateSizeRangeFilter(value: string): void {
+    const sizeFilter: Partial<DatasetFilterParams> = { page: 1 };
 
-    return this.datasetService.getDatasets(params).pipe(
-      map(response => ({
-        data: response.datasets,
-        totalCount: response.totalCount
-      })),
-      catchError(error => {
-        console.error('Error fetching datasets:', error);
-        this.alertService.showAlert({
-          show: true,
-          message: 'Failed to load datasets. Please try again.',
-          title: 'Error'
-        });
-        throw error;
-      }),
-      finalize(() => {
-        // Finalize runs even if there's an error
-        this.isLoading$.next(false);
-      })
-    );
+    if (value) {
+      switch (value) {
+        case 'small':
+          sizeFilter.sizeMax = 1024 * 1024; // 1MB
+          break;
+        case 'medium':
+          sizeFilter.sizeMin = 1024 * 1024; // 1MB
+          sizeFilter.sizeMax = 10 * 1024 * 1024; // 10MB
+          break;
+        case 'large':
+          sizeFilter.sizeMin = 10 * 1024 * 1024; // 10MB
+          break;
+      }
+    } else {
+      sizeFilter.sizeMin = undefined;
+      sizeFilter.sizeMax = undefined;
+    }
+
+    this.filterParams = { ...this.filterParams, ...sizeFilter };
+    this.loadDatasets();
   }
 
-  /**
-   * Trigger dataset loading
-   */
   loadDatasets(): void {
-    this.isLoading$.next(true);
-    this.datasets$.next([]);
+    this.isLoading = true;
+    this.error = null;
 
-    const currentParams = { ...this.filterParams$.value };
-    // Add a timestamp parameter to force a fresh network request
-    // this.filterParams$.next({
-    //   ...currentParams,
-    //   dateFrom: Date.now() // This won't be used by the API but ensures a new filter object
-    // });
+    this.datasetService.getDatasets(this.filterParams)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          this.datasets = response.datasets;
+          this.totalCount = response.totalCount;
+          this.isLoading = false;
+          this.updateVisiblePages();
+        },
+        error: (error) => {
+          this.error = 'Failed to load datasets. Please try again.';
+          this.alertService.showAlert({
+            show: true,
+            message: this.error,
+            title: 'Error'
+          });
+          this.isLoading = false;
+        }
+      });
   }
 
-  /**
-   * Update the array of visible page numbers
-   */
-  updateVisiblePages(totalCount: number): void {
+  updateVisiblePages(): void {
     const maxVisiblePages = 5;
-    const totalPages = Math.ceil(totalCount / this.itemsPerPage);
-    const currentPage = this.filterParams$.value.page || 1;
+    const totalPages = Math.ceil(this.totalCount / this.itemsPerPage);
     const pages: number[] = [];
 
     if (totalPages <= maxVisiblePages) {
-      // If total pages are less than max visible, show all pages
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
 
-      let startPage = Math.max(2, currentPage - 1);
-      let endPage = Math.min(totalPages - 1, currentPage + 1);
+      let startPage = Math.max(2, this.filterParams.page! - 1);
+      let endPage = Math.min(totalPages - 1, this.filterParams.page! + 1);
 
-      // Adjust if we're near the start or end
-      if (currentPage <= 3) {
+      if (this.filterParams.page! <= 3) {
         endPage = Math.min(totalPages - 1, 4);
-      } else if (currentPage >= totalPages - 2) {
+      } else if (this.filterParams.page! >= totalPages - 2) {
         startPage = Math.max(2, totalPages - 3);
       }
 
-      // Add ellipsis if needed
       if (startPage > 2) {
-        pages.push(-1); // -1 represents ellipsis
+        pages.push(-1);
       }
 
-      // Add middle pages
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
 
-      // Add ellipsis if needed
       if (endPage < totalPages - 1) {
-        pages.push(-2); // -2 represents ellipsis
+        pages.push(-2);
       }
 
-      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages);
       }
     }
 
     this.visiblePages = pages;
-    this.cdr.markForCheck();
   }
 
-  /**
-   * Navigate to specified page
-   */
-  onPageChange(page: number, event?: Event): void {
-    if (event) {
-      event.preventDefault();
-    }
-
+  onPageChange(page: number, event: Event): void {
+    event.preventDefault();
     if (page < 1) return;
 
-    this.updateFilterParams({ page });
+    this.filterParams.page = page;
+    this.loadDatasets();
   }
 
-  /**
-   * Go to previous page
-   */
-  goToPreviousPage(event?: Event): void {
-    if (event) {
-      event.preventDefault();
-    }
-
-    const currentPage = this.filterParams$.value.page || 1;
-    if (currentPage > 1) {
-      this.onPageChange(currentPage - 1);
-    }
-  }
-
-  /**
-   * Go to next page
-   */
-  goToNextPage(event?: Event): void {
-    if (event) {
-      event.preventDefault();
-    }
-
-    const currentPage = this.filterParams$.value.page || 1;
-    const totalPages = Math.ceil((this.totalCount$.value || 0) / this.itemsPerPage);
-
-    if (currentPage < totalPages) {
-      this.onPageChange(currentPage + 1);
-    }
-  }
-
-  /**
-   * Check if we're on the first page
-   */
-  isFirstPage(): boolean {
-    return (this.filterParams$.value.page || 1) <= 1;
-  }
-
-  /**
-   * Check if we're on the last page
-   */
-  isLastPage(): boolean {
-    const currentPage = this.filterParams$.value.page || 1;
-    const totalCount = this.totalCount$.value || 0;
-    const totalPages = Math.ceil(totalCount / this.itemsPerPage);
-
-    return currentPage >= totalPages;
-  }
-
-  /**
-   * Get current page number
-   */
-  getCurrentPage(): number {
-    return this.filterParams$.value.page || 1;
-  }
-
-  /**
-   * Get displayed item range
-   */
-  getDisplayedRange(): { start: number; end: number; total: number } {
-    const currentPage = this.filterParams$.value.page || 1;
-    const totalCount = this.totalCount$.value || 0;
-
-    const start = (currentPage - 1) * this.itemsPerPage + 1;
-    const end = Math.min(currentPage * this.itemsPerPage, totalCount);
-
-    return { start, end, total: totalCount };
-  }
-
-  /**
-   * Clear all filters
-   */
   clearFilters(): void {
     this.filterForm.reset({
       search: '',
@@ -519,11 +331,10 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
       sizeRange: ''
     });
 
-    // Reset filter params to defaults
-    this.updateFilterParams({
+    this.filterParams = {
       page: 1,
       limit: this.itemsPerPage,
-      search: '',
+      search: undefined,
       status: undefined,
       type: undefined,
       is_public: true,
@@ -533,66 +344,48 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
       dateTo: undefined,
       sizeMin: undefined,
       sizeMax: undefined
-    });
+    };
+
+    this.loadDatasets();
   }
 
-  /**
-   * Change sort column/direction
-   */
   onSortChange(sortBy: 'name' | 'createdAt' | 'updatedAt' | 'documentCount'): void {
-    const currentParams = this.filterParams$.value;
+    if (this.filterParams.sortBy === sortBy) {
+      this.filterParams.sortDirection =
+        this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.filterParams.sortBy = sortBy;
+      this.filterParams.sortDirection = 'desc';
+    }
 
-    // Toggle direction if same sort field
-    const sortDirection = currentParams.sortBy === sortBy && currentParams.sortDirection === 'asc'
-      ? 'desc'
-      : 'asc';
-
-    this.updateFilterParams({ sortBy, sortDirection });
+    this.loadDatasets();
   }
 
-  /**
-   * Navigate to dataset detail page
-   */
   onDatasetClick(dataset: Dataset): void {
-    this.ngZone.run(() => {
-      this.router.navigate(['app/datasets/datasets', dataset.id]);
-    });
+    this.router.navigate(['app/datasets/datasets', dataset.id]);
   }
 
-  /**
-   * Navigate to dataset edit page
-   */
   onEditDataset(event: Event, datasetId: string): void {
-    event.stopPropagation(); // Prevent row click
-    this.ngZone.run(() => {
-      this.router.navigate(['app/datasets/datasets', datasetId]);
-    });
+    event.stopPropagation();
+    this.router.navigate(['app/datasets/datasets', datasetId]);
   }
 
-  /**
-   * Navigate to create new dataset page
-   */
   createNewDataset(event: Event): void {
     event.preventDefault();
-    this.ngZone.run(() => {
-      this.router.navigate(['app/datasets/datasets/upload']);
-    });
+    this.router.navigate(['app/datasets/datasets/upload']);
   }
 
-  /**
-   * Confirm and delete dataset
-   */
   confirmDeleteDataset(event: Event, datasetId: string): void {
-    event.stopPropagation(); // Prevent navigation to detail page
+    event.stopPropagation();
 
-    if (confirm('Are you sure you want to delete this dataset? This action cannot be undone.')) {
-      this.deleteDataset(datasetId);
-    }
+    this.confirmationDialogService.confirmDelete('Dataset')
+      .subscribe(confirmed => {
+        if (confirmed) {
+          this.deleteDataset(datasetId);
+        }
+      });
   }
 
-  /**
-   * Delete dataset
-   */
   private deleteDataset(datasetId: string): void {
     this.datasetService.deleteDataset(datasetId)
       .pipe(takeUntil(this.destroy$))
@@ -603,8 +396,6 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
             message: 'Dataset deleted successfully',
             title: 'Success'
           });
-
-          // Reload data after successful deletion
           this.loadDatasets();
         },
         error: (error) => {
@@ -613,14 +404,10 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
             message: 'Failed to delete dataset. Please try again.',
             title: 'Error'
           });
-          console.error('Error deleting dataset:', error);
         }
       });
   }
 
-  /**
-   * Format date for display
-   */
   formatDate(dateString: string): string {
     if (!dateString) return 'N/A';
     try {
@@ -635,9 +422,6 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /**
-   * Truncate text to specified length
-   */
   truncateText(text: string | undefined, maxLength = 100): string {
     if (!text) return '';
     return text.length > maxLength
@@ -645,9 +429,6 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
       : text;
   }
 
-  /**
-   * Format file size in bytes to a human-readable string
-   */
   formatFileSize(bytes: number | undefined): string {
     if (bytes === undefined || bytes === 0) return 'N/A';
 
@@ -663,9 +444,6 @@ export class DatasetsPage implements OnInit, AfterViewInit, OnDestroy {
     return `${value.toFixed(1)} ${units[unitIndex]}`;
   }
 
-  /**
-   * Get CSS class for status badge
-   */
   getStatusClass(status: string): string {
     switch (status.toLowerCase()) {
       case 'ready':

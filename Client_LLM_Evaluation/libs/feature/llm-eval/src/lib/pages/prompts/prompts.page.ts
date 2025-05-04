@@ -32,23 +32,22 @@ import {
   styleUrls: ['./prompts.page.scss']
 })
 export class PromptsPage implements OnInit, OnDestroy {
-  // Data properties
-  prompts: PromptResponse[] = []; // Displayed prompts
+  prompts: PromptResponse[] = [];
+  totalCount = 0;
   isLoading = false;
   error: string | null = null;
+  currentPage = 1;
+  itemsPerPage = 10; // Updated from 5 to match standard
+  Math = Math;
+  visiblePages: number[] = [];
   filterForm: FormGroup;
-  Math = Math; // For using Math functions in template
 
-  // Filter and pagination properties
   filterParams: PromptFilterParams = {
     page: 1,
-    limit: 5,
+    limit: 10, // Updated from 5 to match standard
     sortBy: 'created_at',
     sortDirection: 'desc'
   };
-
-  totalCount = 0;
-  visiblePages: number[] = [];
 
   // Define category options
   categoryOptions = [
@@ -102,7 +101,6 @@ export class PromptsPage implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe((value: string) => {
-        // Update filter params for search
         this.filterParams.name = value || undefined;
         this.filterParams.page = 1;
         this.loadPrompts();
@@ -133,35 +131,14 @@ export class PromptsPage implements OnInit, OnDestroy {
       });
   }
 
-  clearFilters(): void {
-    this.filterForm.reset({
-      search: '',
-      category: '',
-      isTemplate: ''
-    });
-
-    // Reset filter params manually
-    this.filterParams.name = undefined;
-    this.filterParams.category = undefined;
-    this.filterParams.isPublic = undefined;
-    this.filterParams.page = 1;
-
-    console.log('Filters cleared');
-    this.loadPrompts();
-  }
-
   loadPrompts(): void {
     this.isLoading = true;
     this.error = null;
-
-    console.log('Loading prompts with params:', this.filterParams);
 
     this.promptService.getPrompts(this.filterParams)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: any) => {
-          console.log('Prompts response:', response);
-
           // Handle paginated response
           if (response.prompts && response.totalCount !== undefined) {
             this.prompts = response.prompts;
@@ -181,9 +158,6 @@ export class PromptsPage implements OnInit, OnDestroy {
           }
 
           this.isLoading = false;
-          console.log(`Loaded ${this.prompts.length} prompts. Total: ${this.totalCount}`);
-
-          // Calculate pagination
           this.updateVisiblePages();
         },
         error: (err: Error) => {
@@ -199,94 +173,82 @@ export class PromptsPage implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Update the array of visible page numbers
-   */
   updateVisiblePages(): void {
     const maxVisiblePages = 5;
-    const itemsPerPage = this.filterParams.limit || 10;
-    const totalPages = Math.ceil(this.totalCount / itemsPerPage);
+    const totalPages = Math.ceil(this.totalCount / this.itemsPerPage);
     const pages: number[] = [];
 
-    console.log(`Updating pagination. Total pages: ${totalPages}, Current page: ${this.filterParams.page}`);
-
     if (totalPages <= maxVisiblePages) {
-      // If total pages are less than max visible, show all pages
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
 
       let startPage = Math.max(2, this.filterParams.page! - 1);
       let endPage = Math.min(totalPages - 1, this.filterParams.page! + 1);
 
-      // Adjust if we're near the start or end
       if (this.filterParams.page! <= 3) {
         endPage = Math.min(totalPages - 1, 4);
       } else if (this.filterParams.page! >= totalPages - 2) {
         startPage = Math.max(2, totalPages - 3);
       }
 
-      // Add ellipsis if needed
       if (startPage > 2) {
-        pages.push(-1); // -1 represents ellipsis
+        pages.push(-1);
       }
 
-      // Add middle pages
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
 
-      // Add ellipsis if needed
       if (endPage < totalPages - 1) {
-        pages.push(-2); // -2 represents ellipsis
+        pages.push(-2);
       }
 
-      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages);
       }
     }
 
     this.visiblePages = pages;
-    console.log('Visible pages:', this.visiblePages);
   }
 
-  /**
-   * Navigate to a specific page
-   */
   onPageChange(page: number, event: Event): void {
     event.preventDefault();
     if (page < 1) return;
 
-    console.log(`Changing to page ${page}`);
     this.filterParams.page = page;
     this.loadPrompts();
   }
 
-  onSortChange(sortBy: string): void {
-    console.log(`Sorting by ${sortBy}, current sort: ${this.filterParams.sortBy}, direction: ${this.filterParams.sortDirection}`);
+  clearFilters(): void {
+    this.filterForm.reset({
+      search: '',
+      category: '',
+      isTemplate: ''
+    });
 
-    // Define all valid sort fields
+    this.filterParams.name = undefined;
+    this.filterParams.category = undefined;
+    this.filterParams.isPublic = undefined;
+    this.filterParams.page = 1;
+
+    this.loadPrompts();
+  }
+
+  onSortChange(sortBy: string): void {
     const validSortFields = ["created_at", "updated_at", "name", "category"];
 
-    // Ensure the sort field is valid
     if (validSortFields.includes(sortBy)) {
       if (this.filterParams.sortBy === sortBy) {
-        // Toggle direction if same sort field
         this.filterParams.sortDirection =
           this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
-        console.log(`Changed sort direction to ${this.filterParams.sortDirection}`);
       } else {
-        // Default to desc for new sort field
         this.filterParams.sortBy = sortBy;
         this.filterParams.sortDirection = 'desc';
-        console.log(`Changed sort field to ${sortBy} with direction desc`);
       }
 
-      // Reset to page 1 when sorting changes
       this.filterParams.page = 1;
       this.loadPrompts();
     } else {
@@ -299,7 +261,7 @@ export class PromptsPage implements OnInit, OnDestroy {
   }
 
   onDeletePromptClick(event: Event, promptId: string): void {
-    event.stopPropagation(); // Prevent row click
+    event.stopPropagation();
 
     this.confirmationDialogService.confirmDelete('Prompt')
       .subscribe(confirmed => {
@@ -333,7 +295,7 @@ export class PromptsPage implements OnInit, OnDestroy {
   }
 
   onEditPrompt(event: Event, promptId: string): void {
-    event.stopPropagation(); // Prevent row click
+    event.stopPropagation();
     this.router.navigate(['app/prompts', promptId, 'edit']);
   }
 
@@ -342,9 +304,6 @@ export class PromptsPage implements OnInit, OnDestroy {
     this.router.navigate(['app/prompts', promptId, 'edit']);
   }
 
-  /**
-   * Format date to readable string
-   */
   formatDate(dateString: string): string {
     if (!dateString) return 'N/A';
     try {
@@ -359,9 +318,6 @@ export class PromptsPage implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Truncate text to specified length
-   */
   truncateText(text: string | undefined, maxLength = 100): string {
     if (!text) return '';
     return text.length > maxLength
@@ -369,10 +325,7 @@ export class PromptsPage implements OnInit, OnDestroy {
       : text;
   }
 
-  /**
-   * Get class for template badge
-   */
-  getTemplateBadgeClass(isTemplate: boolean | undefined): string {
-    return isTemplate ? 'template-badge' : 'custom-badge';
+  getTemplateBadgeClass(isPublic: boolean | undefined): string {
+    return isPublic ? 'public-badge' : 'private-badge';
   }
 }

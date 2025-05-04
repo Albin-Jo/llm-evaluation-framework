@@ -1,7 +1,5 @@
-# File: main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.utils import get_openapi
 
 from backend.app.api.router import api_router
@@ -18,10 +16,13 @@ app = FastAPI(
 )
 
 
+# Custom OpenAPI schema
 def custom_openapi():
-    # Skip the caching to always get fresh values
+    # if app.openapi_schema:
+    #     return app.openapi_schema
+
     openapi_schema = get_openapi(
-        title=settings.APP_NAME,  # Will get current value each time
+        title=settings.APP_NAME,
         version=settings.APP_VERSION,
         description="A framework for evaluating LLM-based micro-agents using RAGAS and DeepEval",
         routes=app.routes,
@@ -49,9 +50,6 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(api_router, prefix="/api")
-
-# # Mount static files
-# app.mount("/static", StaticFiles(directory="frontend_v1/static"), name="static")
 
 
 # Health check endpoint

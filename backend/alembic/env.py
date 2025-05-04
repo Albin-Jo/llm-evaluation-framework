@@ -1,4 +1,3 @@
-# File: alembic/env.py
 import asyncio
 import os
 import sys
@@ -10,9 +9,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 # Add the project root directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import your models
+# Import models
+from backend.app.db.models.orm import *
 from backend.app.core.config import settings
 
 # This is the Alembic Config object
@@ -25,7 +25,7 @@ if config.config_file_name is not None:
 # Set the database URL from settings
 config.set_main_option("sqlalchemy.url", settings.DB_URI)
 
-# Add your model's MetaData object here
+# Add model's MetaData object here
 target_metadata = Base.metadata
 
 

@@ -31,18 +31,24 @@ class BaseRepository(Generic[ModelType]):
     ) -> List[ModelType]:
         """Get multiple records with optional filtering and relationship loading."""
         from sqlalchemy.orm import selectinload
+        from sqlalchemy import and_
 
         query = select(self.model)
 
         # Add filters
+        filter_conditions = []
         if filters:
             for field, value in filters.items():
                 if hasattr(self.model, field):
                     # Handle special case for string fields with LIKE operation
                     if isinstance(value, str) and field not in ["status", "method"]:
-                        query = query.where(getattr(self.model, field).ilike(f"%{value}%"))
+                        filter_conditions.append(getattr(self.model, field).ilike(f"%{value}%"))
                     else:
-                        query = query.where(getattr(self.model, field) == value)
+                        filter_conditions.append(getattr(self.model, field) == value)
+
+        # Apply filter conditions if any
+        if filter_conditions:
+            query = query.where(and_(*filter_conditions))
 
         # Add relationship loading
         if load_relationships:
@@ -51,7 +57,7 @@ class BaseRepository(Generic[ModelType]):
                     query = query.options(selectinload(getattr(self.model, relationship)))
 
         # Apply sorting if provided
-        if sort:
+        if sort is not None:
             query = query.order_by(sort)
 
         # Add pagination
@@ -145,17 +151,24 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             int: Count of matching records
         """
+        from sqlalchemy import and_
+
         query = select(func.count()).select_from(self.model)
 
         # Apply filters if provided
+        filter_conditions = []
         if filters:
             for key, value in filters.items():
                 if hasattr(self.model, key):
                     # Handle special case for string fields with LIKE operation
                     if isinstance(value, str) and key not in ["status", "method"]:
-                        query = query.where(getattr(self.model, key).ilike(f"%{value}%"))
+                        filter_conditions.append(getattr(self.model, key).ilike(f"%{value}%"))
                     else:
-                        query = query.where(getattr(self.model, key) == value)
+                        filter_conditions.append(getattr(self.model, key) == value)
+
+        # Apply filter conditions if any
+        if filter_conditions:
+            query = query.where(and_(*filter_conditions))
 
         result = await self.session.execute(query)
         return result.scalar_one_or_none() or 0

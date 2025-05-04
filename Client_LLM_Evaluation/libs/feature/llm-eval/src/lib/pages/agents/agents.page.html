@@ -1,189 +1,181 @@
 <!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents.page.html -->
 <div class="agents-container">
-    <div class="header-section">
-      <div class="title-section">
-        <h1 class="page-title">Agents</h1>
-        <p class="page-description">Manage LLM agents for RAG evaluation</p>
+  <div class="header-section">
+    <div class="title-section">
+      <h1 class="page-title">Agents</h1>
+      <p class="page-description">Manage LLM agents for RAG evaluation. Configure different AI models and settings to test your retrieval-augmented generation system.</p>
+    </div>
+    <div class="action-section">
+      <button class="create-button" (click)="createNewAgent($event)">
+        <span class="button-icon">+</span> Create New Agent
+      </button>
+    </div>
+  </div>
+
+  <div class="agents-content">
+    <!-- Filters Section -->
+    <div class="filters-section">
+      <form [formGroup]="filterForm" class="filters-form">
+        <div class="search-field">
+          <qrac-textbox
+            [controlName]="'search'"
+            formControlName="search"
+            [placeholder]="'Search agents by name'"
+            [size]="'small'">
+          </qrac-textbox>
+        </div>
+
+        <div class="filter-fields">
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'status'"
+              formControlName="status"
+              [options]="statusOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'domain'"
+              formControlName="domain"
+              [options]="domainOptions">
+            </qrac-select>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button class="clear-button" type="button" (click)="clearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading agents...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error }}</p>
+      <button class="retry-button" (click)="loadAgents()">Try Again</button>
+    </div>
+
+    <!-- No Results State -->
+    <div *ngIf="!isLoading && agents.length === 0 && !error" class="no-results-container">
+      <div class="no-results-icon">🤖</div>
+      <h3>No agents found</h3>
+      <p>Create a new agent or adjust your filters</p>
+      <button class="create-agent-button" (click)="createNewAgent($event)">
+        Create Agent
+      </button>
+    </div>
+
+    <!-- Agents List View -->
+    <div *ngIf="agents.length > 0 && !isLoading" class="agents-list">
+      <table class="agents-table">
+        <thead>
+          <tr>
+            <th class="name-col sortable" (click)="onSortChange('name')">
+              <span class="th-content">
+                Name
+                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="description-col">Description</th>
+            <th class="domain-col sortable" (click)="onSortChange('domain')">
+              <span class="th-content">
+                Domain
+                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'domain'">
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="model-col">Model</th>
+            <th class="date-col sortable" (click)="onSortChange('created_at')">
+              <span class="th-content">
+                Created
+                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'created_at'">
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="status-col">Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let agent of agents" class="agent-row" (click)="onAgentClick(agent)">
+            <td class="name-col">{{ agent.name }}</td>
+            <td class="description-col">{{ truncateText(agent.description, 80) }}</td>
+            <td class="domain-col">
+              <span class="domain-badge">{{ agent.domain }}</span>
+            </td>
+            <td class="model-col">{{ agent.model_type || 'N/A' }}</td>
+            <td class="date-col">{{ formatDate(agent.created_at) }}</td>
+            <td class="status-col">
+              <span class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
+                {{ getStatusLabel(agent.is_active) }}
+              </span>
+            </td>
+            <td class="actions-col">
+              <div class="action-buttons">
+                <button class="action-button edit-button"
+                  title="Edit agent"
+                  (click)="onEditAgent($event, agent.id)">
+                  Edit
+                </button>
+                <button class="action-button delete-button"
+                  title="Delete agent"
+                  (click)="confirmDeleteAgent($event, agent.id)">
+                  Del
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="agents.length > 0 && totalCount > itemsPerPage" class="pagination-container">
+      <div class="pagination-info">
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
+        {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} agents
       </div>
-      <div class="action-section">
-        <button class="create-button" (click)="createNewAgent($event)">
-          <span class="button-icon">+</span> Create New Agent
+      <div class="pagination-controls">
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page === 1"
+          (click)="onPageChange(filterParams.page! - 1, $event)">
+          Previous
+        </button>
+
+        <div class="pagination-pages">
+          <ng-container *ngFor="let page of visiblePages">
+            <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
+            <button
+              *ngIf="page > 0"
+              class="page-button"
+              [class.active]="page === filterParams.page"
+              (click)="onPageChange(page, $event)">
+              {{ page }}
+            </button>
+          </ng-container>
+        </div>
+
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
+          (click)="onPageChange(filterParams.page! + 1, $event)">
+          Next
         </button>
       </div>
     </div>
-
-    <div class="agents-content">
-      <!-- Filters Section -->
-      <div class="filters-section">
-        <form [formGroup]="filterForm" class="filters-form">
-          <div class="search-field">
-            <qrac-textbox
-              label="Search"
-              controlName="search"
-              formControlName="search"
-              placeholder="Search agents by name"
-              size="medium">
-            </qrac-textbox>
-          </div>
-
-          <div class="filter-fields">
-            <div class="filter-field">
-              <qrac-select
-                label="Status"
-                controlName="status"
-                formControlName="status"
-                [options]="statusOptions">
-              </qrac-select>
-            </div>
-
-            <div class="filter-field">
-              <qrac-select
-                label="Domain"
-                controlName="domain"
-                formControlName="domain"
-                [options]="domainOptions">
-              </qrac-select>
-            </div>
-          </div>
-
-          <div class="filter-actions">
-            <button class="clear-button" type="button" (click)="clearFilters()">
-              Clear Filters
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <!-- Loading State -->
-      <div *ngIf="isLoading" class="loading-container">
-        <div class="spinner"></div>
-        <p>Loading agents...</p>
-      </div>
-
-      <!-- Error State -->
-      <div *ngIf="error" class="error-container">
-        <div class="error-icon">❌</div>
-        <p>{{ error }}</p>
-        <qrac-button
-          label="Try Again"
-          type="secondary"
-          (buttonClick)="loadAgents()">
-        </qrac-button>
-      </div>
-
-      <!-- No Results State -->
-      <div *ngIf="!isLoading && agents.length === 0" class="no-results-container">
-        <div class="no-results-icon">🤖</div>
-        <h3>No agents found</h3>
-        <p>Create a new agent or adjust your filters</p>
-        <qrac-button
-          label="Create Agent"
-          type="primary"
-          (buttonClick)="createNewAgent($event)">
-        </qrac-button>
-      </div>
-
-      <!-- Agents List View -->
-      <div *ngIf="agents.length > 0 && !isLoading" class="agents-list">
-        <table class="agents-table">
-          <thead>
-            <tr>
-              <th class="name-col">
-                <span class="th-content" (click)="onSortChange('name')">
-                  Name
-                  <i *ngIf="filterParams.sortBy === 'name'"
-                    [class.icon-arrow-up]="filterParams.sortDirection === 'asc'"
-                    [class.icon-arrow-down]="filterParams.sortDirection === 'desc'">
-                  </i>
-                </span>
-              </th>
-              <th class="description-col">Description</th>
-              <th class="domain-col">
-                <span class="th-content" (click)="onSortChange('domain')">
-                  Domain
-                  <i *ngIf="filterParams.sortBy === 'domain'"
-                    [class.icon-arrow-up]="filterParams.sortDirection === 'asc'"
-                    [class.icon-arrow-down]="filterParams.sortDirection === 'desc'">
-                  </i>
-                </span>
-              </th>
-              <th class="model-col">Model</th>
-              <th class="date-col">
-                <span class="th-content" (click)="onSortChange('created_at')">
-                  Created
-                  <i *ngIf="filterParams.sortBy === 'created_at'"
-                    [class.icon-arrow-up]="filterParams.sortDirection === 'asc'"
-                    [class.icon-arrow-down]="filterParams.sortDirection === 'desc'">
-                  </i>
-                </span>
-              </th>
-              <th class="status-col">Status</th>
-              <th class="actions-col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let agent of agents" class="agent-row" (click)="onAgentClick(agent)">
-              <td class="name-col">{{ agent.name }}</td>
-              <td class="description-col">{{ truncateText(agent.description, 80) }}</td>
-              <td class="domain-col">
-                <span class="domain-badge">{{ agent.domain }}</span>
-              </td>
-              <td class="model-col">{{ agent.model_type || 'N/A' }}</td>
-              <td class="date-col">{{ formatDate(agent.created_at) }}</td>
-              <td class="status-col">
-                <span class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
-                  {{ getStatusLabel(agent.is_active) }}
-                </span>
-              </td>
-              <td class="actions-col">
-                <div class="action-buttons">
-                  <button class="action-button edit-button" title="Edit agent" (click)="onEditAgent($event, agent.id)">
-                    Edit
-                  </button>
-                  <button class="action-button delete-button" title="Delete agent" (click)="confirmDeleteAgent($event, agent.id)">
-                    Del
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div *ngIf="agents.length > 0 && totalCount > itemsPerPage" class="pagination-container">
-        <div class="pagination-info">
-          Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
-          {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} agents
-        </div>
-        <div class="pagination-controls">
-          <button
-            class="pagination-button"
-            [disabled]="filterParams.page === 1"
-            (click)="onPageChange(filterParams.page! - 1, $event)">
-            Previous
-          </button>
-
-          <div class="pagination-pages">
-            <ng-container *ngFor="let page of visiblePages">
-              <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
-              <button
-                *ngIf="page > 0"
-                class="page-button"
-                [class.active]="page === filterParams.page"
-                (click)="onPageChange(page, $event)">
-                {{ page }}
-              </button>
-            </ng-container>
-          </div>
-
-          <button
-            class="pagination-button"
-            [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
-            (click)="onPageChange(filterParams.page! + 1, $event)">
-            Next
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
+</div>

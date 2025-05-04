@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import asc, desc, select, and_
+from sqlalchemy import asc, desc, select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -297,18 +297,25 @@ class EvaluationService:
             int: Count of matching evaluations
         """
         try:
+            from sqlalchemy import and_
+
             # Create a direct count query with SQLAlchemy
             query = select(func.count()).select_from(Evaluation)
 
             # Apply filters directly
+            filter_conditions = []
             if filters:
                 for field, value in filters.items():
                     if hasattr(Evaluation, field):
                         # Handle special case for string fields with LIKE operation
                         if isinstance(value, str) and field not in ["status", "method"]:
-                            query = query.where(getattr(Evaluation, field).ilike(f"%{value}%"))
+                            filter_conditions.append(getattr(Evaluation, field).ilike(f"%{value}%"))
                         else:
-                            query = query.where(getattr(Evaluation, field) == value)
+                            filter_conditions.append(getattr(Evaluation, field) == value)
+
+            # Apply filter conditions if any
+            if filter_conditions:
+                query = query.where(and_(*filter_conditions))
 
             # Execute query directly with session
             result = await self.db_session.execute(query)
@@ -360,15 +367,24 @@ class EvaluationService:
             # Add relationships to load eagerly
             load_relationships = ["agent", "dataset", "prompt"]
 
-            return await self.evaluation_repo.get_multi(
+            # Debug log the query parameters
+            logger.debug(f"Listing evaluations with filters={filters}, skip={skip}, limit={limit}, sort={sort_expr}")
+
+            # Execute the query through the repository
+            evaluations = await self.evaluation_repo.get_multi(
                 skip=skip,
                 limit=limit,
                 filters=filters,
                 sort=sort_expr,
                 load_relationships=load_relationships
             )
+
+            # Debug log the result count
+            logger.debug(f"Query returned {len(evaluations)} evaluations")
+
+            return evaluations
         except Exception as e:
-            logger.error(f"Error listing evaluations: {str(e)}")
+            logger.error(f"Error listing evaluations: {str(e)}", exc_info=True)
             return []
 
     async def delete_evaluation(self, evaluation_id: UUID) -> bool:

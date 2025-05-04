@@ -7,13 +7,28 @@
   width: 100%;
 }
 
+.title-section {
+  .page-title {
+    @include page-title;
+    margin-bottom: $spacing-2;
+  }
+
+  .page-description {
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    line-height: 1.5;
+    margin-bottom: $spacing-2;
+    max-width: 650px;
+  }
+}
+
 .agents-container {
   max-width: $container-xxl;
   margin: 0 auto;
-  padding: $spacing-6;
+  padding: $spacing-3;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-4;
+    padding: $spacing-3;
   }
 }
 
@@ -21,26 +36,14 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: $spacing-6;
+  margin-bottom: $spacing-2;
 
   @include media-breakpoint-down(md) {
     flex-direction: column;
-    gap: $spacing-4;
+    gap: $spacing-2;
 
     .action-section {
       width: 100%;
-    }
-  }
-
-  .title-section {
-    .page-title {
-      @include page-title;
-      margin-bottom: $spacing-2;
-    }
-
-    .page-description {
-      color: $text-secondary;
-      font-size: $font-size-sm;
     }
   }
 
@@ -66,17 +69,17 @@
 .agents-content {
   @include card;
   overflow: hidden;
-  width: 100%; // Ensure full width
+  width: 100%;
 }
 
 .filters-section {
-  padding: $spacing-4;
+  padding: $spacing-2;
   border-bottom: 1px solid $border-color;
 
   .filters-form {
     display: flex;
     flex-wrap: wrap;
-    gap: $spacing-4;
+    gap: $spacing-2;
     align-items: flex-end;
 
     @include media-breakpoint-down(md) {
@@ -92,7 +95,7 @@
     .filter-fields {
       display: flex;
       flex-wrap: wrap;
-      gap: $spacing-4;
+      gap: $spacing-2;
 
       @include media-breakpoint-down(md) {
         flex-direction: column;
@@ -124,11 +127,21 @@
 .error-container {
   @include error-container;
   padding: $spacing-12;
+
+  .retry-button {
+    @include button-primary;
+    margin-top: $spacing-4;
+  }
 }
 
 .no-results-container {
   @include empty-state;
   padding: $spacing-12;
+
+  .create-agent-button {
+    @include button-primary;
+    margin-top: $spacing-4;
+  }
 }
 
 .agents-list {
@@ -137,7 +150,29 @@
 
   .agents-table {
     @include table;
-    table-layout: fixed; // Improve table layout
+    table-layout: fixed;
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+
+      .th-content {
+        display: flex;
+        align-items: center;
+        padding: $spacing-1 $spacing-1;
+
+        &:hover {
+          background-color: rgba(0, 0, 0, 0.05);
+          border-radius: $radius-sm;
+        }
+      }
+    }
+
+    .sort-indicator {
+      margin-left: $spacing-1;
+      font-size: $font-size-xs;
+      color: $primary;
+    }
 
     .name-col {
       font-weight: $font-weight-medium;
@@ -179,6 +214,14 @@
 
       .status-badge {
         text-transform: capitalize;
+
+        &.active {
+          @include status-badge('success');
+        }
+
+        &.inactive {
+          @include status-badge('error');
+        }
       }
     }
 
@@ -189,29 +232,33 @@
 
       .action-buttons {
         display: flex;
+        justify-content: flex-end;
         gap: $spacing-2;
 
         .action-button {
-          padding: $spacing-1 $spacing-2;
-          border: 1px solid $border-color;
+          padding: 6px 10px;
+          font-size: 12px;
+          border: none;
           border-radius: $radius-sm;
-          background: none;
-          font-size: $font-size-xs;
           cursor: pointer;
           transition: $transition-normal;
 
-          &:hover {
-            background-color: $background-light;
+          &.edit-button {
+            background-color: #e3f2fd;
+            color: #0277bd;
+
+            &:hover {
+              background-color: #bbdefb;
+            }
           }
 
-          &.edit-button:hover {
-            border-color: $primary;
-            color: $primary;
-          }
+          &.delete-button {
+            background-color: #ffebee;
+            color: #c62828;
 
-          &.delete-button:hover {
-            border-color: $error;
-            color: $error;
+            &:hover {
+              background-color: #ffcdd2;
+            }
           }
         }
       }
@@ -225,31 +272,19 @@
         background-color: rgba($primary, 0.05);
       }
     }
-
-    th {
-      .th-content {
-        display: flex;
-        align-items: center;
-        gap: $spacing-2;
-        cursor: pointer;
-
-        &:hover {
-          color: $primary;
-        }
-
-        i {
-          font-size: $font-size-xs;
-        }
-      }
-    }
   }
 }
 
 .pagination-container {
   @include pagination;
   border-top: 1px solid $border-color;
+  padding: $spacing-4;
 
   .pagination-pages {
+    display: flex;
+    gap: $spacing-2;
+    align-items: center;
+
     .page-button {
       width: 2rem;
       height: 2rem;

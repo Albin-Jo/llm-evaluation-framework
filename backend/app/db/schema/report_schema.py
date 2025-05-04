@@ -14,7 +14,6 @@ class ReportBase(BaseModel):
     description: Optional[str] = Field(None, description="Description of the report")
     format: ReportFormat = Field(default=ReportFormat.PDF, description="Format of the report")
     config: Optional[Dict[str, Any]] = Field(None, description="Configuration options for the report")
-    is_public: bool = Field(default=False, description="Whether the report is publicly accessible")
 
 
 class ReportCreate(ReportBase):

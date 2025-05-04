@@ -215,7 +215,6 @@ class BaseEvaluationMethod(ABC):
             logger.error(f"Error loading dataset: {e}")
             raise ValueError(f"Error loading dataset: {str(e)}")
 
-    # Add this new method for batch processing
     async def process_batch(self, evaluation: Evaluation, batch: List[Dict[str, Any]]) -> List[EvaluationResultCreate]:
         """
         Process a batch of dataset items.
@@ -274,7 +273,6 @@ class BaseEvaluationMethod(ABC):
         """
         raise NotImplementedError("Subclasses must implement process_item method")
 
-    # Add this helper method for tracking progress
     async def log_progress(self, evaluation_id: UUID, total: int, processed: int) -> None:
         """
         Log evaluation progress.
@@ -455,7 +453,6 @@ class BaseEvaluationMethod(ABC):
 
         return all_results
 
-    # Fixed Azure OpenAI API call format
     async def _process_batch_item(
             self,
             client: httpx.AsyncClient,

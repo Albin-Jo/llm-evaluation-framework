@@ -2,12 +2,9 @@
 <div class="prompts-container">
   <div class="header-section">
     <div class="title-section">
-  <h1 class="page-title">Prompts</h1>
-  <p class="page-description">
-    Create, customize, and manage LLM prompts for model evaluations. These prompts serve as templates for generating
-    consistent model responses across different evaluation scenarios and benchmarks.
-  </p>
-</div>
+      <h1 class="page-title">Prompts</h1>
+      <p class="page-description">Create, customize, and manage LLM prompts for model evaluations. These prompts serve as templates for generating consistent model responses across different evaluation scenarios and benchmarks.</p>
+    </div>
     <div class="action-section">
       <button class="create-button" (click)="onCreatePrompt()">
         <span class="button-icon">+</span> Create New Prompt
@@ -24,7 +21,7 @@
             [controlName]="'search'"
             formControlName="search"
             [placeholder]="'Search prompts by name'"
-            [size]="'medium'">
+            [size]="'small'">
           </qrac-textbox>
         </div>
 
@@ -75,14 +72,13 @@
       <button class="create-prompt-button" (click)="onCreatePrompt()">Create Prompt</button>
     </div>
 
-    <!-- Prompts Grid -->
-    <div *ngIf="prompts.length > 0 && !isLoading" class="prompts-grid">
-      <!-- Table View for Prompts -->
+    <!-- Prompts List View -->
+    <div *ngIf="prompts.length > 0 && !isLoading" class="prompts-list">
       <table class="prompts-table">
         <thead>
           <tr>
-            <th class="name-col">
-              <span class="th-content sortable" (click)="onSortChange('name')">
+            <th class="name-col sortable" (click)="onSortChange('name')">
+              <span class="th-content">
                 Name
                 <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
@@ -90,8 +86,8 @@
               </span>
             </th>
             <th class="description-col">Description</th>
-            <th class="category-col">
-              <span class="th-content sortable" (click)="onSortChange('category')">
+            <th class="category-col sortable" (click)="onSortChange('category')">
+              <span class="th-content">
                 Category
                 <span class="sort-indicator" *ngIf="filterParams.sortBy === 'category'">
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
@@ -99,16 +95,16 @@
               </span>
             </th>
             <th class="template-col">Type</th>
-            <th class="date-col">
-              <span class="th-content sortable" (click)="onSortChange('created_at')">
+            <th class="date-col sortable" (click)="onSortChange('created_at')">
+              <span class="th-content">
                 Created
                 <span class="sort-indicator" *ngIf="filterParams.sortBy === 'created_at'">
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
             </th>
-            <th class="date-col">
-              <span class="th-content sortable" (click)="onSortChange('updated_at')">
+            <th class="date-col sortable" (click)="onSortChange('updated_at')">
+              <span class="th-content">
                 Updated
                 <span class="sort-indicator" *ngIf="filterParams.sortBy === 'updated_at'">
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
@@ -124,7 +120,7 @@
             <td class="description-col">{{ truncateText(prompt.description || '', 80) }}</td>
             <td class="category-col">{{ prompt.category || 'General' }}</td>
             <td class="template-col">
-              <span class="badge" [ngClass]="getTemplateBadgeClass(prompt.is_public)">
+              <span class="status-badge" [ngClass]="getTemplateBadgeClass(prompt.is_public)">
                 {{ prompt.is_public ? 'Public' : 'Private' }}
               </span>
             </td>
@@ -150,10 +146,10 @@
     </div>
 
     <!-- Pagination -->
-    <div *ngIf="prompts.length > 0 && totalCount > (filterParams.limit || 10)" class="pagination-container">
+    <div *ngIf="prompts.length > 0 && totalCount > itemsPerPage" class="pagination-container">
       <div class="pagination-info">
-        Showing {{ ((filterParams.page! - 1) * (filterParams.limit || 10)) + 1 }} to
-        {{ Math.min(filterParams.page! * (filterParams.limit || 10), totalCount) }} of {{ totalCount }} prompts
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
+        {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} prompts
       </div>
       <div class="pagination-controls">
         <button
@@ -178,7 +174,7 @@
 
         <button
           class="pagination-button"
-          [disabled]="filterParams.page! >= Math.ceil(totalCount / (filterParams.limit || 10))"
+          [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
           (click)="onPageChange(filterParams.page! + 1, $event)">
           Next
         </button>

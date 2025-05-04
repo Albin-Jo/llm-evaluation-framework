@@ -1,4 +1,5 @@
 # File: backend/app/services/report_service.py
+
 import json
 import logging
 import os
@@ -7,14 +8,15 @@ from typing import Dict, List, Optional, Any, BinaryIO
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
-from backend.app.db.models.orm import Report, ReportStatus, ReportFormat, Evaluation
+from backend.app.db.models.orm import Report, ReportStatus, ReportFormat, Evaluation, EvaluationResult, MetricScore
 from backend.app.db.repositories.base import BaseRepository
 from backend.app.db.repositories.report_repository import ReportRepository
 from backend.app.db.schema.report_schema import ReportCreate, ReportUpdate, EmailRecipient
-from backend.app.services.evaluation_service import EvaluationService
 from backend.app.services.storage import get_storage_service
 
 # Configure logging
@@ -34,7 +36,6 @@ class ReportService:
         self.db_session = db_session
         self.report_repo = ReportRepository(db_session)
         self.evaluation_repo = BaseRepository(Evaluation, db_session)
-        self.evaluation_service = EvaluationService(db_session)
         self.storage_service = get_storage_service()
 
     async def create_report(self, report_data: ReportCreate) -> Report:
@@ -243,6 +244,118 @@ class ReportService:
         logger.info(f"Report deleted successfully: {report_id}")
         return True
 
+    async def fetch_evaluation_data(self, evaluation_id: UUID) -> Dict[str, Any]:
+        """
+        Fetch all necessary evaluation data for report generation in a single query.
+
+        This method eagerly loads all relationships to avoid lazy loading.
+
+        Args:
+            evaluation_id: The evaluation ID
+
+        Returns:
+            Dict containing the evaluation, results, and related data
+
+        Raises:
+            HTTPException: If evaluation not found
+        """
+        # Create query that joins all necessary tables and loads them eagerly
+        query = (
+            select(Evaluation)
+            .options(
+                selectinload(Evaluation.agent),
+                selectinload(Evaluation.dataset),
+                selectinload(Evaluation.prompt),
+                selectinload(Evaluation.results).selectinload(EvaluationResult.metric_scores)
+            )
+            .where(Evaluation.id == evaluation_id)
+        )
+
+        # Execute query
+        result = await self.db_session.execute(query)
+        evaluation = result.scalar_one_or_none()
+
+        if not evaluation:
+            logger.error(f"Evaluation {evaluation_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Evaluation with ID {evaluation_id} not found"
+            )
+
+        # Extract all data needed for report in dictionary format
+        # This removes all SQLAlchemy dependency for later processing
+
+        # Process results
+        results_data = []
+        for result in evaluation.results:
+            # Process metric scores
+            metric_scores_data = []
+            for metric in result.metric_scores:
+                metric_scores_data.append({
+                    "name": metric.name,
+                    "value": metric.value,
+                    "weight": metric.weight,
+                    "meta_info": metric.meta_info
+                })
+
+            # Add result
+            results_data.append({
+                "id": str(result.id),
+                "overall_score": result.overall_score,
+                "input_data": result.input_data,
+                "output_data": result.output_data,
+                "processing_time_ms": result.processing_time_ms,
+                "metric_scores": metric_scores_data
+            })
+
+        # Get agent, dataset, prompt data
+        agent_data = None
+        if evaluation.agent:
+            agent_data = {
+                "id": str(evaluation.agent.id),
+                "name": evaluation.agent.name,
+                "domain": evaluation.agent.domain,
+                "description": evaluation.agent.description
+            }
+
+        dataset_data = None
+        if evaluation.dataset:
+            dataset_data = {
+                "id": str(evaluation.dataset.id),
+                "name": evaluation.dataset.name,
+                "type": evaluation.dataset.type.value if evaluation.dataset.type else None,
+                "row_count": evaluation.dataset.row_count
+            }
+
+        prompt_data = None
+        if evaluation.prompt:
+            prompt_data = {
+                "id": str(evaluation.prompt.id),
+                "name": evaluation.prompt.name,
+                "content": evaluation.prompt.content
+            }
+
+        # Create evaluation data
+        evaluation_data = {
+            "id": str(evaluation.id),
+            "name": evaluation.name,
+            "description": evaluation.description,
+            "method": evaluation.method.value if evaluation.method else None,
+            "status": evaluation.status.value if evaluation.status else None,
+            "config": evaluation.config,
+            "metrics": evaluation.metrics,
+            "start_time": evaluation.start_time,
+            "end_time": evaluation.end_time,
+            "agent": agent_data,
+            "dataset": dataset_data,
+            "prompt": prompt_data
+        }
+
+        return {
+            "evaluation": evaluation_data,
+            "results": results_data
+        }
+
     async def generate_report(self, report_id: UUID, force_regenerate: bool = False) -> Report:
         """
         Generate a report file based on the report configuration.
@@ -272,27 +385,16 @@ class ReportService:
             logger.info(f"Report {report_id} already generated and force_regenerate=False")
             return report
 
-        # Get evaluation data
-        evaluation = await self.evaluation_repo.get(report.evaluation_id)
-        if not evaluation:
-            logger.error(f"Evaluation {report.evaluation_id} not found for report {report_id}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {report.evaluation_id} not found"
-            )
-
-        # Get evaluation results and format report content
         try:
-            # Get evaluation detail with results
-            evaluation_detail = await self.evaluation_service.get_evaluation(report.evaluation_id)
+            # Fetch all evaluation data in a single query to avoid lazy loading later
+            data = await self.fetch_evaluation_data(report.evaluation_id)
+            evaluation_data = data["evaluation"]
+            results_data = data["results"]
 
-            # Get evaluation results
-            results = await self.evaluation_service.get_evaluation_results(report.evaluation_id)
-
-            # Format report content based on config
-            report_content = await self._format_report_content(
-                evaluation=evaluation_detail,
-                results=results,
+            # Format report content
+            report_content = self._format_report_content(
+                evaluation=evaluation_data,
+                results=results_data,
                 config=report.config or {}
             )
 
@@ -329,15 +431,18 @@ class ReportService:
                 detail=f"Error generating report file: {str(e)}"
             )
 
-    async def _format_report_content(
-            self, evaluation: Evaluation, results: List[Any], config: Dict[str, Any]
+    def _format_report_content(
+            self, evaluation: Dict[str, Any], results: List[Dict[str, Any]], config: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Format report content based on evaluation data and config.
 
+        This is now a synchronous function that works with pre-fetched data
+        to avoid any SQLAlchemy operations.
+
         Args:
-            evaluation: Evaluation detail
-            results: Evaluation results
+            evaluation: Evaluation data dictionary
+            results: List of result data dictionaries
             config: Report configuration
 
         Returns:
@@ -346,7 +451,7 @@ class ReportService:
         content = {
             "report_title": "Evaluation Report",
             "generated_at": datetime.now().isoformat(),
-            "evaluation_id": str(evaluation.id),
+            "evaluation_id": evaluation["id"],
             "sections": []
         }
 
@@ -358,19 +463,33 @@ class ReportService:
 
             if results:
                 # Calculate average overall score
-                overall_score = sum(r.overall_score or 0 for r in results) / len(results)
+                overall_score = sum(r["overall_score"] or 0 for r in results) / len(results)
 
                 # Calculate average metric scores
                 for result in results:
-                    for metric_score in getattr(result, "metric_scores", []):
-                        if not metric_score.name in metric_scores:
-                            metric_scores[metric_score.name] = []
-                        metric_scores[metric_score.name].append(metric_score.value)
+                    for metric_score in result["metric_scores"]:
+                        if not metric_score["name"] in metric_scores:
+                            metric_scores[metric_score["name"]] = []
+                        metric_scores[metric_score["name"]].append(metric_score["value"])
 
                 # Calculate averages
                 metric_averages = {
                     name: sum(scores) / len(scores) for name, scores in metric_scores.items()
                 }
+
+                # Format dates
+                completion_date = None
+                if evaluation["end_time"]:
+                    if isinstance(evaluation["end_time"], datetime):
+                        completion_date = evaluation["end_time"].isoformat()
+                    else:
+                        completion_date = evaluation["end_time"]
+
+                # Calculate duration
+                duration = None
+                if evaluation["start_time"] and evaluation["end_time"]:
+                    if isinstance(evaluation["start_time"], datetime) and isinstance(evaluation["end_time"], datetime):
+                        duration = (evaluation["end_time"] - evaluation["start_time"]).total_seconds()
 
                 content["sections"].append({
                     "title": "Executive Summary",
@@ -378,56 +497,42 @@ class ReportService:
                         "overall_score": overall_score,
                         "metric_averages": metric_averages,
                         "total_samples": len(results),
-                        "completion_date": evaluation.end_time.isoformat() if evaluation.end_time else None,
-                        "evaluation_duration": (
-                            (evaluation.end_time - evaluation.start_time).total_seconds()
-                            if evaluation.start_time and evaluation.end_time else None
-                        )
+                        "completion_date": completion_date,
+                        "evaluation_duration": duration
                     }
                 })
 
         # Include evaluation details if configured
         if config.get("include_evaluation_details", True):
-            # Get agent details
-            agent = getattr(evaluation, "agent", None)
-            agent_details = {
-                "id": str(agent.id) if agent else None,
-                "name": agent.name if agent else None,
-                "domain": agent.domain if agent else None,
-                "description": agent.description if agent else None
-            }
+            # Get start and end times in ISO format if they're datetime objects
+            start_time = None
+            if evaluation["start_time"]:
+                if isinstance(evaluation["start_time"], datetime):
+                    start_time = evaluation["start_time"].isoformat()
+                else:
+                    start_time = evaluation["start_time"]
 
-            # Get dataset details
-            dataset = getattr(evaluation, "dataset", None)
-            dataset_details = {
-                "id": str(dataset.id) if dataset else None,
-                "name": dataset.name if dataset else None,
-                "type": dataset.type.value if dataset and dataset.type else None,
-                "row_count": dataset.row_count if dataset else None
-            }
-
-            # Get prompt details
-            prompt = getattr(evaluation, "prompt", None)
-            prompt_details = {
-                "id": str(prompt.id) if prompt else None,
-                "name": prompt.name if prompt else None,
-                "content": prompt.content if prompt else None
-            }
+            end_time = None
+            if evaluation["end_time"]:
+                if isinstance(evaluation["end_time"], datetime):
+                    end_time = evaluation["end_time"].isoformat()
+                else:
+                    end_time = evaluation["end_time"]
 
             content["sections"].append({
                 "title": "Evaluation Details",
                 "content": {
-                    "name": evaluation.name,
-                    "description": evaluation.description,
-                    "method": evaluation.method.value,
-                    "status": evaluation.status.value,
-                    "config": evaluation.config,
-                    "agent": agent_details,
-                    "dataset": dataset_details,
-                    "prompt": prompt_details,
-                    "metrics": evaluation.metrics,
-                    "start_time": evaluation.start_time.isoformat() if evaluation.start_time else None,
-                    "end_time": evaluation.end_time.isoformat() if evaluation.end_time else None
+                    "name": evaluation["name"],
+                    "description": evaluation["description"],
+                    "method": evaluation["method"],
+                    "status": evaluation["status"],
+                    "config": evaluation["config"],
+                    "agent": evaluation["agent"],
+                    "dataset": evaluation["dataset"],
+                    "prompt": evaluation["prompt"],
+                    "metrics": evaluation["metrics"],
+                    "start_time": start_time,
+                    "end_time": end_time
                 }
             })
 
@@ -437,23 +542,24 @@ class ReportService:
             metrics_distribution = {}
 
             for result in results:
-                for metric_score in getattr(result, "metric_scores", []):
-                    if not metric_score.name in metrics_distribution:
-                        metrics_distribution[metric_score.name] = {
+                for metric_score in result["metric_scores"]:
+                    if not metric_score["name"] in metrics_distribution:
+                        metrics_distribution[metric_score["name"]] = {
                             "values": [],
                             "min": float('inf'),
                             "max": float('-inf'),
                             "avg": 0,
-                            "description": getattr(metric_score, "meta_info", {}).get("description", "")
+                            "description": metric_score.get("meta_info", {}).get("description", "")
+                            if isinstance(metric_score.get("meta_info"), dict) else ""
                         }
 
-                    value = metric_score.value
-                    metrics_distribution[metric_score.name]["values"].append(value)
-                    metrics_distribution[metric_score.name]["min"] = min(
-                        metrics_distribution[metric_score.name]["min"], value
+                    value = metric_score["value"]
+                    metrics_distribution[metric_score["name"]]["values"].append(value)
+                    metrics_distribution[metric_score["name"]]["min"] = min(
+                        metrics_distribution[metric_score["name"]]["min"], value
                     )
-                    metrics_distribution[metric_score.name]["max"] = max(
-                        metrics_distribution[metric_score.name]["max"], value
+                    metrics_distribution[metric_score["name"]]["max"] = max(
+                        metrics_distribution[metric_score["name"]]["max"], value
                     )
 
             # Calculate averages
@@ -473,23 +579,16 @@ class ReportService:
             max_examples = config.get("max_examples")
             filtered_results = results[:max_examples] if max_examples else results
 
-            # Format results data
+            # Format results data - use the results we already processed
             detailed_results = []
             for result in filtered_results:
                 result_dict = {
-                    "id": str(result.id),
-                    "overall_score": result.overall_score,
-                    "input_data": result.input_data,
-                    "output_data": result.output_data if config.get("include_agent_responses", True) else None,
-                    "processing_time_ms": result.processing_time_ms,
-                    "metric_scores": [
-                        {
-                            "name": metric_score.name,
-                            "value": metric_score.value,
-                            "weight": metric_score.weight
-                        }
-                        for metric_score in getattr(result, "metric_scores", [])
-                    ]
+                    "id": result["id"],
+                    "overall_score": result["overall_score"],
+                    "input_data": result["input_data"],
+                    "output_data": result["output_data"] if config.get("include_agent_responses", True) else None,
+                    "processing_time_ms": result["processing_time_ms"],
+                    "metric_scores": result["metric_scores"]
                 }
                 detailed_results.append(result_dict)
 
@@ -910,8 +1009,11 @@ class ReportService:
                 detail="Report is not generated yet. Please generate the report first."
             )
 
-        # Get evaluation for report context
-        evaluation = await self.evaluation_repo.get(report.evaluation_id)
+        # Get evaluation for report context - using regular repo to avoid lazy loading issues
+        from sqlalchemy import select
+        query = select(Evaluation).where(Evaluation.id == report.evaluation_id)
+        result = await self.db_session.execute(query)
+        evaluation = result.scalar_one_or_none()
 
         # Default subject and message if not provided
         if not subject:
