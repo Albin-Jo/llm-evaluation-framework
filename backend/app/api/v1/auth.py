@@ -1,75 +1,83 @@
-# File: app/api/v1/auth.py
+# Path: backend/app/api/v1/auth.py
+from typing import Dict
+import time
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from backend.app.api.dependencies.auth import get_required_current_user
+from backend.app.api.middleware.jwt_validator import UserContext
 
-from backend.app.core.config import settings
-from backend.app.db.session import get_db
-from backend.app.db.models.orm import User
-from backend.app.db.schema.user_schema import UserResponse
-from backend.app.services.auth import AuthService, get_auth_service, get_current_active_user, oauth
-
-router = APIRouter()
+auth_router = APIRouter()
 
 
-@router.get("/login")
-async def login(request: Request):
+class UserResponse(BaseModel):
+    """Schema for user response."""
+    sub: str
+    username: str
+    email: str
+    name: str
+    roles: list[str]
+
+
+class AuthStatusResponse(BaseModel):
+    """Schema for authentication status response."""
+    authenticated: bool
+    user: Dict = None
+
+
+@auth_router.get("/me", response_model=UserResponse)
+async def get_current_user_info(current_user: UserContext = Depends(get_required_current_user)):
     """
-    Initiate OIDC login flow.
+    Get information about the currently authenticated user.
 
-    This endpoint redirects the user to the OIDC provider's login page.
+    Returns:
+        UserResponse: Current user information
     """
-    redirect_uri = f"{settings.APP_BASE_URL}/api/auth/callback"
-    return await oauth.oidc.authorize_redirect(request, redirect_uri)
+    return UserResponse(
+        sub=current_user.sub,
+        username=current_user.preferred_username,
+        email=current_user.email,
+        name=current_user.name,
+        roles=current_user.roles
+    )
 
 
-@router.get("/callback")
-async def auth_callback(
-        request: Request,
-        db: AsyncSession = Depends(get_db),
-        auth_service: AuthService = Depends(get_auth_service)
-):
+@auth_router.get("/status", response_model=AuthStatusResponse)
+async def auth_status(request: Request):
     """
-    Handle OIDC callback after successful authentication.
+    Check if the user is authenticated.
 
-    This endpoint exchanges the authorization code for tokens and creates/updates the user.
+    Returns:
+        AuthStatusResponse: Authentication status and user info if authenticated
     """
-    # Get token from OIDC provider
-    token = await oauth.oidc.authorize_access_token(request)
-    user_info = await oauth.oidc.parse_id_token(request, token)
+    user = getattr(request.state, "user", None)
 
-    # Create or update user in our database
-    user = await auth_service.create_user_from_oidc(user_info)
+    if user:
+        return AuthStatusResponse(
+            authenticated=True,
+            user={
+                "sub": user.sub,
+                "username": user.preferred_username,
+                "email": user.email,
+                "name": user.name,
+                "roles": user.roles
+            }
+        )
 
-    # Create session or JWT for our app
-    # In a real app, you might create a session or JWT here
-
-    # Redirect to frontend_v1 with token
-    frontend_url = f"{settings.APP_BASE_URL}?token={token['access_token']}"
-    return RedirectResponse(url=frontend_url)
-
-
-@router.get("/me", response_model=UserResponse)
-async def get_user_me(current_user: User = Depends(get_current_active_user)):
-    """
-    Get current user information.
-    """
-    return current_user
+    return AuthStatusResponse(authenticated=False)
 
 
-@router.get("/logout")
+@auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout():
     """
-    Log out the current user.
+    Logout the current user.
 
-    This endpoint redirects the user to the OIDC provider's logout page.
+    This endpoint doesn't actually invalidate the token (that happens on the client side)
+    but is provided as a convenient endpoint for clients.
+
+    Returns:
+        204 No Content
     """
-    # In a real app, you might invalidate the session or JWT here
-
-    # Redirect to OIDC provider's logout endpoint
-    logout_url = f"{settings.OIDC_DISCOVERY_URL}/logout"
-    post_logout_redirect_uri = settings.APP_BASE_URL
-    return RedirectResponse(
-        url=f"{logout_url}?client_id={settings.OIDC_CLIENT_ID}&post_logout_redirect_uri={post_logout_redirect_uri}"
-    )
+    # In a stateful auth system, we would invalidate the session here
+    # Since we're using JWT tokens, there's nothing to do on the server side
+    return None

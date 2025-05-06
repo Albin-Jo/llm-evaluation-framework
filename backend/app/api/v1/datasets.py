@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.api.dependencies.auth import get_required_current_user
 from backend.app.db.models.orm import DatasetType
 from backend.app.db.schema.dataset_schema import (
     DatasetResponse, DatasetUpdate, DatasetSchemaResponse
@@ -95,7 +96,8 @@ async def list_datasets(
         limit: int = 100,
         type: Optional[DatasetType] = None,
         is_public: Optional[bool] = None,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user = Depends(get_required_current_user)
 ):
     """
     List datasets with optional filtering and pagination.

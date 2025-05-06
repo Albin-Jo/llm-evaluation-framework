@@ -53,3 +53,5 @@ uploads/
 storage/
 frontend/
 client_dashboard/
+MCP/
+Client_LLM_Evaluation/libs/utils/shared/src/lib/environments/

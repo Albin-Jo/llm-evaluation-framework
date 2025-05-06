@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from backend.app.api.middleware.error_handler import error_handler_middleware
+from backend.app.api.middleware.jwt_validator import jwt_auth_middleware
 from backend.app.api.router import api_router
 from backend.app.core.config import settings
 
@@ -45,11 +46,16 @@ app.middleware("http")(error_handler_middleware)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
 )
+
+# Add custom middlewares (in reverse order of execution)
+app.middleware("http")(error_handler_middleware)
+app.middleware("http")(jwt_auth_middleware)
 
 # Include API routers
 app.include_router(api_router, prefix="/api")

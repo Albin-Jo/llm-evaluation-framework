@@ -55,6 +55,28 @@ class Settings(BaseSettings):
     AZURE_OPENAI_DEPLOYMENT: str = "qr-oai-4om"
     AZURE_OPENAI_VERSION: str = "2024-06-01"
 
+    # Keycloak Authentication Settings
+    KEYCLOAK_AUTHORITY: str = Field(
+        os.getenv("KEYCLOAK_AUTHORITY", "https://peoplexsso-uat.qatarairways.com.qa/auth/realms/Employee-Experience"),
+        description="Keycloak Authority URL"
+    )
+    KEYCLOAK_REDIRECT_URL: str = Field(
+        os.getenv("KEYCLOAK_REDIRECT_URL", "http://localhost:4200/callback"),
+        description="Redirect URL after successful login"
+    )
+    KEYCLOAK_POST_LOGOUT_REDIRECT_URI: str = Field(
+        os.getenv("KEYCLOAK_POST_LOGOUT_REDIRECT_URI", "http://localhost:4200/logout"),
+        description="Redirect URL after logout"
+    )
+    KEYCLOAK_CLIENT_ID: str = Field(
+        os.getenv("KEYCLOAK_CLIENT_ID", "EX-Webapp"),
+        description="Keycloak Client ID"
+    )
+    KEYCLOAK_SCOPE: str = Field(
+        os.getenv("KEYCLOAK_SCOPE", "openid profile email offline_access"),
+        description="OAuth scope for authentication"
+    )
+
     # Additional model config
     model_config = SettingsConfigDict(
         env_file=".env",  # Try loading from multiple files
