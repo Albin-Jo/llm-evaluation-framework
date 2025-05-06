@@ -1,6 +1,5 @@
-# File: backend/app/api/v1/reports.py
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Optional, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Response
@@ -59,7 +58,7 @@ async def create_report(
             )
 
 
-@router.get("/", response_model=List[ReportResponse])
+@router.get("/", response_model=Dict[str, Any])
 async def list_reports(
         skip: int = 0,
         limit: int = 100,
@@ -70,7 +69,7 @@ async def list_reports(
         db: AsyncSession = Depends(get_db)
 ):
     """
-    List Reports with optional filtering.
+    List Reports with optional filtering and pagination.
 
     Args:
         skip: Number of records to skip
@@ -82,7 +81,7 @@ async def list_reports(
         db: Database session
 
     Returns:
-        List of reports
+        Dict containing list of reports and pagination info
     """
     logger.debug(
         f"Listing reports with filters: evaluation_id={evaluation_id}, status={status}, is_public={is_public}, name={name}")
@@ -110,8 +109,8 @@ async def list_reports(
         is_public=is_public,
         name=name
     )
-
-    return create_paginated_response(reports, total_count, skip, limit)
+    reports_schema_list = [ReportResponse.from_orm(report) for report in reports]
+    return create_paginated_response(reports_schema_list, total_count, skip, limit)
 
 
 @router.get("/{report_id}", response_model=ReportDetailResponse)
@@ -393,8 +392,6 @@ async def download_report(
                 detail=f"Failed to download report: {str(e)}"
             )
 
-
-# File: backend/app/api/v1/reports.py
 
 @router.get("/{report_id}/preview")
 async def preview_report(

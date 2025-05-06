@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Enum as SQLEnum, Float, ForeignKey,
-    Integer, JSON, String, Table, Text, func
+    Integer, JSON, String, Table, Text, func, Index
 )
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,6 +24,11 @@ class User(Base, TimestampMixin, ModelMixin):
     User model - linked with external OIDC authentication.
     We only store the external ID and necessary profile info.
     """
+    __tablename__ = "user"
+    __table_args__ = (
+        Index('idx_user_external_id', 'external_id'),
+        Index('idx_user_email', 'email'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -39,6 +44,13 @@ class Agent(Base, TimestampMixin, ModelMixin):
     """
     Agent model representing individual specialized agents in the system.
     """
+    __tablename__ = "agent"
+    __table_args__ = (
+        Index('idx_agent_name', 'name'),
+        Index('idx_agent_domain', 'domain'),
+        Index('idx_agent_is_active', 'is_active'),
+        Index('idx_agent_domain_is_active', 'domain', 'is_active'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -46,9 +58,9 @@ class Agent(Base, TimestampMixin, ModelMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     api_endpoint: Mapped[str] = mapped_column(String(255), nullable=False)
-    domain: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    domain: Mapped[str] = mapped_column(String(100), nullable=False)
     config: Mapped[dict] = mapped_column(JSON, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # New fields
     model_type: Mapped[str] = mapped_column(String(100), nullable=True)
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
@@ -70,6 +82,13 @@ class Dataset(Base, TimestampMixin, ModelMixin):
     """
     Dataset model for evaluation data.
     """
+    __tablename__ = "dataset"
+    __table_args__ = (
+        Index('idx_dataset_name', 'name'),
+        Index('idx_dataset_type', 'type'),
+        Index('idx_dataset_is_public', 'is_public'),
+        Index('idx_dataset_type_is_public', 'type', 'is_public'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -92,6 +111,11 @@ class PromptTemplate(Base, TimestampMixin, ModelMixin):
     """
     Prompt template model.
     """
+    __tablename__ = "prompttemplate"
+    __table_args__ = (
+        Index('idx_prompttemplate_name', 'name'),
+        Index('idx_prompttemplate_is_public', 'is_public'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -111,6 +135,12 @@ class Prompt(Base, TimestampMixin, ModelMixin):
     """
     Concrete Prompt instance, possibly based on a template.
     """
+    __tablename__ = "prompt"
+    __table_args__ = (
+        Index('idx_prompt_name', 'name'),
+        Index('idx_prompt_is_public', 'is_public'),
+        Index('idx_prompt_template_id', 'template_id'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -149,6 +179,16 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     """
     Evaluation model representing a specific evaluation run.
     """
+    __tablename__ = "evaluation"
+    __table_args__ = (
+        Index('idx_evaluation_name', 'name'),
+        Index('idx_evaluation_status', 'status'),
+        Index('idx_evaluation_method', 'method'),
+        Index('idx_evaluation_agent_id', 'agent_id'),
+        Index('idx_evaluation_dataset_id', 'dataset_id'),
+        Index('idx_evaluation_prompt_id', 'prompt_id'),
+        Index('idx_evaluation_status_created_at', 'status', 'created_at'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -182,6 +222,11 @@ class MetricScore(Base, TimestampMixin, ModelMixin):
     """
     Individual metric score within an evaluation result.
     """
+    __tablename__ = "metricscore"
+    __table_args__ = (
+        Index('idx_metricscore_result_id', 'result_id'),
+        Index('idx_metricscore_name', 'name'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -200,6 +245,11 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     """
     Results of an evaluation run.
     """
+    __tablename__ = "evaluationresult"
+    __table_args__ = (
+        Index('idx_evaluationresult_evaluation_id', 'evaluation_id'),
+        Index('idx_evaluationresult_overall_score', 'overall_score'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -249,6 +299,13 @@ class Report(Base, TimestampMixin, ModelMixin):
     """
     Report model for generated evaluation reports.
     """
+    __tablename__ = "report"
+    __table_args__ = (
+        Index('idx_report_name', 'name'),
+        Index('idx_report_status', 'status'),
+        Index('idx_report_evaluation_id', 'evaluation_id'),
+        Index('idx_report_status_format', 'status', 'format'),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid4

@@ -1,8 +1,9 @@
+# backend/app/api/v1/agents.py
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.repositories.agent_repository import AgentRepository
@@ -12,6 +13,7 @@ from backend.app.db.schema.agent_schema import (
 from backend.app.db.session import get_db
 from backend.app.services.agent_service import test_agent_service
 from backend.app.utils.response_utils import create_paginated_response
+from backend.app.core.exceptions import NotFoundException, DuplicateResourceException
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -44,9 +46,10 @@ async def create_agent(
     # Check if an agent with this name already exists
     existing_agent = await agent_repo.get_by_name(agent_data.name)
     if existing_agent:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Agent with name '{agent_data.name}' already exists"
+        raise DuplicateResourceException(
+            resource="Agent",
+            field="name",
+            value=agent_data.name
         )
 
     # Create agent
@@ -58,7 +61,7 @@ async def create_agent(
     return agent
 
 
-@router.get("/", response_model=List[AgentResponse])
+@router.get("/", response_model=Dict[str, Any])
 async def list_agents(
         skip: int = 0,
         limit: int = 100,
@@ -68,7 +71,7 @@ async def list_agents(
         db: AsyncSession = Depends(get_db)
 ):
     """
-    List Agents with optional filtering.
+    List Agents with optional filtering and pagination.
 
     Args:
         skip: Number of records to skip
@@ -79,7 +82,7 @@ async def list_agents(
         db: Database session
 
     Returns:
-        List of agents matching the criteria
+        Dict containing list of agents and pagination info
     """
     logger.debug(f"Listing agents with filters: domain={domain}, is_active={is_active}, name={name}")
 
@@ -104,7 +107,50 @@ async def list_agents(
     else:
         agents = await agent_repo.get_multi(skip=skip, limit=limit, filters=filters)
 
-    return create_paginated_response(agents, total_count, skip, limit)
+    agents_schema_list = [AgentResponse.from_orm(agent) for agent in agents]
+    return create_paginated_response(agents_schema_list, total_count, skip, limit)
+
+
+@router.post("/search", response_model=Dict[str, Any])
+async def search_agents(
+        query: Optional[str] = Body(None, description="Search query for name, description, or domain"),
+        filters: Optional[Dict[str, Any]] = Body(None, description="Additional filters"),
+        skip: int = Body(0, ge=0, description="Number of records to skip"),
+        limit: int = Body(100, ge=1, le=1000, description="Maximum number of records to return"),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Advanced search for agents across multiple fields.
+
+    Supports text search across name, description, and domain fields,
+    as well as additional filters for exact matches.
+
+    Args:
+        query: Search query text
+        filters: Additional filters (exact match)
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        db: Database session
+
+    Returns:
+        Dict containing search results and pagination info
+    """
+    logger.info(f"Advanced search for agents with query: '{query}' and filters: {filters}")
+
+    agent_repo = AgentRepository(db)
+
+    # Get total count
+    total_count = await agent_repo.count_advanced_search(query, filters)
+
+    # Get agents
+    agents = await agent_repo.advanced_search(
+        query_text=query,
+        filters=filters,
+        skip=skip,
+        limit=limit
+    )
+    agents_schema_list = [AgentResponse.from_orm(agent) for agent in agents]
+    return create_paginated_response(agents_schema_list, total_count, skip, limit)
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)
@@ -131,11 +177,7 @@ async def get_agent(
     agent = await agent_repo.get(agent_id)
 
     if not agent:
-        logger.warning(f"Agent with ID {agent_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent with ID {agent_id} not found"
-        )
+        raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
     return agent
 
@@ -166,19 +208,16 @@ async def update_agent(
     agent = await agent_repo.get(agent_id)
 
     if not agent:
-        logger.warning(f"Agent with ID {agent_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent with ID {agent_id} not found"
-        )
+        raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
     # If name is being updated, check if it conflicts with another agent
     if agent_data.name and agent_data.name != agent.name:
         existing_agent = await agent_repo.get_by_name(agent_data.name)
         if existing_agent and existing_agent.id != agent_id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Agent with name '{agent_data.name}' already exists"
+            raise DuplicateResourceException(
+                resource="Agent",
+                field="name",
+                value=agent_data.name
             )
 
     # Update the Agent
@@ -216,11 +255,7 @@ async def delete_agent(
     agent = await agent_repo.get(agent_id)
 
     if not agent:
-        logger.warning(f"Agent with ID {agent_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent with ID {agent_id} not found"
-        )
+        raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
     # Check if agent is used in any evaluations
     has_evaluations = await agent_repo.has_related_evaluations(agent_id)
@@ -269,11 +304,7 @@ async def test_agent(
     agent = await agent_repo.get(agent_id)
 
     if not agent:
-        logger.warning(f"Agent with ID {agent_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent with ID {agent_id} not found"
-        )
+        raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
     if not agent.is_active:
         logger.warning(f"Cannot test inactive agent: {agent_id}")

@@ -13,7 +13,9 @@ from fastapi import UploadFile, HTTPException
 from starlette import status
 
 from backend.app.core.config import settings
+
 logger = logging.getLogger(__name__)
+
 
 class BaseStorageService(ABC):
     """Base class for storage services."""
@@ -136,7 +138,7 @@ class LocalStorageService(BaseStorageService):
         Args:
             base_path: Base path for file storage
         """
-        self.base_path = base_path
+        self.base_path = pathlib.Path(base_path).resolve()
 
         # Create base directory if it doesn't exist
         os.makedirs(self.base_path, exist_ok=True)
@@ -153,6 +155,8 @@ class LocalStorageService(BaseStorageService):
 
         # Combine with base path and resolve
         full_path = (self.base_path / requested_path).resolve()
+
+        logger.info(full_path)
 
         # Ensure the resolved path is within our base directory
         try:

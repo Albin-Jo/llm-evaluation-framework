@@ -1,8 +1,9 @@
+# backend/app/db/repositories/agent_repository.py
 import logging
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import or_
 
@@ -68,6 +69,19 @@ class AgentRepository(BaseRepository):
         # Execute query
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def count_with_search(self, name_query: str, additional_filters: Optional[Dict[str, Any]] = None) -> int:
+        """Count agents matching search criteria."""
+        query = select(func.count()).select_from(self.model).where(
+            self.model.name.ilike(f"%{name_query}%")
+        )
+
+        if additional_filters:
+            for key, value in additional_filters.items():
+                query = query.where(getattr(self.model, key) == value)
+
+        result = await self.session.execute(query)
+        return result.scalar() or 0
 
     async def get_agents_by_domain(self, domain: str) -> List[Agent]:
         """
@@ -162,7 +176,7 @@ class AgentRepository(BaseRepository):
 
         # Apply all filters if any
         if filters:
-            query = query.where(or_(*filters))
+            query = query.where(and_(*filters))
 
         # Add pagination
         query = query.offset(skip).limit(limit)
@@ -170,3 +184,74 @@ class AgentRepository(BaseRepository):
         # Execute query
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def advanced_search(
+            self,
+            query_text: Optional[str] = None,
+            filters: Optional[Dict[str, Any]] = None,
+            skip: int = 0,
+            limit: int = 100
+    ) -> List[Agent]:
+        """
+        Advanced search with text search across multiple fields.
+
+        Args:
+            query_text: Text to search across name, description, and domain
+            filters: Additional filters to apply
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+
+        Returns:
+            List of agents matching the search criteria
+        """
+        query = select(self.model)
+
+        # Text search across multiple fields
+        if query_text:
+            search_term = f"%{query_text}%"
+            text_conditions = or_(
+                self.model.name.ilike(search_term),
+                self.model.description.ilike(search_term),
+                self.model.domain.ilike(search_term)
+            )
+            query = query.where(text_conditions)
+
+        # Apply additional filters
+        if filters:
+            for key, value in filters.items():
+                if hasattr(self.model, key):
+                    query = query.where(getattr(self.model, key) == value)
+
+        # Add pagination
+        query = query.offset(skip).limit(limit)
+
+        # Execute query
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def count_advanced_search(
+            self,
+            query_text: Optional[str] = None,
+            filters: Optional[Dict[str, Any]] = None
+    ) -> int:
+        """Count agents matching advanced search criteria."""
+        query = select(func.count()).select_from(self.model)
+
+        # Text search across multiple fields
+        if query_text:
+            search_term = f"%{query_text}%"
+            text_conditions = or_(
+                self.model.name.ilike(search_term),
+                self.model.description.ilike(search_term),
+                self.model.domain.ilike(search_term)
+            )
+            query = query.where(text_conditions)
+
+        # Apply additional filters
+        if filters:
+            for key, value in filters.items():
+                if hasattr(self.model, key):
+                    query = query.where(getattr(self.model, key) == value)
+
+        result = await self.session.execute(query)
+        return result.scalar() or 0

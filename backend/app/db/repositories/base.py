@@ -1,8 +1,9 @@
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Tuple
 from uuid import UUID
 
-from sqlalchemy import delete, select, update, func, BinaryExpression, or_
+from sqlalchemy import delete, select, update, func, BinaryExpression, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.app.db.models.orm import Base
 
@@ -30,9 +31,6 @@ class BaseRepository(Generic[ModelType]):
             sort: Optional[BinaryExpression] = None
     ) -> List[ModelType]:
         """Get multiple records with optional filtering and relationship loading."""
-        from sqlalchemy.orm import selectinload
-        from sqlalchemy import and_
-
         query = select(self.model)
 
         # Add filters
@@ -66,6 +64,64 @@ class BaseRepository(Generic[ModelType]):
         # Execute query
         result = await self.session.execute(query)
         return result.scalars().all()
+
+    async def get_multi_with_count(
+            self, *, skip: int = 0, limit: int = 100,
+            filters: Dict[str, Any] = None,
+            load_relationships: List[str] = None,
+            sort: Optional[BinaryExpression] = None
+    ) -> Tuple[List[ModelType], int]:
+        """
+        Get multiple records with total count in a single query.
+
+        This method optimizes count operations by using a window function.
+        """
+        # Base query
+        query = select(self.model)
+
+        # Add filters
+        filter_conditions = []
+        if filters:
+            for field, value in filters.items():
+                if hasattr(self.model, field):
+                    # Handle special case for string fields with LIKE operation
+                    if isinstance(value, str) and field not in ["status", "method"]:
+                        filter_conditions.append(getattr(self.model, field).ilike(f"%{value}%"))
+                    else:
+                        filter_conditions.append(getattr(self.model, field) == value)
+
+        # Apply filter conditions if any
+        if filter_conditions:
+            query = query.where(and_(*filter_conditions))
+
+        # Add count using window function
+        count_query = query.add_columns(func.count().over().label('total_count'))
+
+        # Add relationship loading
+        if load_relationships:
+            for relationship in load_relationships:
+                if hasattr(self.model, relationship):
+                    count_query = count_query.options(selectinload(getattr(self.model, relationship)))
+
+        # Apply sorting if provided
+        if sort is not None:
+            count_query = count_query.order_by(sort)
+
+        # Add pagination
+        count_query = count_query.offset(skip).limit(limit)
+
+        # Execute query
+        result = await self.session.execute(count_query)
+        rows = result.all()
+
+        if not rows:
+            return [], 0
+
+        # Extract models and count
+        models = [row[0] for row in rows]
+        total_count = rows[0].total_count if rows else 0
+
+        return models, total_count
 
     async def create(self, obj_in: Dict[str, Any]) -> ModelType:
         """
@@ -151,8 +207,6 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             int: Count of matching records
         """
-        from sqlalchemy import and_
-
         query = select(func.count()).select_from(self.model)
 
         # Apply filters if provided
@@ -160,8 +214,9 @@ class BaseRepository(Generic[ModelType]):
         if filters:
             for key, value in filters.items():
                 if hasattr(self.model, key):
-                    # Handle special case for string fields with LIKE operation
-                    if isinstance(value, str) and key not in ["status", "method"]:
+                    # Handle special case for string fields - use exact match for count
+                    # to match the main query behavior
+                    if isinstance(value, str) and key not in ["status", "method"] and key == "name":
                         filter_conditions.append(getattr(self.model, key).ilike(f"%{value}%"))
                     else:
                         filter_conditions.append(getattr(self.model, key) == value)
@@ -172,3 +227,27 @@ class BaseRepository(Generic[ModelType]):
 
         result = await self.session.execute(query)
         return result.scalar_one_or_none() or 0
+
+    async def exists(self, filters: Dict[str, Any]) -> bool:
+        """
+        Check if a record exists matching the filters.
+
+        Args:
+            filters: Filter criteria
+
+        Returns:
+            bool: True if exists, False otherwise
+        """
+        query = select(func.count()).select_from(self.model)
+
+        filter_conditions = []
+        for field, value in filters.items():
+            if hasattr(self.model, field):
+                filter_conditions.append(getattr(self.model, field) == value)
+
+        if filter_conditions:
+            query = query.where(and_(*filter_conditions))
+
+        result = await self.session.execute(query)
+        count = result.scalar_one_or_none() or 0
+        return count > 0

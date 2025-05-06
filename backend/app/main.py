@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
+from backend.app.api.middleware.error_handler import error_handler_middleware
 from backend.app.api.router import api_router
 from backend.app.core.config import settings
 
@@ -38,6 +39,8 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
+
+app.middleware("http")(error_handler_middleware)
 
 # Add CORS middleware
 app.add_middleware(

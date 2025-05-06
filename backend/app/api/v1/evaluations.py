@@ -16,6 +16,7 @@ from backend.app.db.session import get_db
 from backend.app.services.evaluation_service import EvaluationService
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.api.dependencies.rate_limiter import rate_limit
+from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -75,7 +76,7 @@ async def list_evaluations(
     """
     List evaluations with optional filtering, sorting and pagination.
 
-    This endpoint returns both the evaluations array and a total count for pagination purposes.
+    This endpoint returns both the evaluations array and pagination information.
 
     - **skip**: Number of records to skip (for pagination)
     - **limit**: Maximum number of records to return
@@ -87,7 +88,7 @@ async def list_evaluations(
     - **sort_by**: Field to sort results by (default: created_at)
     - **sort_dir**: Sort direction, either "asc" or "desc" (default: desc)
 
-    Returns a dictionary containing the list of evaluations and the total count.
+    Returns a dictionary containing the list of evaluations and pagination information.
     """
     filters = {}
 
@@ -153,7 +154,11 @@ async def list_evaluations(
         # Return both results and total count
         return {
             "items": evaluation_dicts,
-            "total": total_count
+            "total": total_count,
+            "page": (skip // limit) + 1,
+            "page_size": limit,
+            "has_next": (skip + limit) < total_count,
+            "has_previous": skip > 0
         }
     except Exception as e:
         logger.error(f"Error listing evaluations: {str(e)}", exc_info=True)
@@ -161,6 +166,78 @@ async def list_evaluations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error listing evaluations: {str(e)}"
         )
+
+
+@router.post("/search", response_model=Dict[str, Any])
+async def search_evaluations(
+        query: Optional[str] = Body(None, description="Search query for name or description"),
+        filters: Optional[Dict[str, Any]] = Body(None, description="Additional filters"),
+        skip: int = Body(0, ge=0, description="Number of records to skip"),
+        limit: int = Body(100, ge=1, le=1000, description="Maximum number of records to return"),
+        sort_by: str = Body("created_at", description="Field to sort by"),
+        sort_dir: str = Body("desc", description="Sort direction (asc or desc)"),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Advanced search for evaluations across multiple fields.
+
+    Supports text search across name and description fields,
+    as well as additional filters for exact matches.
+
+    Args:
+        query: Search query text for name and description
+        filters: Additional filters (exact match)
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        sort_by: Field to sort by
+        sort_dir: Sort direction
+        db: Database session
+
+    Returns:
+        Dict containing search results and pagination info
+    """
+    logger.info(f"Advanced search for evaluations with query: '{query}' and filters: {filters}")
+
+    # Create repository directly since we need the search methods
+    from backend.app.db.repositories.evaluation_repository import EvaluationRepository
+    eval_repo = EvaluationRepository(db)
+
+    # Get total count
+    total_count = await eval_repo.count_search_evaluations(query, filters)
+
+    # Get evaluations
+    evaluations = await eval_repo.search_evaluations(
+        query_text=query,
+        filters=filters,
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        sort_dir=sort_dir
+    )
+
+    # Convert to dictionaries
+    evaluation_dicts = []
+    for evaluation in evaluations:
+        eval_dict = evaluation.to_dict()
+
+        # Add relationships
+        if hasattr(evaluation, 'agent') and evaluation.agent:
+            eval_dict['agent'] = evaluation.agent.to_dict()
+        if hasattr(evaluation, 'dataset') and evaluation.dataset:
+            eval_dict['dataset'] = evaluation.dataset.to_dict()
+        if hasattr(evaluation, 'prompt') and evaluation.prompt:
+            eval_dict['prompt'] = evaluation.prompt.to_dict()
+
+        evaluation_dicts.append(eval_dict)
+
+    return {
+        "items": evaluation_dicts,
+        "total": total_count,
+        "page": (skip // limit) + 1,
+        "page_size": limit,
+        "has_next": (skip + limit) < total_count,
+        "has_previous": skip > 0
+    }
 
 
 @router.get("/{evaluation_id}", response_model=EvaluationDetailResponse)
@@ -188,10 +265,7 @@ async def get_evaluation(
         evaluation, result_responses = await evaluation_service.get_evaluation_with_relationships(evaluation_id)
 
         if not evaluation:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {evaluation_id} not found"
-            )
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
 
         # Create response dictionary with all needed fields
         response_dict = {
@@ -216,7 +290,7 @@ async def get_evaluation(
         # Return the response data directly - FastAPI will handle conversion
         return response_dict
 
-    except HTTPException:
+    except NotFoundException:
         raise
     except Exception as e:
         logger.exception(f"Error retrieving evaluation details: {str(e)}")
@@ -251,11 +325,7 @@ async def update_evaluation(
         # Get the evaluation to check permissions
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
-            logger.warning(f"Evaluation id={evaluation_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {evaluation_id} not found"
-            )
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
 
         # Check if we're trying to update fields that shouldn't be changed after certain states
         if evaluation.status not in [EvaluationStatus.PENDING, EvaluationStatus.FAILED]:
@@ -265,9 +335,10 @@ async def update_evaluation(
             if any(field in update_dict for field in protected_fields):
                 logger.warning(
                     f"Attempted to update protected fields of evaluation {evaluation_id} in {evaluation.status} state")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Cannot update method, metrics, or config for an evaluation in {evaluation.status} status"
+                raise InvalidStateException(
+                    resource="Evaluation",
+                    current_state=evaluation.status.value,
+                    operation="update protected fields"
                 )
 
         # Update the evaluation
@@ -285,8 +356,7 @@ async def update_evaluation(
 
         logger.info(f"Successfully updated evaluation id={evaluation_id}")
         return updated_evaluation
-    except HTTPException:
-        # Re-raise HTTP exceptions
+    except (NotFoundException, InvalidStateException):
         raise
     except Exception as e:
         logger.error(f"Error updating evaluation id={evaluation_id}: {str(e)}", exc_info=True)
@@ -319,17 +389,15 @@ async def delete_evaluation(
         # Get the evaluation to check permissions
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
-            logger.warning(f"Evaluation id={evaluation_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {evaluation_id} not found"
-            )
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
 
         # Check if evaluation is running before deleting
         if evaluation.status == EvaluationStatus.RUNNING:
             logger.warning(f"Attempted to delete running evaluation {evaluation_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise InvalidStateException(
+                resource="Evaluation",
+                current_state=evaluation.status.value,
+                operation="delete",
                 detail="Cannot delete an evaluation while it's running. Cancel it first."
             )
 
@@ -344,8 +412,7 @@ async def delete_evaluation(
             )
 
         logger.info(f"Successfully deleted evaluation id={evaluation_id}")
-    except HTTPException:
-        # Re-raise HTTP exceptions
+    except (NotFoundException, InvalidStateException):
         raise
     except Exception as e:
         logger.error(f"Error deleting evaluation id={evaluation_id}: {str(e)}", exc_info=True)
@@ -381,9 +448,9 @@ async def start_evaluation(
         # Get the evaluation to check permissions
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
-            logger.warning(f"Evaluation id={evaluation_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundException(
+                resource="Evaluation",
+                resource_id=str(evaluation_id),
                 detail=f"Evaluation with ID {evaluation_id} not found. Please check the ID and try again."
             )
 
@@ -396,9 +463,11 @@ async def start_evaluation(
                 EvaluationStatus.CANCELLED: "cancelled"
             }
             message = status_messages.get(evaluation.status, f"in {evaluation.status} status")
-            logger.warning(f"Cannot start evaluation id={evaluation_id} because it is {message}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+
+            raise InvalidStateException(
+                resource="Evaluation",
+                current_state=evaluation.status.value,
+                operation="start",
                 detail=f"Cannot start evaluation because it is {message}. Create a new evaluation or retry if failed."
             )
 
@@ -417,8 +486,7 @@ async def start_evaluation(
         updated_evaluation = await evaluation_service.get_evaluation(evaluation_id)
         logger.info(f"Successfully started evaluation id={evaluation_id}")
         return updated_evaluation
-    except HTTPException:
-        # Re-raise HTTP exceptions
+    except (NotFoundException, InvalidStateException):
         raise
     except Exception as e:
         logger.error(f"Error starting evaluation id={evaluation_id}: {str(e)}", exc_info=True)
@@ -451,7 +519,7 @@ async def get_evaluation_progress(
     try:
         progress = await evaluation_service.get_evaluation_progress(evaluation_id)
         return progress
-    except HTTPException:
+    except NotFoundException:
         raise
     except Exception as e:
         logger.error(f"Error getting evaluation progress: {str(e)}", exc_info=True)
@@ -484,17 +552,14 @@ async def cancel_evaluation(
         # Get the evaluation to check permissions
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
-            logger.warning(f"Evaluation id={evaluation_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {evaluation_id} not found"
-            )
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
 
         # Check if the evaluation is running
         if evaluation.status != EvaluationStatus.RUNNING:
-            logger.warning(f"Cannot cancel evaluation id={evaluation_id} because it is not running")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise InvalidStateException(
+                resource="Evaluation",
+                current_state=evaluation.status.value,
+                operation="cancel",
                 detail=f"Evaluation is not in RUNNING status (current status: {evaluation.status})"
             )
 
@@ -507,8 +572,7 @@ async def cancel_evaluation(
 
         logger.info(f"Successfully cancelled evaluation id={evaluation_id}")
         return updated_evaluation
-    except HTTPException:
-        # Re-raise HTTP exceptions
+    except (NotFoundException, InvalidStateException):
         raise
     except Exception as e:
         logger.error(f"Error cancelling evaluation id={evaluation_id}: {str(e)}", exc_info=True)
@@ -545,11 +609,7 @@ async def get_evaluation_results(
         # Get the evaluation to check permissions
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
-            logger.warning(f"Evaluation id={evaluation_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {evaluation_id} not found"
-            )
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
 
         # Get evaluation results
         logger.debug(f"Fetching results for evaluation id={evaluation_id}")
@@ -577,10 +637,13 @@ async def get_evaluation_results(
         logger.info(f"Successfully retrieved {len(processed_results)} results for evaluation id={evaluation_id}")
         return {
             "items": processed_results,
-            "total": total_count
+            "total": total_count,
+            "page": (skip // limit) + 1,
+            "page_size": limit,
+            "has_next": (skip + limit) < total_count,
+            "has_previous": skip > 0
         }
-    except HTTPException:
-        # Re-raise HTTP exceptions
+    except NotFoundException:
         raise
     except Exception as e:
         logger.error(f"Error retrieving results for evaluation id={evaluation_id}: {str(e)}", exc_info=True)
@@ -606,8 +669,7 @@ async def get_supported_metrics(
     """
     try:
         if dataset_type not in DATASET_TYPE_METRICS:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise ValidationException(
                 detail=f"Invalid dataset type: {dataset_type}. Valid types are: {list(DATASET_TYPE_METRICS.keys())}"
             )
 
@@ -615,7 +677,7 @@ async def get_supported_metrics(
             "dataset_type": dataset_type,
             "supported_metrics": DATASET_TYPE_METRICS[dataset_type]
         }
-    except HTTPException:
+    except ValidationException:
         raise
     except Exception as e:
         logger.error(f"Error getting supported metrics: {str(e)}", exc_info=True)
@@ -666,11 +728,7 @@ async def test_evaluation(
         # Get the evaluation to check permissions
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
-            logger.warning(f"Evaluation id={evaluation_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {evaluation_id} not found"
-            )
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
 
         # Validate minimum required test data
         required_fields = ["query", "context", "answer"]
@@ -678,8 +736,7 @@ async def test_evaluation(
 
         if missing_fields:
             logger.warning(f"Missing required fields {missing_fields} in test data for evaluation id={evaluation_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise ValidationException(
                 detail=f"Missing required fields: {', '.join(missing_fields)}"
             )
 
@@ -709,8 +766,7 @@ async def test_evaluation(
             "metrics": metrics,
             "config": evaluation.config
         }
-    except HTTPException:
-        # Re-raise HTTP exceptions
+    except (NotFoundException, ValidationException):
         raise
     except Exception as e:
         logger.error(f"Error testing evaluation id={evaluation_id}: {str(e)}", exc_info=True)

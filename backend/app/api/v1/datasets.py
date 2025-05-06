@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -89,7 +89,7 @@ async def create_dataset(
         )
 
 
-@router.get("/", response_model=List[DatasetResponse])
+@router.get("/", response_model=Dict[str, Any])
 async def list_datasets(
         skip: int = 0,
         limit: int = 100,
@@ -98,7 +98,7 @@ async def list_datasets(
         db: AsyncSession = Depends(get_db)
 ):
     """
-    List datasets with optional filtering.
+    List datasets with optional filtering and pagination.
 
     Args:
         skip: Number of records to skip (for pagination)
@@ -108,7 +108,7 @@ async def list_datasets(
         db: Database session
 
     Returns:
-        List[DatasetResponse]: List of datasets
+        Dict containing list of datasets and pagination info
     """
     dataset_service = DatasetService(db)
 
@@ -127,8 +127,8 @@ async def list_datasets(
         dataset_type=type,
         is_public=is_public
     )
-
-    return create_paginated_response(datasets, total_count, skip, limit)
+    datasets_schema_list = [DatasetResponse.from_orm(dataset) for dataset in datasets]
+    return create_paginated_response(datasets_schema_list, total_count, skip, limit)
 
 
 @router.get("/{dataset_id}", response_model=DatasetResponse)
