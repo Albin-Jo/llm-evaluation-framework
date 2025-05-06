@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.dependencies.auth import get_required_current_user
+from backend.app.api.middleware.jwt_validator import UserContext
 from backend.app.db.models.orm import DatasetType
 from backend.app.db.schema.dataset_schema import (
     DatasetResponse, DatasetUpdate, DatasetSchemaResponse
@@ -27,7 +28,8 @@ async def create_dataset(
         type: DatasetType = Form(...),
         file: UploadFile = File(...),
         is_public: bool = Form(False),
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Create a new dataset with file upload.
@@ -39,6 +41,7 @@ async def create_dataset(
         file: Uploaded file (CSV, JSON, or plain text)
         is_public: Whether the dataset is public
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         DatasetResponse: Created dataset
@@ -78,7 +81,8 @@ async def create_dataset(
             dataset_type=type,
             file=file,
             is_public=is_public,
-            extra_metadata=extra_meta
+            extra_metadata=extra_meta,
+            user_id=current_user.db_user.id  # Pass user ID for ownership tracking
         )
         return dataset
     except Exception as e:
@@ -97,10 +101,11 @@ async def list_datasets(
         type: Optional[DatasetType] = None,
         is_public: Optional[bool] = None,
         db: AsyncSession = Depends(get_db),
-        current_user = Depends(get_required_current_user)
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     List datasets with optional filtering and pagination.
+    Returns both user's own datasets and public datasets.
 
     Args:
         skip: Number of records to skip (for pagination)
@@ -108,6 +113,7 @@ async def list_datasets(
         type: Filter by dataset type
         is_public: Filter by public/private status
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         Dict containing list of datasets and pagination info
@@ -121,9 +127,13 @@ async def list_datasets(
     if is_public is not None:
         filters["is_public"] = is_public
 
-    total_count = await dataset_service.dataset_repo.count(filters)
+    total_count = await dataset_service.count_accessible_datasets(
+        user_id=current_user.db_user.id,
+        filters=filters
+    )
 
-    datasets = await dataset_service.list_datasets(
+    datasets = await dataset_service.list_accessible_datasets(
+        user_id=current_user.db_user.id,  # Pass user ID to filter by ownership or public
         skip=skip,
         limit=limit,
         dataset_type=type,
@@ -136,14 +146,17 @@ async def list_datasets(
 @router.get("/{dataset_id}", response_model=DatasetResponse)
 async def get_dataset(
         dataset_id: UUID,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Get dataset by ID.
+    User can access their own datasets or public datasets.
 
     Args:
         dataset_id: Dataset ID
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         DatasetResponse: Dataset details
@@ -154,7 +167,10 @@ async def get_dataset(
     dataset_service = DatasetService(db)
 
     try:
-        dataset = await dataset_service.get_dataset(dataset_id)
+        dataset = await dataset_service.get_accessible_dataset(
+            dataset_id=dataset_id,
+            user_id=current_user.db_user.id
+        )
         return dataset
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -168,14 +184,17 @@ async def get_dataset(
 @router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_dataset(
         dataset_id: UUID,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Delete dataset by ID.
+    User can only delete their own datasets.
 
     Args:
         dataset_id: Dataset ID
         db: Database session
+        current_user: Current authenticated user
 
     Raises:
         HTTPException: If dataset not found or user doesn't have permission
@@ -183,7 +202,10 @@ async def delete_dataset(
     dataset_service = DatasetService(db)
 
     try:
-        await dataset_service.delete_dataset(dataset_id)
+        await dataset_service.delete_user_dataset(
+            dataset_id=dataset_id,
+            user_id=current_user.db_user.id
+        )
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -197,15 +219,18 @@ async def delete_dataset(
 async def update_dataset(
         dataset_id: UUID,
         dataset_data: DatasetUpdate,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Update dataset by ID.
+    User can only update their own datasets.
 
     Args:
         dataset_id: Dataset ID
         dataset_data: Dataset update data
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         DatasetResponse: Updated dataset
@@ -216,8 +241,10 @@ async def update_dataset(
     dataset_service = DatasetService(db)
 
     try:
-        updated_dataset = await dataset_service.update_dataset(
-            dataset_id, dataset_data
+        updated_dataset = await dataset_service.update_user_dataset(
+            dataset_id=dataset_id,
+            dataset_data=dataset_data,
+            user_id=current_user.db_user.id
         )
         return updated_dataset
     except Exception as e:
@@ -231,7 +258,7 @@ async def update_dataset(
 
 @router.get("/schema/{dataset_type}", response_model=DatasetSchemaResponse)
 async def get_dataset_type_schema(
-        dataset_type: DatasetType
+        dataset_type: DatasetType,
 ):
     """
     Get the schema for a specific dataset type.
