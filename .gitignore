@@ -50,3 +50,6 @@ wandb/
 
 # Local storage
 uploads/
+storage/
+frontend/
+client_dashboard/

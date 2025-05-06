@@ -1,11 +1,10 @@
-# backend/app/services/evaluation_service.py
 import datetime
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import asc, desc, select, and_, func
+from sqlalchemy import asc, desc, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -55,9 +54,16 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
                 logger.warning(f"Evaluation {evaluation_id} is in {evaluation.status} state, not running")
                 return
 
-            # Make sure it's running
+            # Make sure it's running - but don't call a method that might start a transaction
+            # Update directly using the repository
             if evaluation.status == EvaluationStatus.PENDING:
-                await service.start_evaluation(evaluation_id)
+                now = datetime.datetime.now()
+                update_data = {
+                    "status": EvaluationStatus.RUNNING,
+                    "start_time": now
+                }
+                await service.evaluation_repo.update(evaluation_id, update_data)
+                logger.info(f"Started evaluation {evaluation_id} at {now}")
 
             # Get the evaluation method handler
             method_handler = await service.get_evaluation_method_handler(evaluation.method)
@@ -65,15 +71,25 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
             # Run the evaluation
             results = await method_handler.run_evaluation(evaluation)
 
-            # Process results
+            # Process results - create each result without a transaction
             for result_data in results:
-                await service.create_evaluation_result(result_data)
+                try:
+                    await service.create_evaluation_result(result_data)
+                except Exception as result_error:
+                    logger.error(f"Error creating result for evaluation {evaluation_id}: {str(result_error)}")
+                    # Continue processing other results despite errors
 
             # IMPORTANT: Check current status before marking as completed
             # This prevents trying to complete an already completed evaluation
             current_status = (await service.get_evaluation(evaluation_id)).status
             if current_status in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
-                await service.complete_evaluation(evaluation_id, success=True)
+                # Update directly instead of calling complete_evaluation to avoid transaction conflicts
+                now = datetime.datetime.now()
+                update_data = {
+                    "status": EvaluationStatus.COMPLETED,
+                    "end_time": now
+                }
+                await service.evaluation_repo.update(evaluation_id, update_data)
                 logger.info(f"Completed evaluation {evaluation_id} with {len(results)} results")
             else:
                 logger.info(f"Evaluation {evaluation_id} already in {current_status} state, skipping completion")
@@ -85,7 +101,14 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
             try:
                 current_status = (await service.get_evaluation(evaluation_id)).status
                 if current_status in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
-                    await service.complete_evaluation(evaluation_id, success=False)
+                    # Update directly instead of calling complete_evaluation
+                    now = datetime.datetime.now()
+                    update_data = {
+                        "status": EvaluationStatus.FAILED,
+                        "end_time": now
+                    }
+                    await service.evaluation_repo.update(evaluation_id, update_data)
+                    logger.info(f"Marked evaluation {evaluation_id} as failed at {now}")
                 else:
                     logger.info(f"Evaluation {evaluation_id} already in {current_status} state, not marking as failed")
             except Exception as complete_error:
@@ -148,23 +171,22 @@ class EvaluationService:
             )
 
         # Validate metrics based on dataset type
-        await self._validate_metrics_for_dataset(evaluation_data.metrics, dataset)
+        if evaluation_data.metrics:
+            await self._validate_metrics_for_dataset(evaluation_data.metrics, dataset)
 
-        # Use a transaction to ensure atomicity
-        async with self.db_session.begin():
-            # Create evaluation
-            evaluation_dict = evaluation_data.model_dump()
+        # Create evaluation - REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        evaluation_dict = evaluation_data.model_dump()
 
-            try:
-                evaluation = await self.evaluation_repo.create(evaluation_dict)
-                logger.info(f"Created evaluation {evaluation.id}")
-                return evaluation
-            except Exception as e:
-                logger.error(f"Failed to create evaluation: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to create evaluation: {str(e)}"
-                )
+        try:
+            evaluation = await self.evaluation_repo.create(evaluation_dict)
+            logger.info(f"Created evaluation {evaluation.id}")
+            return evaluation
+        except Exception as e:
+            logger.error(f"Failed to create evaluation: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create evaluation: {str(e)}"
+            )
 
     async def get_evaluation(self, evaluation_id: UUID) -> Optional[Evaluation]:
         """
@@ -193,7 +215,7 @@ class EvaluationService:
             Tuple[Evaluation, List[Dict]]: Evaluation and its processed results
         """
         try:
-            # Create a query that loads evaluation with results and metric scores in one go
+            # Use a direct query approach for consistency with other methods
             query = (
                 select(Evaluation)
                 .options(
@@ -207,6 +229,7 @@ class EvaluationService:
             evaluation = result.scalars().first()
 
             if not evaluation:
+                logger.warning(f"Evaluation {evaluation_id} not found")
                 return None, []
 
             # Process results
@@ -269,22 +292,21 @@ class EvaluationService:
             # No update needed
             return await self.evaluation_repo.get(evaluation_id)
 
-        # Use a transaction to ensure atomicity
-        async with self.db_session.begin():
-            try:
-                evaluation = await self.evaluation_repo.update(evaluation_id, update_data)
-                if evaluation:
-                    logger.info(f"Updated evaluation {evaluation_id}: {update_data}")
-                else:
-                    logger.warning(f"Failed to update evaluation {evaluation_id}: not found")
+        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        try:
+            evaluation = await self.evaluation_repo.update(evaluation_id, update_data)
+            if evaluation:
+                logger.info(f"Updated evaluation {evaluation_id}: {update_data}")
+            else:
+                logger.warning(f"Failed to update evaluation {evaluation_id}: not found")
 
-                return evaluation
-            except Exception as e:
-                logger.error(f"Error updating evaluation {evaluation_id}: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to update evaluation: {str(e)}"
-                )
+            return evaluation
+        except Exception as e:
+            logger.error(f"Error updating evaluation {evaluation_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update evaluation: {str(e)}"
+            )
 
     async def count_evaluations(self, filters: Dict[str, Any] = None) -> int:
         """
@@ -397,36 +419,35 @@ class EvaluationService:
         Returns:
             bool: True if deleted, False if not found
         """
-        # Use a transaction to ensure atomicity
-        async with self.db_session.begin():
-            try:
-                # First, check if evaluation exists
-                evaluation = await self.evaluation_repo.get(evaluation_id)
-                if not evaluation:
-                    logger.warning(f"Attempted to delete non-existent evaluation {evaluation_id}")
-                    return False
-
-                # Get all results for this evaluation
-                results = await self.result_repo.get_multi(filters={"evaluation_id": evaluation_id})
-
-                # Delete metric scores for each result
-                for result in results:
-                    deleted_metrics = await self.metric_repo.delete_multi(filters={"result_id": result.id})
-                    logger.debug(f"Deleted {deleted_metrics} metric scores for result {result.id}")
-
-                # Delete all results for this evaluation
-                deleted_results = await self.result_repo.delete_multi(filters={"evaluation_id": evaluation_id})
-                logger.debug(f"Deleted {deleted_results} results for evaluation {evaluation_id}")
-
-                # Delete the evaluation
-                success = await self.evaluation_repo.delete(evaluation_id)
-                if success:
-                    logger.info(f"Deleted evaluation {evaluation_id} and related data")
-                return success
-
-            except Exception as e:
-                logger.error(f"Error deleting evaluation {evaluation_id}: {str(e)}")
+        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        try:
+            # First, check if evaluation exists
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                logger.warning(f"Attempted to delete non-existent evaluation {evaluation_id}")
                 return False
+
+            # Get all results for this evaluation
+            results = await self.result_repo.get_multi(filters={"evaluation_id": evaluation_id})
+
+            # Delete metric scores for each result
+            for result in results:
+                deleted_metrics = await self.metric_repo.delete_multi(filters={"result_id": result.id})
+                logger.debug(f"Deleted {deleted_metrics} metric scores for result {result.id}")
+
+            # Delete all results for this evaluation
+            deleted_results = await self.result_repo.delete_multi(filters={"evaluation_id": evaluation_id})
+            logger.debug(f"Deleted {deleted_results} results for evaluation {evaluation_id}")
+
+            # Delete the evaluation
+            success = await self.evaluation_repo.delete(evaluation_id)
+            if success:
+                logger.info(f"Deleted evaluation {evaluation_id} and related data")
+            return success
+
+        except Exception as e:
+            logger.error(f"Error deleting evaluation {evaluation_id}: {str(e)}")
+            return False
 
     async def _validate_metrics_for_dataset(self, metrics: Optional[List[str]], dataset: Dataset) -> None:
         """
@@ -443,23 +464,31 @@ class EvaluationService:
             return  # No metrics specified, will use defaults
 
         # Get allowed metrics for this dataset type
-        allowed_metrics = DATASET_TYPE_METRICS.get(dataset.type, [])
+        dataset_type = dataset.type
+        allowed_metrics = DATASET_TYPE_METRICS.get(dataset_type, [])
 
-        if not allowed_metrics:
-            logger.warning(f"No metrics defined for dataset type {dataset.type}")
+        if not dataset_type:
+            logger.warning(f"Dataset {dataset.id} has no type specified")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No metrics are defined for dataset type {dataset.type}"
+                detail=f"Dataset has no type specified"
+            )
+
+        if not allowed_metrics:
+            logger.warning(f"No metrics defined for dataset type {dataset_type}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No metrics are defined for dataset type {dataset_type}"
             )
 
         # Check if any specified metrics are not allowed
         invalid_metrics = [m for m in metrics if m not in allowed_metrics]
 
         if invalid_metrics:
-            logger.warning(f"Invalid metrics for dataset type {dataset.type}: {invalid_metrics}")
+            logger.warning(f"Invalid metrics for dataset type {dataset_type}: {invalid_metrics}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Metrics {invalid_metrics} are not valid for {dataset.type} datasets. "
+                detail=f"Metrics {invalid_metrics} are not valid for {dataset_type} datasets. "
                        f"Valid metrics are: {allowed_metrics}"
             )
 
@@ -478,33 +507,32 @@ class EvaluationService:
         Raises:
             HTTPException: If result creation fails
         """
-        # Use a transaction to ensure atomicity
-        async with self.db_session.begin():
-            try:
-                # Create evaluation result
-                result_dict = result_data.model_dump(exclude={"metric_scores"})
-                result = await self.result_repo.create(result_dict)
-                logger.debug(f"Created evaluation result {result.id} for evaluation {result_data.evaluation_id}")
+        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        try:
+            # Create evaluation result
+            result_dict = result_data.model_dump(exclude={"metric_scores"})
+            result = await self.result_repo.create(result_dict)
+            logger.debug(f"Created evaluation result {result.id} for evaluation {result_data.evaluation_id}")
 
-                # Create metric scores if provided
-                metric_scores = []
-                if result_data.metric_scores:
-                    for metric_data in result_data.metric_scores:
-                        metric_dict = metric_data.model_dump()
-                        metric_dict["result_id"] = result.id
-                        metric = await self.metric_repo.create(metric_dict)
-                        metric_scores.append(metric)
+            # Create metric scores if provided
+            metric_scores = []
+            if result_data.metric_scores:
+                for metric_data in result_data.metric_scores:
+                    metric_dict = metric_data.model_dump()
+                    metric_dict["result_id"] = result.id
+                    metric = await self.metric_repo.create(metric_dict)
+                    metric_scores.append(metric)
 
-                    logger.debug(f"Created {len(metric_scores)} metric scores for result {result.id}")
+                logger.debug(f"Created {len(metric_scores)} metric scores for result {result.id}")
 
-                return result
+            return result
 
-            except Exception as e:
-                logger.error(f"Error creating evaluation result: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to create evaluation result: {str(e)}"
-                )
+        except Exception as e:
+            logger.error(f"Error creating evaluation result: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create evaluation result: {str(e)}"
+            )
 
     async def get_evaluation_results(
             self, evaluation_id: UUID, skip: int = 0, limit: int = 100
@@ -566,42 +594,41 @@ class EvaluationService:
         Raises:
             HTTPException: If evaluation cannot be started
         """
-        # Use a transaction to ensure atomicity
-        async with self.db_session.begin():
-            try:
-                evaluation = await self.evaluation_repo.get(evaluation_id)
-                if not evaluation:
-                    logger.warning(f"Attempted to start non-existent evaluation {evaluation_id}")
-                    return None
+        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        try:
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                logger.warning(f"Attempted to start non-existent evaluation {evaluation_id}")
+                return None
 
-                if evaluation.status != EvaluationStatus.PENDING:
-                    msg = f"Evaluation is already in {evaluation.status} status"
-                    logger.warning(f"Cannot start evaluation {evaluation_id}: {msg}")
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=msg
-                    )
-
-                # Update status and start time
-                now = datetime.datetime.now()
-                update_data = {
-                    "status": EvaluationStatus.RUNNING,
-                    "start_time": now
-                }
-
-                updated = await self.evaluation_repo.update(evaluation_id, update_data)
-                logger.info(f"Started evaluation {evaluation_id} at {now}")
-                return updated
-
-            except HTTPException:
-                # Re-raise HTTP exceptions
-                raise
-            except Exception as e:
-                logger.error(f"Error starting evaluation {evaluation_id}: {str(e)}")
+            if evaluation.status != EvaluationStatus.PENDING:
+                msg = f"Evaluation is already in {evaluation.status} status"
+                logger.warning(f"Cannot start evaluation {evaluation_id}: {msg}")
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to start evaluation: {str(e)}"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=msg
                 )
+
+            # Update status and start time
+            now = datetime.datetime.now()
+            update_data = {
+                "status": EvaluationStatus.RUNNING,
+                "start_time": now
+            }
+
+            updated = await self.evaluation_repo.update(evaluation_id, update_data)
+            logger.info(f"Started evaluation {evaluation_id} at {now}")
+            return updated
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error starting evaluation {evaluation_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to start evaluation: {str(e)}"
+            )
 
     async def queue_evaluation_job(self, evaluation_id: UUID) -> None:
         """
@@ -619,13 +646,25 @@ class EvaluationService:
             # Get the evaluation to check if it can be queued
             evaluation = await self.evaluation_repo.get(evaluation_id)
             if not evaluation:
+                logger.error(f"Evaluation {evaluation_id} not found")
                 raise ValueError(f"Evaluation {evaluation_id} not found")
 
             if evaluation.status != EvaluationStatus.PENDING:
+                logger.warning(f"Evaluation {evaluation_id} is in {evaluation.status} status, not PENDING")
                 raise ValueError(f"Evaluation is already in {evaluation.status} status")
 
-            # Update to running status
-            await self.start_evaluation(evaluation_id)
+            # Update to running status - don't use a nested transaction here
+            # Instead of calling start_evaluation (which might start another transaction)
+            # update the status directly
+            now = datetime.datetime.now()
+            update_data = {
+                "status": EvaluationStatus.RUNNING,
+                "start_time": now
+            }
+
+            # Direct update without transaction
+            await self.evaluation_repo.update(evaluation_id, update_data)
+            logger.info(f"Started evaluation {evaluation_id} at {now}")
 
             # In production, use Celery
             from backend.app.workers.tasks import run_evaluation_task
@@ -639,9 +678,7 @@ class EvaluationService:
                 # Fallback to direct execution if Celery is not available
                 logger.warning(f"Failed to queue to Celery: {e}. Running as separate task.")
 
-                # IMPORTANT: Don't use the current database session for the task
-                # Create a separate, detached task instead
-                # This prevents session conflicts
+                # Create a separate, detached task instead to prevent session conflicts
                 import asyncio
                 asyncio.create_task(_run_evaluation_as_separate_task(str(evaluation_id)))
                 logger.info(f"Started evaluation {evaluation_id} as separate task")
@@ -653,10 +690,17 @@ class EvaluationService:
                 detail=str(e)
             )
         except Exception as e:
-            logger.error(f"Error queueing evaluation job: {str(e)}")
+            logger.error(f"Error queueing evaluation job: {str(e)}", exc_info=True)
             # Set evaluation to failed status
             try:
-                await self.complete_evaluation(evaluation_id, success=False)
+                # Update status directly instead of calling complete_evaluation
+                # to avoid another transaction
+                failed_update = {
+                    "status": EvaluationStatus.FAILED,
+                    "end_time": datetime.datetime.now()
+                }
+                await self.evaluation_repo.update(evaluation_id, failed_update)
+                logger.info(f"Marked evaluation {evaluation_id} as failed")
             except Exception as complete_error:
                 logger.error(f"Failed to mark evaluation as failed: {str(complete_error)}")
 
@@ -681,43 +725,42 @@ class EvaluationService:
         Raises:
             HTTPException: If evaluation cannot be completed
         """
-        # Use a transaction to ensure atomicity
-        async with self.db_session.begin():
-            try:
-                evaluation = await self.evaluation_repo.get(evaluation_id)
-                if not evaluation:
-                    logger.warning(f"Attempted to complete non-existent evaluation {evaluation_id}")
-                    return None
+        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        try:
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                logger.warning(f"Attempted to complete non-existent evaluation {evaluation_id}")
+                return None
 
-                if evaluation.status not in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
-                    msg = f"Evaluation is not in RUNNING or PENDING status (current: {evaluation.status})"
-                    logger.warning(f"Cannot complete evaluation {evaluation_id}: {msg}")
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=msg
-                    )
-
-                # Update status and end time
-                now = datetime.datetime.now()
-                new_status = EvaluationStatus.COMPLETED if success else EvaluationStatus.FAILED
-                update_data = {
-                    "status": new_status,
-                    "end_time": now
-                }
-
-                updated = await self.evaluation_repo.update(evaluation_id, update_data)
-                logger.info(f"Completed evaluation {evaluation_id} with status {new_status} at {now}")
-                return updated
-
-            except HTTPException:
-                # Re-raise HTTP exceptions
-                raise
-            except Exception as e:
-                logger.error(f"Error completing evaluation {evaluation_id}: {str(e)}")
+            if evaluation.status not in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
+                msg = f"Evaluation is not in RUNNING or PENDING status (current: {evaluation.status})"
+                logger.warning(f"Cannot complete evaluation {evaluation_id}: {msg}")
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to complete evaluation: {str(e)}"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=msg
                 )
+
+            # Update status and end time
+            now = datetime.datetime.now()
+            new_status = EvaluationStatus.COMPLETED if success else EvaluationStatus.FAILED
+            update_data = {
+                "status": new_status,
+                "end_time": now
+            }
+
+            updated = await self.evaluation_repo.update(evaluation_id, update_data)
+            logger.info(f"Completed evaluation {evaluation_id} with status {new_status} at {now}")
+            return updated
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error completing evaluation {evaluation_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to complete evaluation: {str(e)}"
+            )
 
     async def get_evaluation_progress(self, evaluation_id: UUID) -> Dict[str, Any]:
         """

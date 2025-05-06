@@ -1,4 +1,5 @@
 # backend/app/api/v1/evaluations.py
+import datetime
 import logging
 from typing import Dict, List, Optional, Union, Any, Annotated
 from uuid import UUID
@@ -13,7 +14,7 @@ from backend.app.db.schema.evaluation_schema import (
     EvaluationResponse, EvaluationUpdate
 )
 from backend.app.db.session import get_db
-from backend.app.services.evaluation_service import EvaluationService
+from backend.app.services.evaluation_service import EvaluationService, _run_evaluation_as_separate_task
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.api.dependencies.rate_limiter import rate_limit
 from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
@@ -429,17 +430,6 @@ async def start_evaluation(
         db: AsyncSession = Depends(get_db),
         _: None = Depends(rate_limit(max_requests=5, period_seconds=60))
 ):
-    """
-    Start an evaluation.
-
-    This endpoint initiates the evaluation process, which will run asynchronously.
-    The status will change from PENDING to RUNNING, and eventually to COMPLETED or FAILED.
-    You can check the progress using the /progress endpoint.
-
-    - **evaluation_id**: The unique identifier of the evaluation to start
-
-    Returns the updated evaluation object with RUNNING status.
-    """
     logger.info(f"Starting evaluation id={evaluation_id}")
 
     evaluation_service = EvaluationService(db)
@@ -471,21 +461,37 @@ async def start_evaluation(
                 detail=f"Cannot start evaluation because it is {message}. Create a new evaluation or retry if failed."
             )
 
+        # Update status directly rather than calling start_evaluation
+        # which might create a nested transaction
+        now = datetime.datetime.now()
+        update_data = {
+            "status": EvaluationStatus.RUNNING,
+            "start_time": now
+        }
+
+        # Direct update with the repository
+        await evaluation_service.evaluation_repo.update(evaluation_id, update_data)
+        logger.info(f"Started evaluation {evaluation_id} at {now}")
+
         # Queue the evaluation job
-        logger.debug(f"Queuing evaluation job for id={evaluation_id}")
+        # This is another place where we'd call a separate function, which
+        # might be trying to start its own transaction
+        from backend.app.workers.tasks import run_evaluation_task
+
         try:
-            await evaluation_service.queue_evaluation_job(evaluation_id)
+            # Queue in Celery when available
+            run_evaluation_task.delay(str(evaluation_id))
+            logger.info(f"Queued evaluation job {evaluation_id} to Celery")
         except Exception as e:
-            logger.error(f"Failed to queue evaluation job for id={evaluation_id}: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to queue evaluation job: {str(e)}. Please check the server logs or try again later."
-            )
+            # Fallback to separate task if Celery not available
+            logger.warning(f"Failed to queue to Celery: {e}. Running as separate task.")
+            background_tasks.add_task(_run_evaluation_as_separate_task, str(evaluation_id))
+            logger.info(f"Added evaluation {evaluation_id} as background task")
 
         # Get updated evaluation
         updated_evaluation = await evaluation_service.get_evaluation(evaluation_id)
-        logger.info(f"Successfully started evaluation id={evaluation_id}")
         return updated_evaluation
+
     except (NotFoundException, InvalidStateException):
         raise
     except Exception as e:
