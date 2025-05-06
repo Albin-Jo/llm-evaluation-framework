@@ -1,7 +1,6 @@
-# Path: backend/app/api/v1/auth.py
 from typing import Dict
-import time
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+
+from fastapi import APIRouter, Depends, status, Request
 from pydantic import BaseModel
 
 from backend.app.api.dependencies.auth import get_required_current_user

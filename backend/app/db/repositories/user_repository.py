@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import select, or_
@@ -31,7 +31,7 @@ class UserRepository:
         result = await self.session.execute(query)
         return result.scalars().first()
 
-    async def list_users(self, skip: int = 0, limit: int = 100) -> List[User]:
+    async def list_users(self, skip: int = 0, limit: int = 100) -> Sequence[User]:
         """List users with pagination."""
         query = select(User).offset(skip).limit(limit)
         result = await self.session.execute(query)
@@ -70,7 +70,7 @@ class UserRepository:
         await self.session.flush()
         return True
 
-    async def search_users(self, query: str, skip: int = 0, limit: int = 100) -> List[User]:
+    async def search_users(self, query: str, skip: int = 0, limit: int = 100) -> Sequence[User]:
         """
         Search for users by email or display name.
 

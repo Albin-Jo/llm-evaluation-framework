@@ -39,6 +39,13 @@ class User(Base, TimestampMixin, ModelMixin):
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), nullable=False, default=UserRole.VIEWER)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
+    # Relationships to other entities
+    agents: Mapped[List["Agent"]] = relationship("Agent", back_populates="created_by")
+    datasets: Mapped[List["Dataset"]] = relationship("Dataset", back_populates="created_by")
+    evaluations: Mapped[List["Evaluation"]] = relationship("Evaluation", back_populates="created_by")
+    prompts: Mapped[List["Prompt"]] = relationship("Prompt", back_populates="created_by")
+    reports: Mapped[List["Report"]] = relationship("Report", back_populates="created_by")
+
 
 class Agent(Base, TimestampMixin, ModelMixin):
     """
@@ -66,8 +73,12 @@ class Agent(Base, TimestampMixin, ModelMixin):
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=True)
 
+    # User relationship field
+    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
+
     # Relationships
     evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="agent")
+    created_by: Mapped[Optional["User"]] = relationship(back_populates="agents")
 
 
 class DatasetType(str, Enum):
@@ -103,8 +114,12 @@ class Dataset(Base, TimestampMixin, ModelMixin):
     row_count: Mapped[int] = mapped_column(Integer, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # User relationship field
+    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
+
     # Relationships
     evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="dataset")
+    created_by: Mapped[Optional["User"]] = relationship(back_populates="datasets")
 
 
 class PromptTemplate(Base, TimestampMixin, ModelMixin):
@@ -152,12 +167,16 @@ class Prompt(Base, TimestampMixin, ModelMixin):
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # User relationship field
+    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
+
     # Relationships
     template_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("prompttemplate.id"), nullable=True
     )
     template: Mapped[Optional["PromptTemplate"]] = relationship(back_populates="prompts")
     evaluations: Mapped[List["Evaluation"]] = relationship(back_populates="prompt")
+    created_by: Mapped[Optional["User"]] = relationship(back_populates="prompts")
 
 
 class EvaluationMethod(str, Enum):
@@ -207,6 +226,9 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # User relationship field
+    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
+
     # Relationships
     agent_id: Mapped[UUID] = mapped_column(ForeignKey("agent.id"), nullable=False)
     agent: Mapped["Agent"] = relationship(back_populates="evaluations")
@@ -216,6 +238,7 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     prompt: Mapped["Prompt"] = relationship(back_populates="evaluations")
     results: Mapped[List["EvaluationResult"]] = relationship(back_populates="evaluation")
     reports: Mapped[List["Report"]] = relationship(back_populates="evaluation")
+    created_by: Mapped[Optional["User"]] = relationship(back_populates="evaluations")
 
 
 class MetricScore(Base, TimestampMixin, ModelMixin):
@@ -294,7 +317,6 @@ class ReportFormat(str, Enum):
     JSON = "json"
 
 
-# Add this class for Report model
 class Report(Base, TimestampMixin, ModelMixin):
     """
     Report model for generated evaluation reports.
@@ -323,6 +345,10 @@ class Report(Base, TimestampMixin, ModelMixin):
     file_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     last_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # User relationship field
+    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
+
     # Relationships
     evaluation_id: Mapped[UUID] = mapped_column(ForeignKey("evaluation.id"), nullable=False)
     evaluation: Mapped["Evaluation"] = relationship(back_populates="reports")
+    created_by: Mapped[Optional["User"]] = relationship(back_populates="reports")
