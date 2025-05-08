@@ -42,7 +42,7 @@ async def test_agent_service(agent: Agent, test_input: Dict[str, Any]) -> Dict[s
                 timeout=DEFAULT_TIMEOUT,
                 headers={
                     "Content-Type": "application/json",
-                    "X-API-Key": settings.AGENT_API_KEY,  # If your agents need authentication
+                    "X-API-Key": settings.AZURE_OPENAI_KEY,  # If your agents need authentication
                 }
             )
 

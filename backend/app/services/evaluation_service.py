@@ -159,6 +159,46 @@ class EvaluationService:
                 detail=f"Agent with ID {evaluation_data.agent_id} not found"
             )
 
+        dataset = await self.dataset_repo.get(evaluation_data.dataset_id)
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {evaluation_data.dataset_id} not found"
+            )
+
+        prompt = await self.prompt_repo.get(evaluation_data.prompt_id)
+        if not prompt:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Prompt with ID {evaluation_data.prompt_id} not found"
+            )
+
+        # Validate metrics based on dataset type
+        if evaluation_data.metrics:
+            await self._validate_metrics_for_dataset(evaluation_data.metrics, dataset)
+
+        # Ensure a user ID is provided for attribution
+        if not evaluation_data.created_by_id:
+            logger.warning("No user ID provided for evaluation creation")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User ID is required for evaluation creation"
+            )
+
+        # Create evaluation - REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        evaluation_dict = evaluation_data.model_dump()
+
+        try:
+            evaluation = await self.evaluation_repo.create(evaluation_dict)
+            logger.info(f"Created evaluation {evaluation.id} for user {evaluation_data.created_by_id}")
+            return evaluation
+        except Exception as e:
+            logger.error(f"Failed to create evaluation: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create evaluation: {str(e)}"
+            )
+
     async def complete_evaluation(
             self, evaluation_id: UUID, success: bool = True, user_id: Optional[UUID] = None
     ) -> Optional[Evaluation]:

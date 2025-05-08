@@ -1,11 +1,11 @@
-# backend/app/api/v1/agents.py
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.exceptions import NotFoundException, DuplicateResourceException
 from backend.app.db.repositories.agent_repository import AgentRepository
 from backend.app.db.schema.agent_schema import (
     AgentCreate, AgentResponse, AgentUpdate
@@ -13,7 +13,6 @@ from backend.app.db.schema.agent_schema import (
 from backend.app.db.session import get_db
 from backend.app.services.agent_service import test_agent_service
 from backend.app.utils.response_utils import create_paginated_response
-from backend.app.core.exceptions import NotFoundException, DuplicateResourceException
 
 # Set up logging
 logger = logging.getLogger(__name__)

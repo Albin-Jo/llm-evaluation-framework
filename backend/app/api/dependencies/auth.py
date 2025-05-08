@@ -1,5 +1,6 @@
 from typing import Optional
-from fastapi import Depends, Request, HTTPException, status
+
+from fastapi import Request, HTTPException, status
 
 from backend.app.api.middleware.jwt_validator import UserContext
 

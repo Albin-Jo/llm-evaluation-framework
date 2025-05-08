@@ -49,7 +49,7 @@ class ReportService:
         Raises:
             HTTPException: If validation fails
         """
-        logger.info(f"Creating new report for evaluation: {report_data.evaluation_id}")
+        logger.info(f"Creating new report for evaluation: {report_data}")
 
         # Check if evaluation exists
         evaluation = await self.evaluation_repo.get(report_data.evaluation_id)

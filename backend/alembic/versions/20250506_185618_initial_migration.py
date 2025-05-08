@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: dd9839679030
+Revision ID: 462ff4ab634c
 Revises:
-Create Date: 2025-04-06 14:03:54.548069
+Create Date: 2025-05-06 18:56:18.645725
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "dd9839679030"
+revision: str = "462ff4ab634c"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -49,8 +49,12 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name"),
     )
-    op.create_index(op.f("ix_agent_domain"), "agent", ["domain"], unique=False)
-    op.create_index(op.f("ix_agent_is_active"), "agent", ["is_active"], unique=False)
+    op.create_index("idx_agent_domain", "agent", ["domain"], unique=False)
+    op.create_index(
+        "idx_agent_domain_is_active", "agent", ["domain", "is_active"], unique=False
+    )
+    op.create_index("idx_agent_is_active", "agent", ["is_active"], unique=False)
+    op.create_index("idx_agent_name", "agent", ["name"], unique=False)
     op.create_table(
         "dataset",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -69,7 +73,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("file_path", sa.String(length=255), nullable=False),
-        sa.Column("schema", sa.JSON(), nullable=True),
+        sa.Column("schema_definition", sa.JSON(), nullable=True),
         sa.Column("meta_info", sa.JSON(), nullable=True),
         sa.Column("version", sa.String(length=50), nullable=False),
         sa.Column("row_count", sa.Integer(), nullable=True),
@@ -87,6 +91,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_dataset_is_public", "dataset", ["is_public"], unique=False)
+    op.create_index("idx_dataset_name", "dataset", ["name"], unique=False)
+    op.create_index("idx_dataset_type", "dataset", ["type"], unique=False)
+    op.create_index(
+        "idx_dataset_type_is_public", "dataset", ["type", "is_public"], unique=False
     )
     op.create_table(
         "prompttemplate",
@@ -111,6 +121,10 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index(
+        "idx_prompttemplate_is_public", "prompttemplate", ["is_public"], unique=False
+    )
+    op.create_index("idx_prompttemplate_name", "prompttemplate", ["name"], unique=False)
     op.create_table(
         "user",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -139,6 +153,8 @@ def upgrade() -> None:
         sa.UniqueConstraint("email"),
         sa.UniqueConstraint("external_id"),
     )
+    op.create_index("idx_user_email", "user", ["email"], unique=False)
+    op.create_index("idx_user_external_id", "user", ["external_id"], unique=False)
     op.create_table(
         "prompt",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -167,6 +183,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index("idx_prompt_is_public", "prompt", ["is_public"], unique=False)
+    op.create_index("idx_prompt_name", "prompt", ["name"], unique=False)
+    op.create_index("idx_prompt_template_id", "prompt", ["template_id"], unique=False)
     op.create_table(
         "evaluation",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -223,6 +242,22 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index("idx_evaluation_agent_id", "evaluation", ["agent_id"], unique=False)
+    op.create_index(
+        "idx_evaluation_dataset_id", "evaluation", ["dataset_id"], unique=False
+    )
+    op.create_index("idx_evaluation_method", "evaluation", ["method"], unique=False)
+    op.create_index("idx_evaluation_name", "evaluation", ["name"], unique=False)
+    op.create_index(
+        "idx_evaluation_prompt_id", "evaluation", ["prompt_id"], unique=False
+    )
+    op.create_index("idx_evaluation_status", "evaluation", ["status"], unique=False)
+    op.create_index(
+        "idx_evaluation_status_created_at",
+        "evaluation",
+        ["status", "created_at"],
+        unique=False,
+    )
     op.create_table(
         "evaluation_comparison",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -275,6 +310,64 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index(
+        "idx_evaluationresult_evaluation_id",
+        "evaluationresult",
+        ["evaluation_id"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_evaluationresult_overall_score",
+        "evaluationresult",
+        ["overall_score"],
+        unique=False,
+    )
+    op.create_table(
+        "report",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column(
+            "status",
+            sa.Enum("DRAFT", "GENERATED", "SENT", "FAILED", name="reportstatus"),
+            nullable=False,
+        ),
+        sa.Column(
+            "format",
+            sa.Enum("PDF", "HTML", "JSON", name="reportformat"),
+            nullable=False,
+        ),
+        sa.Column("content", sa.JSON(), nullable=True),
+        sa.Column("config", sa.JSON(), nullable=True),
+        sa.Column("file_path", sa.String(length=255), nullable=True),
+        sa.Column("last_sent_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("evaluation_id", sa.UUID(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["evaluation_id"],
+            ["evaluation.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "idx_report_evaluation_id", "report", ["evaluation_id"], unique=False
+    )
+    op.create_index("idx_report_name", "report", ["name"], unique=False)
+    op.create_index("idx_report_status", "report", ["status"], unique=False)
+    op.create_index(
+        "idx_report_status_format", "report", ["status", "format"], unique=False
+    )
     op.create_table(
         "metricscore",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -301,21 +394,54 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index("idx_metricscore_name", "metricscore", ["name"], unique=False)
+    op.create_index(
+        "idx_metricscore_result_id", "metricscore", ["result_id"], unique=False
+    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index("idx_metricscore_result_id", table_name="metricscore")
+    op.drop_index("idx_metricscore_name", table_name="metricscore")
     op.drop_table("metricscore")
+    op.drop_index("idx_report_status_format", table_name="report")
+    op.drop_index("idx_report_status", table_name="report")
+    op.drop_index("idx_report_name", table_name="report")
+    op.drop_index("idx_report_evaluation_id", table_name="report")
+    op.drop_table("report")
+    op.drop_index("idx_evaluationresult_overall_score", table_name="evaluationresult")
+    op.drop_index("idx_evaluationresult_evaluation_id", table_name="evaluationresult")
     op.drop_table("evaluationresult")
     op.drop_table("evaluation_comparison")
+    op.drop_index("idx_evaluation_status_created_at", table_name="evaluation")
+    op.drop_index("idx_evaluation_status", table_name="evaluation")
+    op.drop_index("idx_evaluation_prompt_id", table_name="evaluation")
+    op.drop_index("idx_evaluation_name", table_name="evaluation")
+    op.drop_index("idx_evaluation_method", table_name="evaluation")
+    op.drop_index("idx_evaluation_dataset_id", table_name="evaluation")
+    op.drop_index("idx_evaluation_agent_id", table_name="evaluation")
     op.drop_table("evaluation")
+    op.drop_index("idx_prompt_template_id", table_name="prompt")
+    op.drop_index("idx_prompt_name", table_name="prompt")
+    op.drop_index("idx_prompt_is_public", table_name="prompt")
     op.drop_table("prompt")
+    op.drop_index("idx_user_external_id", table_name="user")
+    op.drop_index("idx_user_email", table_name="user")
     op.drop_table("user")
+    op.drop_index("idx_prompttemplate_name", table_name="prompttemplate")
+    op.drop_index("idx_prompttemplate_is_public", table_name="prompttemplate")
     op.drop_table("prompttemplate")
+    op.drop_index("idx_dataset_type_is_public", table_name="dataset")
+    op.drop_index("idx_dataset_type", table_name="dataset")
+    op.drop_index("idx_dataset_name", table_name="dataset")
+    op.drop_index("idx_dataset_is_public", table_name="dataset")
     op.drop_table("dataset")
-    op.drop_index(op.f("ix_agent_is_active"), table_name="agent")
-    op.drop_index(op.f("ix_agent_domain"), table_name="agent")
+    op.drop_index("idx_agent_name", table_name="agent")
+    op.drop_index("idx_agent_is_active", table_name="agent")
+    op.drop_index("idx_agent_domain_is_active", table_name="agent")
+    op.drop_index("idx_agent_domain", table_name="agent")
     op.drop_table("agent")
     # ### end Alembic commands ###

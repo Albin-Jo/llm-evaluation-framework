@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -8,7 +8,7 @@ from backend.app.api.dependencies.auth import get_required_current_user
 from backend.app.api.middleware.jwt_validator import UserContext
 from backend.app.db.models.orm import DatasetType
 from backend.app.db.schema.dataset_schema import (
-    DatasetResponse, DatasetUpdate, DatasetSchemaResponse
+    DatasetResponse, DatasetUpdate, DatasetSchemaResponse, MetricsResponse
 )
 from backend.app.db.session import get_db
 from backend.app.db.validators.dataset_validator import (
@@ -288,7 +288,7 @@ async def get_dataset_type_schema(
         )
 
 
-@router.get("/metrics/{dataset_type}", response_model=Dict[str, List[str]])
+@router.get("/metrics/{dataset_type}", response_model=MetricsResponse)
 async def get_supported_metrics(
         dataset_type: DatasetType
 ):
@@ -302,6 +302,7 @@ async def get_supported_metrics(
         Dict: Dictionary with dataset type and list of supported metrics
     """
     try:
+        print(f"dataset_type: {dataset_type}")
         if dataset_type not in DATASET_TYPE_METRICS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

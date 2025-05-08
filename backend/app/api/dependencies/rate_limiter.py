@@ -1,8 +1,7 @@
-# backend/app/api/dependencies/rate_limiter.py
 import time
 from typing import Dict, Optional, Callable, Any
+
 from fastapi import HTTPException, Request, status
-from starlette.concurrency import iterate_in_threadpool
 
 
 # Simple in-memory store for rate limiting

@@ -1,4 +1,3 @@
-# backend/app/api/v1/evaluations.py
 import datetime
 import logging
 from typing import Dict, List, Optional, Union, Any, Annotated
@@ -54,6 +53,7 @@ async def create_evaluation(
     evaluation_service = EvaluationService(db)
     try:
         evaluation = await evaluation_service.create_evaluation(evaluation_data)
+        logger.info(evaluation)
         logger.info(f"Successfully created evaluation id={evaluation.id}")
         return evaluation
     except Exception as e:

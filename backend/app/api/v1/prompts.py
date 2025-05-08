@@ -1,19 +1,19 @@
-from typing import Dict, List, Optional, Any, Annotated
 import logging
+from typing import Dict, Optional, Any, Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.responses import JSONResponse
 
+from backend.app.api.dependencies.rate_limiter import rate_limit
 from backend.app.db.models.orm import Prompt, PromptTemplate
 from backend.app.db.repositories.base import BaseRepository
 from backend.app.db.schema.prompt_schema import (
     PromptCreate, PromptResponse, PromptUpdate
 )
 from backend.app.db.session import get_db
-from backend.app.api.dependencies.rate_limiter import rate_limit
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

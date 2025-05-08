@@ -6,7 +6,7 @@ from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.app.db.models.orm import Evaluation, EvaluationStatus, EvaluationMethod
+from backend.app.db.models.orm import Evaluation, EvaluationStatus
 from backend.app.db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)

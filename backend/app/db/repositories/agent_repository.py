@@ -1,9 +1,8 @@
-# backend/app/db/repositories/agent_repository.py
 import logging
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import or_
 

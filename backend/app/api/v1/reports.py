@@ -6,17 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Resp
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.api.dependencies.auth import get_required_current_user
+from backend.app.api.dependencies.rate_limiter import rate_limit
+from backend.app.api.middleware.jwt_validator import UserContext
 from backend.app.db.models.orm import ReportStatus, ReportFormat
-from backend.app.db.repositories.report_repository import ReportRepository
 from backend.app.db.schema.report_schema import (
     ReportCreate, ReportResponse, ReportUpdate, ReportDetailResponse, SendReportRequest
 )
 from backend.app.db.session import get_db
 from backend.app.services.report_service import ReportService
 from backend.app.utils.response_utils import create_paginated_response
-from backend.app.api.dependencies.auth import get_required_current_user
-from backend.app.api.middleware.jwt_validator import UserContext
-from backend.app.api.dependencies.rate_limiter import rate_limit
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -213,14 +212,16 @@ async def update_report(
     """
     logger.info(f"Updating report with ID: {report_id}")
 
+    if not report_data.created_by_id and current_user.db_user:
+        report_data.created_by_id = current_user.db_user.id
+
     report_service = ReportService(db)
 
     try:
         # Update with user verification
         updated_report = await report_service.update_report(
             report_id=report_id,
-            report_data=report_data,
-            user_id=current_user.db_user.id if current_user.db_user else None
+            report_data=report_data
         )
         logger.info(f"Report updated successfully: {report_id}")
         return updated_report
@@ -258,10 +259,7 @@ async def delete_report(
 
     try:
         # Delete with user verification
-        await report_service.delete_report(
-            report_id=report_id,
-            user_id=current_user.db_user.id if current_user.db_user else None
-        )
+        await report_service.delete_report(report_id=report_id)
         logger.info(f"Report deleted successfully: {report_id}")
     except Exception as e:
         logger.error(f"Failed to delete report: {str(e)}")
