@@ -18,10 +18,10 @@ app = FastAPI(
 )
 
 
-# Custom OpenAPI schema
+# Custom OpenAPI schema with security configuration
 def custom_openapi():
-    # if app.openapi_schema:
-    #     return app.openapi_schema
+    if app.openapi_schema:
+        return app.openapi_schema
 
     openapi_schema = get_openapi(
         title=settings.APP_NAME,
@@ -30,10 +30,24 @@ def custom_openapi():
         routes=app.routes,
     )
 
-    # Customize the schema if needed
+    # Customize the schema
     openapi_schema["info"]["x-logo"] = {
         "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
     }
+
+    # Add JWT Bearer security scheme - this enables the Authorize button
+    openapi_schema["components"] = openapi_schema.get("components", {})
+    openapi_schema["components"]["securitySchemes"] = {
+        "bearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Enter your JWT token in the format: **Bearer &lt;token&gt;**"
+        }
+    }
+
+    # Apply security globally to all operations (will show lock icons)
+    openapi_schema["security"] = [{"bearerAuth": []}]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

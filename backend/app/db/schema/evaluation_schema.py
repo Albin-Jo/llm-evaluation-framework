@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.db.models.orm import EvaluationMethod, EvaluationStatus
 
@@ -77,6 +77,8 @@ class EvaluationBase(BaseModel):
     experiment_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    # Added created_by_id for user ownership
+    created_by_id: Optional[UUID] = Field(None, description="ID of the user who created this evaluation")
 
 
 class EvaluationCreate(EvaluationBase):
@@ -96,6 +98,7 @@ class EvaluationUpdate(BaseModel):
     experiment_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    # Don't allow updating created_by_id after creation
 
 
 class EvaluationInDB(EvaluationBase):
@@ -106,6 +109,7 @@ class EvaluationInDB(EvaluationBase):
     prompt_id: UUID
     created_at: datetime
     updated_at: datetime
+    # Keep created_by_id from base class
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -127,6 +131,8 @@ class EvaluationComparisonBase(BaseModel):
     evaluation_a_id: UUID
     evaluation_b_id: UUID
     comparison_results: Optional[Dict] = None
+    # Added created_by_id for user ownership
+    created_by_id: Optional[UUID] = Field(None, description="ID of the user who created this comparison")
 
 
 class EvaluationComparisonCreate(EvaluationComparisonBase):
@@ -138,6 +144,7 @@ class EvaluationComparisonInDB(EvaluationComparisonBase):
     """Schema for Evaluation comparison data from database."""
     id: UUID
     created_at: datetime
+    # Keep created_by_id from base class
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -13,11 +13,13 @@ from backend.app.db.models.orm import (
     EvaluationStatus, MetricScore, Agent, Prompt, EvaluationMethod
 )
 from backend.app.db.repositories.base import BaseRepository
+from backend.app.db.repositories.evaluation_repository import EvaluationRepository
 from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationResultCreate, EvaluationUpdate
 )
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
+from backend.app.core.exceptions import NotFoundException, AuthorizationException
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -116,7 +118,7 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
 
 
 class EvaluationService:
-    """Service for handling evaluation operations."""
+    """Service for handling evaluation operations with user access control."""
 
     def __init__(self, db_session: AsyncSession):
         """
@@ -126,7 +128,8 @@ class EvaluationService:
             db_session: Database session
         """
         self.db_session = db_session
-        self.evaluation_repo = BaseRepository(Evaluation, db_session)
+        # Use our enhanced repository for evaluations
+        self.evaluation_repo = EvaluationRepository(db_session)
         self.result_repo = BaseRepository(EvaluationResult, db_session)
         self.metric_repo = BaseRepository(MetricScore, db_session)
         self.agent_repo = BaseRepository(Agent, db_session)
@@ -137,7 +140,7 @@ class EvaluationService:
             self, evaluation_data: EvaluationCreate,
     ) -> Evaluation:
         """
-        Create a new evaluation.
+        Create a new evaluation with user attribution.
 
         Args:
             evaluation_data: Evaluation data
@@ -154,6 +157,195 @@ class EvaluationService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Agent with ID {evaluation_data.agent_id} not found"
+            )
+
+    async def complete_evaluation(
+            self, evaluation_id: UUID, success: bool = True, user_id: Optional[UUID] = None
+    ) -> Optional[Evaluation]:
+        """
+        Mark an evaluation as completed or failed with optional user verification.
+
+        Args:
+            evaluation_id: Evaluation ID
+            success: Whether the evaluation was successful
+            user_id: Optional user ID for ownership verification
+
+        Returns:
+            Optional[Evaluation]: Updated evaluation if found, None otherwise
+
+        Raises:
+            HTTPException: If evaluation cannot be completed
+            AuthorizationException: If user doesn't have permission
+        """
+        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
+        try:
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                logger.warning(f"Attempted to complete non-existent evaluation {evaluation_id}")
+                return None
+
+            # Check ownership if user_id is provided
+            if user_id and evaluation.created_by_id and evaluation.created_by_id != user_id:
+                logger.warning(f"Unauthorized completion attempt on evaluation {evaluation_id} by user {user_id}")
+                raise AuthorizationException(
+                    detail="You don't have permission to complete this evaluation"
+                )
+
+            if evaluation.status not in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
+                msg = f"Evaluation is not in RUNNING or PENDING status (current: {evaluation.status})"
+                logger.warning(f"Cannot complete evaluation {evaluation_id}: {msg}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=msg
+                )
+
+            # Update status and end time
+            now = datetime.datetime.now()
+            new_status = EvaluationStatus.COMPLETED if success else EvaluationStatus.FAILED
+            update_data = {
+                "status": new_status,
+                "end_time": now
+            }
+
+            updated = await self.evaluation_repo.update(evaluation_id, update_data)
+            logger.info(f"Completed evaluation {evaluation_id} with status {new_status} at {now}")
+            return updated
+
+        except (HTTPException, AuthorizationException):
+            # Re-raise these exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error completing evaluation {evaluation_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to complete evaluation: {str(e)}"
+            )
+
+    async def get_evaluation_progress(self, evaluation_id: UUID, user_id: Optional[UUID] = None) -> Dict[str, Any]:
+        """
+        Get the progress of an evaluation with optional user verification.
+
+        Args:
+            evaluation_id: Evaluation ID
+            user_id: Optional user ID for ownership verification
+
+        Returns:
+            Dict[str, Any]: Evaluation progress information
+
+        Raises:
+            HTTPException: If an error occurs
+            AuthorizationException: If user doesn't have permission
+        """
+        try:
+            # Get evaluation
+            evaluation = await self.evaluation_repo.get(evaluation_id)
+            if not evaluation:
+                raise NotFoundException(
+                    resource="Evaluation",
+                    resource_id=str(evaluation_id),
+                    detail=f"Evaluation with ID {evaluation_id} not found"
+                )
+
+            # Check ownership if user_id is provided
+            if user_id and evaluation.created_by_id and evaluation.created_by_id != user_id:
+                logger.warning(f"Unauthorized progress check on evaluation {evaluation_id} by user {user_id}")
+                raise AuthorizationException(
+                    detail="You don't have permission to view this evaluation's progress"
+                )
+
+            # Get dataset to calculate total items
+            dataset = await self.dataset_repo.get(evaluation.dataset_id)
+            total_items = dataset.row_count if dataset and dataset.row_count else 0
+
+            # Get completed results count (instead of loading full objects)
+            query = select(func.count()).select_from(EvaluationResult).where(
+                EvaluationResult.evaluation_id == evaluation_id
+            )
+            result = await self.db_session.execute(query)
+            completed_items = result.scalar_one_or_none() or 0
+
+            # Calculate progress percentage
+            progress_pct = (completed_items / total_items * 100) if total_items > 0 else 0
+
+            # Calculate running time safely handling timezone differences
+            running_time_seconds = 0
+            if evaluation.start_time:
+                if evaluation.end_time:
+                    # Both start and end time exist
+                    # Convert to UTC if they have tzinfo, or assume they're in the same timezone
+                    start = evaluation.start_time.replace(
+                        tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
+                    end = evaluation.end_time.replace(
+                        tzinfo=None) if evaluation.end_time.tzinfo else evaluation.end_time
+                    running_time_seconds = (end - start).total_seconds()
+                else:
+                    # Only start time exists, use current time for comparison
+                    # Convert start_time to naive if it has tzinfo
+                    start = evaluation.start_time.replace(
+                        tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
+                    now = datetime.datetime.now()
+                    running_time_seconds = (now - start).total_seconds()
+
+            # Get estimated time to completion
+            estimated_time_remaining = None
+            if evaluation.status == EvaluationStatus.RUNNING and completed_items > 0 and total_items > completed_items:
+                if running_time_seconds > 0:
+                    time_per_item = running_time_seconds / completed_items
+                    estimated_time_remaining = time_per_item * (total_items - completed_items)
+
+            # Return progress information
+            return {
+                "status": evaluation.status,
+                "total_items": total_items,
+                "completed_items": completed_items,
+                "progress_percentage": round(progress_pct, 2),
+                "start_time": evaluation.start_time,
+                "end_time": evaluation.end_time,
+                "running_time_seconds": round(running_time_seconds, 2),
+                "estimated_time_remaining_seconds": round(estimated_time_remaining,
+                                                          2) if estimated_time_remaining else None
+            }
+
+        except (NotFoundException, AuthorizationException):
+            raise
+        except Exception as e:
+            logger.error(f"Error getting evaluation progress: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error getting evaluation progress: {str(e)}"
+            )
+
+    async def get_evaluation_method_handler(
+            self, method: EvaluationMethod
+    ) -> BaseEvaluationMethod:
+        """
+        Get the appropriate evaluation method handler based on the method.
+
+        Args:
+            method: Evaluation method
+
+        Returns:
+            BaseEvaluationMethod: Evaluation method handler instance
+
+        Raises:
+            HTTPException: If method is not supported
+        """
+        from backend.app.evaluation.factory import EvaluationMethodFactory
+
+        try:
+            handler = EvaluationMethodFactory.create(method, self.db_session)
+            return handler
+        except ValueError as e:
+            logger.error(f"Unsupported evaluation method: {method}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        except Exception as e:
+            logger.error(f"Error creating evaluation method handler: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error initializing evaluation method: {str(e)}"
             )
 
         dataset = await self.dataset_repo.get(evaluation_data.dataset_id)
@@ -174,12 +366,20 @@ class EvaluationService:
         if evaluation_data.metrics:
             await self._validate_metrics_for_dataset(evaluation_data.metrics, dataset)
 
+        # Ensure a user ID is provided for attribution
+        if not evaluation_data.created_by_id:
+            logger.warning("No user ID provided for evaluation creation")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User ID is required for evaluation creation"
+            )
+
         # Create evaluation - REMOVED TRANSACTION to avoid conflict with FastAPI dependency
         evaluation_dict = evaluation_data.model_dump()
 
         try:
             evaluation = await self.evaluation_repo.create(evaluation_dict)
-            logger.info(f"Created evaluation {evaluation.id}")
+            logger.info(f"Created evaluation {evaluation.id} for user {evaluation_data.created_by_id}")
             return evaluation
         except Exception as e:
             logger.error(f"Failed to create evaluation: {str(e)}")
@@ -204,29 +404,45 @@ class EvaluationService:
             logger.error(f"Error retrieving evaluation {evaluation_id}: {str(e)}")
             return None
 
-    async def get_evaluation_with_relationships(self, evaluation_id: UUID) -> Optional[Tuple[Evaluation, List[Dict]]]:
+    async def get_user_evaluation(self, evaluation_id: UUID, user_id: UUID) -> Optional[Evaluation]:
         """
-        Get evaluation with all its relationships in one query.
+        Get evaluation by ID with user ownership check.
 
         Args:
             evaluation_id: Evaluation ID
+            user_id: User ID for ownership verification
+
+        Returns:
+            Optional[Evaluation]: Evaluation if found and owned by user, None otherwise
+        """
+        try:
+            return await self.evaluation_repo.get_user_evaluation(evaluation_id, user_id)
+        except Exception as e:
+            logger.error(f"Error retrieving user evaluation {evaluation_id}: {str(e)}")
+            return None
+
+    async def get_evaluation_with_relationships(
+            self,
+            evaluation_id: UUID,
+            user_id: Optional[UUID] = None
+    ) -> Tuple[Optional[Evaluation], List[Dict]]:
+        """
+        Get evaluation with all its relationships in one query.
+        Optionally filter by user ID to ensure ownership.
+
+        Args:
+            evaluation_id: Evaluation ID
+            user_id: Optional user ID for ownership check
 
         Returns:
             Tuple[Evaluation, List[Dict]]: Evaluation and its processed results
         """
         try:
-            # Use a direct query approach for consistency with other methods
-            query = (
-                select(Evaluation)
-                .options(
-                    selectinload(Evaluation.results)
-                    .selectinload(EvaluationResult.metric_scores)
-                )
-                .where(Evaluation.id == evaluation_id)
+            # Use the repository method that loads relationships
+            evaluation = await self.evaluation_repo.get_evaluation_with_details(
+                evaluation_id,
+                user_id=user_id
             )
-
-            result = await self.db_session.execute(query)
-            evaluation = result.scalars().first()
 
             if not evaluation:
                 logger.warning(f"Evaluation {evaluation_id} not found")
@@ -268,20 +484,21 @@ class EvaluationService:
             return None, []
 
     async def update_evaluation(
-            self, evaluation_id: UUID, evaluation_data: EvaluationUpdate
+            self, evaluation_id: UUID, evaluation_data: EvaluationUpdate, user_id: Optional[UUID] = None
     ) -> Optional[Evaluation]:
         """
-        Update evaluation by ID.
+        Update evaluation by ID with optional user ownership check.
 
         Args:
             evaluation_id: Evaluation ID
             evaluation_data: Evaluation update data
+            user_id: Optional user ID for ownership verification
 
         Returns:
             Optional[Evaluation]: Updated evaluation if found, None otherwise
 
         Raises:
-            HTTPException: If update fails
+            HTTPException: If update fails or user doesn't have permission
         """
         # Filter out None values
         update_data = {
@@ -291,6 +508,15 @@ class EvaluationService:
         if not update_data:
             # No update needed
             return await self.evaluation_repo.get(evaluation_id)
+
+        # Check ownership if user_id is provided
+        if user_id:
+            evaluation = await self.evaluation_repo.get_user_evaluation(evaluation_id, user_id)
+            if not evaluation:
+                logger.warning(f"Unauthorized update attempt on evaluation {evaluation_id} by user {user_id}")
+                raise AuthorizationException(
+                    detail="You don't have permission to update this evaluation"
+                )
 
         # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
         try:
@@ -319,31 +545,8 @@ class EvaluationService:
             int: Count of matching evaluations
         """
         try:
-            from sqlalchemy import and_
-
-            # Create a direct count query with SQLAlchemy
-            query = select(func.count()).select_from(Evaluation)
-
-            # Apply filters directly
-            filter_conditions = []
-            if filters:
-                for field, value in filters.items():
-                    if hasattr(Evaluation, field):
-                        # Handle special case for string fields with LIKE operation
-                        if isinstance(value, str) and field not in ["status", "method"]:
-                            filter_conditions.append(getattr(Evaluation, field).ilike(f"%{value}%"))
-                        else:
-                            filter_conditions.append(getattr(Evaluation, field) == value)
-
-            # Apply filter conditions if any
-            if filter_conditions:
-                query = query.where(and_(*filter_conditions))
-
-            # Execute query directly with session
-            result = await self.db_session.execute(query)
-            count = result.scalar_one_or_none() or 0
-
-            return count
+            # Use repository method directly
+            return await self.evaluation_repo.count(filters)
         except Exception as e:
             logger.error(f"Error counting evaluations: {str(e)}")
             return 0
@@ -409,23 +612,71 @@ class EvaluationService:
             logger.error(f"Error listing evaluations: {str(e)}", exc_info=True)
             return []
 
-    async def delete_evaluation(self, evaluation_id: UUID) -> bool:
+    async def list_user_evaluations(
+            self,
+            user_id: UUID,
+            skip: int = 0,
+            limit: int = 100,
+            status: Optional[EvaluationStatus] = None,
+            sort_options: Dict[str, str] = None
+    ) -> List[Evaluation]:
         """
-        Delete evaluation by ID.
+        List evaluations for a specific user with optional status filter.
+
+        Args:
+            user_id: User ID to filter by
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            status: Optional status filter
+            sort_options: Sorting options
+
+        Returns:
+            List[Evaluation]: List of user's evaluations
+        """
+        try:
+            filters = {"created_by_id": user_id}
+            if status:
+                filters["status"] = status
+
+            return await self.list_evaluations(
+                skip=skip,
+                limit=limit,
+                filters=filters,
+                sort_options=sort_options
+            )
+
+        except Exception as e:
+            logger.error(f"Error listing user evaluations: {str(e)}", exc_info=True)
+            return []
+
+    async def delete_evaluation(self, evaluation_id: UUID, user_id: Optional[UUID] = None) -> bool:
+        """
+        Delete evaluation by ID with optional user ownership check.
 
         Args:
             evaluation_id: Evaluation ID
+            user_id: Optional user ID for ownership verification
 
         Returns:
             bool: True if deleted, False if not found
+
+        Raises:
+            AuthorizationException: If user doesn't have permission
         """
         # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
         try:
-            # First, check if evaluation exists
+            # First, check if evaluation exists and user has permission
             evaluation = await self.evaluation_repo.get(evaluation_id)
             if not evaluation:
                 logger.warning(f"Attempted to delete non-existent evaluation {evaluation_id}")
                 return False
+
+            # Check ownership if user_id is provided
+            if user_id and evaluation.created_by_id and evaluation.created_by_id != user_id:
+                logger.warning(f"Unauthorized deletion attempt on evaluation {evaluation_id} by user {user_id}")
+                raise AuthorizationException(
+                    detail="You don't have permission to delete this evaluation"
+                )
 
             # Get all results for this evaluation
             results = await self.result_repo.get_multi(filters={"evaluation_id": evaluation_id})
@@ -445,6 +696,9 @@ class EvaluationService:
                 logger.info(f"Deleted evaluation {evaluation_id} and related data")
             return success
 
+        except AuthorizationException:
+            # Re-raise authorization exceptions
+            raise
         except Exception as e:
             logger.error(f"Error deleting evaluation {evaluation_id}: {str(e)}")
             return False
@@ -535,20 +789,34 @@ class EvaluationService:
             )
 
     async def get_evaluation_results(
-            self, evaluation_id: UUID, skip: int = 0, limit: int = 100
+            self, evaluation_id: UUID, skip: int = 0, limit: int = 100, user_id: Optional[UUID] = None
     ) -> List[EvaluationResult]:
         """
-        Get results for an evaluation with pagination.
+        Get results for an evaluation with pagination and optional user verification.
 
         Args:
             evaluation_id: Evaluation ID
             skip: Number of records to skip
             limit: Maximum number of records to return
+            user_id: Optional user ID for ownership verification
 
         Returns:
             List[EvaluationResult]: List of evaluation results
+
+        Raises:
+            AuthorizationException: If user doesn't have permission
         """
         try:
+            # Check ownership if user_id is provided
+            if user_id:
+                evaluation = await self.evaluation_repo.get(evaluation_id)
+                if evaluation and evaluation.created_by_id and evaluation.created_by_id != user_id:
+                    logger.warning(
+                        f"Unauthorized access attempt to results for evaluation {evaluation_id} by user {user_id}")
+                    raise AuthorizationException(
+                        detail="You don't have permission to access these evaluation results"
+                    )
+
             results = await self.result_repo.get_multi(
                 skip=skip,
                 limit=limit,
@@ -557,6 +825,9 @@ class EvaluationService:
             )
             logger.debug(f"Retrieved {len(results)} results for evaluation {evaluation_id}")
             return results
+        except AuthorizationException:
+            # Re-raise authorization exceptions
+            raise
         except Exception as e:
             logger.error(f"Error retrieving results for evaluation {evaluation_id}: {str(e)}")
             return []
@@ -581,18 +852,20 @@ class EvaluationService:
             logger.error(f"Error retrieving metric scores for result {result_id}: {str(e)}")
             return []
 
-    async def start_evaluation(self, evaluation_id: UUID) -> Optional[Evaluation]:
+    async def start_evaluation(self, evaluation_id: UUID, user_id: Optional[UUID] = None) -> Optional[Evaluation]:
         """
-        Start an evaluation.
+        Start an evaluation with optional user verification.
 
         Args:
             evaluation_id: Evaluation ID
+            user_id: Optional user ID for ownership verification
 
         Returns:
             Optional[Evaluation]: Updated evaluation if found, None otherwise
 
         Raises:
             HTTPException: If evaluation cannot be started
+            AuthorizationException: If user doesn't have permission
         """
         # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
         try:
@@ -600,6 +873,13 @@ class EvaluationService:
             if not evaluation:
                 logger.warning(f"Attempted to start non-existent evaluation {evaluation_id}")
                 return None
+
+            # Check ownership if user_id is provided
+            if user_id and evaluation.created_by_id and evaluation.created_by_id != user_id:
+                logger.warning(f"Unauthorized start attempt on evaluation {evaluation_id} by user {user_id}")
+                raise AuthorizationException(
+                    detail="You don't have permission to start this evaluation"
+                )
 
             if evaluation.status != EvaluationStatus.PENDING:
                 msg = f"Evaluation is already in {evaluation.status} status"
@@ -620,8 +900,8 @@ class EvaluationService:
             logger.info(f"Started evaluation {evaluation_id} at {now}")
             return updated
 
-        except HTTPException:
-            # Re-raise HTTP exceptions
+        except (HTTPException, AuthorizationException):
+            # Re-raise these exceptions
             raise
         except Exception as e:
             logger.error(f"Error starting evaluation {evaluation_id}: {str(e)}")
@@ -630,17 +910,19 @@ class EvaluationService:
                 detail=f"Failed to start evaluation: {str(e)}"
             )
 
-    async def queue_evaluation_job(self, evaluation_id: UUID) -> None:
+    async def queue_evaluation_job(self, evaluation_id: UUID, user_id: Optional[UUID] = None) -> None:
         """
-        Queue an evaluation job for background processing.
+        Queue an evaluation job for background processing with optional user verification.
 
         This will send a task to Celery or run directly in a background task.
 
         Args:
             evaluation_id: Evaluation ID
+            user_id: Optional user ID for ownership verification
 
         Raises:
             HTTPException: If queueing fails
+            AuthorizationException: If user doesn't have permission
         """
         try:
             # Get the evaluation to check if it can be queued
@@ -648,6 +930,13 @@ class EvaluationService:
             if not evaluation:
                 logger.error(f"Evaluation {evaluation_id} not found")
                 raise ValueError(f"Evaluation {evaluation_id} not found")
+
+            # Check ownership if user_id is provided
+            if user_id and evaluation.created_by_id and evaluation.created_by_id != user_id:
+                logger.warning(f"Unauthorized queue attempt on evaluation {evaluation_id} by user {user_id}")
+                raise AuthorizationException(
+                    detail="You don't have permission to queue this evaluation"
+                )
 
             if evaluation.status != EvaluationStatus.PENDING:
                 logger.warning(f"Evaluation {evaluation_id} is in {evaluation.status} status, not PENDING")
@@ -689,6 +978,9 @@ class EvaluationService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e)
             )
+        except AuthorizationException:
+            # Re-raise authorization exceptions
+            raise
         except Exception as e:
             logger.error(f"Error queueing evaluation job: {str(e)}", exc_info=True)
             # Set evaluation to failed status
@@ -707,171 +999,4 @@ class EvaluationService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to queue evaluation job: {str(e)}"
-            )
-
-    async def complete_evaluation(
-            self, evaluation_id: UUID, success: bool = True
-    ) -> Optional[Evaluation]:
-        """
-        Mark an evaluation as completed or failed.
-
-        Args:
-            evaluation_id: Evaluation ID
-            success: Whether the evaluation was successful
-
-        Returns:
-            Optional[Evaluation]: Updated evaluation if found, None otherwise
-
-        Raises:
-            HTTPException: If evaluation cannot be completed
-        """
-        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
-        try:
-            evaluation = await self.evaluation_repo.get(evaluation_id)
-            if not evaluation:
-                logger.warning(f"Attempted to complete non-existent evaluation {evaluation_id}")
-                return None
-
-            if evaluation.status not in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
-                msg = f"Evaluation is not in RUNNING or PENDING status (current: {evaluation.status})"
-                logger.warning(f"Cannot complete evaluation {evaluation_id}: {msg}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=msg
-                )
-
-            # Update status and end time
-            now = datetime.datetime.now()
-            new_status = EvaluationStatus.COMPLETED if success else EvaluationStatus.FAILED
-            update_data = {
-                "status": new_status,
-                "end_time": now
-            }
-
-            updated = await self.evaluation_repo.update(evaluation_id, update_data)
-            logger.info(f"Completed evaluation {evaluation_id} with status {new_status} at {now}")
-            return updated
-
-        except HTTPException:
-            # Re-raise HTTP exceptions
-            raise
-        except Exception as e:
-            logger.error(f"Error completing evaluation {evaluation_id}: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to complete evaluation: {str(e)}"
-            )
-
-    async def get_evaluation_progress(self, evaluation_id: UUID) -> Dict[str, Any]:
-        """
-        Get the progress of an evaluation.
-
-        Args:
-            evaluation_id: Evaluation ID
-
-        Returns:
-            Dict[str, Any]: Evaluation progress information
-        """
-        try:
-            # Get evaluation
-            evaluation = await self.evaluation_repo.get(evaluation_id)
-            if not evaluation:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Evaluation with ID {evaluation_id} not found"
-                )
-
-            # Get dataset to calculate total items
-            dataset = await self.dataset_repo.get(evaluation.dataset_id)
-            total_items = dataset.row_count if dataset and dataset.row_count else 0
-
-            # Get completed results count (instead of loading full objects)
-            query = select(func.count()).select_from(EvaluationResult).where(
-                EvaluationResult.evaluation_id == evaluation_id
-            )
-            result = await self.db_session.execute(query)
-            completed_items = result.scalar_one_or_none() or 0
-
-            # Calculate progress percentage
-            progress_pct = (completed_items / total_items * 100) if total_items > 0 else 0
-
-            # Calculate running time safely handling timezone differences
-            running_time_seconds = 0
-            if evaluation.start_time:
-                if evaluation.end_time:
-                    # Both start and end time exist
-                    # Convert to UTC if they have tzinfo, or assume they're in the same timezone
-                    start = evaluation.start_time.replace(
-                        tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
-                    end = evaluation.end_time.replace(
-                        tzinfo=None) if evaluation.end_time.tzinfo else evaluation.end_time
-                    running_time_seconds = (end - start).total_seconds()
-                else:
-                    # Only start time exists, use current time for comparison
-                    # Convert start_time to naive if it has tzinfo
-                    start = evaluation.start_time.replace(
-                        tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
-                    now = datetime.datetime.now()
-                    running_time_seconds = (now - start).total_seconds()
-
-            # Get estimated time to completion
-            estimated_time_remaining = None
-            if evaluation.status == EvaluationStatus.RUNNING and completed_items > 0 and total_items > completed_items:
-                if running_time_seconds > 0:
-                    time_per_item = running_time_seconds / completed_items
-                    estimated_time_remaining = time_per_item * (total_items - completed_items)
-
-            # Return progress information
-            return {
-                "status": evaluation.status,
-                "total_items": total_items,
-                "completed_items": completed_items,
-                "progress_percentage": round(progress_pct, 2),
-                "start_time": evaluation.start_time,
-                "end_time": evaluation.end_time,
-                "running_time_seconds": round(running_time_seconds, 2),
-                "estimated_time_remaining_seconds": round(estimated_time_remaining,
-                                                          2) if estimated_time_remaining else None
-            }
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Error getting evaluation progress: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error getting evaluation progress: {str(e)}"
-            )
-
-    async def get_evaluation_method_handler(
-            self, method: EvaluationMethod
-    ) -> BaseEvaluationMethod:
-        """
-        Get the appropriate evaluation method handler based on the method.
-
-        Args:
-            method: Evaluation method
-
-        Returns:
-            BaseEvaluationMethod: Evaluation method handler instance
-
-        Raises:
-            HTTPException: If method is not supported
-        """
-        from backend.app.evaluation.factory import EvaluationMethodFactory
-
-        try:
-            handler = EvaluationMethodFactory.create(method, self.db_session)
-            return handler
-        except ValueError as e:
-            logger.error(f"Unsupported evaluation method: {method}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
-        except Exception as e:
-            logger.error(f"Error creating evaluation method handler: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error initializing evaluation method: {str(e)}"
             )

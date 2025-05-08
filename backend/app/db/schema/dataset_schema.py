@@ -17,6 +17,8 @@ class DatasetBase(BaseModel):
     version: str = "1.0.0"
     row_count: Optional[int] = None
     is_public: bool = False
+    # Added created_by_id for user ownership
+    created_by_id: Optional[UUID] = None
 
 
 class DatasetCreate(DatasetBase):
@@ -31,6 +33,7 @@ class DatasetInDB(DatasetBase):
     file_path: str
     created_at: datetime
     updated_at: datetime
+    # Keep created_by_id from base class
 
     model_config = {"from_attributes": True}
 
@@ -50,6 +53,7 @@ class DatasetUpdate(BaseModel):
     version: Optional[str] = None
     row_count: Optional[int] = None
     is_public: Optional[bool] = None
+    # Don't allow updating created_by_id after creation
 
 
 class DatasetSchemaInfo(BaseModel):
@@ -66,4 +70,3 @@ class DatasetSchemaResponse(BaseModel):
     schema: DatasetSchemaInfo = Field(..., description="Schema information for the dataset type")
     supported_metrics: List[str] = Field(default_factory=list,
                                          description="Metrics that can be calculated with this dataset type")
-...

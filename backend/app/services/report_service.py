@@ -1,5 +1,3 @@
-# File: backend/app/services/report_service.py
-
 import json
 import logging
 import os
@@ -9,11 +7,11 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.app.core.config import settings
-from backend.app.db.models.orm import Report, ReportStatus, ReportFormat, Evaluation, EvaluationResult, MetricScore
+from backend.app.db.models.orm import Report, ReportStatus, ReportFormat, Evaluation, EvaluationResult
 from backend.app.db.repositories.base import BaseRepository
 from backend.app.db.repositories.report_repository import ReportRepository
 from backend.app.db.schema.report_schema import ReportCreate, ReportUpdate, EmailRecipient
@@ -122,14 +120,17 @@ class ReportService:
         return report
 
     async def list_reports(
-            self, skip: int = 0, limit: int = 100,
+            self,
+            skip: int = 0,
+            limit: int = 100,
             evaluation_id: Optional[UUID] = None,
             status: Optional[ReportStatus] = None,
             is_public: Optional[bool] = None,
             name: Optional[str] = None,
+            user_id: Optional[UUID] = None
     ) -> List[Report]:
         """
-        List reports with optional filtering.
+        List reports with optional filtering and user-based access control.
 
         Args:
             skip: Number of records to skip
@@ -138,12 +139,15 @@ class ReportService:
             status: Optional status filter
             is_public: Optional public/private filter
             name: Optional name filter (partial match)
+            user_id: Optional user ID for ownership filtering
 
         Returns:
             List[Report]: List of reports
         """
         logger.debug(
-            f"Listing reports with filters: evaluation_id={evaluation_id}, status={status}, is_public={is_public}, name={name}")
+            f"Listing reports with filters: evaluation_id={evaluation_id}, "
+            f"status={status}, is_public={is_public}, name={name}, user_id={user_id}"
+        )
 
         filters = {}
 
@@ -155,10 +159,16 @@ class ReportService:
         if is_public is not None:
             filters["is_public"] = is_public
 
+        # Add user filter if provided
+        if user_id:
+            filters["created_by_id"] = user_id
+
         # Get Reports
         if name:
             # Use custom search method for name partial match
-            reports = await self.report_repo.search_by_name(name, skip=skip, limit=limit, additional_filters=filters)
+            reports = await self.report_repo.search_by_name(
+                name, skip=skip, limit=limit, additional_filters=filters, user_id=user_id
+            )
         else:
             # Use standard get_multi for exact filters
             reports = await self.report_repo.get_multi(skip=skip, limit=limit, filters=filters)
@@ -244,20 +254,26 @@ class ReportService:
         logger.info(f"Report deleted successfully: {report_id}")
         return True
 
-    async def fetch_evaluation_data(self, evaluation_id: UUID) -> Dict[str, Any]:
+    async def fetch_evaluation_data(
+            self,
+            evaluation_id: UUID,
+            user_id: Optional[UUID] = None
+    ) -> Dict[str, Any]:
         """
         Fetch all necessary evaluation data for report generation in a single query.
+        Optionally verifies user access to the evaluation.
 
         This method eagerly loads all relationships to avoid lazy loading.
 
         Args:
             evaluation_id: The evaluation ID
+            user_id: Optional user ID for ownership verification
 
         Returns:
             Dict containing the evaluation, results, and related data
 
         Raises:
-            HTTPException: If evaluation not found
+            HTTPException: If evaluation not found or user doesn't have access
         """
         # Create query that joins all necessary tables and loads them eagerly
         query = (
@@ -271,15 +287,19 @@ class ReportService:
             .where(Evaluation.id == evaluation_id)
         )
 
+        # Add user filter if provided
+        if user_id:
+            query = query.where(Evaluation.created_by_id == user_id)
+
         # Execute query
         result = await self.db_session.execute(query)
         evaluation = result.scalar_one_or_none()
 
         if not evaluation:
-            logger.error(f"Evaluation {evaluation_id} not found")
+            logger.error(f"Evaluation {evaluation_id} not found or user {user_id} doesn't have access")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Evaluation with ID {evaluation_id} not found"
+                detail=f"Evaluation with ID {evaluation_id} not found or you don't have access to it"
             )
 
         # Extract all data needed for report in dictionary format
@@ -356,29 +376,45 @@ class ReportService:
             "results": results_data
         }
 
-    async def generate_report(self, report_id: UUID, force_regenerate: bool = False) -> Report:
+    async def generate_report(
+            self,
+            report_id: UUID,
+            force_regenerate: bool = False,
+            user_id: Optional[UUID] = None
+    ) -> Report:
         """
-        Generate a report file based on the report configuration.
+        Generate a report file based on the report configuration with user verification.
 
         Args:
             report_id: Report ID
             force_regenerate: Whether to force regeneration even if already generated
+            user_id: Optional user ID for ownership verification
 
         Returns:
             Report: Updated report with file path
 
         Raises:
-            HTTPException: If report not found or generation fails
+            HTTPException: If report not found, user doesn't have access, or generation fails
         """
         logger.info(f"Generating report file for report ID: {report_id}")
 
-        report = await self.report_repo.get(report_id)
-        if not report:
-            logger.warning(f"Report with ID {report_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Report with ID {report_id} not found"
-            )
+        # Get report with user verification if user_id provided
+        if user_id:
+            report = await self.report_repo.get_user_report(report_id, user_id)
+            if not report:
+                logger.warning(f"Report with ID {report_id} not found or user {user_id} doesn't have access")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Report with ID {report_id} not found or you don't have permission to generate it"
+                )
+        else:
+            report = await self.report_repo.get(report_id)
+            if not report:
+                logger.warning(f"Report with ID {report_id} not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Report with ID {report_id} not found"
+                )
 
         # Check if report is already generated and force_regenerate is False
         if report.status == ReportStatus.GENERATED and not force_regenerate and report.file_path:
@@ -387,7 +423,8 @@ class ReportService:
 
         try:
             # Fetch all evaluation data in a single query to avoid lazy loading later
-            data = await self.fetch_evaluation_data(report.evaluation_id)
+            # Pass user_id for ownership verification of the evaluation
+            data = await self.fetch_evaluation_data(report.evaluation_id, user_id)
             evaluation_data = data["evaluation"]
             results_data = data["results"]
 
@@ -431,8 +468,9 @@ class ReportService:
                 detail=f"Error generating report file: {str(e)}"
             )
 
+    @staticmethod
     def _format_report_content(
-            self, evaluation: Dict[str, Any], results: List[Dict[str, Any]], config: Dict[str, Any]
+            evaluation: Dict[str, Any], results: List[Dict[str, Any]], config: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Format report content based on evaluation data and config.
@@ -636,14 +674,14 @@ class ReportService:
                 json.dump(content, f, indent=2)
         elif format == ReportFormat.HTML:
             # Generate HTML report - Fixed to call without await
-            html_content = self._generate_html_report(content)
+            html_content = self.generate_html_report(content)
 
             with open(f"{settings.STORAGE_LOCAL_PATH}/{file_path}", "w") as f:
                 f.write(html_content)
         elif format == ReportFormat.PDF:
             # For PDF, we'll first generate HTML, then convert to PDF
             # Fixed to call without await
-            html_content = self._generate_html_report(content)
+            html_content = self.generate_html_report(content)
 
             # Write HTML to temporary file
             temp_html_path = f"{dir_path}/temp_{report_id}.html"
@@ -663,8 +701,7 @@ class ReportService:
 
         return file_path
 
-    # Changed from async def to def (removed async keyword)
-    def _generate_html_report(self, content: Dict[str, Any]) -> str:
+    def generate_html_report(self, content: Dict[str, Any]) -> str:
         """
         Generate an HTML report from the content.
 
@@ -739,7 +776,8 @@ class ReportService:
 
         return html
 
-    def _generate_executive_summary_html(self, content: Dict[str, Any]) -> str:
+    @staticmethod
+    def _generate_executive_summary_html(content: Dict[str, Any]) -> str:
         """Generate HTML for executive summary section."""
         overall_score = content.get('overall_score', 0)
         metric_averages = content.get('metric_averages', {})
@@ -799,7 +837,8 @@ class ReportService:
 
         return html
 
-    def _generate_evaluation_details_html(self, content: Dict[str, Any]) -> str:
+    @staticmethod
+    def _generate_evaluation_details_html(content: Dict[str, Any]) -> str:
         """Generate HTML for evaluation details section."""
         name = content.get('name', 'N/A')
         description = content.get('description', 'N/A')
@@ -856,7 +895,8 @@ class ReportService:
 
         return html
 
-    def _generate_metrics_overview_html(self, content: Dict[str, Any]) -> str:
+    @staticmethod
+    def _generate_metrics_overview_html(content: Dict[str, Any]) -> str:
         """Generate HTML for metrics overview section."""
         metrics_distribution = content.get('metrics_distribution', {})
 
@@ -890,7 +930,8 @@ class ReportService:
 
         return html
 
-    def _generate_detailed_results_html(self, content: Dict[str, Any]) -> str:
+    @staticmethod
+    def _generate_detailed_results_html(content: Dict[str, Any]) -> str:
         """Generate HTML for detailed results section."""
         results = content.get('results', [])
 
@@ -970,12 +1011,16 @@ class ReportService:
         return html
 
     async def send_report_email(
-            self, report_id: UUID, recipients: List[EmailRecipient],
-            subject: Optional[str] = None, message: Optional[str] = None,
-            include_pdf: bool = True
+            self,
+            report_id: UUID,
+            recipients: List[EmailRecipient],
+            subject: Optional[str] = None,
+            message: Optional[str] = None,
+            include_pdf: bool = True,
+            user_id: Optional[UUID] = None
     ) -> bool:
         """
-        Send a report via email.
+        Send a report via email with user verification.
 
         Args:
             report_id: Report ID
@@ -983,23 +1028,33 @@ class ReportService:
             subject: Email subject
             message: Email message
             include_pdf: Whether to include the PDF attachment
+            user_id: Optional user ID for ownership verification
 
         Returns:
             bool: True if email sent successfully
 
         Raises:
-            HTTPException: If report not found or email sending fails
+            HTTPException: If report not found, user doesn't have access, or email sending fails
         """
         logger.info(f"Sending report {report_id} via email to {len(recipients)} recipients")
 
-        # Get report
-        report = await self.report_repo.get(report_id)
-        if not report:
-            logger.warning(f"Report with ID {report_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Report with ID {report_id} not found"
-            )
+        # Get report with user verification if user_id provided
+        if user_id:
+            report = await self.report_repo.get_user_report(report_id, user_id)
+            if not report:
+                logger.warning(f"Report with ID {report_id} not found or user {user_id} doesn't have access")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Report with ID {report_id} not found or you don't have permission to send it"
+                )
+        else:
+            report = await self.report_repo.get(report_id)
+            if not report:
+                logger.warning(f"Report with ID {report_id} not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Report with ID {report_id} not found"
+                )
 
         # Ensure report is generated
         if report.status != ReportStatus.GENERATED or not report.file_path:
@@ -1054,29 +1109,43 @@ class ReportService:
                 detail=f"Error sending report email: {str(e)}"
             )
 
-    async def get_report_file(self, report_id: UUID) -> BinaryIO:
+    async def get_report_file(self, report_id: UUID, user_id: Optional[UUID] = None) -> BinaryIO:
         """
-        Get the generated report file.
+        Get the generated report file with optional user verification.
 
         Args:
             report_id: Report ID
+            user_id: Optional user ID for ownership verification
 
         Returns:
             BinaryIO: File object
 
         Raises:
-            HTTPException: If report not found or file not generated
+            HTTPException: If report not found, user doesn't have access, or file not generated
         """
         logger.info(f"Getting report file for report ID: {report_id}")
 
-        # Get report
-        report = await self.report_repo.get(report_id)
-        if not report:
-            logger.warning(f"Report with ID {report_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Report with ID {report_id} not found"
-            )
+        # Get report with user verification if user_id provided
+        if user_id:
+            report = await self.report_repo.get_user_report(report_id, user_id)
+            if not report:
+                # Check if it's a public report
+                report = await self.report_repo.get_accessible_report(report_id, user_id)
+
+                if not report:
+                    logger.warning(f"Report with ID {report_id} not found or user {user_id} doesn't have access")
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Report with ID {report_id} not found or you don't have access to it"
+                    )
+        else:
+            report = await self.report_repo.get(report_id)
+            if not report:
+                logger.warning(f"Report with ID {report_id} not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Report with ID {report_id} not found"
+                )
 
         # Check if report is generated
         if report.status != ReportStatus.GENERATED or not report.file_path:
@@ -1108,3 +1177,58 @@ class ReportService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error getting report file: {str(e)}"
             )
+
+    async def count_reports_by_status(self, user_id: Optional[UUID] = None) -> Dict[str, int]:
+        """
+        Count reports grouped by status, optionally filtering by user ownership.
+
+        Args:
+            user_id: Optional user ID to filter by ownership
+
+        Returns:
+            Dictionary mapping status to count
+        """
+        # Use the repository method with user filtering
+        return await self.report_repo.count_reports_by_status(user_id)
+
+    async def get_user_report(self, report_id: UUID, user_id: Optional[UUID] = None) -> Report:
+        """
+        Get a report by ID with user verification.
+
+        Args:
+            report_id: Report ID
+            user_id: Optional user ID for ownership verification
+
+        Returns:
+            Report: Retrieved report
+
+        Raises:
+            HTTPException: If report not found or user doesn't have access
+        """
+        logger.debug(f"Getting report with ID: {report_id} for user: {user_id}")
+
+        if user_id:
+            # Get report owned by this user
+            report = await self.report_repo.get_user_report(report_id, user_id)
+
+            if not report:
+                # Check if it's a public report
+                report = await self.report_repo.get_accessible_report(report_id, user_id)
+
+                if not report:
+                    logger.warning(f"Report with ID {report_id} not found or user {user_id} doesn't have access")
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Report with ID {report_id} not found or you don't have access to it"
+                    )
+        else:
+            # Without user_id, just get the report
+            report = await self.report_repo.get(report_id)
+            if not report:
+                logger.warning(f"Report with ID {report_id} not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Report with ID {report_id} not found"
+                )
+
+        return report

@@ -14,6 +14,9 @@ class ReportBase(BaseModel):
     description: Optional[str] = Field(None, description="Description of the report")
     format: ReportFormat = Field(default=ReportFormat.PDF, description="Format of the report")
     config: Optional[Dict[str, Any]] = Field(None, description="Configuration options for the report")
+    is_public: bool = Field(default=False, description="Whether the report is publicly accessible")
+    # Added created_by_id for user ownership
+    created_by_id: Optional[UUID] = Field(None, description="ID of the user who created this report")
 
 
 class ReportCreate(ReportBase):
@@ -35,6 +38,7 @@ class ReportUpdate(BaseModel):
     config: Optional[Dict[str, Any]] = None
     is_public: Optional[bool] = None
     status: Optional[ReportStatus] = None
+    # Don't allow updating created_by_id after creation
 
 
 class ReportInDB(ReportBase):
@@ -47,6 +51,7 @@ class ReportInDB(ReportBase):
     last_sent_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    # Keep created_by_id from base class
 
     model_config = ConfigDict(from_attributes=True)
 

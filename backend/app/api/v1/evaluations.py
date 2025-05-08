@@ -18,6 +18,8 @@ from backend.app.services.evaluation_service import EvaluationService, _run_eval
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.api.dependencies.rate_limiter import rate_limit
 from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
+from backend.app.api.dependencies.auth import get_required_current_user
+from backend.app.api.middleware.jwt_validator import UserContext
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -29,6 +31,7 @@ router = APIRouter()
 async def create_evaluation(
         evaluation_data: EvaluationCreate,
         db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
         _: None = Depends(rate_limit(max_requests=10, period_seconds=60))
 ):
     """
@@ -43,6 +46,10 @@ async def create_evaluation(
     """
     logger.info(f"Creating new evaluation with dataset_id={evaluation_data.dataset_id}, "
                 f"agent_id={evaluation_data.agent_id}")
+
+    # Add the user ID to the evaluation data
+    if not evaluation_data.created_by_id and current_user.db_user:
+        evaluation_data.created_by_id = current_user.db_user.id
 
     evaluation_service = EvaluationService(db)
     try:
@@ -72,6 +79,7 @@ async def list_evaluations(
         sort_by: Annotated[Optional[str], Query(description="Field to sort by")] = "created_at",
         sort_dir: Annotated[Optional[str], Query(description="Sort direction (asc or desc)")] = "desc",
         db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
         _: None = Depends(rate_limit(max_requests=50, period_seconds=60))
 ):
     """
@@ -104,6 +112,10 @@ async def list_evaluations(
         filters["name"] = name
     if method:
         filters["method"] = method
+
+    # Add user ID to filter only user's evaluations
+    if current_user.db_user:
+        filters["created_by_id"] = current_user.db_user.id
 
     # Validate sort_by parameter
     valid_sort_fields = ["created_at", "updated_at", "name", "status", "method", "start_time", "end_time"]
@@ -177,7 +189,8 @@ async def search_evaluations(
         limit: int = Body(100, ge=1, le=1000, description="Maximum number of records to return"),
         sort_by: str = Body("created_at", description="Field to sort by"),
         sort_dir: str = Body("desc", description="Sort direction (asc or desc)"),
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Advanced search for evaluations across multiple fields.
@@ -193,11 +206,20 @@ async def search_evaluations(
         sort_by: Field to sort by
         sort_dir: Sort direction
         db: Database session
+        current_user: The authenticated user
 
     Returns:
         Dict containing search results and pagination info
     """
     logger.info(f"Advanced search for evaluations with query: '{query}' and filters: {filters}")
+
+    # Initialize filters if not provided
+    if filters is None:
+        filters = {}
+
+    # Add user ID to filter only user's evaluations
+    if current_user.db_user:
+        filters["created_by_id"] = current_user.db_user.id
 
     # Create repository directly since we need the search methods
     from backend.app.db.repositories.evaluation_repository import EvaluationRepository
@@ -245,6 +267,7 @@ async def search_evaluations(
 async def get_evaluation(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to retrieve")],
         db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Get evaluation by ID with all related details.
@@ -267,6 +290,13 @@ async def get_evaluation(
 
         if not evaluation:
             raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
+
+        # Check if the user has permission to access this evaluation
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to access this evaluation"
+            )
 
         # Create response dictionary with all needed fields
         response_dict = {
@@ -293,6 +323,8 @@ async def get_evaluation(
 
     except NotFoundException:
         raise
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Error retrieving evaluation details: {str(e)}")
         raise HTTPException(
@@ -305,7 +337,8 @@ async def get_evaluation(
 async def update_evaluation(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to update")],
         evaluation_data: EvaluationUpdate,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Update evaluation by ID.
@@ -327,6 +360,20 @@ async def update_evaluation(
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
             raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
+
+        # Check if the user has permission to test this evaluation
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to test this evaluation"
+            )
+
+        # Check if the user has permission to update this evaluation
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to update this evaluation"
+            )
 
         # Check if we're trying to update fields that shouldn't be changed after certain states
         if evaluation.status not in [EvaluationStatus.PENDING, EvaluationStatus.FAILED]:
@@ -359,6 +406,8 @@ async def update_evaluation(
         return updated_evaluation
     except (NotFoundException, InvalidStateException):
         raise
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error updating evaluation id={evaluation_id}: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -370,7 +419,8 @@ async def update_evaluation(
 @router.delete("/{evaluation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_evaluation(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to delete")],
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Delete evaluation by ID.
@@ -391,6 +441,13 @@ async def delete_evaluation(
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
             raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
+
+        # Check if the user has permission to delete this evaluation
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to delete this evaluation"
+            )
 
         # Check if evaluation is running before deleting
         if evaluation.status == EvaluationStatus.RUNNING:
@@ -415,6 +472,8 @@ async def delete_evaluation(
         logger.info(f"Successfully deleted evaluation id={evaluation_id}")
     except (NotFoundException, InvalidStateException):
         raise
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting evaluation id={evaluation_id}: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -428,6 +487,7 @@ async def start_evaluation(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to start")],
         background_tasks: BackgroundTasks,
         db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
         _: None = Depends(rate_limit(max_requests=5, period_seconds=60))
 ):
     logger.info(f"Starting evaluation id={evaluation_id}")
@@ -442,6 +502,13 @@ async def start_evaluation(
                 resource="Evaluation",
                 resource_id=str(evaluation_id),
                 detail=f"Evaluation with ID {evaluation_id} not found. Please check the ID and try again."
+            )
+
+        # Check if the user has permission to start this evaluation
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to start this evaluation"
             )
 
         # Check if evaluation can be started
@@ -494,6 +561,8 @@ async def start_evaluation(
 
     except (NotFoundException, InvalidStateException):
         raise
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting evaluation id={evaluation_id}: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -505,7 +574,8 @@ async def start_evaluation(
 @router.get("/{evaluation_id}/progress", response_model=Dict)
 async def get_evaluation_progress(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to check progress")],
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Get the progress of an evaluation.
@@ -523,9 +593,26 @@ async def get_evaluation_progress(
     evaluation_service = EvaluationService(db)
 
     try:
+        # First get the evaluation to check permissions
+        evaluation = await evaluation_service.get_evaluation(evaluation_id)
+        if not evaluation:
+            raise NotFoundException(
+                resource="Evaluation",
+                resource_id=str(evaluation_id)
+            )
+
+        # Check if the user has permission to view this evaluation's progress
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this evaluation's progress"
+            )
+
         progress = await evaluation_service.get_evaluation_progress(evaluation_id)
         return progress
     except NotFoundException:
+        raise
+    except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting evaluation progress: {str(e)}", exc_info=True)
@@ -538,7 +625,8 @@ async def get_evaluation_progress(
 @router.post("/{evaluation_id}/cancel", response_model=EvaluationResponse)
 async def cancel_evaluation(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to cancel")],
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Cancel a running evaluation.
@@ -560,6 +648,13 @@ async def cancel_evaluation(
         if not evaluation:
             raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
 
+        # Check if the user has permission to cancel this evaluation
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to cancel this evaluation"
+            )
+
         # Check if the evaluation is running
         if evaluation.status != EvaluationStatus.RUNNING:
             raise InvalidStateException(
@@ -580,6 +675,8 @@ async def cancel_evaluation(
         return updated_evaluation
     except (NotFoundException, InvalidStateException):
         raise
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error cancelling evaluation id={evaluation_id}: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -593,7 +690,8 @@ async def get_evaluation_results(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to get results for")],
         skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
         limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of records to return")] = 100,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Get results for an evaluation with pagination.
@@ -616,6 +714,13 @@ async def get_evaluation_results(
         evaluation = await evaluation_service.get_evaluation(evaluation_id)
         if not evaluation:
             raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
+
+        # Check if the user has permission to view this evaluation's results
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this evaluation's results"
+            )
 
         # Get evaluation results
         logger.debug(f"Fetching results for evaluation id={evaluation_id}")
@@ -651,6 +756,8 @@ async def get_evaluation_results(
         }
     except NotFoundException:
         raise
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error retrieving results for evaluation id={evaluation_id}: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -661,8 +768,7 @@ async def get_evaluation_results(
 
 @router.get("/metrics/{dataset_type}", response_model=Dict[str, Union[str, List[str]]])
 async def get_supported_metrics(
-        dataset_type: Annotated[str, Path(description="The dataset type to get supported metrics for")],
-        db: AsyncSession = Depends(get_db)
+        dataset_type: Annotated[str, Path(description="The dataset type to get supported metrics for")]
 ):
     """
     Get supported metrics for a specific dataset type.

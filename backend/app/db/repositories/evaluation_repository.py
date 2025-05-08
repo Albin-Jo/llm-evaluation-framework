@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class EvaluationRepository(BaseRepository):
-    """Repository for Evaluation model operations."""
+    """Repository for Evaluation model operations with user-based access control."""
 
     def __init__(self, db: AsyncSession):
         """Initialize repository with Evaluation model and database session."""
@@ -26,10 +26,12 @@ class EvaluationRepository(BaseRepository):
             skip: int = 0,
             limit: int = 100,
             sort_by: str = "created_at",
-            sort_dir: str = "desc"
+            sort_dir: str = "desc",
+            user_id: Optional[UUID] = None
     ) -> List[Evaluation]:
         """
         Search evaluations with text search across name and description.
+        Filter by user ID if provided to limit to user's own evaluations.
 
         Args:
             query_text: Text to search across name and description
@@ -38,6 +40,7 @@ class EvaluationRepository(BaseRepository):
             limit: Maximum number of records to return
             sort_by: Field to sort by
             sort_dir: Sort direction ('asc' or 'desc')
+            user_id: User ID to filter by (if provided)
 
         Returns:
             List of evaluations matching the search criteria
@@ -63,6 +66,10 @@ class EvaluationRepository(BaseRepository):
             if filter_conditions:
                 query = query.where(and_(*filter_conditions))
 
+        # Filter by user ID if provided
+        if user_id:
+            query = query.where(self.model.created_by_id == user_id)
+
         # Add relationships to load eagerly
         query = query.options(
             selectinload(self.model.agent),
@@ -87,9 +94,21 @@ class EvaluationRepository(BaseRepository):
     async def count_search_evaluations(
             self,
             query_text: Optional[str] = None,
-            filters: Optional[Dict[str, Any]] = None
+            filters: Optional[Dict[str, Any]] = None,
+            user_id: Optional[UUID] = None
     ) -> int:
-        """Count evaluations matching search criteria."""
+        """
+        Count evaluations matching search criteria.
+        Filter by user ID if provided to limit to user's own evaluations.
+
+        Args:
+            query_text: Text to search across name and description
+            filters: Additional filters to apply
+            user_id: User ID to filter by (if provided)
+
+        Returns:
+            Count of matching evaluations
+        """
         query = select(func.count()).select_from(self.model)
 
         # Text search across multiple fields
@@ -111,15 +130,25 @@ class EvaluationRepository(BaseRepository):
             if filter_conditions:
                 query = query.where(and_(*filter_conditions))
 
+        # Filter by user ID if provided
+        if user_id:
+            query = query.where(self.model.created_by_id == user_id)
+
         result = await self.session.execute(query)
         return result.scalar() or 0
 
-    async def get_evaluation_with_details(self, evaluation_id: UUID) -> Optional[Evaluation]:
+    async def get_evaluation_with_details(
+            self,
+            evaluation_id: UUID,
+            user_id: Optional[UUID] = None
+    ) -> Optional[Evaluation]:
         """
         Get evaluation with all related data in a single query.
+        Optionally filter by user ID to ensure ownership.
 
         Args:
             evaluation_id: ID of the evaluation to retrieve
+            user_id: Optional user ID to filter by ownership
 
         Returns:
             Evaluation with all relationships loaded
@@ -136,47 +165,64 @@ class EvaluationRepository(BaseRepository):
             .where(self.model.id == evaluation_id)
         )
 
+        # Add user filter if requested
+        if user_id:
+            query = query.where(self.model.created_by_id == user_id)
+
         result = await self.session.execute(query)
         return result.scalars().first()
 
-    async def get_evaluations_by_status(
+    async def get_user_evaluations(
             self,
-            status: EvaluationStatus,
+            user_id: UUID,
+            status: Optional[EvaluationStatus] = None,
             skip: int = 0,
             limit: int = 100
     ) -> List[Evaluation]:
-        """Get evaluations filtered by status."""
+        """
+        Get evaluations for a specific user with optional status filter.
+
+        Args:
+            user_id: User ID to filter by
+            status: Optional status filter
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+
+        Returns:
+            List of evaluations owned by the user
+        """
+        filters = {"created_by_id": user_id}
+        if status:
+            filters["status"] = status
+
         return await self.get_multi(
             skip=skip,
             limit=limit,
-            filters={"status": status},
+            filters=filters,
             load_relationships=["agent", "dataset", "prompt"]
         )
 
-    async def get_evaluations_by_agent(
+    async def get_user_evaluation(
             self,
-            agent_id: UUID,
-            skip: int = 0,
-            limit: int = 100
-    ) -> List[Evaluation]:
-        """Get evaluations for a specific agent."""
-        return await self.get_multi(
-            skip=skip,
-            limit=limit,
-            filters={"agent_id": agent_id},
-            load_relationships=["dataset", "prompt"]
+            evaluation_id: UUID,
+            user_id: UUID
+    ) -> Optional[Evaluation]:
+        """
+        Get a specific evaluation owned by a user.
+
+        Args:
+            evaluation_id: Evaluation ID to retrieve
+            user_id: User ID for ownership check
+
+        Returns:
+            Evaluation if owned by the user, None otherwise
+        """
+        query = select(self.model).where(
+            and_(
+                self.model.id == evaluation_id,
+                self.model.created_by_id == user_id
+            )
         )
 
-    async def get_evaluations_by_dataset(
-            self,
-            dataset_id: UUID,
-            skip: int = 0,
-            limit: int = 100
-    ) -> List[Evaluation]:
-        """Get evaluations for a specific dataset."""
-        return await self.get_multi(
-            skip=skip,
-            limit=limit,
-            filters={"dataset_id": dataset_id},
-            load_relationships=["agent", "prompt"]
-        )
+        result = await self.session.execute(query)
+        return result.scalars().first()
