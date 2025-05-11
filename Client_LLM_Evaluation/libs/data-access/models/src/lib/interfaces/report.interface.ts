@@ -1,4 +1,3 @@
-/* Path: libs/data-access/models/src/lib/interfaces/report.interface.ts */
 
 /**
  * Report status types
@@ -35,7 +34,7 @@ export interface Report {
   evaluation_id: string;
   created_at: string;
   updated_at: string;
-  is_public?: boolean;
+  // is_public?: boolean;
 }
 
 /**
@@ -63,7 +62,7 @@ export interface ReportUpdate {
   description?: string;
   format?: ReportFormat;
   config?: Record<string, any>;
-  is_public?: boolean;
+  // is_public?: boolean;
   status?: ReportStatus;
 }
 
@@ -81,7 +80,7 @@ export interface ReportFilterParams {
   page?: number;
   evaluation_id?: string;
   status?: ReportStatus;
-  is_public?: boolean;
+  // is_public?: boolean;
   name?: string;
   format?: ReportFormat;
   sortBy?: 'name' | 'status' | 'format' | 'created_at' | 'updated_at';

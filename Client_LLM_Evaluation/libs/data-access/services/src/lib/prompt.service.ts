@@ -1,4 +1,3 @@
-/* Path: libs/data-access/services/src/lib/prompt.service.ts */
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
@@ -20,7 +19,6 @@ export class PromptService {
   private baseUrl = '__fastapi__/prompts';
 
   constructor(private httpClient: HttpClientService) {
-    console.log('PromptService initialized with baseUrl:', this.baseUrl);
   }
 
   /**
@@ -64,23 +62,18 @@ export class PromptService {
     params = params.set('sort_by', filters.sortBy || 'created_at');
     params = params.set('sort_dir', filters.sortDirection || 'desc');
 
-    console.log('Fetching prompts with params:', params.toString());
-
     return this.httpClient.get<any>(this.baseUrl, params)
       .pipe(
-        tap(response => console.log('Raw prompts list response:', response)),
         map(response => {
           // Transform the API response to match the expected structure
           if (response && response.items && Array.isArray(response.items)) {
             // The API returns {items: [...], total: number}
-            console.log(`Response contains ${response.items.length} prompts out of ${response.total} total`);
             return {
               prompts: response.items,
               totalCount: response.total
             } as PromptsResponse;
           } else if (Array.isArray(response)) {
             // Fallback for backward compatibility or different API response format
-            console.log('Response is an array, transforming');
             return {
               prompts: response,
               totalCount: response.length
@@ -88,7 +81,6 @@ export class PromptService {
           }
 
           // Return the response as is if it already matches our format
-          console.log('Returning response as is');
           return response as PromptsResponse;
         }),
         catchError(error => this.handleError('Failed to fetch prompts', error))
@@ -99,11 +91,8 @@ export class PromptService {
    * Get a prompt by ID
    */
   getPrompt(id: string): Observable<PromptResponse> {
-    console.log(`Fetching prompt with ID: ${id}`);
-
     return this.httpClient.get<PromptResponse>(`${this.baseUrl}/${id}`)
       .pipe(
-        tap(response => console.log('Prompt detail response:', response)),
         catchError(error => this.handleError(`Failed to fetch prompt with ID ${id}`, error))
       );
   }
@@ -113,11 +102,8 @@ export class PromptService {
    * Create a new prompt
    */
   createPrompt(prompt: PromptCreate): Observable<PromptResponse> {
-    console.log('Creating prompt:', prompt);
-
     return this.httpClient.post<PromptResponse>(this.baseUrl, prompt)
       .pipe(
-        tap(response => console.log('Create prompt response:', response)),
         catchError(error => this.handleError('Failed to create prompt', error))
       );
   }
@@ -126,11 +112,8 @@ export class PromptService {
    * Update an existing prompt
    */
   updatePrompt(id: string, prompt: PromptUpdate): Observable<PromptResponse> {
-    console.log(`Updating prompt ${id}:`, prompt);
-
     return this.httpClient.put<PromptResponse>(`${this.baseUrl}/${id}`, prompt)
       .pipe(
-        tap(response => console.log('Update prompt response:', response)),
         catchError(error => this.handleError(`Failed to update prompt with ID ${id}`, error))
       );
   }
@@ -142,11 +125,8 @@ export class PromptService {
   return this.getPrompt(id);
 }
   deletePrompt(id: string): Observable<void> {
-    console.log(`Deleting prompt with ID: ${id}`);
-
     return this.httpClient.delete<void>(`${this.baseUrl}/${id}`)
       .pipe(
-        tap(() => console.log(`Prompt ${id} deleted successfully`)),
         catchError(error => this.handleError(`Failed to delete prompt with ID ${id}`, error))
       );
   }
@@ -155,19 +135,7 @@ export class PromptService {
    * Handle errors from API calls
    */
   private handleError(message: string, error: any): Observable<never> {
-    console.error(message, error);
-
-    // Check if error is status 0, which usually indicates network/CORS issues
     if (error instanceof HttpErrorResponse && error.status === 0) {
-      console.error('Network Error - possible CORS issue or server unavailable');
-      console.error('Attempted URL:', error.url);
-    }
-
-    // Log detailed error information
-    console.error('Error status:', error.status);
-    console.error('Error message:', error.message);
-    if (error.error) {
-      console.error('Server error response:', error.error);
     }
 
     return throwError(() => error);

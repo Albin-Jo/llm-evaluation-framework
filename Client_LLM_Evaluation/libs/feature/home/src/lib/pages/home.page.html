@@ -96,7 +96,7 @@
         <div class="list-item" *ngFor="let dataset of datasets" (click)="viewDataset(dataset)">
           <div class="item-header">
             <h4 class="item-title">{{dataset.name}}</h4>
-            <span class="status-badge" [ngClass]="dataset.status.toLowerCase()">{{dataset.status}}</span>
+            <span class="status-badge" [ngClass]="dataset.status.toLowerCase() || ''">{{dataset.status || 'Unknown'}}</span>
           </div>
           <div class="item-details">
             <span class="detail">{{dataset.documentCount || 0}} documents</span>

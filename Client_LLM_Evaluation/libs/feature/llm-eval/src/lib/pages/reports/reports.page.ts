@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/reports/reports.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -13,7 +12,7 @@ import {
 } from '@ngtx-apps/data-access/models';
 import { ReportService } from '@ngtx-apps/data-access/services';
 import {
-  QracButtonComponent,
+  
   QracTextBoxComponent,
   QracSelectComponent
 } from '@ngtx-apps/ui/components';
@@ -29,7 +28,7 @@ import {
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    QracButtonComponent,
+    
     QracTextBoxComponent,
     QracSelectComponent
   ],
@@ -44,14 +43,14 @@ export class ReportsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 6;
+  itemsPerPage = 5;
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: ReportFilterParams = {
     page: 1,
-    limit: 6,
+    limit: 5,
     sortBy: 'created_at',
     sortDirection: 'desc'
   };

@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/datasets/datasets.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -13,7 +12,7 @@ import {
 } from '@ngtx-apps/data-access/models';
 import { DatasetService } from '@ngtx-apps/data-access/services';
 import {
-  QracButtonComponent,
+  
   QracTextBoxComponent,
   QracSelectComponent
 } from '@ngtx-apps/ui/components';
@@ -26,7 +25,7 @@ import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/servic
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    QracButtonComponent,
+    
     QracTextBoxComponent,
     QracSelectComponent
   ],
@@ -40,14 +39,14 @@ export class DatasetsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 10; // Standardized to 10
+  itemsPerPage = 10;
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: DatasetFilterParams = {
     page: 1,
-    limit: 10, // Standardized to 10
+    limit: 10,
     sortBy: 'createdAt',
     sortDirection: 'desc',
     is_public: true
@@ -61,11 +60,13 @@ export class DatasetsPage implements OnInit, OnDestroy {
     { value: DatasetStatus.ERROR, label: 'Error' }
   ];
 
+  // Updated format options to match API
   formatOptions = [
     { value: '', label: 'All Types' },
-    { value: 'csv', label: 'CSV' },
-    { value: 'jsonl', label: 'JSONL' },
-    { value: 'txt', label: 'Text' },
+    { value: 'question_answer', label: 'Question Answer' },
+    { value: 'user_query', label: 'User Query' },
+    { value: 'reference', label: 'Reference' },
+    { value: 'evaluation', label: 'Evaluation' },
     { value: 'custom', label: 'Custom' }
   ];
 

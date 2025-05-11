@@ -839,3 +839,120 @@
     }
   }
 }
+
+.type-badge {
+  background-color: $primary-light;
+  color: $primary;
+  text-transform: capitalize;
+}
+
+.file-info-container {
+  padding: $spacing-6;
+  text-align: center;
+  background-color: $background-light;
+  border-radius: $radius-sm;
+
+  .file-info-icon {
+    font-size: $font-size-3xl;
+    color: $text-secondary;
+    margin-bottom: $spacing-3;
+  }
+
+  h3 {
+    margin: 0 0 $spacing-2;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+  }
+
+  .file-name {
+    font-size: $font-size-md;
+    color: $text-primary;
+    margin-bottom: $spacing-2;
+  }
+
+  .file-stats {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    margin-bottom: $spacing-4;
+  }
+
+  .file-actions {
+    display: flex;
+    justify-content: center;
+    gap: $spacing-3;
+
+    .action-button {
+      padding: $spacing-2 $spacing-4;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      background: none;
+      font-size: $font-size-sm;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background-color: $background-light;
+      }
+
+      &.view-button:hover {
+        border-color: $primary;
+        color: $primary;
+      }
+
+      &.download-button:hover {
+        border-color: $success;
+        color: $success;
+      }
+    }
+  }
+}
+
+.schema-info {
+  background-color: $background-light;
+  padding: $spacing-4;
+  border-radius: $radius-sm;
+
+  .schema-item {
+    margin-bottom: $spacing-3;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    strong {
+      display: block;
+      margin-bottom: $spacing-2;
+      color: $text-primary;
+    }
+
+    .field-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $spacing-2;
+    }
+
+    .field-tag {
+      display: inline-flex;
+      padding: $spacing-1 $spacing-3;
+      border-radius: $radius-full;
+      background-color: $primary-light;
+      color: $primary;
+      font-size: $font-size-sm;
+
+      &.optional {
+        background-color: $secondary-light;
+        color: $secondary;
+      }
+    }
+  }
+}
+
+.info-value {
+  &.valid {
+    color: $success;
+  }
+
+  &.invalid {
+    color: $error;
+  }
+}

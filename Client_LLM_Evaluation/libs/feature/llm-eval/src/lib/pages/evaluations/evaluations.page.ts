@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -44,14 +43,14 @@ export class EvaluationsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 10; // Updated from 5 to match standard
+  itemsPerPage = 5; // Updated from 5 to match standard
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: EvaluationFilterParams = {
     page: 1,
-    limit: 10, // Updated from 5 to match standard
+    limit: 5, // Updated from 5 to match standard
     sortBy: 'created_at',
     sortDirection: 'desc'
   };

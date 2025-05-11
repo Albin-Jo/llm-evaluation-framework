@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/prompts/prompts.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder } from '@angular/forms';
@@ -10,7 +9,7 @@ import { PromptService } from '@ngtx-apps/data-access/services';
 import { PromptResponse, PromptFilterParams } from '@ngtx-apps/data-access/models';
 import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/services';
 import {
-  QracButtonComponent,
+  
   QracTextBoxComponent,
   QracSelectComponent
 } from '@ngtx-apps/ui/components';
@@ -23,7 +22,7 @@ import {
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
-    QracButtonComponent,
+    
     QracTextBoxComponent,
     QracSelectComponent
   ],
@@ -37,14 +36,14 @@ export class PromptsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 10; // Updated from 5 to match standard
+  itemsPerPage = 5; // Updated from 5 to match standard
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: PromptFilterParams = {
     page: 1,
-    limit: 10, // Updated from 5 to match standard
+    limit: 5, // Updated from 5 to match standard
     sortBy: 'created_at',
     sortDirection: 'desc'
   };

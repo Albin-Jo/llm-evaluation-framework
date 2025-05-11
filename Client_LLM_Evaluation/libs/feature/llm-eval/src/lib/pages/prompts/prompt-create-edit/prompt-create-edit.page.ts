@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/prompts/prompt-create-edit/prompt-create-edit.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';

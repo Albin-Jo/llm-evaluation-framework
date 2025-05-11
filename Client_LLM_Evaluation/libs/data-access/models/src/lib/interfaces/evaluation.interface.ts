@@ -1,4 +1,3 @@
-/* Path: libs/data-access/models/src/lib/interfaces/evaluation.interface.ts */
 import { Agent } from './agent.interface';
 import { Dataset } from './dataset.interface';
 import { Prompt } from './prompt.interface';

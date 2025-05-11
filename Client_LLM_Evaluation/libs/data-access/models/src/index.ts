@@ -5,7 +5,7 @@ export * from './lib/interfaces/auth-response';
 export * from  './lib/interfaces/common';
 export * from './lib/interfaces/menu.interface';
 export * from './lib/interfaces/dataset.interface';
-export * from './lib/interfaces/dataset-filter.interface';
+export * from './lib/interfaces/dataset.interface';
 export * from './lib/interfaces/prompt.interface';
 export * from './lib/interfaces/agent.interface';
 export * from './lib/interfaces/evaluation.interface';

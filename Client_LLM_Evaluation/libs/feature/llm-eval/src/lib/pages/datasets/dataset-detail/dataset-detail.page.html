@@ -13,6 +13,7 @@
     <h1 class="page-title">{{ dataset.name }}</h1>
     <div class="status-badges">
       <span class="status-badge" [ngClass]="statusClass">{{ statusText }}</span>
+      <span class="status-badge type-badge">{{ dataset.type || 'User Query' }}</span>
     </div>
   </div>
 
@@ -43,13 +44,14 @@
       <!-- Left Card: Dataset Information -->
       <div class="form-card info-card">
         <div class="card-header">
-          <h2 class="card-title">Dataset Information</h2>
+          <h2 class="card-title">Documents</h2>
           <div class="card-actions">
-            <button class="outline-button edit-button" (click)="startEditing()">
-              Edit
-            </button>
-            <button class="outline-button delete-button" (click)="deleteDataset($event)">
-              Delete
+            <button 
+              class="primary-button" 
+              (click)="uploadDocuments($event)"
+              [disabled]="hasDocument()"
+              [title]="hasDocument() ? 'Dataset already has a document' : 'Upload a new document'">
+              {{ hasDocument() ? 'Document Exists' : 'Upload Document' }}
             </button>
           </div>
         </div>
@@ -69,7 +71,7 @@
             <div class="info-value">{{ formatDate(dataset.updatedAt) }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">Document Count</div>
+            <div class="info-label">Row Count</div>
             <div class="info-value">{{ dataset.documentCount || 0 }}</div>
           </div>
           <div class="info-item">
@@ -77,8 +79,8 @@
             <div class="info-value">{{ formattedSize }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">Avg. Length</div>
-            <div class="info-value">{{ getAverageDocLength() }}<span class="info-unit">tokens</span></div>
+            <div class="info-label">Version</div>
+            <div class="info-value">{{ dataset.metadata?.['version'] || '1.0' }}</div>
           </div>
         </div>
 
@@ -86,6 +88,55 @@
         <div class="info-group">
           <div class="info-label">Description</div>
           <div class="info-value description-value">{{ dataset.description || 'No description provided' }}</div>
+        </div>
+
+        <!-- File Information -->
+        <div class="info-group" *ngIf="dataset?.metadata?.['meta_info']">
+          <div class="info-label">File Information</div>
+          <div class="info-grid">
+            <div class="info-item" *ngIf="dataset.metadata?.['meta_info']?.['filename']">
+              <div class="info-label">Original File</div>
+              <div class="info-value">{{ dataset.metadata?.['meta_info']?.['filename'] }}</div>
+            </div>
+            <div class="info-item" *ngIf="dataset.metadata?.['meta_info']?.['content_type']">
+              <div class="info-label">Content Type</div>
+              <div class="info-value">{{ dataset.metadata?.['meta_info']?.['content_type'] }}</div>
+            </div>
+            <div class="info-item" *ngIf="dataset.metadata?.['meta_info']?.['row_count'] !== undefined">
+              <div class="info-label">Total Rows</div>
+              <div class="info-value">{{ dataset.metadata?.['meta_info']?.['row_count'] }}</div>
+            </div>
+            <div class="info-item" *ngIf="dataset.metadata?.['meta_info']?.['validation_result']">
+              <div class="info-label">Validation Status</div>
+              <div class="info-value" [class.valid]="dataset.metadata?.['meta_info']?.['validation_result']?.['valid']" 
+                   [class.invalid]="!dataset.metadata?.['meta_info']?.['validation_result']?.['valid']">
+                {{ dataset.metadata?.['meta_info']?.['validation_result']?.['valid'] ? 'Valid' : 'Invalid' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schema Information -->
+        <div class="info-group" *ngIf="dataset?.metadata?.['schema_definition']?.['required_fields']">
+          <div class="info-label">Schema Information</div>
+          <div class="schema-info">
+            <div class="schema-item">
+              <strong>Required Fields:</strong>
+              <div class="field-list">
+                <span *ngFor="let field of dataset.metadata?.['schema_definition']?.['required_fields']" class="field-tag">
+                  {{ field }}
+                </span>
+              </div>
+            </div>
+            <div class="schema-item" *ngIf="dataset.metadata?.['schema_definition']?.['optional_fields']?.length">
+              <strong>Optional Fields:</strong>
+              <div class="field-list">
+                <span *ngFor="let field of dataset.metadata?.['schema_definition']?.['optional_fields']" class="field-tag optional">
+                  {{ field }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Tags Section -->
@@ -117,8 +168,26 @@
           <p class="progress-text">Uploading documents: {{ uploadProgress }}%</p>
         </div>
 
+        <!-- For datasets with file information but no separate documents -->
+        <div *ngIf="!isUploading && documents.length === 0 && dataset.metadata?.['meta_info']?.['filename']" class="file-info-container">
+          <div class="file-info-icon">📄</div>
+          <h3>Dataset File</h3>
+          <p class="file-name">{{ dataset.metadata?.['meta_info']?.['filename'] }}</p>
+          <p class="file-stats">
+            {{ formattedSize }} • {{ dataset.metadata?.['meta_info']?.['row_count'] }} rows
+          </p>
+          <div class="file-actions">
+            <button class="action-button view-button" (click)="previewDocument({ id: dataset.id, name: dataset.metadata?.['meta_info']?.['filename'] })">
+              Preview
+            </button>
+            <button class="action-button download-button" (click)="downloadDocument()">
+              Download
+            </button>
+          </div>
+        </div>
+
         <!-- No Documents State -->
-        <div *ngIf="!isUploading && documents.length === 0" class="empty-documents">
+        <div *ngIf="!isUploading && documents.length === 0 && !dataset.metadata?.['meta_info']?.['filename']" class="empty-documents">
           <div class="empty-icon">📄</div>
           <p>No documents found in this dataset</p>
         </div>
@@ -217,7 +286,7 @@
           <div class="info-label">Dataset Statistics</div>
           <div class="info-stats">
             <div class="stat-item">
-              <span class="stat-label">Documents</span>
+              <span class="stat-label">Row Count</span>
               <span class="stat-value">{{ dataset.documentCount || 0 }}</span>
             </div>
             <div class="stat-item">

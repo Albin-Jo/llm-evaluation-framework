@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agent-detail/agent-detail.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';

@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agent-test/agent-test.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';

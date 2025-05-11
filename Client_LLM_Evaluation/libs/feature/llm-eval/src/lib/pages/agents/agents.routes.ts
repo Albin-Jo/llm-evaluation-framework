@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents.routes.ts */
 import { Routes } from '@angular/router';
 import { AuthGuard } from '@ngtx-apps/utils/services';
 import { AgentsPage } from './agents.page';

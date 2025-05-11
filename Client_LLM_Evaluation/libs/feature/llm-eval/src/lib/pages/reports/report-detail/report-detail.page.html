@@ -97,11 +97,11 @@
           <div class="card-content" *ngIf="evaluation as eval">
             <div class="info-row" *ngIf="eval.agent">
               <span class="info-label">Agent:</span>
-              <span class="info-value">{{ eval.agent?.name || 'N/A' }}</span>
+              <span class="info-value">{{ eval.agent.name || 'N/A' }}</span>
             </div>
             <div class="info-row" *ngIf="eval.dataset">
               <span class="info-label">Dataset:</span>
-              <span class="info-value">{{ eval.dataset?.name || 'N/A' }}</span>
+              <span class="info-value">{{ eval.dataset.name || 'N/A' }}</span>
             </div>
             <div class="info-row" *ngIf="eval.method">
               <span class="info-label">Method:</span>

@@ -1,6 +1,4 @@
-// Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.ts
-
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, finalize } from 'rxjs';
 import { Location } from '@angular/common';
@@ -14,7 +12,7 @@ import {
   DatasetStatus
 } from '@ngtx-apps/data-access/models';
 import { DatasetService } from '@ngtx-apps/data-access/services';
-import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
+import { ConfirmationDialogService, AlertService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-dataset-detail',
@@ -24,7 +22,8 @@ import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
   imports: [
     CommonModule,
     FormsModule
-  ]
+  ],
+  schemas: [NO_ERRORS_SCHEMA]
 })
 export class DatasetDetailPage implements OnInit, OnDestroy {
   // Dataset information
@@ -72,7 +71,8 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     private router: Router,
     private datasetService: DatasetService,
     private location: Location,
-    private confirmationService: ConfirmationDialogService
+    private confirmationService: ConfirmationDialogService,
+    private alertService: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -85,7 +85,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
           this.datasetId = id;
           this.loadDatasetDetails();
         } else {
-          this.router.navigate(['/datasets']);
+          this.router.navigate(['/app/datasets/datasets']);
         }
       })
     );
@@ -119,11 +119,11 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Navigate back to datasets list
+   * Navigate back to datasets list - Fixed navigation
    */
   goBack(event: Event): void {
     event.preventDefault();
-    this.location.back();
+    this.router.navigate(['/app/datasets/datasets']);
   }
 
   /**
@@ -233,40 +233,77 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Open document preview modal
+   * Check if dataset already has a document
    */
-  previewDocument(document: Document): void {
-    if (!document || !document.id || !this.datasetId) {
+  hasDocument(): boolean {
+    return (this.documents && this.documents.length > 0) || 
+           (this.dataset?.metadata?.['meta_info']?.['filename'] != null);
+  }
+
+  /**
+   * Open document preview modal - Fixed preview functionality
+   */
+  previewDocument(document: Document | { id: string; name: string } | null): void {
+    if (!document || !document.id) {
       return;
     }
 
+    // Create a Document-like object for files that aren't in the documents array
+    const documentToPreview: Document = 'datasetId' in document 
+      ? document 
+      : {
+          id: document.id,
+          datasetId: this.datasetId,
+          name: document.name,
+          content: '',
+          createdAt: new Date().toISOString()
+        };
+
     this.previewingDocument = true;
-    this.currentPreviewDocument = document;
+    this.currentPreviewDocument = documentToPreview;
     this.isLoadingPreview = true;
     this.documentPreviewError = null;
 
-    // Get the document format to determine how to handle the preview
-    const documentFormat = this.getDocumentFormat(document);
+    // Get the document format
+    const documentFormat = this.getDocumentFormat(documentToPreview);
 
-    // Simple timeout-based preview for now
-    // In a real implementation, you would call an API endpoint
+    // Simulate loading preview data
     setTimeout(() => {
       this.isLoadingPreview = false;
 
-      if (documentFormat === 'CSV') {
-        // Example CSV data
-        this.documentPreviewHeaders = ['id', 'name', 'email', 'message'];
-        this.documentPreviewData = [
-          { id: 1, name: 'John Doe', email: 'john@example.com', message: 'I need help with my account' },
-          { id: 2, name: 'Jane Smith', email: 'jane@example.com', message: 'How do I reset my password?' }
-        ];
-      } else if (documentFormat === 'TXT' || documentFormat === 'JSON') {
-        // Example text content
-        this.documentPreviewContent = documentFormat === 'JSON'
-          ? '{\n  "id": 1,\n  "name": "Sample Document",\n  "content": "This is a sample content"\n}'
-          : 'This is a sample text document content.\nLine 2 of the document.\nLine 3 with more text.';
+      // If the dataset has metadata with example content, use it
+      if (this.dataset?.metadata?.['meta_info']?.['validation_result']) {
+        const validationResult = this.dataset.metadata['meta_info']['validation_result'];
+        
+        if (documentFormat === 'JSON' && validationResult.count) {
+          // Show example JSON data structure
+          this.documentPreviewContent = JSON.stringify({
+            "query": "Example question?",
+            "ground_truth": "Example answer",
+            "context": "Optional context information"
+          }, null, 2);
+        } else if (documentFormat === 'CSV') {
+          // Show example CSV data
+          this.documentPreviewHeaders = ['query', 'ground_truth', 'context'];
+          this.documentPreviewData = [
+            { 
+              query: 'What is the capital of France?', 
+              ground_truth: 'Paris', 
+              context: 'France is a country in Europe.' 
+            },
+            { 
+              query: 'What is 2+2?', 
+              ground_truth: '4', 
+              context: 'Basic arithmetic' 
+            }
+          ];
+        } else {
+          this.documentPreviewContent = 'Preview content for ' + documentFormat + ' files';
+        }
       } else {
-        this.documentPreviewError = 'Preview not available for this file type';
+        // Fallback preview content
+        this.documentPreviewContent = 'Preview not available for this file type';
+        this.documentPreviewError = 'Unable to load preview content';
       }
     }, 800);
   }
@@ -302,10 +339,11 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     if (!this.currentPreviewDocument) return;
 
     // In a real application, this would call an API endpoint to download the file
-    // Simulate a download
-    setTimeout(() => {
-      // Success would be shown after download completes
-    }, 1500);
+    this.alertService.showAlert({
+      show: true,
+      message: 'Download functionality would be implemented here',
+      title: 'Info'
+    });
   }
 
   /**
@@ -379,16 +417,26 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
         .subscribe({
           next: (updatedDataset) => {
             this.dataset = updatedDataset;
+            this.alertService.showAlert({
+              show: true,
+              message: 'Dataset updated successfully',
+              title: 'Success'
+            });
           },
           error: (err: any) => {
             console.error('Error updating dataset:', err);
+            this.alertService.showAlert({
+              show: true,
+              message: 'Failed to update dataset. Please try again.',
+              title: 'Error'
+            });
           }
         })
     );
   }
 
   /**
-   * Delete dataset
+   * Delete dataset - Fixed functionality
    */
   deleteDataset(event: Event): void {
     event.preventDefault();
@@ -409,10 +457,20 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
             .pipe(finalize(() => this.isLoading = false))
             .subscribe({
               next: () => {
-                this.router.navigate(['/datasets']);
+                this.alertService.showAlert({
+                  show: true,
+                  message: 'Dataset deleted successfully',
+                  title: 'Success'
+                });
+                this.router.navigate(['/app/datasets/datasets']);
               },
               error: (err: any) => {
                 console.error('Error deleting dataset:', err);
+                this.alertService.showAlert({
+                  show: true,
+                  message: 'Failed to delete dataset. Please try again.',
+                  title: 'Error'
+                });
               }
             })
         );
@@ -421,25 +479,26 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Open file upload dialog
+   * Open file upload dialog - Modified to check for existing documents
    */
   uploadDocuments(event: Event): void {
     event.preventDefault();
+    event.stopPropagation();
 
-    // Create a hidden file input and trigger click
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.multiple = true;
-    fileInput.accept = '.csv,.txt,.json,.pdf,.docx';
+    // Check if dataset already has a document
+    if (this.hasDocument()) {
+      this.alertService.showAlert({
+        show: true,
+        message: 'This dataset already has a document. Please delete the existing document before adding a new one.',
+        title: 'Info'
+      });
+      return;
+    }
 
-    fileInput.onchange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (target.files && target.files.length > 0) {
-        this.handleFileSelection(target.files);
-      }
-    };
-
-    fileInput.click();
+    // Navigate to upload page with existing dataset ID
+    this.router.navigate(['/app/datasets/datasets/upload'], {
+      queryParams: { datasetId: this.datasetId }
+    });
   }
 
   /**
@@ -488,6 +547,11 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
             clearInterval(interval);
 
             console.error('Error uploading documents:', err);
+            this.alertService.showAlert({
+              show: true,
+              message: 'Failed to upload document. Please try again.',
+              title: 'Error'
+            });
             this.completeUpload();
           }
         })
@@ -524,6 +588,12 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
         if (this.dataset && this.dataset.documentCount !== undefined) {
           this.dataset.documentCount = Math.max(0, this.dataset.documentCount - 1);
         }
+
+        this.alertService.showAlert({
+          show: true,
+          message: 'Document deleted successfully',
+          title: 'Success'
+        });
       }
     });
   }

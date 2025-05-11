@@ -1,4 +1,3 @@
-/* Path: libs/data-access/services/src/lib/evaluation.service.ts */
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
@@ -23,7 +22,6 @@ export class EvaluationService {
   private baseUrl = '__fastapi__/evaluations';
 
   constructor(private httpClient: HttpClientService) {
-    console.log('EvaluationService initialized with baseUrl:', this.baseUrl);
   }
 
   /**
@@ -78,23 +76,20 @@ export class EvaluationService {
     params = params.set('sort_by', filters.sortBy || 'created_at');
     params = params.set('sort_dir', filters.sortDirection || 'desc');
 
-    console.log('Fetching evaluations with params:', params.toString());
+
 
     return this.httpClient.get<any>(this.baseUrl, params)
       .pipe(
-        tap(response => console.log('Raw evaluation list response:', response)),
         map(response => {
           // Transform the API response to match the expected structure
           if (response && response.items && Array.isArray(response.items)) {
             // The updated API now returns {items: [...], total: number}
-            console.log(`Response contains ${response.items.length} evaluations out of ${response.total} total`);
             return {
               evaluations: response.items,
               totalCount: response.total || response.items.length
             } as EvaluationsResponse;
           } else if (Array.isArray(response)) {
             // Fallback for backward compatibility
-            console.log('Response is an array, transforming');
             return {
               evaluations: response,
               totalCount: response.length
@@ -102,7 +97,6 @@ export class EvaluationService {
           }
 
           // Return the response as is if it already matches our format
-          console.log('Returning response as is');
           return response as EvaluationsResponse;
         }),
         catchError(error => this.handleError('Failed to fetch evaluations', error))
@@ -113,15 +107,9 @@ export class EvaluationService {
    * Get a single evaluation by ID with detailed results
    */
   getEvaluation(id: string): Observable<EvaluationDetail> {
-    console.log(`Fetching evaluation with ID: ${id}`);
-    console.log(`Full URL being called: ${this.baseUrl}/${id}`);
-
     return this.httpClient.get<EvaluationDetail>(`${this.baseUrl}/${id}`)
       .pipe(
-        tap(response => console.log('Raw evaluation detail response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to fetch evaluation with ID ${id}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to fetch evaluation with ID ${id}`, error);
         })
       );
@@ -131,14 +119,9 @@ export class EvaluationService {
    * Create a new evaluation
    */
   createEvaluation(evaluation: EvaluationCreate): Observable<Evaluation> {
-    console.log('Creating evaluation:', evaluation);
-
     return this.httpClient.post<Evaluation>(this.baseUrl, evaluation)
       .pipe(
-        tap(response => console.log('Create evaluation response:', JSON.stringify(response))),
         catchError(error => {
-          console.error('Failed to create evaluation', error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError('Failed to create evaluation', error);
         })
       );
@@ -148,14 +131,9 @@ export class EvaluationService {
    * Update an existing evaluation
    */
   updateEvaluation(id: string, evaluation: EvaluationUpdate): Observable<Evaluation> {
-    console.log(`Updating evaluation ${id}:`, JSON.stringify(evaluation));
-
     return this.httpClient.put<Evaluation>(`${this.baseUrl}/${id}`, evaluation)
       .pipe(
-        tap(response => console.log('Update evaluation response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to update evaluation with ID ${id}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to update evaluation with ID ${id}`, error);
         })
       );
@@ -165,15 +143,9 @@ export class EvaluationService {
    * Delete an evaluation
    */
   deleteEvaluation(id: string): Observable<void> {
-    console.log(`Deleting evaluation with ID: ${id}`);
-    console.log(`Delete URL: ${this.baseUrl}/${id}`);
-
     return this.httpClient.delete<void>(`${this.baseUrl}/${id}`)
       .pipe(
-        tap(() => console.log(`Evaluation ${id} deleted successfully`)),
         catchError(error => {
-          console.error(`Failed to delete evaluation with ID ${id}`, error);
-          console.error('Delete error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to delete evaluation with ID ${id}`, error);
         })
       );
@@ -183,15 +155,9 @@ export class EvaluationService {
    * Start an evaluation
    */
   startEvaluation(id: string): Observable<Evaluation> {
-    console.log(`Starting evaluation with ID: ${id}`);
-    console.log(`Start URL: ${this.baseUrl}/${id}/start`);
-
     return this.httpClient.post<Evaluation>(`${this.baseUrl}/${id}/start`, {})
       .pipe(
-        tap(response => console.log('Start evaluation response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to start evaluation with ID ${id}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to start evaluation with ID ${id}`, error);
         })
       );
@@ -201,15 +167,9 @@ export class EvaluationService {
    * Get evaluation progress
    */
   getEvaluationProgress(id: string): Observable<EvaluationProgress> {
-    console.log(`Fetching progress for evaluation with ID: ${id}`);
-    console.log(`Progress URL: ${this.baseUrl}/${id}/progress`);
-
     return this.httpClient.get<EvaluationProgress>(`${this.baseUrl}/${id}/progress`)
       .pipe(
-        tap(response => console.log('Evaluation progress response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to fetch progress for evaluation with ID ${id}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to fetch progress for evaluation with ID ${id}`, error);
         })
       );
@@ -219,15 +179,9 @@ export class EvaluationService {
    * Cancel an evaluation
    */
   cancelEvaluation(id: string): Observable<Evaluation> {
-    console.log(`Cancelling evaluation with ID: ${id}`);
-    console.log(`Cancel URL: ${this.baseUrl}/${id}/cancel`);
-
     return this.httpClient.post<Evaluation>(`${this.baseUrl}/${id}/cancel`, {})
       .pipe(
-        tap(response => console.log('Cancel evaluation response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to cancel evaluation with ID ${id}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to cancel evaluation with ID ${id}`, error);
         })
       );
@@ -237,15 +191,9 @@ export class EvaluationService {
    * Get evaluation results
    */
   getEvaluationResults(id: string): Observable<any[]> {
-    console.log(`Fetching results for evaluation with ID: ${id}`);
-    console.log(`Results URL: ${this.baseUrl}/${id}/results`);
-
     return this.httpClient.get<any[]>(`${this.baseUrl}/${id}/results`)
       .pipe(
-        tap(response => console.log('Evaluation results response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to fetch results for evaluation with ID ${id}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to fetch results for evaluation with ID ${id}`, error);
         })
       );
@@ -255,15 +203,9 @@ export class EvaluationService {
    * Test evaluation with sample data
    */
   testEvaluation(id: string, testData: any): Observable<any> {
-    console.log(`Testing evaluation with ID: ${id}`);
-    console.log(`Test input:`, JSON.stringify(testData));
-
     return this.httpClient.post<any>(`${this.baseUrl}/${id}/test`, testData)
       .pipe(
-        tap(response => console.log('Test evaluation response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to test evaluation with ID ${id}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to test evaluation with ID ${id}`, error);
         })
       );
@@ -273,15 +215,9 @@ export class EvaluationService {
    * Get supported metrics for a dataset type
    */
   getSupportedMetrics(datasetType: string): Observable<Record<string, string[]>> {
-    console.log(`Fetching supported metrics for dataset type: ${datasetType}`);
-    console.log(`Metrics URL: ${this.baseUrl}/metrics/${datasetType}`);
-
     return this.httpClient.get<Record<string, string[]>>(`${this.baseUrl}/metrics/${datasetType}`)
       .pipe(
-        tap(response => console.log('Supported metrics response:', JSON.stringify(response))),
         catchError(error => {
-          console.error(`Failed to fetch supported metrics for dataset type ${datasetType}`, error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           return this.handleError(`Failed to fetch supported metrics for dataset type ${datasetType}`, error);
         })
       );
@@ -291,19 +227,7 @@ export class EvaluationService {
    * Handle errors from API calls
    */
   private handleError(message: string, error: any): Observable<never> {
-    console.error(message, error);
-
-    // Check if error is status 0, which usually indicates network/CORS issues
     if (error instanceof HttpErrorResponse && error.status === 0) {
-      console.error('Network Error - possible CORS issue or server unavailable');
-      console.error('Attempted URL:', error.url);
-    }
-
-    // Log detailed error information
-    console.error('Error status:', error.status);
-    console.error('Error message:', error.message);
-    if (error.error) {
-      console.error('Server error response:', error.error);
     }
 
     return throwError(() => error);

@@ -1,4 +1,3 @@
-/* Path: libs/data-access/models/src/lib/interfaces/prompt.interface.ts */
 
 /**
  * Defines the structure for creating a new prompt
@@ -76,7 +75,7 @@ export interface Prompt {
  export interface PromptFilterParams {
   name?: string;
   category?: string;
-  isPublic?: boolean; 
+  isPublic?: boolean;
   page?: number;
   limit?: number;
   sortBy?: string;

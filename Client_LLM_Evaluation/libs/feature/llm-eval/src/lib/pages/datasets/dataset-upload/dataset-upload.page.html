@@ -9,33 +9,33 @@
   </div>
 
   <!-- Page Header -->
-<div class="page-header">
-  <h1 class="page-title">{{ existingDatasetId ? 'Add Document to Dataset' : 'Create New Dataset' }}</h1>
+  <div class="page-header">
+    <h1 class="page-title">{{ existingDatasetId ? 'Add Document to Dataset' : 'Create New Dataset' }}</h1>
 
-  <div class="page-header-actions">
-    <p class="page-description">
-      {{ existingDatasetId ? 'Upload additional document to your existing dataset.' : 'Upload a document file to create a new dataset for RAG evaluation.' }}
-      Supported file formats: PDF, TXT, DOCX, CSV, JSON.
-    </p>
+    <div class="page-header-actions">
+      <p class="page-description">
+        {{ existingDatasetId ? 'Upload additional document to your existing dataset.' : 'Upload a document file to create a new dataset for RAG evaluation.' }}
+        Supported file formats: PDF, TXT, DOCX, CSV, JSON, JSONL.
+      </p>
 
-    <div class="header-buttons">
-      <button
-        type="button"
-        class="outline-button"
-        (click)="cancel($event)"
-        [disabled]="isUploading">
-        Cancel
-      </button>
-      <button
-        type="submit"
-        class="primary-button"
-        [disabled]="(uploadForm.invalid && !existingDatasetId) || isUploading || selectedFiles.length === 0 || !hasValidFiles()">
-        {{ existingDatasetId ? 'Add Document' : 'Create Dataset' }}
-      </button>
+      <div class="header-buttons">
+        <button
+          type="button"
+          class="outline-button"
+          (click)="cancel($event)"
+          [disabled]="isUploading">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="primary-button"
+          [disabled]="(uploadForm.invalid && !existingDatasetId) || isUploading || selectedFiles.length === 0 || !hasValidFiles()"
+          (click)="onSubmit()">
+          {{ existingDatasetId ? 'Add Document' : 'Create Dataset' }}
+        </button>
+      </div>
     </div>
   </div>
-</div>
-
 
   <!-- Upload Progress Indicator (only shown when uploading) -->
   <div *ngIf="isUploading" class="upload-progress-indicator">
@@ -73,6 +73,7 @@
             id="type"
             formControlName="type"
             class="form-select">
+            <option value="question_answer">Question Answer</option>
             <option value="user_query">User Query</option>
             <option value="reference">Reference</option>
             <option value="evaluation">Evaluation</option>
@@ -112,7 +113,8 @@
               id="file-upload"
               class="file-input"
               (change)="onFileSelected($event)"
-              #fileInput>
+              #fileInput
+              accept=".pdf,.txt,.csv,.docx,.json,.jsonl">
             <div class="upload-content">
               <div class="upload-icon">📄</div>
               <p class="upload-text">Drag and drop a file here or</p>

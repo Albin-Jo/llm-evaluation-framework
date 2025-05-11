@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/datasets/components/dataset-card/dataset-card.component.ts */
 import { Component, EventEmitter, Input, Output, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Dataset, DatasetStatus } from '@ngtx-apps/data-access/models';

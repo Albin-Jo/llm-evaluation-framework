@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluation-create-edit/evaluation-create-edit.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -60,7 +59,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
   promptOptions: { value: string; label: string }[] = [];
 
   // Available metrics based on dataset type
-  availableMetrics: Record<string, string[]> = {};
+  availableMetrics: string[] = [];
   selectedMetrics: string[] = [];
 
   // Method options for select dropdown
@@ -238,7 +237,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     // Find the selected dataset to get its type
     const selectedDataset = this.datasets.find(d => d.id === datasetId);
     if (!selectedDataset || !selectedDataset.type) {
-      this.availableMetrics = {};
+      this.availableMetrics = [];
       this.selectedMetrics = [];
       return;
     }
@@ -247,7 +246,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (metrics) => {
-          this.availableMetrics = metrics;
+          this.availableMetrics = metrics['supported_metrics'];
           // Reset the selected metrics when changing datasets
           this.selectedMetrics = [];
           this.evaluationForm.get('metrics')?.setValue([]);

@@ -1,4 +1,3 @@
-/* Path: libs/data-access/models/src/lib/interfaces/agent.interface.ts */
 
 /**
  * Available agent status options

@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-upload/dataset-upload.page.ts */
 import { Component, OnDestroy, OnInit, ViewChild, ElementRef, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -42,10 +41,11 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     'application/pdf',
     'text/plain',
     'text/csv',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-    'application/json'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/json',
+    'application/x-ndjson' // For JSONL files
   ];
-  validFileExtensions = ['.pdf', '.txt', '.csv', '.docx', '.json'];
+  validFileExtensions = ['.pdf', '.txt', '.csv', '.docx', '.json', '.jsonl'];
   maxFileSize = 50 * 1024 * 1024; // 50MB
 
   availableTags = [
@@ -71,7 +71,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   ) {
     this.uploadForm = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(100)]],
-      type: ['user_query', Validators.required],
+      type: ['question_answer', Validators.required], // Changed default to question_answer
       description: ['', Validators.maxLength(500)],
       files: [null, Validators.required]
     });
@@ -225,7 +225,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       return 'icon-txt';
     } else if (fileType.includes('wordprocessingml') || fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
       return 'icon-docx';
-    } else if (fileType === 'application/json' || fileName.endsWith('.json')) {
+    } else if (fileType === 'application/json' || fileName.endsWith('.json') || fileName.endsWith('.jsonl')) {
       return 'icon-json';
     } else {
       return 'icon-unknown';
@@ -247,7 +247,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       return 'TXT';
     } else if (fileType.includes('wordprocessingml') || fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
       return 'DOC';
-    } else if (fileType === 'application/json' || fileName.endsWith('.json')) {
+    } else if (fileType === 'application/json' || fileName.endsWith('.json') || fileName.endsWith('.jsonl')) {
       return 'JSON';
     } else {
       const ext = fileName.split('.').pop()?.toUpperCase();
@@ -307,7 +307,8 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
         name: formValues.name,
         description: formValues.description || '',
         tags: this.selectedTags,
-        files: this.selectedFiles
+        files: this.selectedFiles,
+        type: formValues.type // Include type in the request
       };
 
       this.pendingUploadRequest = uploadRequest;
@@ -414,28 +415,25 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Navigate back based on context
-   */
-  private navigateBack(): void {
-    if (this.existingDatasetId) {
-      this.router.navigate(['/app/datasets/datasets', this.existingDatasetId]);
-    } else {
-      this.router.navigate(['/app/datasets/datasets']);
-    }
-  }
+ * Navigate back based on context - Fixed to always go to dataset list
+ */
+private navigateBack(): void {
+  // Always navigate to the datasets list to avoid recursion
+  this.router.navigate(['/app/datasets/datasets']);
+}
 
   /**
-   * View dataset after successful upload
-   */
-  viewDataset(): void {
-    if (this.existingDatasetId) {
-      this.router.navigate(['/app/datasets/datasets', this.existingDatasetId]);
-    } else if (this.createdDatasetId) {
-      this.router.navigate(['/app/datasets/datasets', this.createdDatasetId]);
-    } else {
-      this.router.navigate(['/app/datasets/datasets']);
-    }
+ * View dataset after successful upload
+ */
+viewDataset(): void {
+  if (this.existingDatasetId) {
+    this.router.navigate(['/app/datasets/datasets', this.existingDatasetId]);
+  } else if (this.createdDatasetId) {
+    this.router.navigate(['/app/datasets/datasets', this.createdDatasetId]);
+  } else {
+    this.router.navigate(['/app/datasets/datasets']);
   }
+}
 
   /**
    * Form control getters

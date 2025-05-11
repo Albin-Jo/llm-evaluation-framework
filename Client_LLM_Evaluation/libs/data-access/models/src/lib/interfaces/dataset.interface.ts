@@ -1,4 +1,3 @@
-/* Path: libs/data-access/models/src/lib/interfaces/dataset.interface.ts */
 export interface Dataset {
   id: string;
   name: string;
@@ -12,7 +11,6 @@ export interface Dataset {
   format?: string;
   status: DatasetStatus;
   metadata?: Record<string, any>;
-  
 }
 
 export enum DatasetStatus {
@@ -36,7 +34,6 @@ export interface Document {
   createdAt: string;
   updatedAt?: string;
   embeddings?: boolean; // whether embeddings have been generated
-  
 }
 
 export interface DatasetUploadRequest {
@@ -44,12 +41,14 @@ export interface DatasetUploadRequest {
   description?: string;
   tags?: string[];
   files: File[] | FileList;
+  type?: string; // Add type to upload request
 }
 
 export interface DatasetUpdateRequest {
   name?: string;
   description?: string;
   tags?: string[];
+  type?: string; // Add type to update request
   [key: string]: any;
 }
 
@@ -63,3 +62,19 @@ export interface DatasetDetailResponse {
   documents: Document[];
 }
 
+// Add filter parameters interface
+export interface DatasetFilterParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  type?: string;
+  tags?: string[];
+  is_public?: boolean;
+  sortBy?: 'name' | 'createdAt' | 'updatedAt' | 'documentCount';
+  sortDirection?: 'asc' | 'desc';
+  dateFrom?: string;
+  dateTo?: string;
+  sizeMin?: number;
+  sizeMax?: number;
+}

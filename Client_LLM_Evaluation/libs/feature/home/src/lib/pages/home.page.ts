@@ -6,7 +6,7 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } 
 import { Router, RouterModule } from '@angular/router';
 import { FilterService, FreezeService, GridModule, SortService } from '@syncfusion/ej2-angular-grids';
 import { Observable, Subject, forkJoin, of } from 'rxjs';
-import { catchError, finalize, takeUntil } from 'rxjs/operators';
+import { catchError, finalize, retry, takeUntil } from 'rxjs/operators';
 
 import {
   QracButtonComponent,
@@ -16,7 +16,8 @@ import {
   AgentService,
   DatasetService,
   EvaluationService,
-  PromptService
+  PromptService,
+  ReportService
 } from '@ngtx-apps/data-access/services';
 import { IdleTimeoutService } from '@ngtx-apps/utils/services';
 import {
@@ -31,7 +32,9 @@ import {
   EvaluationMethod,
   EvaluationStatus,
   PromptResponse,
-  PromptsResponse
+  PromptsResponse,
+  Report,
+  ReportStatus
 } from '@ngtx-apps/data-access/models';
 
 /**
@@ -69,7 +72,8 @@ export class HomePage implements OnInit, OnDestroy {
     datasets: false,
     prompts: false,
     agents: false,
-    evaluations: false
+    evaluations: false,
+    reports: false
   };
 
   // Feature stats
@@ -84,12 +88,14 @@ export class HomePage implements OnInit, OnDestroy {
   recentPrompts: PromptResponse[] = [];
   recentAgents: Agent[] = [];
   recentEvaluations: (Evaluation | EvaluationDetail)[] = [];
+  recentReports: Report[] = [];
 
   // Status enum for template access
   datasetStatus = DatasetStatus;
   evaluationStatus = EvaluationStatus;
   agentStatus = AgentStatus;
   agentDomain = AgentDomain;
+  reportStatus = ReportStatus;
 
   // Service injections
   private readonly idleTimeoutService = inject(IdleTimeoutService);
@@ -97,13 +103,18 @@ export class HomePage implements OnInit, OnDestroy {
   private readonly promptService = inject(PromptService);
   private readonly agentService = inject(AgentService);
   private readonly evaluationService = inject(EvaluationService);
+  private readonly reportService = inject(ReportService);
   private readonly router = inject(Router);
 
   constructor() {}
 
   ngOnInit(): void {
     this.idleTimeoutService.subscribeIdletimeout();
-    this.loadDashboardData();
+    
+    // Add a small delay to ensure component is fully initialized
+    setTimeout(() => {
+      this.loadDashboardData();
+    }, 0);
   }
 
   ngOnDestroy(): void {
@@ -118,159 +129,147 @@ export class HomePage implements OnInit, OnDestroy {
   loadDashboardData(): void {
     this.isLoading = true;
 
-    // Load datasets
-    this.loadDatasetsData();
-
-    // Load prompts
-    this.loadPromptsData();
-
-    // Load agents
-    this.loadAgentsData();
-
-    // Load evaluations
-    this.loadEvaluationsData();
-  }
-
-  /**
-   * Load datasets data
-   */
-  private loadDatasetsData(): void {
-    this.loadingStates.datasets = true;
-
-    this.datasetService.getDatasets({
-      page: 1,
-      limit: 100,
-      is_public: true
-    }).pipe(
-      takeUntil(this.destroy$),
-      finalize(() => this.loadingStates.datasets = false)
-    ).subscribe({
-      next: (response) => {
-        this.datasetsCount = response.totalCount;
-        this.datasets = response.datasets.slice(0, 2); // Get just the first 2 datasets
-      },
-      error: (err) => {
-        console.error('Error loading datasets:', err);
-        this.showToast('Failed to load datasets', 'error');
-      }
-    });
-  }
-
-  /**
-   * Load prompts data
-   */
-  private loadPromptsData(): void {
-    this.loadingStates.prompts = true;
-
-    this.promptService.getPrompts({
-      isPublic: true
-    }).pipe(
-      takeUntil(this.destroy$),
-      finalize(() => this.loadingStates.prompts = false)
-    ).subscribe({
-      next: (response: PromptsResponse) => {
-        this.promptsCount = response.totalCount;
-        this.recentPrompts = response.prompts.slice(0, 2); // Just take the 2 most recent prompts
-      },
-      error: (err) => {
-        console.error('Error loading prompts:', err);
-        this.showToast('Failed to load prompts', 'error');
-      }
-    });
-  }
-
-  /**
-   * Load agents data
-   */
-  private loadAgentsData(): void {
-    this.loadingStates.agents = true;
-
-    this.agentService.getAgents({
-      page: 1,
-      limit: 100
-    }).pipe(
-      takeUntil(this.destroy$),
-      finalize(() => this.loadingStates.agents = false)
-    ).subscribe({
-      next: (response) => {
-        this.agentsCount = response.totalCount;
-        this.recentAgents = response.agents.slice(0, 2); // Get just the first 2 agents
-      },
-      error: (err) => {
-        console.error('Error loading agents:', err);
-        this.showToast('Failed to load agents', 'error');
-      }
-    });
-  }
-
-  /**
-   * Load evaluations data
-   */
-  private loadEvaluationsData(): void {
-    this.loadingStates.evaluations = true;
-
-    this.evaluationService.getEvaluations({
-      page: 1,
-      limit: 100
+    // Use forkJoin to load all data in parallel with better error handling
+    forkJoin({
+      datasets: this.datasetService.getDatasets({
+        page: 1,
+        limit: 100,
+        is_public: true
+      }).pipe(
+        retry(2), // Retry failed requests up to 2 times
+        catchError(err => {
+          console.error('Error loading datasets:', err);
+          this.showToast('Failed to load datasets', 'error');
+          return of({ datasets: [], totalCount: 0 });
+        })
+      ),
+      
+      prompts: this.promptService.getPrompts({
+        isPublic: true
+      }).pipe(
+        retry(2),
+        catchError(err => {
+          console.error('Error loading prompts:', err);
+          this.showToast('Failed to load prompts', 'error');
+          return of({ prompts: [], totalCount: 0 });
+        })
+      ),
+      
+      agents: this.agentService.getAgents({
+        page: 1,
+        limit: 100
+      }).pipe(
+        retry(2),
+        catchError(err => {
+          console.error('Error loading agents:', err);
+          this.showToast('Failed to load agents', 'error');
+          return of({ agents: [], totalCount: 0 });
+        })
+      ),
+      
+      evaluations: this.evaluationService.getEvaluations({
+        page: 1,
+        limit: 100
+      }).pipe(
+        retry(2),
+        catchError(err => {
+          console.error('Error loading evaluations:', err);
+          this.showToast('Failed to load evaluations', 'error');
+          return of({ evaluations: [], totalCount: 0 });
+        })
+      ),
+      
+      reports: this.reportService.getReports({
+        page: 1,
+        limit: 100
+      }).pipe(
+        retry(2),
+        catchError(err => {
+          console.error('Error loading reports:', err);
+          this.showToast('Failed to load reports', 'error');
+          return of({ reports: [], totalCount: 0 });
+        })
+      )
     }).pipe(
       takeUntil(this.destroy$),
       finalize(() => {
-        this.loadingStates.evaluations = false;
-        this.checkAllLoaded();
-      }),
-      catchError(err => {
-        console.error('Error loading evaluations:', err);
-        this.showToast('Failed to load evaluations', 'error');
-        return of({ evaluations: [], totalCount: 0 });
-      })
-    ).subscribe(response => {
-      this.evaluationsCount = response.totalCount;
-
-      // When we receive evaluation data, enrich it with additional details
-      if (response.evaluations.length > 0) {
-        // Get first 2 evaluations and then load details for them
-        const evaluationsToShow = response.evaluations.slice(0, 2);
-
-        // Create a mock response for now since we lack actual evaluation details
-        // This should be replaced with actual API calls when the endpoint is ready
-        this.recentEvaluations = evaluationsToShow.map(evaluation => {
-          // Create a mock evaluation detail that extends the base evaluation
-          const detailEval = {
-            ...evaluation,
-            // Add mock metrics_results for completed evaluations
-            metrics_results: evaluation.status === EvaluationStatus.COMPLETED ? {
-              relevance: Math.random() * 0.5 + 0.5, // Random value between 0.5 and 1.0
-              latency: Math.floor(Math.random() * 500) + 200 // Random latency between 200-700ms
-            } : undefined,
-            // Add mock progress for running evaluations
-            progress: evaluation.status === EvaluationStatus.RUNNING ? {
-              total: 100,
-              completed: Math.floor(Math.random() * 80) + 10, // Random progress between 10-90%
-              failed: 0,
-              percentage: 0,
-              percentage_complete: Math.floor(Math.random() * 80) + 10, // Same as completed
-              processed_items: Math.floor(Math.random() * 80) + 10,
-              total_items: 100,
-              eta_seconds: 120
-            } : undefined
-          };
-
-          return detailEval;
+        this.isLoading = false;
+        // Reset all loading states
+        Object.keys(this.loadingStates).forEach(key => {
+          this.loadingStates[key as keyof typeof this.loadingStates] = false;
         });
-      } else {
-        this.recentEvaluations = [];
+      })
+    ).subscribe({
+      next: (results) => {
+        // Process datasets
+        this.datasetsCount = results.datasets.totalCount || 0;
+        this.datasets = results.datasets.datasets.slice(0, 2);
+
+        // Process prompts
+        this.promptsCount = results.prompts.totalCount || 0;
+        this.recentPrompts = results.prompts.prompts.slice(0, 2);
+
+        // Process agents
+        this.agentsCount = results.agents.totalCount || 0;
+        this.recentAgents = results.agents.agents.slice(0, 2);
+
+        // Process evaluations
+        this.evaluationsCount = results.evaluations.totalCount || 0;
+        
+        // Get the first 2 evaluations and their details if needed
+        const evaluationsToDisplay = results.evaluations.evaluations.slice(0, 2);
+        
+        // For each evaluation, get detailed data if needed
+        const detailRequests = evaluationsToDisplay.map(evaluation => {
+          // If the evaluation is running or completed, try to get progress or results
+          if (evaluation.status === EvaluationStatus.RUNNING) {
+            return this.evaluationService.getEvaluationProgress(evaluation.id).pipe(
+              catchError(() => of(null))
+            );
+          } else if (evaluation.status === EvaluationStatus.COMPLETED) {
+            return this.evaluationService.getEvaluation(evaluation.id).pipe(
+              catchError(() => of(evaluation))
+            );
+          }
+          return of(evaluation);
+        });
+
+        // Load additional evaluation details
+        if (detailRequests.length > 0) {
+          forkJoin(detailRequests).subscribe(detailedEvaluations => {
+            this.recentEvaluations = detailedEvaluations.map((detail, index) => {
+              const baseEvaluation = evaluationsToDisplay[index];
+              
+              // If we got progress data for a running evaluation
+              if (detail && 'percentage_complete' in detail) {
+                return {
+                  ...baseEvaluation,
+                  progress: detail
+                };
+              }
+              
+              // If we got full evaluation details
+              if (detail && 'results' in detail) {
+                return detail as EvaluationDetail;
+              }
+              
+              // Return the base evaluation
+              return baseEvaluation;
+            });
+          });
+        } else {
+          this.recentEvaluations = [];
+        }
+
+        // Process reports
+        this.reportsCount = results.reports.totalCount || 0;
+        this.recentReports = results.reports.reports.slice(0, 2);
+      },
+      error: (err) => {
+        console.error('Dashboard loading failed:', err);
+        this.showToast('Failed to load dashboard data', 'error');
       }
     });
-  }
-
-  /**
-   * Check if all data loading is complete
-   */
-  private checkAllLoaded(): void {
-    if (!this.loadingStates.datasets && !this.loadingStates.prompts &&
-        !this.loadingStates.agents && !this.loadingStates.evaluations) {
-      this.isLoading = false;
-    }
   }
 
   // Dataset actions
@@ -325,9 +324,17 @@ export class HomePage implements OnInit, OnDestroy {
     this.router.navigate(['app/evaluations']);
   }
 
-  // Report actions (placeholder for future implementation)
+  // Report actions
+  createReport(): void {
+    this.router.navigate(['app/reports/create']);
+  }
+
+  viewReport(report: Report): void {
+    this.router.navigate(['app/reports', report.id]);
+  }
+
   viewAllReports(): void {
-    this.showToast('Reports module coming soon!', 'info');
+    this.router.navigate(['app/reports']);
   }
 
   /**
@@ -376,31 +383,40 @@ export class HomePage implements OnInit, OnDestroy {
 
   // Type guard functions for template
   hasMetricsResults(evaluation: Evaluation | EvaluationDetail): boolean {
-    return !!(evaluation as ExtendedEvaluation).metrics_results;
+    return 'results' in evaluation && Array.isArray(evaluation.results) && evaluation.results.length > 0;
   }
 
   hasProgress(evaluation: Evaluation | EvaluationDetail): boolean {
-    return !!(evaluation as ExtendedEvaluation).progress;
+    return 'progress' in evaluation && evaluation.progress !== undefined;
   }
 
   getMetricValue(evaluation: Evaluation | EvaluationDetail, metric: string): number {
-    return (evaluation as ExtendedEvaluation).metrics_results?.[metric] || 0;
+    if (this.hasMetricsResults(evaluation)) {
+      const results = (evaluation as EvaluationDetail).results;
+      if (results && results.length > 0) {
+        // Find the specific metric value from the results
+        const result = results[0];
+        if (result['metric_scores']) {
+          const metricScore = result['metric_scores'].find((m: any) => m.name === metric);
+          return metricScore ? metricScore.value : 0;
+        }
+      }
+    }
+    return 0;
   }
 
   getProgressValue(evaluation: Evaluation | EvaluationDetail): number {
-    return (evaluation as ExtendedEvaluation).progress?.percentage_complete || 0;
+    if (this.hasProgress(evaluation)) {
+      return (evaluation as any).progress.percentage_complete || 0;
+    }
+    return 0;
   }
 }
 
 /**
  * Extended evaluation interface with metrics and progress
  */
- interface ExtendedEvaluation extends Evaluation {
-  metrics_results?: {
-    relevance: number;
-    latency: number;
-    [key: string]: any;
-  };
+interface ExtendedEvaluation extends Evaluation {
   progress?: {
     percentage_complete: number;
     [key: string]: any;
