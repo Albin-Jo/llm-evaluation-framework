@@ -1,9 +1,9 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-test/agents-test.page.ts */
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
+import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, takeUntil, finalize } from 'rxjs';
 import { Agent, AgentResponse } from '@ngtx-apps/data-access/models';
 import { AgentService } from '@ngtx-apps/data-access/services';
 import { NotificationService } from '@ngtx-apps/utils/services';
@@ -12,6 +12,13 @@ import {
   QracTextBoxComponent,
   QracTextAreaComponent
 } from '@ngtx-apps/ui/components';
+
+interface TestHistoryItem {
+  query: string;
+  result: Record<string, any>;
+  timestamp: Date;
+  success: boolean;
+}
 
 @Component({
   selector: 'app-agent-test',
@@ -26,7 +33,8 @@ import {
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './agents-test.page.html',
-  styleUrls: ['./agents-test.page.scss']
+  styleUrls: ['./agents-test.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AgentTestPage implements OnInit, OnDestroy {
   agent: Agent | null = null;
@@ -38,6 +46,12 @@ export class AgentTestPage implements OnInit, OnDestroy {
   testResult: Record<string, any> | null = null;
   testSuccess = false;
   jsonError: string | null = null;
+  
+  // Track test history to allow users to see previous tests
+  testHistory: TestHistoryItem[] = [];
+  
+  // Show/hide history panel
+  showHistory = false;
 
   private destroy$ = new Subject<void>();
 
@@ -46,7 +60,8 @@ export class AgentTestPage implements OnInit, OnDestroy {
     private agentService: AgentService,
     private notificationService: NotificationService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     this.testForm = this.createForm();
   }
@@ -58,9 +73,12 @@ export class AgentTestPage implements OnInit, OnDestroy {
         this.agentId = params.get('id');
         if (this.agentId) {
           this.loadAgent(this.agentId);
+          // Try to load test history from session storage
+          this.loadTestHistory();
         } else {
           this.error = 'Agent ID not provided';
           this.notificationService.error(this.error);
+          this.cdr.markForCheck();
         }
       });
   }
@@ -87,21 +105,76 @@ export class AgentTestPage implements OnInit, OnDestroy {
   loadAgent(id: string): void {
     this.isLoading = true;
     this.error = null;
+    this.cdr.markForCheck();
 
     this.agentService.getAgent(id)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        })
+      )
       .subscribe({
         next: (agent: AgentResponse) => {
           this.agent = agent;
-          this.isLoading = false;
+          // Pre-populate the form with example query if available
+          if (agent.domain) {
+            this.setDomainSpecificExample(agent.domain);
+          }
+          this.cdr.markForCheck();
         },
         error: (error) => {
           this.error = 'Failed to load agent details. Please try again.';
           this.notificationService.error(this.error);
-          this.isLoading = false;
           console.error('Error loading agent:', error);
+          this.cdr.markForCheck();
         }
       });
+  }
+
+  /**
+   * Set domain-specific examples in the form
+   */
+  setDomainSpecificExample(domain: string): void {
+    let exampleQuery = '';
+    let exampleContext = '';
+    
+    switch (domain.toLowerCase()) {
+      case 'customer_service':
+        exampleQuery = 'How do I reset my password?';
+        exampleContext = 'User is trying to access their account but has forgotten their password.';
+        break;
+      case 'technical':
+        exampleQuery = 'What are the system requirements for the latest release?';
+        exampleContext = 'User is planning to upgrade to the newest software version.';
+        break;
+      case 'medical':
+        exampleQuery = 'What are the common side effects of this medication?';
+        exampleContext = 'Patient is asking about a prescription medication.';
+        break;
+      case 'legal':
+        exampleQuery = 'What documents do I need for trademark registration?';
+        exampleContext = 'Client is interested in registering a trademark for their new product.';
+        break;
+      case 'finance':
+        exampleQuery = 'What are the current interest rates for savings accounts?';
+        exampleContext = 'Customer is looking to open a new savings account.';
+        break;
+      case 'education':
+        exampleQuery = 'What prerequisites are required for this course?';
+        exampleContext = 'Student is planning their course schedule for next semester.';
+        break;
+      default:
+        exampleQuery = 'How can I help you today?';
+        exampleContext = 'User has initiated a conversation with the agent.';
+    }
+    
+    this.testForm.patchValue({
+      query: exampleQuery,
+      context: exampleContext
+    });
+    this.cdr.markForCheck();
   }
 
   /**
@@ -111,6 +184,7 @@ export class AgentTestPage implements OnInit, OnDestroy {
     const parametersValue = this.testForm.get('parameters')?.value;
     
     if (!parametersValue || parametersValue === '{}') {
+      this.jsonError = null;
       return true;
     }
     
@@ -120,7 +194,30 @@ export class AgentTestPage implements OnInit, OnDestroy {
       return true;
     } catch (e) {
       this.jsonError = 'Invalid JSON format in parameters field';
+      this.cdr.markForCheck();
       return false;
+    }
+  }
+
+  /**
+   * Format JSON input to make it more readable
+   */
+  formatJsonInput(): void {
+    const parametersValue = this.testForm.get('parameters')?.value;
+    
+    if (!parametersValue || parametersValue === '{}') {
+      return;
+    }
+    
+    try {
+      const parsed = JSON.parse(parametersValue);
+      const formatted = JSON.stringify(parsed, null, 2);
+      this.testForm.patchValue({ parameters: formatted });
+      this.jsonError = null;
+      this.cdr.markForCheck();
+    } catch (e) {
+      this.jsonError = 'Invalid JSON format in parameters field';
+      this.cdr.markForCheck();
     }
   }
 
@@ -130,6 +227,7 @@ export class AgentTestPage implements OnInit, OnDestroy {
   onSubmit(): void {
     if (this.testForm.invalid || !this.agentId) {
       this.testForm.markAllAsTouched();
+      this.cdr.markForCheck();
       return;
     }
     
@@ -142,6 +240,8 @@ export class AgentTestPage implements OnInit, OnDestroy {
     this.isTesting = true;
     this.testResult = null;
     this.testSuccess = false;
+    this.cdr.markForCheck();
+    
     const formValues = this.testForm.value;
 
     // Prepare test input
@@ -163,35 +263,131 @@ export class AgentTestPage implements OnInit, OnDestroy {
     } catch (e) {
       // This should not happen due to validation above
       this.isTesting = false;
+      this.cdr.markForCheck();
       return;
     }
 
     // Call the test API
     this.agentService.testAgent(this.agentId, testInput)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isTesting = false;
+          this.cdr.markForCheck();
+        })
+      )
       .subscribe({
         next: (result: Record<string, any>) => {
           this.testResult = result;
           this.testSuccess = true;
-          this.isTesting = false;
           this.notificationService.success('Agent test completed successfully');
+          
+          // Add to test history
+          this.addToTestHistory({
+            query: formValues.query,
+            result: result,
+            timestamp: new Date(),
+            success: true
+          });
+          
+          this.cdr.markForCheck();
         },
         error: (error: any) => {
           this.notificationService.error('Failed to test agent. Please check the response for details.');
-          this.isTesting = false;
 
           // Still show the error response if available
           if (error.error) {
             this.testResult = {
-              error: error.error,
+              error: true,
               status: error.status,
-              message: error.message || 'Test failed'
+              message: error.message || 'Test failed',
+              details: error.error
             };
+            
+            // Add to test history
+            this.addToTestHistory({
+              query: formValues.query,
+              result: this.testResult,
+              timestamp: new Date(),
+              success: false
+            });
           }
 
           console.error('Error testing agent:', error);
+          this.cdr.markForCheck();
         }
       });
+  }
+
+  /**
+   * Add a test to the history and save to session storage
+   */
+  private addToTestHistory(test: TestHistoryItem): void {
+    this.testHistory.unshift(test);
+    
+    // Limit history to 10 items
+    if (this.testHistory.length > 10) {
+      this.testHistory = this.testHistory.slice(0, 10);
+    }
+    
+    // Save to session storage
+    try {
+      sessionStorage.setItem(`agent_test_history_${this.agentId}`, JSON.stringify(this.testHistory));
+    } catch (e) {
+      console.warn('Failed to save test history to session storage:', e);
+    }
+  }
+  
+  /**
+   * Load test history from session storage
+   */
+  private loadTestHistory(): void {
+    try {
+      const saved = sessionStorage.getItem(`agent_test_history_${this.agentId}`);
+      if (saved) {
+        this.testHistory = JSON.parse(saved);
+        
+        // Convert string timestamps back to Date objects
+        this.testHistory.forEach(item => {
+          item.timestamp = new Date(item.timestamp);
+        });
+        
+        this.cdr.markForCheck();
+      }
+    } catch (e) {
+      console.warn('Failed to load test history from session storage:', e);
+    }
+  }
+  
+  /**
+   * Load a previous test from history
+   */
+  loadFromHistory(test: TestHistoryItem): void {
+    this.testForm.patchValue({
+      query: test.query,
+      // Keep current context and parameters
+    });
+    
+    this.testResult = test.result;
+    this.testSuccess = test.success;
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Clear test history
+   */
+  clearTestHistory(): void {
+    this.testHistory = [];
+    sessionStorage.removeItem(`agent_test_history_${this.agentId}`);
+    this.cdr.markForCheck();
+  }
+  
+  /**
+   * Toggle history panel visibility
+   */
+  toggleHistory(): void {
+    this.showHistory = !this.showHistory;
+    this.cdr.markForCheck();
   }
 
   /**
@@ -242,5 +438,23 @@ export class AgentTestPage implements OnInit, OnDestroy {
     }
 
     return 'Invalid value';
+  }
+  
+  /**
+   * Get a truncated query string for the history list
+   */
+  truncateQuery(query: string, maxLength = 30): string {
+    if (!query) return '';
+    return query.length > maxLength
+      ? `${query.substring(0, maxLength)}...`
+      : query;
+  }
+  
+  /**
+   * Format timestamp for display
+   */
+  formatTimestamp(date: Date): string {
+    if (!date) return '';
+    return date.toLocaleTimeString() + ' ' + date.toLocaleDateString();
   }
 }

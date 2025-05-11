@@ -1,314 +1,260 @@
 /* Path: libs/feature/llm-eval/src/lib/components/json-editor/json-editor.component.ts */
-import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  OnInit,
-  OnChanges,
-  SimpleChanges,
+import { 
+  Component, 
+  Input, 
+  Output, 
+  EventEmitter, 
+  OnInit, 
+  OnDestroy,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
-  NO_ERRORS_SCHEMA
+  ElementRef,
+  ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormArray, ReactiveFormsModule, Validators } from '@angular/forms';
-
-interface KeyValuePair {
-  key: string;
-  value: any;
-}
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { Subject, debounceTime, takeUntil } from 'rxjs';
+import { QracButtonComponent } from '@ngtx-apps/ui/components';
 
 @Component({
   selector: 'app-json-editor',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  schemas: [NO_ERRORS_SCHEMA],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    QracButtonComponent
+  ],
   templateUrl: './json-editor.component.html',
   styleUrls: ['./json-editor.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JsonEditorComponent implements OnInit, OnChanges {
+export class JsonEditorComponent implements OnInit, OnDestroy {
   @Input() jsonValue: string = '{}';
   @Input() title: string = 'Edit JSON';
+  @Input() placeholder: string = 'Enter JSON content';
+  @Input() readOnly: boolean = false;
+  @Input() rows: number = 6;
+  @Input() maxLength: number = 10000;
+  @Input() required: boolean = false;
+  @Input() label: string = '';
+  
+  // Two-way binding for modal state
   @Input() isOpen: boolean = false;
   @Output() isOpenChange = new EventEmitter<boolean>();
+  
+  // Events
   @Output() valueChange = new EventEmitter<string>();
   @Output() validChange = new EventEmitter<boolean>();
+  
+  // Add ViewChild for the textarea to focus when modal opens
+  @ViewChild('jsonTextarea') jsonTextarea?: ElementRef<HTMLTextAreaElement>;
+  
+  jsonControl = new FormControl('');
+  isValid = true;
+  previewSummary: string = '';
+  errorMessage: string = '';
+  
+  private destroy$ = new Subject<void>();
 
-  jsonForm!: FormGroup;
-  isRawMode: boolean = false;
-  rawJsonText: string = '{}';
-  jsonError: string | null = null;
-  keyValuePairs: KeyValuePair[] = [];
-  isValid: boolean = true;
-  formattedJsonString: string = '';
+  constructor(private cdr: ChangeDetectorRef) {}
 
-  constructor(
-    private fb: FormBuilder,
-    private cdr: ChangeDetectorRef
-  ) {}
-
-  ngOnInit(): void {
-    this.initForm();
-    this.parseJson();
+  ngOnInit() {
+    // Initialize control with input value
+    this.updateJsonControl(this.jsonValue);
+    
+    // Set up listener for changes
+    this.jsonControl.valueChanges
+      .pipe(
+        debounceTime(300),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(value => {
+        this.validateJson(value || '{}');
+      });
   }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['jsonValue'] && !changes['jsonValue'].firstChange) {
-      this.parseJson();
-    }
+  
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
-
-  private initForm(): void {
-    this.jsonForm = this.fb.group({
-      keyValuePairs: this.fb.array([]),
-      rawJson: ['{}', this.validateJson]
-    });
-  }
-
-  parseJson(): void {
+  
+  /**
+   * Update the form control with new JSON value
+   */
+  private updateJsonControl(value: string): void {
     try {
-      // Handle undefined, null, or empty string input
-      if (!this.jsonValue || this.jsonValue === '' || this.jsonValue === 'undefined' || this.jsonValue === 'null') {
-        this.jsonValue = '{}';
-      }
-
-      // If it's already a JSON object, stringify it
-      if (typeof this.jsonValue === 'object') {
-        this.jsonValue = JSON.stringify(this.jsonValue);
-      }
-
-      // Parse the JSON string
-      const jsonObj = JSON.parse(this.jsonValue);
-      this.formattedJsonString = JSON.stringify(jsonObj, null, 2);
-
-      // Convert to key-value pairs
-      this.keyValuePairs = Object.entries(jsonObj).map(([key, value]) => ({
-        key,
-        value: typeof value === 'object' ? JSON.stringify(value) : value
-      }));
-
-      this.rawJsonText = this.formattedJsonString;
-      this.updateFormArray();
-      this.jsonForm.get('rawJson')?.setValue(this.formattedJsonString);
-      this.jsonError = null;
-      this.isValid = true;
-      this.validChange.emit(true);
-    } catch (error) {
-      console.error('Invalid JSON input:', error);
-      this.jsonError = 'Invalid JSON format';
-      this.keyValuePairs = [];
-      this.rawJsonText = this.jsonValue || '{}';
-      this.updateFormArray();
+      // Ensure the value is a string
+      const jsonString = typeof value === 'object' 
+        ? JSON.stringify(value, null, 2) 
+        : (value || '{}');
+        
+      this.jsonControl.setValue(jsonString, { emitEvent: false });
+      this.validateJson(jsonString);
+    } catch (e) {
       this.isValid = false;
+      this.errorMessage = 'Invalid JSON format';
       this.validChange.emit(false);
     }
-
-    this.cdr.markForCheck();
   }
-
-  updateFormArray(): void {
-    const formArray = this.jsonForm.get('keyValuePairs') as FormArray;
-
-    // Clear existing controls
-    while (formArray.length) {
-      formArray.removeAt(0);
+  
+  /**
+   * Validate JSON and update preview
+   */
+  private validateJson(value: string): void {
+    if (!value || value.trim() === '') {
+      this.previewSummary = '{}';
+      this.isValid = true;
+      this.errorMessage = '';
+      this.validChange.emit(true);
+      return;
     }
-
-    // Add new controls
-    this.keyValuePairs.forEach(pair => {
-      formArray.push(
-        this.fb.group({
-          key: [pair.key, [Validators.required]],
-          value: [pair.value, []]
-        })
-      );
-    });
-  }
-
-  get keyValuePairsFormArray(): FormArray {
-    return this.jsonForm.get('keyValuePairs') as FormArray;
-  }
-
-  addKeyValuePair(): void {
-    const formArray = this.jsonForm.get('keyValuePairs') as FormArray;
-    formArray.push(
-      this.fb.group({
-        key: ['', [Validators.required]],
-        value: ['', []]
-      })
-    );
-    this.cdr.markForCheck();
-  }
-
-  removeKeyValuePair(index: number): void {
-    const formArray = this.jsonForm.get('keyValuePairs') as FormArray;
-    formArray.removeAt(index);
-    this.cdr.markForCheck();
-  }
-
-  toggleMode(): void {
-    if (this.isRawMode) {
-      // Switching from raw to structured - parse the raw JSON
-      try {
-        const rawValue = this.jsonForm.get('rawJson')?.value;
-        if (rawValue) {
-          const jsonObj = JSON.parse(rawValue);
-          this.keyValuePairs = Object.entries(jsonObj).map(([key, value]) => ({
-            key,
-            value: typeof value === 'object' ? JSON.stringify(value) : value
-          }));
-          this.updateFormArray();
-          this.jsonError = null;
-          this.isValid = true;
-          this.validChange.emit(true);
-        }
-      } catch (error) {
-        this.jsonError = 'Invalid JSON format';
-        this.isValid = false;
-        this.validChange.emit(false);
-        // Stay in raw mode if parsing fails
-        this.cdr.markForCheck();
-        return;
-      }
-    } else {
-      // Switching from structured to raw - build JSON from key-value pairs
-      try {
-        const jsonObj = this.buildJsonFromForm();
-        this.jsonForm.get('rawJson')?.setValue(JSON.stringify(jsonObj, null, 2));
-        this.jsonError = null;
-        this.isValid = true;
-        this.validChange.emit(true);
-      } catch (error) {
-        this.jsonError = 'Error converting to JSON';
-        this.isValid = false;
-        this.validChange.emit(false);
-        this.cdr.markForCheck();
-        return;
-      }
-    }
-
-    this.isRawMode = !this.isRawMode;
-    this.cdr.markForCheck();
-  }
-
-  buildJsonFromForm(): any {
-    const result: any = {};
-    const formArray = this.jsonForm.get('keyValuePairs') as FormArray;
-
-    formArray.controls.forEach(control => {
-      const key = control.get('key')?.value;
-      let value = control.get('value')?.value;
-
-      if (key) {
-        // Try to parse values that look like objects or arrays
-        if (typeof value === 'string') {
-          if ((value.startsWith('{') && value.endsWith('}')) ||
-              (value.startsWith('[') && value.endsWith(']'))) {
-            try {
-              value = JSON.parse(value);
-            } catch (e) {
-              // Keep as string if parsing fails
-            }
-          } else if (value === 'true' || value === 'false') {
-            value = value === 'true';
-          } else if (!isNaN(Number(value)) && value !== '') {
-            value = Number(value);
-          }
-        }
-
-        result[key] = value;
-      }
-    });
-
-    return result;
-  }
-
-  validateJson(control: any): {[key: string]: any} | null {
+    
     try {
-      if (!control.value || control.value === '{}') {
-        return null;
+      const parsed = JSON.parse(value);
+      this.isValid = true;
+      this.errorMessage = '';
+      this.validChange.emit(true);
+      
+      // Create preview summary
+      this.generatePreviewSummary(parsed);
+    } catch (e) {
+      this.isValid = false;
+      this.errorMessage = 'Invalid JSON format';
+      this.validChange.emit(false);
+    }
+    
+    this.cdr.markForCheck();
+  }
+  
+  /**
+   * Generate a preview of the JSON content
+   */
+  private generatePreviewSummary(json: any): void {
+    try {
+      const compact = JSON.stringify(json);
+      if (compact === '{}') {
+        this.previewSummary = '{}';
+        return;
       }
-      JSON.parse(control.value);
-      return null;
-    } catch (error) {
-      return { invalidJson: true };
+      
+      if (compact.length > 50) {
+        this.previewSummary = compact.substring(0, 47) + '...';
+      } else {
+        this.previewSummary = compact;
+      }
+    } catch (e) {
+      this.previewSummary = 'Error generating preview';
     }
   }
-
-  save(): void {
-    if (this.isRawMode) {
-      // Validate and save raw JSON
-      const rawValue = this.jsonForm.get('rawJson')?.value;
-      try {
-        if (rawValue) {
-          const parsed = JSON.parse(rawValue);
-          const jsonStr = JSON.stringify(parsed);
-          this.valueChange.emit(jsonStr);
-          this.close();
-          this.isValid = true;
-          this.validChange.emit(true);
-        }
-      } catch (error) {
-        this.jsonError = 'Invalid JSON format';
-        this.isValid = false;
-        this.validChange.emit(false);
-        this.cdr.markForCheck();
-      }
-    } else {
-      // Save from structured editor
-      try {
-        const jsonObj = this.buildJsonFromForm();
-        const jsonStr = JSON.stringify(jsonObj);
-        this.valueChange.emit(jsonStr);
-        this.formattedJsonString = JSON.stringify(jsonObj, null, 2);
-        this.close();
-        this.isValid = true;
-        this.validChange.emit(true);
-      } catch (error) {
-        this.jsonError = 'Error saving JSON';
-        this.isValid = false;
-        this.validChange.emit(false);
-        this.cdr.markForCheck();
-      }
-    }
-  }
-
-  open(): void {
+  
+  /**
+   * Open the editor modal
+   */
+  openModal(): void {
     this.isOpen = true;
-    this.parseJson();
     this.isOpenChange.emit(true);
     this.cdr.markForCheck();
+    
+    // Focus the textarea after the modal is rendered
+    setTimeout(() => {
+      if (this.jsonTextarea) {
+        this.jsonTextarea.nativeElement.focus();
+      }
+    }, 100);
   }
-
-  close(): void {
-    this.isOpen = false;
-    this.isOpenChange.emit(false);
+  
+  /**
+   * Close the editor modal
+   */
+  closeModal(event?: MouseEvent): void {
+    // If this is a direct call with no event, or the click was on the modal overlay itself
+    // and not on its children, close the modal
+    if (!event || event.target === event.currentTarget) {
+      this.isOpen = false;
+      this.isOpenChange.emit(false);
+      this.cdr.markForCheck();
+    }
+  }
+  
+  /**
+   * Prevent event propagation when clicking inside the modal
+   */
+  stopPropagation(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+  
+  /**
+   * Apply changes and close modal
+   */
+  applyChanges(): void {
+    if (!this.isValid) {
+      return;
+    }
+    
+    const value = this.jsonControl.value || '{}';
+    this.valueChange.emit(value);
+    this.closeModal();
+  }
+  
+  /**
+   * Format the JSON for better readability
+   */
+  formatJson(): void {
+    const value = this.jsonControl.value || '{}';
+    
+    try {
+      const formatted = JSON.stringify(JSON.parse(value), null, 2);
+      this.jsonControl.setValue(formatted);
+      this.isValid = true;
+      this.errorMessage = '';
+      this.validChange.emit(true);
+      this.cdr.markForCheck();
+    } catch (e) {
+      // Keep current value if parsing fails
+      this.isValid = false;
+      this.errorMessage = 'Invalid JSON format';
+      this.validChange.emit(false);
+    }
+  }
+  
+  /**
+   * Clear the JSON editor
+   */
+  clearJson(): void {
+    this.jsonControl.setValue('{}');
+    this.isValid = true;
+    this.errorMessage = '';
+    this.validChange.emit(true);
     this.cdr.markForCheck();
   }
-
-  // Get formatted preview for display in main form
-  getPreviewText(): string {
+  
+  /**
+   * Add a new property to the JSON object
+   */
+  addNewProperty(): void {
     try {
-      if (!this.jsonValue || this.jsonValue === '{}') {
-        return 'No data configured';
+      const currentJson = JSON.parse(this.jsonControl.value || '{}');
+      // Generate a unique key
+      let newKey = 'newProperty';
+      let counter = 1;
+      
+      while (currentJson.hasOwnProperty(newKey)) {
+        newKey = `newProperty${counter}`;
+        counter++;
       }
-
-      const jsonObj = typeof this.jsonValue === 'string' ?
-        JSON.parse(this.jsonValue) : this.jsonValue;
-
-      // Count the number of keys
-      const keyCount = Object.keys(jsonObj).length;
-
-      if (keyCount === 0) {
-        return 'Empty object';
-      }
-
-      // Create a brief summary
-      return JSON.stringify(jsonObj);
+      
+      currentJson[newKey] = '';
+      this.jsonControl.setValue(JSON.stringify(currentJson, null, 2));
+      this.isValid = true;
+      this.errorMessage = '';
+      this.validChange.emit(true);
+      this.cdr.markForCheck();
     } catch (e) {
-      return 'Invalid JSON';
+      // Keep current value if parsing fails
+      this.isValid = false;
+      this.errorMessage = 'Invalid JSON format';
+      this.validChange.emit(false);
     }
   }
 }

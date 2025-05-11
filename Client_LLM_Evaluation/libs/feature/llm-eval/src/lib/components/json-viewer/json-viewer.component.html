@@ -1,0 +1,97 @@
+<!-- Path: libs/feature/llm-eval/src/lib/components/json-viewer/json-viewer.component.html -->
+<div class="json-viewer-container">
+  <!-- Toolbar -->
+  <div class="json-viewer-toolbar">
+    <div class="json-viewer-actions">
+      <button type="button" class="toolbar-button" (click)="expandAll()" title="Expand All">
+        <span class="button-icon">▾</span> Expand All
+      </button>
+      <button type="button" class="toolbar-button" (click)="collapseAll()" title="Collapse All">
+        <span class="button-icon">▸</span> Collapse All
+      </button>
+      <button type="button" class="toolbar-button" (click)="copyToClipboard()" title="Copy JSON">
+        <span class="button-icon">⎘</span> Copy
+      </button>
+    </div>
+    
+    <!-- Search (Optional) -->
+    <div class="json-viewer-search">
+      <input
+        type="text"
+        [(ngModel)]="searchText"
+        (keyup.enter)="search()"
+        placeholder="Search JSON..."
+        class="search-input" />
+      <button type="button" class="search-button" (click)="search()">
+        Search
+      </button>
+      <button *ngIf="searchText" type="button" class="clear-button" (click)="resetSearch()">
+        Clear
+      </button>
+    </div>
+  </div>
+  
+  <!-- Search Results -->
+  <div *ngIf="searchText && searchResults >= 0" class="search-results">
+    Found {{ searchResults }} {{ searchResults === 1 ? 'match' : 'matches' }}
+  </div>
+  
+  <!-- JSON Tree View -->
+  <div class="json-tree">
+    <ng-container *ngIf="treeData && treeData.length > 0">
+      <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: treeData, level: 0 }"></ng-container>
+    </ng-container>
+    
+    <!-- Empty State -->
+    <div *ngIf="!treeData || treeData.length === 0" class="empty-json">
+      Empty JSON object
+    </div>
+  </div>
+</div>
+
+<!-- Tree Node Template (Recursive) -->
+<ng-template #nodeTemplate let-nodes="nodes" let-level="level">
+  <ul class="json-tree-list" [style.padding-left.px]="level * 16">
+    <li *ngFor="let node of nodes" class="json-tree-item">
+      <!-- Node Header -->
+      <div class="json-node-header" (click)="toggleNode(node)">
+        <!-- Toggle Arrow (if has children) -->
+        <span *ngIf="node.children && node.children.length > 0" class="toggle-icon">
+          {{ node.expanded ? '▾' : '▸' }}
+        </span>
+        <span *ngIf="!node.children || node.children.length === 0" class="toggle-icon-placeholder"></span>
+        
+        <!-- Key -->
+        <span [class]="getKeyClass(node)">{{ node.key }}</span>
+        
+        <!-- Separator -->
+        <span class="json-separator">: </span>
+        
+        <!-- Value Preview or Summary -->
+        <ng-container *ngIf="!node.expanded || !node.children || node.children.length === 0">
+          <span [class]="getValueClass(node)">
+            {{ node.value }}
+          </span>
+        </ng-container>
+        
+        <!-- Array/Object Summary -->
+        <ng-container *ngIf="node.expanded && node.children && node.children.length > 0">
+          <span class="json-summary" *ngIf="node.type === 'array'">
+            Array[{{ node.children.length }}]
+          </span>
+          <span class="json-summary" *ngIf="node.type === 'object'">
+            Object{{ '{' }}{{ node.children.length }}{{ '}' }}
+          </span>
+        </ng-container>
+      </div>
+      
+      <!-- Child Nodes (recursive) -->
+      <div *ngIf="node.expanded && node.children && node.children.length > 0" class="json-node-children">
+        <ng-container *ngTemplateOutlet="nodeTemplate; context: { 
+          nodes: node.children, 
+          level: level + 1 
+        }"></ng-container>
+      </div>
+    </li>
+  </ul>
+</ng-template>

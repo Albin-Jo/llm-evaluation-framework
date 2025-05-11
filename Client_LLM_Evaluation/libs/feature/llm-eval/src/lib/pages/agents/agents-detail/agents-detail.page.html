@@ -1,3 +1,4 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-detail/agents-detail.page.html -->
 <div class="agent-detail-container">
   <!-- Header Section -->
   <div class="header-section">
@@ -9,13 +10,33 @@
 
     <div class="title-actions">
       <div class="title-section">
-        <h1 class="page-title" *ngIf="agent">{{ agent.name }}</h1>
-        <span *ngIf="agent" class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
-          {{ agent.is_active ? 'Active' : 'Inactive' }}
-        </span>
+        <div class="title-status-container">
+          <h1 class="page-title" *ngIf="agent">{{ agent.name }}</h1>
+          <span *ngIf="agent" class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
+            {{ agent.is_active ? 'Active' : 'Inactive' }}
+          </span>
+
+          <!-- Health Status Badge (if available) -->
+          <span *ngIf="healthStatus" class="status-badge" [ngClass]="getHealthStatusClass()">
+            {{ healthStatus.healthy ? 'Healthy' : 'Unhealthy' }}
+          </span>
+        </div>
+
+        <!-- Domain Label -->
+        <div *ngIf="agent" class="domain-container">
+          <span class="domain-label">Domain:</span>
+          <span class="domain-badge">{{ agent.domain }}</span>
+        </div>
       </div>
 
       <div class="action-buttons" *ngIf="agent">
+        <button
+          class="action-button status-toggle-button"
+          [class.active-status]="agent.is_active"
+          [class.inactive-status]="!agent.is_active"
+          (click)="toggleAgentStatus()">
+          {{ agent.is_active ? 'Deactivate' : 'Activate' }}
+        </button>
         <button class="action-button edit-button" (click)="onEditClick()">
           Edit Agent
         </button>
@@ -49,77 +70,278 @@
 
   <!-- Agent Details -->
   <div *ngIf="agent && !isLoading" class="agent-details">
-    <div class="info-cards">
-      <!-- Basic Information Card -->
-      <div class="info-card basic-info">
+    <!-- Basic Information Card -->
+    <div class="detail-card">
+      <div class="card-header" (click)="toggleSection('basicInfo')">
         <h2 class="card-title">Basic Information</h2>
-        <div class="card-content">
+        <span class="expand-icon">{{ expandedSections.basicInfo ? '▼' : '►' }}</span>
+      </div>
+
+      <div class="card-content" [class.expanded]="expandedSections.basicInfo">
+        <div class="info-grid">
           <div class="info-row">
             <span class="info-label">Description</span>
-            <span class="info-value description-value">{{ agent.description || 'No description provided' }}</span>
+            <div class="info-value description-value">{{ agent.description || 'No description provided' }}</div>
           </div>
-          <div class="info-row">
-            <span class="info-label">Domain</span>
-            <span class="info-value domain-badge">{{ agent.domain }}</span>
-          </div>
+
           <div class="info-row">
             <span class="info-label">Model Type</span>
-            <span class="info-value">{{ agent.model_type || 'Not specified' }}</span>
+            <span class="info-value model-value">{{ agent.model_type || 'Not specified' }}</span>
           </div>
+
           <div class="info-row">
             <span class="info-label">Version</span>
             <span class="info-value">{{ agent.version || '1.0.0' }}</span>
           </div>
+
           <div class="info-row">
             <span class="info-label">Created</span>
             <span class="info-value">{{ formatDate(agent.created_at) }}</span>
           </div>
+
           <div class="info-row">
             <span class="info-label">Last Updated</span>
             <span class="info-value">{{ formatDate(agent.updated_at) }}</span>
           </div>
-          <div class="info-row tags-row" *ngIf="agent.tags && agent.tags.length > 0">
+
+          <div class="info-row" *ngIf="agent.tags && agent.tags.length > 0">
             <span class="info-label">Tags</span>
-            <div class="tags-container">
+            <div class="tags-container info-value">
               <span class="tag" *ngFor="let tag of agent.tags">{{ tag }}</span>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- API Configuration Card -->
-      <div class="info-card api-config">
+    <!-- API Configuration Card -->
+    <div class="detail-card">
+      <div class="card-header" (click)="toggleSection('apiConfig')">
         <h2 class="card-title">API Configuration</h2>
-        <div class="card-content">
+        <span class="expand-icon">{{ expandedSections.apiConfig ? '▼' : '►' }}</span>
+      </div>
+
+      <div class="card-content" [class.expanded]="expandedSections.apiConfig">
+        <div class="info-grid">
           <div class="info-row full-width">
             <span class="info-label">API Endpoint</span>
-            <span class="info-value endpoint">{{ agent.api_endpoint }}</span>
+            <div class="endpoint-container">
+              <span class="info-value endpoint">{{ agent.api_endpoint }}</span>
+              <button class="copy-button" (click)="$event.stopPropagation(); copyToClipboard(agent.api_endpoint)" title="Copy to clipboard">
+                Copy
+              </button>
+            </div>
           </div>
+
           <div class="info-row" *ngIf="agent.integration_type">
             <span class="info-label">Integration Type</span>
-            <span class="info-value">{{ agent.integration_type }}</span>
+            <span class="info-value integration-badge">{{ agent.integration_type }}</span>
           </div>
+
           <div class="info-row" *ngIf="agent.auth_type">
             <span class="info-label">Auth Type</span>
-            <span class="info-value">{{ agent.auth_type }}</span>
+            <span class="info-value auth-badge">{{ agent.auth_type }}</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">Status</span>
-            <span class="info-value status-value" [ngClass]="agent.is_active ? 'active-status' : 'inactive-status'">
-              {{ agent.is_active ? 'Active' : 'Inactive' }}
-            </span>
+
+          <div class="info-row" *ngIf="agent.response_format">
+            <span class="info-label">Response Format</span>
+            <span class="info-value">{{ agent.response_format }}</span>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Configuration Card -->
-      <div class="info-card config">
+    <!-- Configuration Card -->
+    <div class="detail-card">
+      <div class="card-header" (click)="toggleSection('configuration')">
         <h2 class="card-title">Configuration</h2>
-        <div class="card-content" *ngIf="agent.config">
-          <pre class="config-json">{{ formatJson(agent.config) }}</pre>
+        <span class="expand-icon">{{ expandedSections.configuration ? '▼' : '►' }}</span>
+      </div>
+
+      <div class="card-content" [class.expanded]="expandedSections.configuration">
+        <div class="config-tabs">
+          <div class="config-tab-buttons">
+            <button class="config-tab-button active">Configuration</button>
+            <button class="config-tab-button">Auth Credentials</button>
+            <button class="config-tab-button">Retry Config</button>
+            <button class="config-tab-button">Content Filter</button>
+          </div>
+
+          <div class="config-tab-content">
+            <div *ngIf="agent.config">
+              <app-json-viewer [json]="agent.config"></app-json-viewer>
+            </div>
+            <div *ngIf="!agent.config">
+              <div class="empty-config">No configuration available</div>
+            </div>
+          </div>
         </div>
-        <div class="card-content" *ngIf="!agent.config">
-          <div class="empty-config">No configuration available</div>
+      </div>
+    </div>
+
+    <!-- Tools Card -->
+    <div class="detail-card">
+      <div class="card-header" (click)="toggleSection('tools')">
+        <h2 class="card-title">Tools & Capabilities</h2>
+        <span class="expand-icon">{{ expandedSections.tools ? '▼' : '►' }}</span>
+      </div>
+
+      <div class="card-content" [class.expanded]="expandedSections.tools">
+        <!-- Loading State -->
+        <div *ngIf="isLoadingTools" class="section-loading">
+          <div class="spinner-sm"></div>
+          <p>Loading agent tools...</p>
+        </div>
+
+        <!-- Error State -->
+        <div *ngIf="toolsError" class="section-error">
+          <p>{{ toolsError }}</p>
+          <button class="retry-button-sm" (click)="loadAgentTools(agentId!)">Retry</button>
+        </div>
+
+        <!-- Tools List -->
+        <div *ngIf="agentTools && !isLoadingTools && !toolsError" class="tools-container">
+          <div *ngIf="agentTools.tools && agentTools.tools.length > 0" class="tools-list">
+            <div *ngFor="let tool of agentTools.tools" class="tool-item">
+              <div class="tool-header">
+                <h3 class="tool-name">{{ tool.name }}</h3>
+              </div>
+              <p class="tool-description">{{ tool.description }}</p>
+
+              <div *ngIf="tool.parameters" class="tool-parameters">
+                <h4 class="parameters-title">Parameters:</h4>
+                <app-json-viewer [json]="tool.parameters" [collapsible]="true"></app-json-viewer>
+              </div>
+
+              <div *ngIf="tool.required_parameters && tool.required_parameters.length > 0" class="required-parameters">
+                <h4 class="parameters-title">Required Parameters:</h4>
+                <ul class="parameters-list">
+                  <li *ngFor="let param of tool.required_parameters">{{ param }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="!agentTools.tools || agentTools.tools.length === 0" class="empty-tools">
+            <p>No tools available for this agent.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Check Card -->
+    <div class="detail-card">
+      <div class="card-header" (click)="toggleSection('health')">
+        <h2 class="card-title">Health & Status</h2>
+        <span class="expand-icon">{{ expandedSections.health ? '▼' : '►' }}</span>
+      </div>
+
+      <div class="card-content" [class.expanded]="expandedSections.health">
+        <div class="health-grid">
+          <!-- Health Status -->
+          <div class="health-status-section">
+            <h3 class="section-title">Health Status</h3>
+
+            <!-- Loading State -->
+            <div *ngIf="isCheckingHealth" class="section-loading">
+              <div class="spinner-sm"></div>
+              <p>Checking agent health...</p>
+            </div>
+
+            <!-- Error State -->
+            <div *ngIf="healthError" class="section-error">
+              <p>{{ healthError }}</p>
+              <button class="retry-button-sm" (click)="checkAgentHealth(agentId!)">Retry</button>
+            </div>
+
+            <!-- Health Details -->
+            <div *ngIf="healthStatus && !isCheckingHealth && !healthError" class="health-details">
+              <div class="health-indicator" [ngClass]="getHealthStatusClass()">
+                <span class="health-dot"></span>
+                <span class="health-text">{{ healthStatus.healthy ? 'Healthy' : 'Unhealthy' }}</span>
+              </div>
+
+              <div class="health-message">
+                <p>{{ healthStatus.message || 'Agent is responding correctly.' }}</p>
+              </div>
+
+              <button class="refresh-button" (click)="$event.stopPropagation(); checkAgentHealth(agentId!)">
+                Refresh Status
+              </button>
+
+              <div *ngIf="healthStatus.details" class="health-details-container">
+                <h4 class="details-title">Health Check Details:</h4>
+                <app-json-viewer [json]="healthStatus.details" [collapsible]="true"></app-json-viewer>
+              </div>
+            </div>
+          </div>
+
+          <!-- Usage Stats -->
+          <div class="usage-stats-section">
+            <h3 class="section-title">Usage Statistics</h3>
+
+            <div class="stats-grid">
+              <div class="stat-item">
+                <span class="stat-label">Total Requests</span>
+                <span class="stat-value">{{ usageStats.totalRequests }}</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-label">Success Rate</span>
+                <span class="stat-value">{{ formatPercentage(usageStats.successRate) }}</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-label">Avg. Latency</span>
+                <span class="stat-value">{{ formatMilliseconds(usageStats.avgLatency) }}</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-label">Last Used</span>
+                <span class="stat-value">{{ usageStats.lastUsed ? formatDate(usageStats.lastUsed.toISOString()) : 'Never' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Test Card -->
+    <div class="detail-card quick-test-card">
+      <div class="card-header">
+        <h2 class="card-title">Quick Test</h2>
+      </div>
+
+      <div class="card-content expanded">
+        <div class="quick-test-form">
+          <div class="test-input-container">
+            <label for="quick-test-query">Test Query</label>
+            <input
+              type="text"
+              id="quick-test-query"
+              class="test-input"
+              [(ngModel)]="quickTestQuery"
+              placeholder="Enter a test query..." />
+          </div>
+
+          <button
+            class="run-test-button"
+            [disabled]="!quickTestQuery || isRunningTest"
+            (click)="runQuickTest()">
+            <span *ngIf="isRunningTest" class="spinner-sm"></span>
+            {{ isRunningTest ? 'Running...' : 'Run Test' }}
+          </button>
+        </div>
+
+        <div *ngIf="quickTestResult" class="quick-test-result">
+          <div class="result-header">
+            <h3 class="result-title">Test Result</h3>
+            <span class="result-status" [ngClass]="!quickTestResult.error ? 'success' : 'error'">
+              {{ !quickTestResult.error ? 'Success' : 'Error' }}
+            </span>
+          </div>
+
+          <app-json-viewer [json]="quickTestResult" [collapsible]="true"></app-json-viewer>
         </div>
       </div>
     </div>

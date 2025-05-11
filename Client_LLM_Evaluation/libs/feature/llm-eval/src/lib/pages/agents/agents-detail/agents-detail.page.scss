@@ -5,11 +5,19 @@
 :host {
   display: block;
   width: 100%;
+
+  // Make sure styles apply to component 
+  ::ng-deep {
+    // Global component styles
+    .spinner, .spinner-sm {
+      @include spinner($size: 16px, $border-width: 2px, $color: $primary);
+    }
+  }
 }
 
 .agent-detail-container {
   padding: $spacing-6;
-  max-width: $container-xxl;
+  max-width: $container-xl;
   margin: 0 auto;
 
   @include media-breakpoint-down(md) {
@@ -50,7 +58,7 @@
   .title-actions {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: wrap;
     gap: $spacing-4;
 
@@ -61,33 +69,72 @@
 
     .title-section {
       display: flex;
-      align-items: center;
-      gap: $spacing-3;
+      flex-direction: column;
+      gap: $spacing-2;
 
-      .page-title {
-        @include page-title;
-        margin: 0;
-        font-size: $font-size-2xl;
-        font-weight: $font-weight-bold;
-      }
-
-      .status-badge {
-        display: inline-flex;
+      .title-status-container {
+        display: flex;
         align-items: center;
-        justify-content: center;
-        padding: $spacing-1 $spacing-3;
-        border-radius: $radius-full;
-        font-size: $font-size-xs;
-        font-weight: $font-weight-semibold;
-        text-transform: capitalize;
-        height: 28px;
+        gap: $spacing-3;
+        flex-wrap: wrap;
 
-        &.active {
-          @include status-badge('success');
+        .page-title {
+          font-size: $font-size-2xl;
+          font-weight: $font-weight-bold;
+          margin: 0;
+          color: $text-primary;
         }
 
-        &.inactive {
-          @include status-badge('error');
+        .status-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: $spacing-1 $spacing-3;
+          border-radius: 9999px; // Fully rounded
+          font-size: $font-size-xs;
+          font-weight: $font-weight-semibold;
+          text-transform: capitalize;
+          height: 28px;
+
+          &.active {
+            background-color: rgba($success, 0.1);
+            color: $success;
+          }
+
+          &.inactive {
+            background-color: rgba($error, 0.1);
+            color: $error;
+          }
+          
+          &.status-healthy {
+            background-color: rgba($success, 0.1);
+            color: $success;
+          }
+          
+          &.status-unhealthy {
+            background-color: rgba($error, 0.1);
+            color: $error;
+          }
+        }
+      }
+      
+      .domain-container {
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
+        
+        .domain-label {
+          color: $text-secondary;
+          font-size: $font-size-sm;
+        }
+        
+        .domain-badge {
+          display: inline-block;
+          padding: $spacing-1 $spacing-2;
+          background-color: rgba($primary, 0.1);
+          color: $primary;
+          border-radius: $radius-sm;
+          font-size: $font-size-xs;
         }
       }
     }
@@ -112,7 +159,6 @@
       }
     
       .action-button {
-        @include button-base;
         height: 44px;
         min-width: 120px;
         display: inline-flex;
@@ -120,17 +166,61 @@
         justify-content: center;
         font-weight: $font-weight-medium;
         font-size: $font-size-sm;
+        border-radius: $radius-md;
+        padding: $spacing-2 $spacing-4;
+        cursor: pointer;
+        transition: all 0.2s ease;
     
         &.edit-button {
-          @include button-outline;
+          background-color: white;
+          color: $primary;
+          border: 1px solid $primary;
+          
+          &:hover {
+            background-color: rgba($primary, 0.05);
+          }
         }
     
         &.test-button {
-          @include button-primary;
+          background-color: $primary;
+          color: white;
+          border: none;
+          
+          &:hover {
+            background-color: darken($primary, 5%);
+          }
         }
     
         &.delete-button {
-          @include button-danger;
+          background-color: white;
+          color: $error;
+          border: 1px solid $error;
+          
+          &:hover {
+            background-color: rgba($error, 0.05);
+          }
+        }
+        
+        &.status-toggle-button {
+          &.active-status {
+            background-color: rgba($success, 0.1);
+            color: $success;
+            border: 1px solid rgba($success, 0.2);
+            
+            &:hover {
+              background-color: rgba($success, 0.2);
+            }
+          }
+          
+          &.inactive-status {
+            background-color: rgba($warning, 0.1);
+            color: $warning;
+            border: 1px solid rgba($warning, 0.2);
+            
+            &:hover {
+              background-color: rgba($warning, 0.2);
+            }
+          }
         }
       }
     }
@@ -139,162 +229,647 @@
 
 // Loading and error states
 .loading-container {
-  @include loading-container;
-  @include card-padded;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
   padding: $spacing-12;
   margin-bottom: $spacing-6;
   border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  text-align: center;
+  
+  .spinner {
+    margin-bottom: $spacing-4;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba($primary, 0.1);
+    border-radius: 50%;
+    border-top: 4px solid $primary;
+    animation: spin 1s linear infinite;
+  }
+  
+  p {
+    margin: 0;
+    color: $text-secondary;
+  }
 }
 
 .error-container {
-  @include error-container;
-  @include card-padded;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
   padding: $spacing-12;
   margin-bottom: $spacing-6;
   border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  text-align: center;
+  
+  .error-icon {
+    font-size: 2rem;
+    color: $error;
+    margin-bottom: $spacing-4;
+  }
+  
+  p {
+    margin: 0 0 $spacing-6 0;
+    color: $text-secondary;
+  }
 }
 
-// Agent content
-.agent-details {
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Section loading and error states
+.section-loading {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-4;
+  background-color: $background-light;
+  border-radius: $radius-sm;
+  margin-bottom: $spacing-4;
+  
+  .spinner-sm {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba($primary, 0.1);
+    border-radius: 50%;
+    border-top: 2px solid $primary;
+    animation: spin 1s linear infinite;
+  }
+  
+  p {
+    margin: 0;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+  }
+}
+
+.section-error {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-4;
+  background-color: rgba($error, 0.05);
+  border-radius: $radius-sm;
+  margin-bottom: $spacing-4;
+  
+  p {
+    margin: 0;
+    color: $error;
+    font-size: $font-size-sm;
+    flex: 1;
+  }
+  
+  .retry-button-sm {
+    padding: $spacing-1 $spacing-3;
+    background-color: white;
+    border: 1px solid $error;
+    color: $error;
+    border-radius: $radius-sm;
+    font-size: $font-size-xs;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: rgba($error, 0.05);
+    }
+  }
+}
+
+// Detail Card
+.detail-card {
+  background-color: white;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  margin-bottom: $spacing-6;
+  box-shadow: $shadow-sm;
+  transition: box-shadow 0.3s ease;
+  
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+  
+  .card-header {
+    padding: $spacing-4 $spacing-6;
+    background-color: $background-light;
+    border-bottom: 1px solid $border-color;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    
+    &:hover {
+      background-color: rgba($primary, 0.03);
+    }
+    
+    .card-title {
+      margin: 0;
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+    }
+    
+    .expand-icon {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      transition: transform 0.3s ease;
+    }
+  }
+  
+  .card-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0 $spacing-6;
+    
+    &.expanded {
+      max-height: 2000px; // Large enough to fit content
+      padding: $spacing-6;
+    }
+  }
+  
+  &.quick-test-card {
+    background-color: rgba($primary, 0.02);
+    
+    .card-header {
+      background-color: rgba($primary, 0.05);
+    }
+  }
+}
+
+// Info grid
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-5 $spacing-6;
+  
+  @include media-breakpoint-down(md) {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-row {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-1;
+    
+    &.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    .info-label {
+      font-size: $font-size-xs;
+      color: $text-secondary;
+      font-weight: $font-weight-medium;
+    }
+    
+    .info-value {
+      font-size: $font-size-sm;
+      color: $text-primary;
+      word-break: break-word;
+      
+      &.description-value {
+        white-space: pre-line;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+      
+      &.endpoint {
+        font-family: monospace;
+        background-color: $background-light;
+        padding: $spacing-2;
+        border-radius: $radius-sm;
+        border: 1px solid $border-color;
+        flex: 1;
+      }
+      
+      &.model-value {
+        font-weight: $font-weight-medium;
+        color: $primary;
+      }
+      
+      &.integration-badge,
+      &.auth-badge {
+        display: inline-block;
+        padding: $spacing-1 $spacing-2;
+        border-radius: $radius-sm;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-medium;
+        background-color: $background-light;
+        color: $text-primary;
+        width: fit-content;
+      }
+    }
+    
+    .endpoint-container {
+      display: flex;
+      gap: $spacing-2;
+      
+      .copy-button {
+        padding: $spacing-1 $spacing-2;
+        background: none;
+        border: none;
+        color: $primary;
+        font-size: $font-size-xs;
+        cursor: pointer;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+    
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $spacing-2;
+      
+      .tag {
+        display: inline-block;
+        padding: $spacing-1 $spacing-2;
+        background-color: $background-light;
+        border-radius: $radius-sm;
+        font-size: $font-size-xs;
+        color: $text-secondary;
+      }
+    }
+  }
+}
+
+// Configuration tabs
+.config-tabs {
   display: flex;
   flex-direction: column;
-  gap: $spacing-6;
+  gap: $spacing-4;
+  
+  .config-tab-buttons {
+    display: flex;
+    gap: $spacing-2;
+    border-bottom: 1px solid $border-color;
+    padding-bottom: $spacing-2;
+    overflow-x: auto;
+    
+    .config-tab-button {
+      padding: $spacing-2 $spacing-3;
+      font-size: $font-size-sm;
+      background: none;
+      border: none;
+      color: $text-secondary;
+      cursor: pointer;
+      border-radius: $radius-sm;
+      
+      &.active {
+        color: $primary;
+        background-color: rgba($primary, 0.05);
+        font-weight: $font-weight-medium;
+      }
+      
+      &:hover {
+        background-color: $background-light;
+      }
+    }
+  }
+  
+  .config-tab-content {
+    background-color: $background-light;
+    border-radius: $radius-sm;
+    padding: $spacing-4;
+    
+    .empty-config {
+      color: $text-secondary;
+      font-style: italic;
+      padding: $spacing-4;
+      text-align: center;
+    }
+  }
+}
 
-  .info-cards {
+// Tools section
+.tools-container {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  
+  .tools-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: $spacing-6;
-
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: $spacing-4;
+    
     @include media-breakpoint-down(sm) {
       grid-template-columns: 1fr;
     }
-
-    .info-card {
-      @include card-padded;
-      border-radius: $radius-lg;
-      padding: $spacing-6;
-      height: 100%;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-
-      &:hover {
-        transform: translateY(-3px);
-        box-shadow: $shadow-md;
+    
+    .tool-item {
+      background-color: $background-light;
+      border-radius: $radius-sm;
+      padding: $spacing-4;
+      border: 1px solid $border-color;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-3;
+      
+      .tool-header {
+        .tool-name {
+          margin: 0;
+          font-size: $font-size-md;
+          font-weight: $font-weight-semibold;
+          color: $primary;
+        }
       }
+      
+      .tool-description {
+        margin: 0;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+      }
+      
+      .tool-parameters,
+      .required-parameters {
+        .parameters-title {
+          font-size: $font-size-sm;
+          font-weight: $font-weight-medium;
+          margin: 0 0 $spacing-2 0;
+        }
+        
+        .parameters-list {
+          margin: 0;
+          padding-left: $spacing-4;
+          font-size: $font-size-xs;
+          
+          li {
+            margin-bottom: $spacing-1;
+          }
+        }
+      }
+    }
+  }
+  
+  .empty-tools {
+    padding: $spacing-6;
+    text-align: center;
+    background-color: $background-light;
+    border-radius: $radius-sm;
+    
+    p {
+      margin: 0;
+      color: $text-secondary;
+      font-style: italic;
+    }
+  }
+}
 
-      .card-title {
-        @include section-title;
-        font-size: $font-size-xl;
-        font-weight: $font-weight-bold;
+// Health grid
+.health-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-6;
+  
+  @include media-breakpoint-down(md) {
+    grid-template-columns: 1fr;
+  }
+  
+  .health-status-section,
+  .usage-stats-section {
+    .section-title {
+      font-size: $font-size-md;
+      font-weight: $font-weight-semibold;
+      margin: 0 0 $spacing-4 0;
+      color: $text-primary;
+    }
+  }
+  
+  .health-status-section {
+    .health-details {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-4;
+      
+      .health-indicator {
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
+        font-weight: $font-weight-medium;
+        
+        &.status-healthy {
+          color: $success;
+          
+          .health-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: $success;
+          }
+        }
+        
+        &.status-unhealthy {
+          color: $error;
+          
+          .health-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: $error;
+          }
+        }
+      }
+      
+      .health-message {
+        padding: $spacing-3;
+        background-color: $background-light;
+        border-radius: $radius-sm;
+        border-left: 3px solid;
+        
+        p {
+          margin: 0;
+          font-size: $font-size-sm;
+        }
+        
+        .status-healthy & {
+          border-left-color: $success;
+          background-color: rgba($success, 0.05);
+        }
+        
+        .status-unhealthy & {
+          border-left-color: $error;
+          background-color: rgba($error, 0.05);
+        }
+      }
+      
+      .refresh-button {
+        align-self: flex-start;
+        padding: $spacing-2 $spacing-4;
+        background-color: white;
+        border: 1px solid $border-color;
         color: $text-primary;
-        border-bottom: 1px solid $border-color;
-        padding-bottom: $spacing-3;
-        margin-bottom: $spacing-4;
+        border-radius: $radius-sm;
+        font-size: $font-size-sm;
+        cursor: pointer;
+        
+        &:hover {
+          background-color: $background-light;
+        }
       }
-
-      .card-content {
+      
+      .health-details-container {
+        margin-top: $spacing-3;
+        
+        .details-title {
+          font-size: $font-size-sm;
+          font-weight: $font-weight-medium;
+          margin: 0 0 $spacing-2 0;
+        }
+      }
+    }
+  }
+  
+  .usage-stats-section {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-4;
+      
+      .stat-item {
+        padding: $spacing-4;
+        background-color: $background-light;
+        border-radius: $radius-sm;
         display: flex;
         flex-direction: column;
-        gap: $spacing-4;
-
-        .info-row {
-          display: flex;
-          flex-direction: column;
-          gap: $spacing-1;
-
-          &.full-width {
-            grid-column: 1 / -1;
-          }
-
-          .info-label {
-            font-size: $font-size-xs;
-            color: $text-secondary;
-            font-weight: $font-weight-medium;
-          }
-
-          .info-value {
-            font-size: $font-size-sm;
-            color: $text-primary;
-            word-break: break-word;
-
-            &.endpoint {
-              font-family: $font-family-mono;
-              background-color: $background-light;
-              padding: $spacing-2;
-              border-radius: $radius-sm;
-            }
-
-            &.description-value {
-              white-space: pre-line;
-            }
-
-            &.status-value {
-              display: inline-block;
-              padding: $spacing-1 $spacing-2;
-              border-radius: $radius-sm;
-              font-weight: $font-weight-medium;
-
-              &.active-status {
-                background-color: rgba($success, 0.1);
-                color: $success;
-              }
-
-              &.inactive-status {
-                background-color: rgba($error, 0.1);
-                color: $error;
-              }
-            }
-          }
-
-          .domain-badge {
-            display: inline-block;
-            padding: $spacing-1 $spacing-2;
-            background-color: $background-light;
-            border-radius: $radius-sm;
-            font-size: $font-size-xs;
-            font-weight: $font-weight-medium;
-            width: fit-content;
-          }
-
-          &.tags-row {
-            margin-top: $spacing-2;
-          }
-
-          .tags-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: $spacing-2;
-
-            .tag {
-              display: inline-block;
-              padding: $spacing-1 $spacing-2;
-              background-color: $background-light;
-              border-radius: $radius-sm;
-              font-size: $font-size-xs;
-              color: $text-secondary;
-            }
-          }
-        }
-
-        .config-json {
-          background-color: $background-light;
-          padding: $spacing-4;
-          border-radius: $radius-sm;
-          overflow: auto;
-          font-family: $font-family-mono;
-          font-size: $font-size-sm;
-          white-space: pre-wrap;
-          max-height: 300px;
-          margin: 0;
-        }
-
-        .empty-config {
+        gap: $spacing-1;
+        
+        .stat-label {
+          font-size: $font-size-xs;
           color: $text-secondary;
-          font-style: italic;
-          padding: $spacing-4;
-          background-color: $background-light;
-          border-radius: $radius-sm;
-          text-align: center;
         }
+        
+        .stat-value {
+          font-size: $font-size-lg;
+          font-weight: $font-weight-semibold;
+          color: $text-primary;
+        }
+      }
+    }
+  }
+}
+
+// Quick test form
+.quick-test-form {
+  display: flex;
+  gap: $spacing-3;
+  margin-bottom: $spacing-6;
+  
+  @include media-breakpoint-down(md) {
+    flex-direction: column;
+  }
+  
+  .test-input-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+    
+    label {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+    }
+    
+    .test-input {
+      width: 100%;
+      padding: $spacing-2 $spacing-3;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      font-size: $font-size-sm;
+      
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 2px rgba($primary, 0.1);
+      }
+    }
+  }
+  
+  .run-test-button {
+    align-self: flex-end;
+    margin-top: $spacing-5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-2;
+    min-width: 100px;
+    height: 44px;
+    background-color: $primary;
+    color: white;
+    border: none;
+    border-radius: $radius-sm;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: darken($primary, 5%);
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    @include media-breakpoint-down(md) {
+      align-self: flex-start;
+      margin-top: 0;
+    }
+    
+    .spinner-sm {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(white, 0.3);
+      border-radius: 50%;
+      border-top: 2px solid white;
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+// Quick test result
+.quick-test-result {
+  background-color: $background-light;
+  border-radius: $radius-sm;
+  border: 1px solid $border-color;
+  
+  .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-3 $spacing-4;
+    border-bottom: 1px solid $border-color;
+    
+    .result-title {
+      margin: 0;
+      font-size: $font-size-md;
+      font-weight: $font-weight-semibold;
+    }
+    
+    .result-status {
+      display: inline-block;
+      padding: $spacing-1 $spacing-2;
+      border-radius: $radius-sm;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+      
+      &.success {
+        background-color: rgba($success, 0.1);
+        color: $success;
+      }
+      
+      &.error {
+        background-color: rgba($error, 0.1);
+        color: $error;
       }
     }
   }

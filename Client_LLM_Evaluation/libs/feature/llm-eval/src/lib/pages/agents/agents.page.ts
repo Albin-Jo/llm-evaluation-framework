@@ -1,9 +1,9 @@
 /* Path: libs/feature/llm-eval/src/lib/pages/agents/agents.page.ts */
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
+import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Router, NavigationEnd } from '@angular/router';
+import { Subject, takeUntil, filter } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import {
@@ -44,7 +44,12 @@ export class AgentsPage implements OnInit, OnDestroy {
   itemsPerPage = 5; // Updated from 10 to match standard
   Math = Math;
   visiblePages: number[] = [];
-  filterForm: FormGroup;
+  
+  // Initialize filterForm - moved to constructor for proper initialization
+  filterForm!: FormGroup;
+
+  // Storage key for filter persistence
+  private readonly FILTER_STORAGE_KEY = 'agent_list_filters';
 
   filterParams: AgentFilterParams = {
     page: 1,
@@ -90,24 +95,99 @@ export class AgentsPage implements OnInit, OnDestroy {
     private notificationService: NotificationService,
     private confirmationDialogService: ConfirmationDialogService,
     private router: Router,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private cdr: ChangeDetectorRef
   ) {
-    this.filterForm = this.fb.group({
-      search: [''],
-      status: [''],
-      domain: [''],
-      integration_type: ['']
-    });
+    this.initializeFilters();
   }
 
   ngOnInit(): void {
     this.setupFilterListeners();
     this.loadAgents();
+    
+    // Add router event subscription to detect navigation back to this page
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      takeUntil(this.destroy$)
+    ).subscribe((event: any) => {
+      // Check if we're navigating to the agents list page
+      if (event.url === '/app/agents' || event.url.startsWith('/app/agents?')) {
+        // Restore filters from session storage
+        this.restoreFiltersFromStorage();
+        // Reload data when navigating back to this page
+        this.loadAgents();
+      }
+    });
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    
+    // Save filters to storage when leaving the page
+    this.saveFiltersToStorage();
+  }
+
+  /**
+   * Initialize filters from session storage or defaults
+   */
+  private initializeFilters(): void {
+    // Try to restore filters from session storage
+    const savedFilters = sessionStorage.getItem(this.FILTER_STORAGE_KEY);
+    
+    if (savedFilters) {
+      try {
+        const parsedFilters = JSON.parse(savedFilters);
+        this.filterParams = { ...this.filterParams, ...parsedFilters };
+      } catch (e) {
+        console.warn('Failed to parse saved filters:', e);
+      }
+    }
+    
+    // Initialize the filter form with potentially restored values
+    this.filterForm = this.fb.group({
+      search: [this.filterParams.name || ''],
+      status: [this.filterParams.is_active !== undefined ? this.filterParams.is_active.toString() : ''],
+      domain: [this.filterParams.domain || ''],
+      integration_type: [this.filterParams.integration_type || '']
+    });
+  }
+  
+  /**
+   * Save current filters to session storage
+   */
+  private saveFiltersToStorage(): void {
+    try {
+      sessionStorage.setItem(this.FILTER_STORAGE_KEY, JSON.stringify(this.filterParams));
+    } catch (e) {
+      console.warn('Failed to save filters to session storage:', e);
+    }
+  }
+  
+  /**
+   * Restore filters from session storage
+   */
+  private restoreFiltersFromStorage(): void {
+    const savedFilters = sessionStorage.getItem(this.FILTER_STORAGE_KEY);
+    
+    if (savedFilters) {
+      try {
+        const parsedFilters = JSON.parse(savedFilters);
+        this.filterParams = { ...this.filterParams, ...parsedFilters };
+        
+        // Update form values to match restored filters without triggering change events
+        this.filterForm.setValue({
+          search: this.filterParams.name || '',
+          status: this.filterParams.is_active !== undefined ? this.filterParams.is_active.toString() : '',
+          domain: this.filterParams.domain || '',
+          integration_type: this.filterParams.integration_type || ''
+        }, { emitEvent: false });
+        
+        this.cdr.markForCheck();
+      } catch (e) {
+        console.warn('Failed to restore filters from session storage:', e);
+      }
+    }
   }
 
   setupFilterListeners(): void {
@@ -122,6 +202,7 @@ export class AgentsPage implements OnInit, OnDestroy {
         this.filterParams.name = value;
         this.filterParams.page = 1;
         this.loadAgents();
+        this.saveFiltersToStorage(); // Save filters after change
       });
 
     // Listen to status changes
@@ -137,6 +218,7 @@ export class AgentsPage implements OnInit, OnDestroy {
         }
         this.filterParams.page = 1;
         this.loadAgents();
+        this.saveFiltersToStorage(); // Save filters after change
       });
 
     // Listen to domain changes
@@ -146,6 +228,7 @@ export class AgentsPage implements OnInit, OnDestroy {
         this.filterParams.domain = value || undefined;
         this.filterParams.page = 1;
         this.loadAgents();
+        this.saveFiltersToStorage(); // Save filters after change
       });
 
     // Listen to integration type changes
@@ -155,12 +238,14 @@ export class AgentsPage implements OnInit, OnDestroy {
         this.filterParams.integration_type = value as IntegrationType || undefined;
         this.filterParams.page = 1;
         this.loadAgents();
+        this.saveFiltersToStorage(); // Save filters after change
       });
   }
 
   loadAgents(): void {
     this.isLoading = true;
     this.error = null;
+    this.cdr.markForCheck(); // Ensure loading state is reflected in the UI
 
     this.agentService.getAgents(this.filterParams)
       .pipe(takeUntil(this.destroy$))
@@ -170,12 +255,14 @@ export class AgentsPage implements OnInit, OnDestroy {
           this.totalCount = response.totalCount;
           this.isLoading = false;
           this.updateVisiblePages();
+          this.cdr.markForCheck(); // Update UI after loading completes
         },
         error: (error) => {
           this.error = 'Failed to load agents. Please try again.';
           this.notificationService.error(this.error);
           this.isLoading = false;
           console.error('Error loading agents:', error);
+          this.cdr.markForCheck(); // Ensure error state is reflected
         }
       });
   }
@@ -227,6 +314,7 @@ export class AgentsPage implements OnInit, OnDestroy {
 
     this.filterParams.page = page;
     this.loadAgents();
+    this.saveFiltersToStorage(); // Save filters when page changes
   }
 
   clearFilters(): void {
@@ -244,6 +332,9 @@ export class AgentsPage implements OnInit, OnDestroy {
     this.filterParams.page = 1;
 
     this.loadAgents();
+    
+    // Clear saved filters from storage
+    sessionStorage.removeItem(this.FILTER_STORAGE_KEY);
   }
 
   onSortChange(sortBy: string): void {
@@ -256,6 +347,7 @@ export class AgentsPage implements OnInit, OnDestroy {
     }
 
     this.loadAgents();
+    this.saveFiltersToStorage(); // Save filters when sort changes
   }
 
   onAgentClick(agent: Agent): void {

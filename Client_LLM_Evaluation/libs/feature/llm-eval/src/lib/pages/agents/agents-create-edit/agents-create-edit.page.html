@@ -55,17 +55,17 @@
         </div>
       </div>
 
-      <!-- Basic Information Tab -->
+      <!-- Basic Information Tab - Always Load This -->
       <div class="tab-content" *ngIf="selectedTabIndex === 0">
         <div class="two-column-layout">
           <div class="column">
             <div class="form-group">
               <label for="name" class="required">Agent Name</label>
-              <input 
-                type="text" 
-                id="name" 
-                class="form-control" 
-                formControlName="name" 
+              <input
+                type="text"
+                id="name"
+                class="form-control"
+                formControlName="name"
                 placeholder="Enter agent name"
                 [ngClass]="{'is-invalid': isFieldInvalid('name')}">
               <div *ngIf="isFieldInvalid('name')" class="invalid-feedback">
@@ -75,10 +75,10 @@
 
             <div class="form-group">
               <label for="description">Description</label>
-              <textarea 
-                id="description" 
-                class="form-control textarea" 
-                formControlName="description" 
+              <textarea
+                id="description"
+                class="form-control textarea"
+                formControlName="description"
                 placeholder="Enter agent description"
                 rows="4"></textarea>
             </div>
@@ -87,9 +87,9 @@
           <div class="column">
             <div class="form-group">
               <label for="domain" class="required">Domain</label>
-              <select 
-                id="domain" 
-                class="form-control" 
+              <select
+                id="domain"
+                class="form-control"
                 formControlName="domain"
                 [ngClass]="{'is-invalid': isFieldInvalid('domain')}">
                 <option *ngFor="let option of domainOptions" [value]="option.value">{{ option.label }}</option>
@@ -101,9 +101,9 @@
 
             <div class="form-group">
               <label for="is_active">Status</label>
-              <select 
-                id="is_active" 
-                class="form-control" 
+              <select
+                id="is_active"
+                class="form-control"
                 formControlName="is_active">
                 <option *ngFor="let option of statusOptions" [value]="option.value">{{ option.label }}</option>
               </select>
@@ -111,65 +111,92 @@
 
             <div class="form-group">
               <label for="model_type">Model Type</label>
-              <input 
-                type="text" 
-                id="model_type" 
-                class="form-control" 
-                formControlName="model_type" 
+              <input
+                type="text"
+                id="model_type"
+                class="form-control"
+                formControlName="model_type"
                 placeholder="e.g., gpt-4, claude-3, llama-70b">
+            </div>
+
+            <div class="form-group">
+              <label for="version">Version</label>
+              <input
+                type="text"
+                id="version"
+                class="form-control"
+                formControlName="version"
+                placeholder="e.g., 1.0.0"
+                [ngClass]="{'is-invalid': isFieldInvalid('version')}">
+              <div *ngIf="isFieldInvalid('version')" class="invalid-feedback">
+                {{ getErrorMessage('version') }}
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="tags">Tags</label>
+              <input
+                type="text"
+                id="tags"
+                class="form-control"
+                formControlName="tags"
+                placeholder="Comma-separated tags (e.g., production, beta, test)">
+              <div class="field-hint">
+                Enter comma-separated tags to help organize and filter agents
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- API Configuration Tab -->
-      <div class="tab-content" *ngIf="selectedTabIndex === 1">
+      <!-- API Configuration Tab - Lazy Load -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 1 && tabsData[1].isLoaded">
         <div class="two-column-layout">
           <div class="column">
             <div class="form-group">
               <label for="api_endpoint" class="required">API Endpoint</label>
-              <input 
-                type="text" 
-                id="api_endpoint" 
-                class="form-control" 
-                formControlName="api_endpoint" 
+              <input
+                type="text"
+                id="api_endpoint"
+                class="form-control"
+                formControlName="api_endpoint"
                 placeholder="Enter API endpoint URL"
                 [ngClass]="{'is-invalid': isFieldInvalid('api_endpoint')}">
               <div *ngIf="isFieldInvalid('api_endpoint')" class="invalid-feedback">
                 {{ getErrorMessage('api_endpoint') }}
               </div>
-              <p class="helper-text">The URL endpoint where this agent can be accessed for evaluation</p>
+              <p class="field-hint">The URL endpoint where this agent can be accessed for evaluation</p>
             </div>
 
             <div class="form-group">
               <label for="integration_type">Integration Type</label>
-              <select 
-                id="integration_type" 
-                class="form-control" 
+              <select
+                id="integration_type"
+                class="form-control"
                 formControlName="integration_type">
                 <option *ngFor="let option of integrationTypeOptions" [value]="option.value">{{ option.label }}</option>
               </select>
-              <p class="helper-text">Type of integration for this agent</p>
+              <p class="field-hint">Type of integration for this agent</p>
             </div>
           </div>
 
           <div class="column">
             <div class="form-group">
               <label for="auth_type">Auth Type</label>
-              <select 
-                id="auth_type" 
-                class="form-control" 
+              <select
+                id="auth_type"
+                class="form-control"
                 formControlName="auth_type">
                 <option *ngFor="let option of authTypeOptions" [value]="option.value">{{ option.label }}</option>
               </select>
-              <p class="helper-text">Authentication method for this agent</p>
+              <p class="field-hint">Authentication method for this agent</p>
             </div>
 
             <div class="form-group">
-              <label for="auth_credentials">Auth Credentials</label>
               <app-json-editor
                 [jsonValue]="getFormattedJson('auth_credentials')"
-                title="Edit Authentication Credentials"
+                [title]="'Edit Authentication Credentials'"
+                [label]="'Auth Credentials'"
                 (valueChange)="updateJsonField('auth_credentials', $event)"
                 (validChange)="isJsonFieldValid('auth_credentials', $event)"
                 [(isOpen)]="jsonEditorStates['auth_credentials']">
@@ -177,21 +204,32 @@
               <div *ngIf="jsonErrors['auth_credentials']" class="invalid-feedback">
                 {{ jsonErrors['auth_credentials'] }}
               </div>
-              <p class="helper-text">Authentication credentials in JSON format (stored securely)</p>
+              <p class="field-hint">Authentication credentials in JSON format (stored securely)</p>
+            </div>
+
+            <div class="form-group">
+              <label for="response_format">Response Format</label>
+              <input
+                type="text"
+                id="response_format"
+                class="form-control"
+                formControlName="response_format"
+                placeholder="e.g., json, text, markdown">
+              <p class="field-hint">Expected format of response from this agent (optional)</p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Advanced Settings Tab -->
-      <div class="tab-content" *ngIf="selectedTabIndex === 2">
+      <!-- Advanced Settings Tab - Lazy Load -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 2 && tabsData[2].isLoaded">
         <div class="two-column-layout">
           <div class="column">
             <div class="form-group">
-              <label for="config">Configuration</label>
               <app-json-editor
                 [jsonValue]="getFormattedJson('config')"
-                title="Edit Configuration"
+                [title]="'Edit Configuration'"
+                [label]="'Configuration Parameters'"
                 (valueChange)="updateJsonField('config', $event)"
                 (validChange)="isJsonFieldValid('config', $event)"
                 [(isOpen)]="jsonEditorStates['config']">
@@ -199,18 +237,33 @@
               <div *ngIf="jsonErrors['config']" class="invalid-feedback">
                 {{ jsonErrors['config'] }}
               </div>
-              <p class="helper-text">
+              <p class="field-hint">
                 Configuration parameters as JSON object (e.g., {{ "{" }}"temperature": 0.7, "max_tokens": 1000{{ "}" }})
               </p>
+            </div>
+
+            <div class="form-group">
+              <app-json-editor
+                [jsonValue]="getFormattedJson('request_template')"
+                [title]="'Edit Request Template'"
+                [label]="'Request Template'"
+                (valueChange)="updateJsonField('request_template', $event)"
+                (validChange)="isJsonFieldValid('request_template', $event)"
+                [(isOpen)]="jsonEditorStates['request_template']">
+              </app-json-editor>
+              <div *ngIf="jsonErrors['request_template']" class="invalid-feedback">
+                {{ jsonErrors['request_template'] }}
+              </div>
+              <p class="field-hint">Template structure for requests to this agent (optional)</p>
             </div>
           </div>
 
           <div class="column">
             <div class="form-group">
-              <label for="retry_config">Retry Configuration</label>
               <app-json-editor
                 [jsonValue]="getFormattedJson('retry_config')"
-                title="Edit Retry Configuration"
+                [title]="'Edit Retry Configuration'"
+                [label]="'Retry Configuration'"
                 (valueChange)="updateJsonField('retry_config', $event)"
                 (validChange)="isJsonFieldValid('retry_config', $event)"
                 [(isOpen)]="jsonEditorStates['retry_config']">
@@ -218,14 +271,14 @@
               <div *ngIf="jsonErrors['retry_config']" class="invalid-feedback">
                 {{ jsonErrors['retry_config'] }}
               </div>
-              <p class="helper-text">Configuration for retry behavior (optional)</p>
+              <p class="field-hint">Configuration for retry behavior (optional)</p>
             </div>
 
             <div class="form-group">
-              <label for="content_filter_config">Content Filter Configuration</label>
               <app-json-editor
                 [jsonValue]="getFormattedJson('content_filter_config')"
-                title="Edit Content Filter Configuration"
+                [title]="'Edit Content Filter Configuration'"
+                [label]="'Content Filter Configuration'"
                 (valueChange)="updateJsonField('content_filter_config', $event)"
                 (validChange)="isJsonFieldValid('content_filter_config', $event)"
                 [(isOpen)]="jsonEditorStates['content_filter_config']">
@@ -233,7 +286,7 @@
               <div *ngIf="jsonErrors['content_filter_config']" class="invalid-feedback">
                 {{ jsonErrors['content_filter_config'] }}
               </div>
-              <p class="helper-text">Configuration for content filtering (optional)</p>
+              <p class="field-hint">Configuration for content filtering (optional)</p>
             </div>
           </div>
         </div>
