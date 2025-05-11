@@ -1,0 +1,459 @@
+/* Path: libs/feature/llm-eval/src/lib/components/json-editor/json-editor.component.scss */
+@import '../../../../../../styles/variables';
+@import '../../../../../../styles/mixins';
+
+:host {
+  display: block;
+  width: 100%;
+  position: relative;
+}
+
+.json-editor-container {
+  width: 100%;
+}
+
+// Summary view in the main form
+.json-summary {
+  margin-bottom: $spacing-3;
+
+  .json-preview {
+    padding: $spacing-3;
+    background-color: $background-light;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 40px;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    margin-bottom: $spacing-2;
+
+    &.has-error {
+      border-color: $error;
+      background-color: rgba($error, 0.05);
+    }
+  }
+
+  .json-actions {
+    display: flex;
+    gap: $spacing-2;
+    margin-bottom: $spacing-2;
+
+    .add-key-btn, .edit-json-btn {
+      padding: $spacing-1 $spacing-2;
+      border-radius: $radius-sm;
+      font-size: $font-size-xs;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .add-key-btn {
+      background-color: white;
+      border: 1px solid $border-color;
+      color: $text-primary;
+
+      &:hover {
+        background-color: $background-light;
+        border-color: darken($border-color, 10%);
+      }
+    }
+
+    .edit-json-btn {
+      background-color: $primary;
+      color: white;
+      border: none;
+
+      &:hover {
+        background-color: darken($primary, 10%);
+      }
+    }
+  }
+
+  .json-error {
+    color: $error;
+    font-size: $font-size-xs;
+    margin-top: $spacing-1;
+  }
+}
+
+// Modal overlay
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  animation: fadeIn 0.2s ease-out;
+}
+
+// Modal dialog
+.modal-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 1051;
+  animation: zoomIn 0.2s ease-out;
+  overflow: hidden;
+}
+
+// Modal header
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-4 $spacing-6;
+  background-color: $background-light;
+  border-bottom: 1px solid $border-color;
+
+  .modal-title {
+    margin: 0;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: $font-size-2xl;
+    color: $text-secondary;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: $text-primary;
+    }
+  }
+}
+
+// Modal body
+.modal-body {
+  padding: $spacing-6;
+  overflow-y: auto;
+  max-height: calc(90vh - 140px); // Account for header and footer
+
+  .json-error-badge {
+    padding: $spacing-2 $spacing-3;
+    background-color: rgba($error, 0.1);
+    color: $error;
+    border-radius: $radius-sm;
+    font-size: $font-size-sm;
+    margin-bottom: $spacing-4;
+  }
+
+  // Structured editor
+  .structured-editor {
+    .empty-state {
+      padding: $spacing-6;
+      text-align: center;
+      color: $text-secondary;
+      font-style: italic;
+      background-color: $background-light;
+      border-radius: $radius-sm;
+      margin-bottom: $spacing-4;
+    }
+
+    .key-value-row {
+      margin-bottom: $spacing-4;
+
+      &:last-child {
+        margin-bottom: $spacing-2;
+      }
+
+      .key-value-container {
+        display: flex;
+        gap: $spacing-3;
+        align-items: flex-end;
+        background-color: $background-light;
+        padding: $spacing-3;
+        border-radius: $radius-sm;
+        position: relative;
+
+        .key-container, .value-container {
+          flex: 1;
+
+          label {
+            display: block;
+            margin-bottom: $spacing-1;
+            font-weight: $font-weight-medium;
+            color: $text-primary;
+            font-size: $font-size-sm;
+          }
+
+          .form-control {
+            width: 100%;
+            padding: $spacing-2;
+            font-size: $font-size-sm;
+            color: $text-primary;
+            background-color: white;
+            border: 1px solid $border-color;
+            border-radius: $radius-sm;
+            height: 38px;
+
+            &:focus {
+              outline: none;
+              border-color: $primary;
+              box-shadow: 0 0 0 3px rgba($primary, 0.1);
+            }
+          }
+
+          .field-error {
+            color: $error;
+            font-size: $font-size-xs;
+            margin-top: $spacing-1;
+          }
+        }
+
+        .remove-btn {
+          background: none;
+          border: none;
+          font-size: $font-size-lg;
+          color: $text-secondary;
+          cursor: pointer;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: $spacing-1;
+
+          &:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            color: $error;
+          }
+        }
+      }
+    }
+
+    .add-pair-btn {
+      padding: $spacing-2 $spacing-3;
+      background-color: white;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      font-size: $font-size-sm;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: $spacing-2;
+
+      &:hover {
+        background-color: $background-light;
+        border-color: darken($border-color, 10%);
+      }
+    }
+  }
+
+  // Raw JSON editor
+  .raw-editor {
+    label {
+      display: block;
+      margin-bottom: $spacing-2;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      font-size: $font-size-sm;
+    }
+
+    .json-textarea {
+      width: 100%;
+      padding: $spacing-3;
+      font-family: $font-family-mono;
+      font-size: $font-size-sm;
+      line-height: 1.5;
+      color: $text-primary;
+      background-color: white;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      resize: vertical;
+      min-height: 200px;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
+      }
+    }
+
+    .field-error {
+      color: $error;
+      font-size: $font-size-xs;
+      margin-top: $spacing-1;
+    }
+  }
+}
+
+// Modal footer
+.modal-footer {
+  padding: $spacing-4 $spacing-6;
+  background-color: $background-light;
+  border-top: 1px solid $border-color;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .toggle-mode-btn {
+    padding: $spacing-2 $spacing-3;
+    background-color: white;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: $background;
+      border-color: darken($border-color, 10%);
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: $spacing-3;
+
+    .cancel-btn {
+      padding: $spacing-2 $spacing-4;
+      background-color: white;
+      border: 1px solid $border-color;
+      border-radius: $radius-sm;
+      font-size: $font-size-sm;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: $background;
+        border-color: darken($border-color, 10%);
+      }
+    }
+
+    .save-btn {
+      padding: $spacing-2 $spacing-4;
+      background-color: $primary;
+      color: white;
+      border: none;
+      border-radius: $radius-sm;
+      font-size: $font-size-sm;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background-color: darken($primary, 10%);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+  }
+}
+
+// Form controls
+.form-control {
+  width: 100%;
+  font-size: $font-size-sm;
+  color: $text-primary;
+  background-color: white;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+  }
+}
+
+// Animations
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+// Responsive styles
+@media (max-width: 768px) {
+  .modal-dialog {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .modal-body {
+    padding: $spacing-4;
+  }
+
+  .modal-header,
+  .modal-footer {
+    padding: $spacing-3 $spacing-4;
+  }
+
+  .key-value-container {
+    flex-direction: column;
+    align-items: stretch !important;
+
+    .key-container,
+    .value-container {
+      margin-bottom: $spacing-2;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: $spacing-2;
+      right: $spacing-2;
+    }
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    gap: $spacing-3;
+
+    .toggle-mode-btn {
+      width: 100%;
+      margin-bottom: $spacing-2;
+    }
+
+    .action-buttons {
+      width: 100%;
+
+      .cancel-btn,
+      .save-btn {
+        flex: 1;
+      }
+    }
+  }
+}

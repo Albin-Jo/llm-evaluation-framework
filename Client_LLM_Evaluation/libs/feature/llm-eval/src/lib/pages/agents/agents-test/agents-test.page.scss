@@ -28,10 +28,13 @@
     color: $primary;
     font-size: $font-size-sm;
     cursor: pointer;
+    padding: $spacing-2;
+    border-radius: $radius-sm;
+    transition: background-color 0.2s;
     margin-bottom: $spacing-4;
 
     &:hover {
-      text-decoration: underline;
+      background-color: rgba($primary, 0.05);
     }
 
     .back-icon {
@@ -128,10 +131,20 @@
           @include button-primary;
           display: inline-flex;
           align-items: center;
+          justify-content: center;
+          padding: $spacing-3 $spacing-6;
+          height: 44px;
+          min-width: 120px;
+          font-weight: $font-weight-medium;
 
           .spinner-small {
             @include spinner($size: 16px, $border-width: 2px, $color: white);
             margin-right: $spacing-2;
+          }
+
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
           }
         }
       }

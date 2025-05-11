@@ -41,6 +41,14 @@
               [options]="domainOptions">
             </qrac-select>
           </div>
+
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'integration_type'"
+              formControlName="integration_type"
+              [options]="integrationOptions">
+            </qrac-select>
+          </div>
         </div>
 
         <div class="filter-actions">
@@ -96,7 +104,7 @@
                 </span>
               </span>
             </th>
-            <th class="model-col">Model</th>
+            <th class="model-col">Integration</th>
             <th class="date-col sortable" (click)="onSortChange('created_at')">
               <span class="th-content">
                 Created
@@ -116,7 +124,7 @@
             <td class="domain-col">
               <span class="domain-badge">{{ agent.domain }}</span>
             </td>
-            <td class="model-col">{{ agent.model_type || 'N/A' }}</td>
+            <td class="model-col">{{ agent.integration_type || 'N/A' }}</td>
             <td class="date-col">{{ formatDate(agent.created_at) }}</td>
             <td class="status-col">
               <span class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
@@ -125,6 +133,11 @@
             </td>
             <td class="actions-col">
               <div class="action-buttons">
+                <button class="action-button test-button"
+                  title="Test agent"
+                  (click)="onTestAgent($event, agent.id)">
+                  Test
+                </button>
                 <button class="action-button edit-button"
                   title="Edit agent"
                   (click)="onEditAgent($event, agent.id)">

@@ -1,0 +1,119 @@
+<!-- Path: libs/feature/llm-eval/src/lib/components/json-editor/json-editor.component.html -->
+<div class="json-editor-container">
+  <!-- Summary view in main form -->
+  <div class="json-summary">
+    <div class="json-preview" [class.has-error]="jsonError">
+      {{ getPreviewText() }}
+    </div>
+    <div class="json-actions">
+      <button type="button" class="add-key-btn" (click)="addKeyValuePair(); open()">
+        + Add Key
+      </button>
+      <button type="button" class="edit-json-btn" (click)="open()">
+        Edit as JSON
+      </button>
+    </div>
+    <div *ngIf="jsonError" class="json-error">
+      {{ jsonError }}
+    </div>
+  </div>
+
+  <!-- Modal overlay -->
+  <div class="modal-overlay" *ngIf="isOpen" (click)="close()"></div>
+
+  <!-- Modal dialog -->
+  <div class="modal-dialog" *ngIf="isOpen" [formGroup]="jsonForm">
+    <!-- Modal header -->
+    <div class="modal-header">
+      <h2 class="modal-title">{{ title }}</h2>
+      <button type="button" class="close-btn" (click)="close()">×</button>
+    </div>
+
+    <!-- Modal body -->
+    <div class="modal-body">
+      <!-- Error message -->
+      <div *ngIf="jsonError" class="json-error-badge">
+        {{ jsonError }}
+      </div>
+
+      <!-- Structured editor view -->
+      <div *ngIf="!isRawMode" class="structured-editor">
+        <div formArrayName="keyValuePairs">
+          <!-- Empty state message -->
+          <div *ngIf="keyValuePairsFormArray.length === 0" class="empty-state">
+            No properties defined. Click "Add Property" to create a new property.
+          </div>
+
+          <!-- Key-value pairs -->
+          <div
+            *ngFor="let pair of keyValuePairsFormArray.controls; let i = index"
+            [formGroupName]="i"
+            class="key-value-row">
+            <div class="key-value-container">
+              <div class="key-container">
+                <label [attr.for]="'key-' + i">Key</label>
+                <input
+                  [id]="'key-' + i"
+                  type="text"
+                  class="form-control"
+                  formControlName="key"
+                  placeholder="Property name">
+                <div *ngIf="pair.get('key')?.invalid && pair.get('key')?.touched" class="field-error">
+                  Key is required
+                </div>
+              </div>
+
+              <div class="value-container">
+                <label [attr.for]="'value-' + i">Value</label>
+                <input
+                  [id]="'value-' + i"
+                  type="text"
+                  class="form-control"
+                  formControlName="value"
+                  placeholder="Property value">
+              </div>
+
+              <button type="button" class="remove-btn" (click)="removeKeyValuePair(i)">×</button>
+            </div>
+          </div>
+
+          <!-- Add new pair button -->
+          <button type="button" class="add-pair-btn" (click)="addKeyValuePair()">
+            + Add Property
+          </button>
+        </div>
+      </div>
+
+      <!-- Raw JSON editor view -->
+      <div *ngIf="isRawMode" class="raw-editor">
+        <label for="raw-json">Raw JSON</label>
+        <textarea
+          id="raw-json"
+          class="form-control json-textarea"
+          formControlName="rawJson"
+          rows="10"
+          placeholder="Enter JSON object"></textarea>
+        <div *ngIf="jsonForm.get('rawJson')?.hasError('invalidJson')" class="field-error">
+          Invalid JSON format
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal footer -->
+    <div class="modal-footer">
+      <button type="button" class="toggle-mode-btn" (click)="toggleMode()">
+        {{ isRawMode ? 'Switch to Structured Editor' : 'Edit Raw JSON' }}
+      </button>
+      <div class="action-buttons">
+        <button type="button" class="cancel-btn" (click)="close()">Cancel</button>
+        <button
+          type="button"
+          class="save-btn"
+          [disabled]="jsonForm.invalid"
+          (click)="save()">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

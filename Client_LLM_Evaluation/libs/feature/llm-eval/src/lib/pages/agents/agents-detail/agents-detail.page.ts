@@ -1,10 +1,12 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-detail/agents-detail.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
-import { Agent } from '@ngtx-apps/data-access/models';
+import { Agent, AgentResponse } from '@ngtx-apps/data-access/models';
 import { AgentService } from '@ngtx-apps/data-access/services';
-import { AlertService } from '@ngtx-apps/utils/services';
+import { NotificationService } from '@ngtx-apps/utils/services';
+import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
 import { QracButtonComponent } from '@ngtx-apps/ui/components';
 
 @Component({
@@ -28,7 +30,8 @@ export class AgentDetailPage implements OnInit, OnDestroy {
 
   constructor(
     private agentService: AgentService,
-    private alertService: AlertService,
+    private notificationService: NotificationService,
+    private confirmationDialogService: ConfirmationDialogService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
@@ -49,6 +52,9 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  /**
+   * Load agent details from the API
+   */
   loadAgent(id: string): void {
     this.isLoading = true;
     this.error = null;
@@ -56,66 +62,82 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     this.agentService.getAgent(id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (agent) => {
+        next: (agent: AgentResponse) => {
           this.agent = agent;
           this.isLoading = false;
         },
         error: (error) => {
           this.error = 'Failed to load agent details. Please try again.';
-          this.alertService.showAlert({
-            show: true,
-            message: this.error,
-            title: 'Error'
-          });
+          this.notificationService.error(this.error);
           this.isLoading = false;
           console.error('Error loading agent:', error);
         }
       });
   }
 
+  /**
+   * Navigate to agent edit page
+   */
   onEditClick(): void {
     if (this.agentId) {
       this.router.navigate(['app/agents', this.agentId, 'edit']);
     }
   }
 
-  onDeleteClick(): void {
-    if (this.agentId && confirm('Are you sure you want to delete this agent? This action cannot be undone.')) {
-      this.agentService.deleteAgent(this.agentId)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: () => {
-            this.alertService.showAlert({
-              show: true,
-              message: 'Agent deleted successfully',
-              title: 'Success'
-            });
-            this.router.navigate(['app/agents']);
-          },
-          error: (error) => {
-            this.alertService.showAlert({
-              show: true,
-              message: 'Failed to delete agent. Please try again.',
-              title: 'Error'
-            });
-            console.error('Error deleting agent:', error);
-          }
-        });
-    }
-  }
-
-  onBackClick(): void {
-    this.router.navigate(['app/agents']);
-  }
-
+  /**
+   * Navigate to agent test page
+   */
   onTestClick(): void {
     if (this.agentId) {
       this.router.navigate(['app/agents', this.agentId, 'test']);
     }
   }
 
+  /**
+   * Delete agent with confirmation
+   */
+  onDeleteClick(): void {
+    if (!this.agentId || !this.agent) return;
+
+    this.confirmationDialogService.confirmDelete(`agent "${this.agent.name}"`)
+      .subscribe(confirmed => {
+        if (confirmed) {
+          this.deleteAgent(this.agentId!);
+        }
+      });
+  }
+
+  /**
+   * Delete agent from the API
+   */
+  private deleteAgent(id: string): void {
+    this.agentService.deleteAgent(id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.notificationService.success('Agent deleted successfully');
+          this.router.navigate(['app/agents']);
+        },
+        error: (error) => {
+          this.notificationService.error('Failed to delete agent. Please try again.');
+          console.error('Error deleting agent:', error);
+        }
+      });
+  }
+
+  /**
+   * Navigate back to agents list
+   */
+  onBackClick(): void {
+    this.router.navigate(['app/agents']);
+  }
+
+  /**
+   * Format date for display
+   */
   formatDate(dateString: string): string {
     if (!dateString) return 'N/A';
+    
     try {
       const date = new Date(dateString);
       return new Intl.DateTimeFormat('en-US', {
@@ -127,6 +149,17 @@ export class AgentDetailPage implements OnInit, OnDestroy {
       }).format(date);
     } catch (e) {
       return 'Invalid date';
+    }
+  }
+
+  /**
+   * Format JSON for display
+   */
+  formatJson(json: any): string {
+    try {
+      return JSON.stringify(json, null, 2);
+    } catch (e) {
+      return JSON.stringify({});
     }
   }
 }

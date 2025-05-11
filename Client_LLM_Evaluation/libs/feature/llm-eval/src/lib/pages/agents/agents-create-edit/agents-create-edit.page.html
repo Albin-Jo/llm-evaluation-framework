@@ -1,159 +1,239 @@
 <!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-create-edit/agents-create-edit.page.html -->
 <div class="agent-create-edit-container">
-  <div class="form-header">
-    <h1 class="page-title">{{ isEditMode ? 'Edit Agent' : 'Create New Agent' }}</h1>
-    <p class="page-description">
-      {{ isEditMode ? 'Update the details of this agent' : 'Configure a new LLM agent for evaluation' }}
-    </p>
-  </div>
-
-  <!-- Loading State -->
-  <div *ngIf="isLoading" class="loading-container">
-    <div class="spinner"></div>
-    <p>Loading agent details...</p>
-  </div>
-
-  <!-- Error State -->
-  <div *ngIf="error" class="error-container">
-    <div class="error-icon">❌</div>
-    <p>{{ error }}</p>
-    <button *ngIf="agentId" class="retry-button" (click)="loadAgent(agentId)">
-      Try Again
+  <!-- Back Navigation -->
+  <div class="back-navigation">
+    <button class="back-button" (click)="onCancel()">
+      <span class="back-icon">←</span> {{ isEditMode ? 'Back to Agent Details' : 'Back to Agents' }}
     </button>
   </div>
 
-  <!-- Form -->
-  <div *ngIf="!isLoading && !error" class="form-container">
-    <form [formGroup]="agentForm" (ngSubmit)="onSubmit()" class="agent-form">
-      <!-- Basic Information Section -->
-      <div class="form-section">
-        <h2 class="section-title">Basic Information</h2>
+  <div class="agent-card">
+    <!-- Header -->
+    <div class="agent-header">
+      <h1 class="agent-title">{{ isEditMode ? 'Edit Agent' : 'Create New Agent' }}</h1>
+      <p class="agent-description">
+        {{ isEditMode ? 'Update the details of this agent' : 'Configure a new LLM agent for evaluation' }}
+      </p>
+    </div>
 
-        <div class="form-row">
-          <div class="form-field">
-            <qrac-textbox
-              label="Agent Name"
-              controlName="name"
-              formControlName="name"
-              placeholder="Enter agent name"
-              [required]="true">
-            </qrac-textbox>
-            <div *ngIf="hasError('name', 'required')" class="error-message">
-              Name is required
-            </div>
-            <div *ngIf="hasError('name', 'maxlength')" class="error-message">
-              Name cannot exceed 255 characters
-            </div>
-          </div>
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="status-container loading-container">
+      <div class="spinner"></div>
+      <p>Loading agent details...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="status-container error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error }}</p>
+      <button *ngIf="agentId" class="retry-button" (click)="loadAgent(agentId)">
+        Try Again
+      </button>
+    </div>
+
+    <!-- Form -->
+    <form *ngIf="!isLoading && !error" [formGroup]="agentForm" (ngSubmit)="onSubmit()" class="agent-form">
+      <!-- Tabs Navigation -->
+      <div class="tabs-container">
+        <div 
+          class="tab" 
+          [class.active]="selectedTabIndex === 0" 
+          (click)="selectTab(0)">
+          Basic Information
         </div>
-
-        <div class="form-row">
-          <div class="form-field">
-            <qrac-text-area
-              label="Description"
-              controlName="description"
-              formControlName="description"
-              placeholder="Enter agent description"
-              [rows]="3">
-            </qrac-text-area>
-          </div>
+        <div 
+          class="tab" 
+          [class.active]="selectedTabIndex === 1" 
+          (click)="selectTab(1)">
+          API Configuration
         </div>
+        <div 
+          class="tab" 
+          [class.active]="selectedTabIndex === 2" 
+          (click)="selectTab(2)">
+          Advanced Settings
+        </div>
+      </div>
 
-        <div class="form-row two-columns">
-          <div class="form-field">
-            <qrac-select
-              label="Domain"
-              controlName="domain"
-              formControlName="domain"
-              [options]="domainOptions"
-              [required]="true">
-            </qrac-select>
-            <div *ngIf="hasError('domain', 'required')" class="error-message">
-              Domain is required
+      <!-- Basic Information Tab -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 0">
+        <div class="two-column-layout">
+          <div class="column">
+            <div class="form-group">
+              <label for="name" class="required">Agent Name</label>
+              <input 
+                type="text" 
+                id="name" 
+                class="form-control" 
+                formControlName="name" 
+                placeholder="Enter agent name"
+                [ngClass]="{'is-invalid': isFieldInvalid('name')}">
+              <div *ngIf="isFieldInvalid('name')" class="invalid-feedback">
+                {{ getErrorMessage('name') }}
+              </div>
             </div>
-          </div>
 
-          <div class="form-field">
-            <qrac-select
-              label="Status"
-              controlName="is_active"
-              formControlName="is_active"
-              [options]="statusOptions">
-            </qrac-select>
-          </div>
-        </div>
-
-        <div class="form-row two-columns">
-          <div class="form-field">
-            <qrac-textbox
-              label="Model Type"
-              controlName="model_type"
-              formControlName="model_type"
-              placeholder="e.g., gpt-4, claude-3, llama-70b">
-            </qrac-textbox>
-          </div>
-
-          <div class="form-field">
-            <qrac-textbox
-              label="Version"
-              controlName="version"
-              formControlName="version"
-              placeholder="e.g., 1.0.0">
-            </qrac-textbox>
-            <div *ngIf="hasError('version', 'pattern')" class="error-message">
-              Version must follow semantic versioning format (e.g., 1.0.0)
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea 
+                id="description" 
+                class="form-control textarea" 
+                formControlName="description" 
+                placeholder="Enter agent description"
+                rows="4"></textarea>
             </div>
           </div>
-        </div>
 
-        <div class="form-row">
-          <div class="form-field">
-            <qrac-textbox
-              label="Tags"
-              controlName="tags"
-              formControlName="tags"
-              placeholder="Enter tags separated by commas">
-            </qrac-textbox>
-            <div class="field-hint">
-              Add tags to help categorize and find your agents later
+          <div class="column">
+            <div class="form-group">
+              <label for="domain" class="required">Domain</label>
+              <select 
+                id="domain" 
+                class="form-control" 
+                formControlName="domain"
+                [ngClass]="{'is-invalid': isFieldInvalid('domain')}">
+                <option *ngFor="let option of domainOptions" [value]="option.value">{{ option.label }}</option>
+              </select>
+              <div *ngIf="isFieldInvalid('domain')" class="invalid-feedback">
+                {{ getErrorMessage('domain') }}
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="is_active">Status</label>
+              <select 
+                id="is_active" 
+                class="form-control" 
+                formControlName="is_active">
+                <option *ngFor="let option of statusOptions" [value]="option.value">{{ option.label }}</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="model_type">Model Type</label>
+              <input 
+                type="text" 
+                id="model_type" 
+                class="form-control" 
+                formControlName="model_type" 
+                placeholder="e.g., gpt-4, claude-3, llama-70b">
             </div>
           </div>
         </div>
       </div>
 
-      <!-- API Configuration Section -->
-      <div class="form-section">
-        <h2 class="section-title">API Configuration</h2>
-
-        <div class="form-row">
-          <div class="form-field">
-            <qrac-textbox
-              label="API Endpoint"
-              controlName="api_endpoint"
-              formControlName="api_endpoint"
-              placeholder="Enter API endpoint URL"
-              [required]="true">
-            </qrac-textbox>
-            <div *ngIf="hasError('api_endpoint', 'required')" class="error-message">
-              API endpoint is required
+      <!-- API Configuration Tab -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 1">
+        <div class="two-column-layout">
+          <div class="column">
+            <div class="form-group">
+              <label for="api_endpoint" class="required">API Endpoint</label>
+              <input 
+                type="text" 
+                id="api_endpoint" 
+                class="form-control" 
+                formControlName="api_endpoint" 
+                placeholder="Enter API endpoint URL"
+                [ngClass]="{'is-invalid': isFieldInvalid('api_endpoint')}">
+              <div *ngIf="isFieldInvalid('api_endpoint')" class="invalid-feedback">
+                {{ getErrorMessage('api_endpoint') }}
+              </div>
+              <p class="helper-text">The URL endpoint where this agent can be accessed for evaluation</p>
             </div>
-            <div class="field-hint">
-              The URL endpoint where this agent can be accessed for evaluation
+
+            <div class="form-group">
+              <label for="integration_type">Integration Type</label>
+              <select 
+                id="integration_type" 
+                class="form-control" 
+                formControlName="integration_type">
+                <option *ngFor="let option of integrationTypeOptions" [value]="option.value">{{ option.label }}</option>
+              </select>
+              <p class="helper-text">Type of integration for this agent</p>
+            </div>
+          </div>
+
+          <div class="column">
+            <div class="form-group">
+              <label for="auth_type">Auth Type</label>
+              <select 
+                id="auth_type" 
+                class="form-control" 
+                formControlName="auth_type">
+                <option *ngFor="let option of authTypeOptions" [value]="option.value">{{ option.label }}</option>
+              </select>
+              <p class="helper-text">Authentication method for this agent</p>
+            </div>
+
+            <div class="form-group">
+              <label for="auth_credentials">Auth Credentials</label>
+              <app-json-editor
+                [jsonValue]="getFormattedJson('auth_credentials')"
+                title="Edit Authentication Credentials"
+                (valueChange)="updateJsonField('auth_credentials', $event)"
+                (validChange)="isJsonFieldValid('auth_credentials', $event)"
+                [(isOpen)]="jsonEditorStates['auth_credentials']">
+              </app-json-editor>
+              <div *ngIf="jsonErrors['auth_credentials']" class="invalid-feedback">
+                {{ jsonErrors['auth_credentials'] }}
+              </div>
+              <p class="helper-text">Authentication credentials in JSON format (stored securely)</p>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="form-row">
-          <div class="form-field">
-            <qrac-text-area
-              label="Configuration (JSON)"
-              controlName="config"
-              formControlName="config"
-              placeholder="Enter JSON configuration"
-              [rows]="8">
-            </qrac-text-area>
-            <div class="field-hint">
-              Configuration parameters as JSON object (e.g., {{ "{" }}"temperature": 0.7, "max_tokens": 1000{{ "}" }})
+      <!-- Advanced Settings Tab -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 2">
+        <div class="two-column-layout">
+          <div class="column">
+            <div class="form-group">
+              <label for="config">Configuration</label>
+              <app-json-editor
+                [jsonValue]="getFormattedJson('config')"
+                title="Edit Configuration"
+                (valueChange)="updateJsonField('config', $event)"
+                (validChange)="isJsonFieldValid('config', $event)"
+                [(isOpen)]="jsonEditorStates['config']">
+              </app-json-editor>
+              <div *ngIf="jsonErrors['config']" class="invalid-feedback">
+                {{ jsonErrors['config'] }}
+              </div>
+              <p class="helper-text">
+                Configuration parameters as JSON object (e.g., {{ "{" }}"temperature": 0.7, "max_tokens": 1000{{ "}" }})
+              </p>
+            </div>
+          </div>
+
+          <div class="column">
+            <div class="form-group">
+              <label for="retry_config">Retry Configuration</label>
+              <app-json-editor
+                [jsonValue]="getFormattedJson('retry_config')"
+                title="Edit Retry Configuration"
+                (valueChange)="updateJsonField('retry_config', $event)"
+                (validChange)="isJsonFieldValid('retry_config', $event)"
+                [(isOpen)]="jsonEditorStates['retry_config']">
+              </app-json-editor>
+              <div *ngIf="jsonErrors['retry_config']" class="invalid-feedback">
+                {{ jsonErrors['retry_config'] }}
+              </div>
+              <p class="helper-text">Configuration for retry behavior (optional)</p>
+            </div>
+
+            <div class="form-group">
+              <label for="content_filter_config">Content Filter Configuration</label>
+              <app-json-editor
+                [jsonValue]="getFormattedJson('content_filter_config')"
+                title="Edit Content Filter Configuration"
+                (valueChange)="updateJsonField('content_filter_config', $event)"
+                (validChange)="isJsonFieldValid('content_filter_config', $event)"
+                [(isOpen)]="jsonEditorStates['content_filter_config']">
+              </app-json-editor>
+              <div *ngIf="jsonErrors['content_filter_config']" class="invalid-feedback">
+                {{ jsonErrors['content_filter_config'] }}
+              </div>
+              <p class="helper-text">Configuration for content filtering (optional)</p>
             </div>
           </div>
         </div>
@@ -161,11 +241,37 @@
 
       <!-- Form Actions -->
       <div class="form-actions">
-        <button type="button" class="cancel-button" (click)="onCancel()">
+        <!-- Show Back button on API Configuration and Advanced Settings tabs -->
+        <button 
+          *ngIf="selectedTabIndex > 0" 
+          type="button" 
+          class="outline-button" 
+          (click)="selectedTabIndex = selectedTabIndex - 1">
+          Back
+        </button>
+
+        <!-- Cancel button always visible -->
+        <button type="button" class="outline-button" (click)="onCancel()">
           Cancel
         </button>
-        <button type="submit" class="submit-button" [disabled]="isSubmitting">
-          <span *ngIf="isSubmitting" class="spinner-small"></span>
+
+        <!-- Next button on tabs 0 and 1 -->
+        <button 
+          *ngIf="selectedTabIndex < 2" 
+          type="button" 
+          class="primary-button" 
+          (click)="selectedTabIndex = selectedTabIndex + 1"
+          [disabled]="isTabInvalid(selectedTabIndex)">
+          Next
+        </button>
+
+        <!-- Save button on the final tab -->
+        <button 
+          *ngIf="selectedTabIndex === 2" 
+          type="submit" 
+          class="primary-button" 
+          [disabled]="isSubmitting || agentForm.invalid || hasJsonErrors()">
+          <span *ngIf="isSubmitting" class="spinner-sm"></span>
           {{ isEditMode ? 'Update Agent' : 'Create Agent' }}
         </button>
       </div>

@@ -1,5 +1,6 @@
 <!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-test/agents-test.page.html -->
 <div class="agent-test-container">
+  <!-- Header Section -->
   <div class="test-header">
     <button class="back-button" (click)="onBackClick()">
       <span class="back-icon">←</span> Back to Agent
@@ -45,8 +46,8 @@
                 placeholder="Enter your query or question"
                 [required]="true">
               </qrac-textbox>
-              <div *ngIf="testForm.get('query')?.touched && testForm.get('query')?.hasError('required')" class="error-message">
-                Query is required
+              <div *ngIf="hasError('query')" class="error-message">
+                {{ getErrorMessage('query') }}
               </div>
             </div>
           </div>
@@ -77,6 +78,9 @@
               </qrac-text-area>
               <div class="field-hint">
                 Optional parameters in JSON format (e.g., {{ "{" }}"temperature": 0.7{{ "}" }})
+              </div>
+              <div *ngIf="jsonError" class="error-message">
+                {{ jsonError }}
               </div>
             </div>
           </div>

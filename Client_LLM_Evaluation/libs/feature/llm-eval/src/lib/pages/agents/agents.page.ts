@@ -1,21 +1,24 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+
 import {
   Agent,
   AgentFilterParams,
-  AgentDomain
+  AgentDomain,
+  IntegrationType
 } from '@ngtx-apps/data-access/models';
 import { AgentService } from '@ngtx-apps/data-access/services';
 import {
-  
+  QracButtonComponent,
   QracTextBoxComponent,
   QracSelectComponent
 } from '@ngtx-apps/ui/components';
-import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/services';
+import { AlertService, ConfirmationDialogService, NotificationService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-agents',
@@ -24,7 +27,7 @@ import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/servic
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    
+    QracButtonComponent,
     QracTextBoxComponent,
     QracSelectComponent
   ],
@@ -38,14 +41,14 @@ export class AgentsPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   currentPage = 1;
-  itemsPerPage = 10; // Updated from 10 to match standard
+  itemsPerPage = 5; // Updated from 10 to match standard
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
 
   filterParams: AgentFilterParams = {
     page: 1,
-    limit: 10, // Updated to match standard
+    limit: 5, // Updated to match standard
     sortBy: 'created_at',
     sortDirection: 'desc'
   };
@@ -70,11 +73,21 @@ export class AgentsPage implements OnInit, OnDestroy {
     { value: AgentDomain.OTHER, label: 'Other' }
   ];
 
+  // Integration type options
+  integrationOptions = [
+    { value: '', label: 'All Types' },
+    { value: IntegrationType.AZURE_OPENAI, label: 'Azure OpenAI' },
+    { value: IntegrationType.MCP, label: 'Model Control Plane (MCP)' },
+    { value: IntegrationType.DIRECT_API, label: 'Direct API' },
+    { value: IntegrationType.CUSTOM, label: 'Custom' }
+  ];
+
   private destroy$ = new Subject<void>();
 
   constructor(
     private agentService: AgentService,
     private alertService: AlertService,
+    private notificationService: NotificationService,
     private confirmationDialogService: ConfirmationDialogService,
     private router: Router,
     private fb: FormBuilder
@@ -82,7 +95,8 @@ export class AgentsPage implements OnInit, OnDestroy {
     this.filterForm = this.fb.group({
       search: [''],
       status: [''],
-      domain: ['']
+      domain: [''],
+      integration_type: ['']
     });
   }
 
@@ -133,6 +147,15 @@ export class AgentsPage implements OnInit, OnDestroy {
         this.filterParams.page = 1;
         this.loadAgents();
       });
+
+    // Listen to integration type changes
+    this.filterForm.get('integration_type')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((value: string) => {
+        this.filterParams.integration_type = value as IntegrationType || undefined;
+        this.filterParams.page = 1;
+        this.loadAgents();
+      });
   }
 
   loadAgents(): void {
@@ -150,12 +173,9 @@ export class AgentsPage implements OnInit, OnDestroy {
         },
         error: (error) => {
           this.error = 'Failed to load agents. Please try again.';
-          this.alertService.showAlert({
-            show: true,
-            message: this.error,
-            title: 'Error'
-          });
+          this.notificationService.error(this.error);
           this.isLoading = false;
+          console.error('Error loading agents:', error);
         }
       });
   }
@@ -213,12 +233,14 @@ export class AgentsPage implements OnInit, OnDestroy {
     this.filterForm.reset({
       search: '',
       status: '',
-      domain: ''
+      domain: '',
+      integration_type: ''
     });
 
     this.filterParams.name = undefined;
     this.filterParams.is_active = undefined;
     this.filterParams.domain = undefined;
+    this.filterParams.integration_type = undefined;
     this.filterParams.page = 1;
 
     this.loadAgents();
@@ -245,6 +267,11 @@ export class AgentsPage implements OnInit, OnDestroy {
     this.router.navigate(['app/agents', agentId, 'edit']);
   }
 
+  onTestAgent(event: Event, agentId: string): void {
+    event.stopPropagation();
+    this.router.navigate(['app/agents', agentId, 'test']);
+  }
+
   createNewAgent(event: Event): void {
     event.preventDefault();
     this.router.navigate(['app/agents/create']);
@@ -266,19 +293,11 @@ export class AgentsPage implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          this.alertService.showAlert({
-            show: true,
-            message: 'Agent deleted successfully',
-            title: 'Success'
-          });
+          this.notificationService.success('Agent deleted successfully');
           this.loadAgents();
         },
         error: (error) => {
-          this.alertService.showAlert({
-            show: true,
-            message: 'Failed to delete agent. Please try again.',
-            title: 'Error'
-          });
+          this.notificationService.error('Failed to delete agent. Please try again.');
           console.error('Error deleting agent:', error);
         }
       });

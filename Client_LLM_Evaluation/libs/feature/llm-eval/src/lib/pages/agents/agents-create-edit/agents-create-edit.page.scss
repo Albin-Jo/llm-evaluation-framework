@@ -6,41 +6,242 @@
   display: block;
   width: 100%;
 }
+:host ::ng-deep {
+  .cdk-overlay-container {
+    z-index: 10000;
+  }
+}
 
 .agent-create-edit-container {
-  padding: $spacing-6;
+  padding: $spacing-4;
   max-width: $container-xxl;
   margin: 0 auto;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-4;
+    padding: $spacing-3;
   }
 }
 
-.form-header {
-  margin-bottom: $spacing-6;
+// Back navigation - more compact
+.back-navigation {
+  margin-bottom: $spacing-3;
 
-  .page-title {
-    @include page-title;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
-    margin-bottom: $spacing-2;
+  .back-button {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: $primary;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    padding: $spacing-1 $spacing-2;
+    border-radius: $radius-sm;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: rgba($primary, 0.05);
+    }
+
+    .back-icon {
+      margin-right: $spacing-1;
+      font-size: $font-size-md;
+    }
+  }
+}
+
+// Card styles
+.agent-card {
+  @include card;
+  background-color: white;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 120px); // Ensure it fits in viewport
+}
+
+// Header styles - reduced height
+.agent-header {
+  padding: $spacing-3 $spacing-4;
+  background-color: $background-light;
+  border-bottom: 1px solid $border-color;
+
+  .agent-title {
+    margin: 0;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
     color: $text-primary;
   }
 
-  .page-description {
+  .agent-description {
+    margin: $spacing-1 0 0;
     color: $text-secondary;
-    font-size: $font-size-base;
+    font-size: $font-size-sm;
   }
 }
 
-// Loading and error states
-.loading-container, .error-container {
+// Tabs styles - more compact
+.tabs-container {
+  display: flex;
+  background-color: white;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: $border-color;
+    z-index: 0;
+  }
+
+  .tab {
+    padding: $spacing-3 $spacing-4;
+    cursor: pointer;
+    text-align: center;
+    font-weight: $font-weight-medium;
+    color: $text-secondary;
+    transition: all 0.3s ease;
+    position: relative;
+    min-width: 150px;
+    border-bottom: 3px solid transparent;
+    z-index: 1;
+
+    @include media-breakpoint-down(md) {
+      padding: $spacing-2 $spacing-3;
+      min-width: auto;
+      flex: 1;
+      font-size: $font-size-sm;
+    }
+
+    &:hover:not(.active) {
+      color: darken($text-secondary, 15%);
+      background-color: rgba($primary, 0.03);
+    }
+
+    &.active {
+      color: $primary;
+      border-bottom-color: $primary;
+      font-weight: $font-weight-semibold;
+    }
+  }
+}
+
+// Tab content - optimize for vertical space
+.tab-content {
+  padding: $spacing-4;
+  overflow-y: auto;
+  flex: 1;
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-3;
+  }
+}
+
+// Form layout
+.two-column-layout {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-4;
+
+  @include media-breakpoint-down(md) {
+    grid-template-columns: 1fr;
+    gap: $spacing-3;
+  }
+}
+
+// Form controls - more compact
+.form-control {
+  width: 100%;
+  padding: $spacing-2;
+  font-size: $font-size-sm;
+  color: $text-primary;
+  background-color: white;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  transition: all 0.2s ease;
+  height: 38px; // Reduced height
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+  }
+
+  &.is-invalid {
+    border-color: $error;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($error, 0.1);
+    }
+  }
+
+  &.textarea {
+    height: auto;
+    min-height: 100px; // Reduced height
+    resize: vertical;
+  }
+
+  &.json-editor {
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+    height: auto;
+    min-height: 60px; // Optimized for JSON content
+    max-height: 120px; // Limit height to prevent oversized fields
+  }
+}
+
+select.form-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 8px 10px;
+  padding-right: 2.5rem;
+}
+
+// Invalid feedback
+.invalid-feedback {
+  display: block;
+  width: 100%;
+  margin-top: $spacing-1;
+  font-size: $font-size-xs;
+  color: $error;
+}
+
+// Form group - reduced margins
+.form-group:has(app-json-editor) {
+  margin-bottom: $spacing-3;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-1;
+    font-weight: $font-weight-medium;
+    color: $text-primary;
+    font-size: $font-size-sm;
+
+    &.required::after {
+      content: '*';
+      margin-left: $spacing-1;
+      color: $error;
+    }
+  }
+
+  .helper-text {
+    margin-top: $spacing-1;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+  }
+}
+
+// Status containers
+.status-container {
   @include card-padded;
-  padding: $spacing-12;
-  margin-bottom: $spacing-6;
+  padding: $spacing-6;
   text-align: center;
-  border-radius: $radius-lg;
 }
 
 .loading-container {
@@ -57,242 +258,154 @@
   }
 }
 
-// Form container
-.form-container {
-  width: 100%;
+// Form actions - sticky bottom bar
+.form-actions {
+  z-index: 1000 !important;
+  display: flex;
+  justify-content: space-between;
+  padding: $spacing-3 $spacing-4;
+  border-top: 1px solid $border-color;
+  background-color: $background-light;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+
+  .outline-button, .primary-button {
+    padding: $spacing-2 $spacing-4;
+    border-radius: $radius-sm;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: $font-size-sm;
+    height: 38px; // Reduced height
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px; // Reduced width
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .outline-button {
+    background-color: white;
+    color: $text-primary;
+    border: 1px solid $border-color;
+
+    &:hover:not(:disabled) {
+      background-color: $background;
+      border-color: darken($border-color, 10%);
+    }
+  }
+
+  .primary-button {
+    background-color: $primary;
+    color: white;
+    border: none;
+
+    &:hover:not(:disabled) {
+      background-color: darken($primary, 10%);
+    }
+  }
+
+  // Loading spinner
+  .spinner-sm {
+    @include spinner($size: 16px, $border-width: 2px, $color: white);
+    margin-right: $spacing-2;
+  }
+
+  @include media-breakpoint-down(md) {
+    padding: $spacing-2 $spacing-3;
+    flex-wrap: wrap;
+    gap: $spacing-2;
+
+    button {
+      flex: 1;
+      min-width: auto;
+    }
+  }
 }
 
+// Agent form container
 .agent-form {
   display: flex;
   flex-direction: column;
-  gap: $spacing-6;
+  height: 100%;
+}
 
-  .form-section {
-    @include card-padded;
-    border-radius: $radius-lg;
-    background-color: white;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-
-    &:hover {
-      transform: translateY(-3px);
-      box-shadow: $shadow-md;
+// JSON Editor Host Styling
+app-json-editor {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: $spacing-1;
+  
+  // Override nested component styles that might conflict
+  ::ng-deep {
+    .json-summary {
+      margin-bottom: 0; // Remove extra margin to fix spacing
     }
-
-    .section-title {
-      @include section-title;
-      font-size: $font-size-xl;
-      color: $text-primary;
-      font-weight: $font-weight-semibold;
-      border-bottom: 1px solid $border-color;
-      padding-bottom: $spacing-4;
-      margin-bottom: $spacing-6;
+    
+    // Make sure preview has correct size
+    .json-preview {
+      min-height: 40px !important;
+      max-height: 40px !important;
+      font-size: $font-size-xs !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
     }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: $spacing-6;
-      margin-bottom: $spacing-6;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      @include media-breakpoint-down(md) {
-        grid-template-columns: 1fr;
-        gap: $spacing-4;
+    
+    // Fix button sizes
+    .json-actions {
+      .add-key-btn, .edit-json-btn {
+        height: 30px !important; 
+        font-size: $font-size-xs !important;
+        min-width: 0 !important;
+        padding: $spacing-1 $spacing-2 !important;
       }
     }
-
-    .form-field {
-      flex: 1;
-      min-width: 0; // prevent flex items from overflowing
-
-      .error-message {
-        color: $error;
-        font-size: $font-size-xs;
-        margin-top: $spacing-1;
-        display: block;
-      }
-
-      .field-hint {
-        font-size: $font-size-xs;
-        color: $text-secondary;
-        margin-top: $spacing-1;
-      }
+    
+    // Make sure the modal is on top of everything
+    .modal-overlay {
+      z-index: 9998 !important;
     }
-  }
-
-  .form-actions {
-    @include card-padded;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: $background-light;
-    border-radius: $radius-lg;
-
-    @include media-breakpoint-down(md) {
-      flex-direction: column-reverse;
-      gap: $spacing-3;
-    }
-
-    .cancel-button {
-      @include button-secondary;
-      height: 44px;
-      min-width: 100px;
-      font-weight: $font-weight-medium;
-
-      @include media-breakpoint-down(sm) {
-        width: 100%;
-      }
-    }
-
-    .submit-button {
-      @include button-primary;
-      height: 44px;
-      min-width: 140px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: $font-weight-semibold;
-
-      @include media-breakpoint-down(sm) {
-        width: 100%;
-      }
-
-      .spinner-small {
-        @include spinner($size: 18px, $border-width: 2px, $color: white);
-        margin-right: $spacing-2;
-      }
+    
+    .modal-dialog {
+      z-index: 9999 !important;
     }
   }
 }
 
-// Form controls styling
-:host ::ng-deep {
-  // Textbox inputs
-  .textbox-container {
-    width: 100%;
+// No JSON data state
+.no-json-data {
+  font-style: italic;
+  color: $text-secondary;
+  text-align: center;
+  padding: $spacing-2;
+  background-color: $background-light;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+}
 
-    .textbox-label {
-      font-size: $font-size-sm;
-      font-weight: $font-weight-medium;
-      color: $text-primary;
-      margin-bottom: $spacing-2;
-      display: block;
-    }
-
-    .textbox-input {
-      width: 100%;
-      height: 44px;
-      padding: $spacing-3;
-      font-size: $font-size-sm;
-      border: 1px solid $border-color;
-      border-radius: $radius-sm;
-      transition: all 0.2s ease;
-
-      &:focus {
-        outline: none;
-        border-color: $primary;
-        box-shadow: 0 0 0 3px rgba($primary, 0.1);
-      }
-    }
+// Animations for tab transitions
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
   }
-
-  // Select dropdowns
-  .select-container {
-    width: 100%;
-
-    .select-label {
-      font-size: $font-size-sm;
-      font-weight: $font-weight-medium;
-      color: $text-primary;
-      margin-bottom: $spacing-2;
-      display: block;
-    }
-
-    .select-input {
-      width: 100%;
-      height: 44px;
-      padding: $spacing-3;
-      font-size: $font-size-sm;
-      border: 1px solid $border-color;
-      border-radius: $radius-sm;
-      background-color: white;
-      transition: all 0.2s ease;
-      appearance: none;
-      background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.75rem center;
-      background-size: 8px 10px;
-      padding-right: 2.5rem;
-
-      &:focus {
-        outline: none;
-        border-color: $primary;
-        box-shadow: 0 0 0 3px rgba($primary, 0.1);
-      }
-    }
-  }
-
-  // Textarea
-  .textarea-container {
-    width: 100%;
-
-    .textarea-label {
-      font-size: $font-size-sm;
-      font-weight: $font-weight-medium;
-      color: $text-primary;
-      margin-bottom: $spacing-2;
-      display: block;
-    }
-
-    .textarea-input {
-      width: 100%;
-      min-height: 120px;
-      padding: $spacing-3;
-      font-size: $font-size-sm;
-      border: 1px solid $border-color;
-      border-radius: $radius-sm;
-      resize: vertical;
-      transition: all 0.2s ease;
-
-      &:focus {
-        outline: none;
-        border-color: $primary;
-        box-shadow: 0 0 0 3px rgba($primary, 0.1);
-      }
-    }
-  }
-
-  // Checkbox styling
-  .checkbox-group {
-    display: flex;
-    align-items: center;
-    margin-top: $spacing-4;
-
-    .checkbox-input {
-      margin-right: $spacing-2;
-      width: 20px;
-      height: 20px;
-      accent-color: $primary;
-    }
-
-    .checkbox-label {
-      font-size: $font-size-sm;
-      color: $text-primary;
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-// Responsive adjustments
-@media screen and (max-width: 576px) {
-  .agent-create-edit-container {
-    padding: $spacing-3;
-  }
+.tab-content {
+  animation: fadeIn 0.3s ease-in-out;
+}
 
-  .form-section,
-  .form-actions {
-    padding: $spacing-4;
-  }
+// Ensure modals can appear above everything
+.cdk-overlay-container {
+  z-index: 1500;
 }

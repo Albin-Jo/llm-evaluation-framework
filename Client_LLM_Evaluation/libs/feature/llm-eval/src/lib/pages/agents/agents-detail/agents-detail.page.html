@@ -1,5 +1,4 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-detail/agents-detail.page.html -->
-<div class="evaluation-detail-container">
+<div class="agent-detail-container">
   <!-- Header Section -->
   <div class="header-section">
     <div class="back-navigation">
@@ -11,13 +10,19 @@
     <div class="title-actions">
       <div class="title-section">
         <h1 class="page-title" *ngIf="agent">{{ agent.name }}</h1>
+        <span *ngIf="agent" class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
+          {{ agent.is_active ? 'Active' : 'Inactive' }}
+        </span>
       </div>
 
       <div class="action-buttons" *ngIf="agent">
         <button class="action-button edit-button" (click)="onEditClick()">
           Edit Agent
         </button>
-        <button class="action-button delete-button" (click)="onEditClick()">
+        <button class="action-button test-button" (click)="onTestClick()">
+          Test Agent
+        </button>
+        <button class="action-button delete-button" (click)="onDeleteClick()">
           Delete Agent
         </button>
       </div>
@@ -44,14 +49,7 @@
 
   <!-- Agent Details -->
   <div *ngIf="agent && !isLoading" class="agent-details">
-    <div class="detail-header-section">
-      <h1 class="agent-name">{{ agent.name }}</h1>
-      <span class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
-        {{ agent.is_active ? 'Active' : 'Inactive' }}
-      </span>
-    </div>
-
-    <div class="detail-section">
+    <div class="info-cards">
       <!-- Basic Information Card -->
       <div class="info-card basic-info">
         <h2 class="card-title">Basic Information</h2>
@@ -80,7 +78,7 @@
             <span class="info-label">Last Updated</span>
             <span class="info-value">{{ formatDate(agent.updated_at) }}</span>
           </div>
-          <div class="info-row full-width" *ngIf="agent.tags && agent.tags.length > 0">
+          <div class="info-row tags-row" *ngIf="agent.tags && agent.tags.length > 0">
             <span class="info-label">Tags</span>
             <div class="tags-container">
               <span class="tag" *ngFor="let tag of agent.tags">{{ tag }}</span>
@@ -90,32 +88,40 @@
       </div>
 
       <!-- API Configuration Card -->
-      <div class="info-card configuration">
+      <div class="info-card api-config">
         <h2 class="card-title">API Configuration</h2>
         <div class="card-content">
           <div class="info-row full-width">
             <span class="info-label">API Endpoint</span>
             <span class="info-value endpoint">{{ agent.api_endpoint }}</span>
           </div>
+          <div class="info-row" *ngIf="agent.integration_type">
+            <span class="info-label">Integration Type</span>
+            <span class="info-value">{{ agent.integration_type }}</span>
+          </div>
+          <div class="info-row" *ngIf="agent.auth_type">
+            <span class="info-label">Auth Type</span>
+            <span class="info-value">{{ agent.auth_type }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Status</span>
+            <span class="info-value status-value" [ngClass]="agent.is_active ? 'active-status' : 'inactive-status'">
+              {{ agent.is_active ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Configuration Display Section -->
-    <div class="config-section" *ngIf="agent.config">
-      <h2 class="section-title">Configuration</h2>
-      <pre class="config-json">{{ agent.config | json }}</pre>
-    </div>
-
-    <!-- Test Agent Section -->
-    <div class="test-section">
-      <h2 class="section-title">Test Agent</h2>
-      <p class="test-description">
-        You can test this agent with sample input to verify its functionality before using it in evaluations.
-      </p>
-      <button class="test-button" (click)="onTestClick()">
-        Test Agent
-      </button>
+      <!-- Configuration Card -->
+      <div class="info-card config">
+        <h2 class="card-title">Configuration</h2>
+        <div class="card-content" *ngIf="agent.config">
+          <pre class="config-json">{{ formatJson(agent.config) }}</pre>
+        </div>
+        <div class="card-content" *ngIf="!agent.config">
+          <div class="empty-config">No configuration available</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

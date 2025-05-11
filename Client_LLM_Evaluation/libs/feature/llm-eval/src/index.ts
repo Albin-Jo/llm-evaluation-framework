@@ -39,3 +39,4 @@ export * from './lib/pages/reports/reports.routes';
 
 // Shared components
 export * from './lib/components/feature-placeholder/feature-placeholder.component';
+export * from './lib/components/json-editor/json-editor.component';
