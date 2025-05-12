@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 from fastapi import Request, HTTPException, status
 
@@ -58,4 +58,39 @@ async def get_required_current_user(request: Request) -> UserContext:
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"}
         )
+
+    # If the UserContext doesn't have the token but it's in request state, add it
+    if not hasattr(user, "token") or not user.token:
+        jwt_token = getattr(request.state, "jwt_token", None)
+        if jwt_token and isinstance(user, UserContext):
+            user.token = jwt_token
+
     return user
+
+
+async def get_jwt_token(request: Request) -> Optional[str]:
+    """
+    Get JWT token from request state.
+
+    Args:
+        request: The FastAPI request object
+
+    Returns:
+        Optional[str]: JWT token or None if not present
+    """
+    return getattr(request.state, "jwt_token", None)
+
+
+async def get_user_and_token(request: Request) -> Tuple[Optional[UserContext], Optional[str]]:
+    """
+    Get both user context and JWT token.
+
+    Args:
+        request: The FastAPI request object
+
+    Returns:
+        Tuple[Optional[UserContext], Optional[str]]: User context and JWT token
+    """
+    user = getattr(request.state, "user", None)
+    token = getattr(request.state, "jwt_token", None)
+    return user, token

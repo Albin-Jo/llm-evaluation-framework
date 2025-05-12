@@ -148,7 +148,8 @@ class UserContext:
             email: Optional[str] = None,
             name: Optional[str] = None,
             roles: Optional[List[str]] = None,
-            db_user: Optional[User] = None
+            db_user: Optional[User] = None,
+            token: Optional[str] = None  # Store original JWT token (new parameter)
     ):
         self.sub = sub
         self.preferred_username = preferred_username
@@ -156,14 +157,16 @@ class UserContext:
         self.name = name
         self.roles = roles or []
         self.db_user = db_user
+        self.token = token  # Store the original token for use with external services
 
     @classmethod
-    def from_token_payload(cls, payload: Dict[str, Any]) -> "UserContext":
+    def from_token_payload(cls, payload: Dict[str, Any], token: Optional[str] = None) -> "UserContext":
         """
         Create UserContext from token payload.
 
         Args:
             payload: The decoded JWT payload
+            token: Original JWT token string (new parameter)
 
         Returns:
             UserContext: User context object with token data
@@ -188,7 +191,8 @@ class UserContext:
             preferred_username=payload.get("preferred_username", ""),
             email=payload.get("email", ""),
             name=payload.get("name", ""),
-            roles=roles
+            roles=roles,
+            token=token  # Include the original token
         )
 
 
@@ -427,12 +431,15 @@ async def jwt_auth_middleware(request: Request, call_next):
 
     token = token_parts[1]
 
+    # Store raw token in request state for use by endpoints
+    request.state.jwt_token = token
+
     try:
         # Verify token
         payload = await verify_token(token)
 
-        # Create user context
-        user_context = UserContext.from_token_payload(payload)
+        # Create user context, passing the original token
+        user_context = UserContext.from_token_payload(payload, token)
 
         # Sync user with database
         async with db_session() as session:

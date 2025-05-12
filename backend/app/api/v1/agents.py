@@ -8,18 +8,20 @@ import logging
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.api.dependencies.auth import get_required_current_user, get_jwt_token
+from backend.app.api.middleware.jwt_validator import UserContext
 from backend.app.core.exceptions import NotFoundException, DuplicateResourceException
-from backend.app.db.models.orm import Agent, AuthType, IntegrationType
+from backend.app.db.models.orm import AuthType, IntegrationType
 from backend.app.db.repositories.agent_repository import AgentRepository
 from backend.app.db.schema.agent_schema import (
     AgentCreate, AgentResponse, AgentUpdate
 )
 from backend.app.db.session import get_db
-from backend.app.services.agent_service import test_agent_service
 from backend.app.services.agent_clients.factory import AgentClientFactory
+from backend.app.services.agent_service import test_agent_service
 from backend.app.utils.credential_utils import mask_credentials
 from backend.app.utils.response_utils import create_paginated_response
 
@@ -32,14 +34,16 @@ router = APIRouter()
 @router.post("/", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
 async def create_agent(
         agent_data: AgentCreate,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
-    Create a new Agent. Admin only.
+    Create a new Agent.
 
     Args:
         agent_data: The agent data to create
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         The created agent
@@ -60,27 +64,13 @@ async def create_agent(
             value=agent_data.name
         )
 
-    # Validate credentials based on auth type
-    if agent_data.auth_type == AuthType.BEARER_TOKEN:
-        if not agent_data.auth_credentials or "token" not in agent_data.auth_credentials:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Bearer token authentication requires a 'token' field in auth_credentials"
-            )
-    elif agent_data.auth_type == AuthType.API_KEY:
-        if not agent_data.auth_credentials or "api_key" not in agent_data.auth_credentials:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="API key authentication requires an 'api_key' field in auth_credentials"
-            )
-
     # Validate integration type specific requirements
     if agent_data.integration_type == IntegrationType.MCP:
+        # For MCP, we can use the user's JWT token, so no need for stored credentials
+        # Just ensure auth_type is set correctly
         if agent_data.auth_type != AuthType.BEARER_TOKEN:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="MCP integration requires bearer token authentication"
-            )
+            agent_data.auth_type = AuthType.BEARER_TOKEN
+            logger.info(f"Setting auth_type to BEARER_TOKEN for MCP agent {agent_data.name}")
 
         # Ensure tool_name is specified in config
         if not agent_data.config or "tool_name" not in agent_data.config:
@@ -88,9 +78,27 @@ async def create_agent(
                 agent_data.config = {}
             agent_data.config["tool_name"] = "McpAskPolicyBot"  # Default tool
             logger.info(f"Set default tool_name 'McpAskPolicyBot' for MCP agent {agent_data.name}")
+    else:
+        # For non-MCP agents, validate credentials based on auth type
+        if agent_data.auth_type == AuthType.BEARER_TOKEN:
+            if not agent_data.auth_credentials or "token" not in agent_data.auth_credentials:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Bearer token authentication requires a 'token' field in auth_credentials"
+                )
+        elif agent_data.auth_type == AuthType.API_KEY:
+            if not agent_data.auth_credentials or "api_key" not in agent_data.auth_credentials:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="API key authentication requires an 'api_key' field in auth_credentials"
+                )
 
-    # Create agent with encrypted credentials
+    # Create agent with encrypted credentials and associate with current user
     agent_dict = agent_data.model_dump()
+
+    # Set the created_by_id if the user exists in database
+    if current_user.db_user:
+        agent_dict["created_by_id"] = current_user.db_user.id
 
     # Log masked credentials for debugging
     if agent_data.auth_credentials:
@@ -112,7 +120,8 @@ async def list_agents(
         is_active: Optional[bool] = Query(None, description="Filter agents by active status"),
         name: Optional[str] = Query(None, description="Filter agents by name (partial match)"),
         integration_type: Optional[IntegrationType] = Query(None, description="Filter agents by integration type"),
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     List Agents with optional filtering and pagination.
@@ -125,6 +134,7 @@ async def list_agents(
         name: Optional name filter (partial match)
         integration_type: Optional integration type filter
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         Dict containing list of agents and pagination info
@@ -139,6 +149,10 @@ async def list_agents(
         filters["is_active"] = is_active
     if integration_type:
         filters["integration_type"] = integration_type
+
+    # Filter by user ID (show only user's own agents)
+    if current_user.db_user:
+        filters["created_by_id"] = current_user.db_user.id
 
     agent_repo = AgentRepository(db)
 
@@ -162,7 +176,8 @@ async def list_agents(
 @router.get("/{agent_id}", response_model=AgentResponse)
 async def get_agent(
         agent_id: UUID,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Get Agent by ID.
@@ -170,6 +185,7 @@ async def get_agent(
     Args:
         agent_id: The ID of the agent to retrieve
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         The requested agent
@@ -185,6 +201,13 @@ async def get_agent(
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
+    # Check if user has access to this agent (created by them)
+    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this agent"
+        )
+
     return agent
 
 
@@ -192,15 +215,17 @@ async def get_agent(
 async def update_agent(
         agent_id: UUID,
         agent_data: AgentUpdate,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
-    Update Agent by ID. Admin only.
+    Update Agent by ID.
 
     Args:
         agent_id: The ID of the agent to update
         agent_data: The updated agent data
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         The updated agent
@@ -216,6 +241,13 @@ async def update_agent(
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
+    # Check if user has access to update this agent
+    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this agent"
+        )
+
     # If name is being updated, check if it conflicts with another agent
     if agent_data.name and agent_data.name != agent.name:
         existing_agent = await agent_repo.get_by_name(agent_data.name)
@@ -226,46 +258,39 @@ async def update_agent(
                 value=agent_data.name
             )
 
-    # If auth_type is being updated, validate credentials
-    if agent_data.auth_type is not None:
-        # Get effective credentials (updated or current)
-        credentials = agent_data.auth_credentials if agent_data.auth_credentials is not None else agent.auth_credentials
+    # Check if integration type is being updated
+    integration_type = agent_data.integration_type if agent_data.integration_type is not None else agent.integration_type
 
-        if agent_data.auth_type == AuthType.BEARER_TOKEN:
-            if not credentials or "token" not in credentials:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Bearer token authentication requires a 'token' field in auth_credentials"
-                )
-        elif agent_data.auth_type == AuthType.API_KEY:
-            if not credentials or "api_key" not in credentials:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="API key authentication requires an 'api_key' field in auth_credentials"
-                )
-
-    # If integration_type is being updated, validate requirements
-    if agent_data.integration_type is not None:
-        # Get effective auth_type (updated or current)
-        auth_type = agent_data.auth_type if agent_data.auth_type is not None else agent.auth_type
-
-        if agent_data.integration_type == IntegrationType.MCP and auth_type != AuthType.BEARER_TOKEN:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="MCP integration requires bearer token authentication"
-            )
+    # If integration type is MCP, make sure auth_type is BEARER_TOKEN
+    if integration_type == IntegrationType.MCP:
+        if agent_data.auth_type is not None and agent_data.auth_type != AuthType.BEARER_TOKEN:
+            agent_data.auth_type = AuthType.BEARER_TOKEN
+            logger.info(f"Setting auth_type to BEARER_TOKEN for MCP agent {agent_id}")
 
         # Ensure tool_name is specified for MCP
-        if agent_data.integration_type == IntegrationType.MCP:
-            # Get effective config (updated or current)
-            config = agent_data.config if agent_data.config is not None else agent.config
-
-            if not config or "tool_name" not in config:
-                # Create or update config with default tool
-                update_config = config.copy() if config else {}
-                update_config["tool_name"] = "McpAskPolicyBot"  # Default tool
-                agent_data.config = update_config
+        if agent_data.config is not None:
+            config = agent_data.config
+            if "tool_name" not in config:
+                config["tool_name"] = "McpAskPolicyBot"  # Default tool
                 logger.info(f"Set default tool_name 'McpAskPolicyBot' for MCP agent {agent_id}")
+    else:
+        # For non-MCP agents, validate credentials based on auth type
+        if agent_data.auth_type is not None:
+            # Get effective credentials (updated or current)
+            credentials = agent_data.auth_credentials if agent_data.auth_credentials is not None else agent.auth_credentials
+
+            if agent_data.auth_type == AuthType.BEARER_TOKEN:
+                if not credentials or "token" not in credentials:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Bearer token authentication requires a 'token' field in auth_credentials"
+                    )
+            elif agent_data.auth_type == AuthType.API_KEY:
+                if not credentials or "api_key" not in credentials:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="API key authentication requires an 'api_key' field in auth_credentials"
+                    )
 
     # Update the Agent with encrypted credentials
     update_data = {
@@ -290,14 +315,16 @@ async def update_agent(
 @router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_agent(
         agent_id: UUID,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
-    Delete Agent by ID. Admin only.
+    Delete Agent by ID.
 
     Args:
         agent_id: The ID of the agent to delete
         db: Database session
+        current_user: Current authenticated user
 
     Raises:
         HTTPException: If agent not found or deletion fails
@@ -309,6 +336,13 @@ async def delete_agent(
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
+
+    # Check if user has access to delete this agent
+    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this agent"
+        )
 
     # Check if agent is used in any evaluations
     has_evaluations = await agent_repo.has_related_evaluations(agent_id)
@@ -335,7 +369,8 @@ async def delete_agent(
 async def test_agent(
         agent_id: UUID,
         test_input: Dict,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Test an Agent with sample input.
@@ -344,6 +379,7 @@ async def test_agent(
         agent_id: The ID of the agent to test
         test_input: The input data to test with
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         The response from the agent
@@ -359,6 +395,13 @@ async def test_agent(
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
+    # Check if user has access to test this agent
+    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to test this agent"
+        )
+
     if not agent.is_active:
         logger.warning(f"Cannot test inactive agent: {agent_id}")
         raise HTTPException(
@@ -367,8 +410,13 @@ async def test_agent(
         )
 
     try:
+        # Get user token for MCP agents if available (safely)
+        user_token = None
+        if agent.integration_type == IntegrationType.MCP and hasattr(current_user, "token"):
+            user_token = getattr(current_user, "token", None)
+
         # Call the agent service to perform the test
-        response = await test_agent_service(agent, test_input)
+        response = await test_agent_service(agent, test_input, user_token)
         logger.info(f"Agent test successful: {agent_id}")
         return response
 
@@ -384,7 +432,9 @@ async def test_agent(
 async def test_mcp_agent(
         agent_id: UUID,
         test_message: str = Body(..., embed=True, description="Message to test with"),
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        jwt_token: Optional[str] = Depends(get_jwt_token)
 ):
     """
     Test an MCP agent with a simple message.
@@ -393,6 +443,8 @@ async def test_mcp_agent(
         agent_id: The ID of the agent to test
         test_message: Message to test with
         db: Database session
+        current_user: Current authenticated user
+        jwt_token: JWT token from request
 
     Returns:
         The response from the agent
@@ -407,6 +459,13 @@ async def test_mcp_agent(
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
+
+    # Check if user has access to test this agent
+    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to test this agent"
+        )
 
     if not agent.is_active:
         logger.warning(f"Cannot test inactive agent: {agent_id}")
@@ -423,8 +482,8 @@ async def test_mcp_agent(
         )
 
     try:
-        # Create MCP client
-        client = await AgentClientFactory.create_client(agent)
+        # Create MCP client with JWT token
+        client = await AgentClientFactory.create_client(agent, jwt_token)
 
         # Test with the client
         response = await client.process_query(test_message)
@@ -443,7 +502,9 @@ async def test_mcp_agent(
 @router.get("/{agent_id}/tools", response_model=List[Dict])
 async def list_agent_tools(
         agent_id: UUID,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        jwt_token: Optional[str] = Depends(get_jwt_token)
 ):
     """
     List available tools for an MCP agent.
@@ -451,6 +512,8 @@ async def list_agent_tools(
     Args:
         agent_id: The ID of the agent
         db: Database session
+        current_user: Current authenticated user
+        jwt_token: JWT token from request
 
     Returns:
         List of available tools
@@ -465,6 +528,13 @@ async def list_agent_tools(
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
+
+    # Check if user has access to this agent
+    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this agent's tools"
+        )
 
     if not agent.is_active:
         logger.warning(f"Cannot list tools for inactive agent: {agent_id}")
@@ -481,8 +551,8 @@ async def list_agent_tools(
         )
 
     try:
-        # Create MCP client
-        client = await AgentClientFactory.create_client(agent)
+        # Create MCP client with JWT token
+        client = await AgentClientFactory.create_client(agent, jwt_token)
 
         # List tools
         tools = await client.list_tools()
@@ -498,6 +568,8 @@ async def list_agent_tools(
             }
             tool_list.append(tool_dict)
 
+        logger.info(f"tool_list: {tool_list}")
+
         return tool_list
 
     except Exception as e:
@@ -511,7 +583,8 @@ async def list_agent_tools(
 @router.post("/{agent_id}/health", response_model=Dict[str, Any])
 async def check_agent_health(
         agent_id: UUID,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
 ):
     """
     Check if an agent is healthy and available.
@@ -519,6 +592,7 @@ async def check_agent_health(
     Args:
         agent_id: The ID of the agent to check
         db: Database session
+        current_user: Current authenticated user
 
     Returns:
         Dict with health status
@@ -533,6 +607,13 @@ async def check_agent_health(
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
+
+    # Check if user has access to this agent
+    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to check health of this agent"
+        )
 
     if not agent.is_active:
         logger.warning(f"Cannot check health for inactive agent: {agent_id}")

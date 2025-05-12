@@ -1,6 +1,7 @@
-# backend/app/workers/tasks.py
+# File: backend/app/workers/tasks.py
 import asyncio
 import logging
+from typing import Optional
 from uuid import UUID
 
 from celery import Celery
@@ -23,12 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="run_evaluation", bind=True, max_retries=3)
-def run_evaluation_task(self, evaluation_id: str) -> str:
+def run_evaluation_task(self, evaluation_id: str, jwt_token: Optional[str] = None) -> str:
     """
     Run an evaluation as a background task.
 
     Args:
         evaluation_id: Evaluation ID
+        jwt_token: Optional JWT token for MCP agent authentication
 
     Returns:
         str: Task result
@@ -39,7 +41,7 @@ def run_evaluation_task(self, evaluation_id: str) -> str:
     # Run the evaluation in an asyncio event loop
     loop = asyncio.get_event_loop()
     try:
-        return loop.run_until_complete(_run_evaluation(evaluation_uuid))
+        return loop.run_until_complete(_run_evaluation(evaluation_uuid, jwt_token))
     except Exception as exc:
         logger.exception(f"Error running evaluation {evaluation_id}")
         # Retry with exponential backoff
@@ -47,12 +49,13 @@ def run_evaluation_task(self, evaluation_id: str) -> str:
         self.retry(exc=exc, countdown=retry_in)
 
 
-async def _run_evaluation(evaluation_id: UUID) -> str:
+async def _run_evaluation(evaluation_id: UUID, jwt_token: Optional[str] = None) -> str:
     """
     Internal async function to run an evaluation.
 
     Args:
         evaluation_id: Evaluation ID
+        jwt_token: Optional JWT token for MCP agent authentication
 
     Returns:
         str: Task result
@@ -83,10 +86,16 @@ async def _run_evaluation(evaluation_id: UUID) -> str:
                 evaluation.method
             )
 
-            # Run the evaluation with batch processing
+            # Log JWT token availability
+            if jwt_token:
+                logger.info(f"Running evaluation {evaluation_id} with JWT token provided")
+            else:
+                logger.info(f"Running evaluation {evaluation_id} without JWT token")
+
+            # Run the evaluation with batch processing, passing the JWT token
             batch_size = evaluation.config.get("batch_size", 10) if evaluation.config else 10
             logger.info(f"Processing evaluation {evaluation_id} with batch size {batch_size}")
-            results = await method_handler.run_evaluation(evaluation)
+            results = await method_handler.run_evaluation(evaluation, jwt_token=jwt_token)
 
             # Process results
             for result_data in results:

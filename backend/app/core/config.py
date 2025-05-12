@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     AZURE_OPENAI_ENDPOINT: str = "https://azcorpstgapi.qatarairways.com.qa"
     AZURE_OPENAI_DEPLOYMENT: str = "qr-oai-4om"
     AZURE_OPENAI_VERSION: str = "2024-06-01"
+    AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT: str = "qr-oai-embd-ada2"
+    AZURE_OPENAI_EMBEDDINGS_VERSION: str = "2024-02-01"
 
     # Keycloak Authentication Settings
     KEYCLOAK_AUTHORITY: str = Field(

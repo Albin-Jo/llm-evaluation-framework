@@ -1,7 +1,7 @@
 # File: backend/app/evaluation/methods/ragas.py
 import datetime
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,12 +28,15 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         self.ragas_available = RAGAS_AVAILABLE
         logger.info(f"Initializing RAGAS evaluation method. RAGAS available: {self.ragas_available}")
 
-    async def run_evaluation(self, evaluation: Evaluation) -> List[EvaluationResultCreate]:
+    async def run_evaluation(self,
+                             evaluation: Evaluation,
+                             jwt_token: Optional[str] = None) -> List[EvaluationResultCreate]:
         """
         Run evaluation using RAGAS.
 
         Args:
             evaluation: Evaluation model
+            jwt_token: Optional JWT token to use for authentication with MCP agents
 
         Returns:
             List[EvaluationResultCreate]: List of evaluation results
@@ -62,7 +65,8 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
                         f"Valid metrics are: {valid_metrics}"
                     )
 
-            results = await self.batch_process(evaluation)
+            # Pass the JWT token to batch_process for MCP agents
+            results = await self.batch_process(evaluation, jwt_token=jwt_token)
 
             logger.info(f"Completed RAGAS evaluation {evaluation.id} with {len(results)} results")
             return results

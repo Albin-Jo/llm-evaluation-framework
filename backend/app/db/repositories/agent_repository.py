@@ -1,3 +1,4 @@
+# File: backend/app/db/repositories/agent_repository.py
 import logging
 from typing import Dict, List, Optional, Any
 from uuid import UUID
@@ -83,30 +84,78 @@ class AgentRepository(BaseRepository):
         result = await self.session.execute(query)
         return result.scalar() or 0
 
-    async def get_agents_by_domain(self, domain: str) -> List[Agent]:
+    async def get_agents_by_domain(self, domain: str, user_id: Optional[UUID] = None) -> List[Agent]:
         """
-        Get all agents for a specific domain.
+        Get all agents for a specific domain, optionally filtered by user.
 
         Args:
             domain: The domain to filter by
+            user_id: Optional user ID to filter by ownership
 
         Returns:
             List of agents in the specified domain
         """
         query = select(self.model).where(self.model.domain == domain)
+
+        # Add user filter if provided
+        if user_id:
+            query = query.where(self.model.created_by_id == user_id)
+
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
-    async def get_active_agents(self) -> List[Agent]:
+    async def get_active_agents(self, user_id: Optional[UUID] = None) -> List[Agent]:
         """
-        Get all active agents.
+        Get all active agents, optionally filtered by user.
+
+        Args:
+            user_id: Optional user ID to filter by ownership
 
         Returns:
             List of active agents
         """
         query = select(self.model).where(self.model.is_active == True)
+
+        # Add user filter if provided
+        if user_id:
+            query = query.where(self.model.created_by_id == user_id)
+
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def get_user_agents(self, user_id: UUID) -> List[Agent]:
+        """
+        Get all agents owned by a specific user.
+
+        Args:
+            user_id: User ID to filter by
+
+        Returns:
+            List of agents owned by the user
+        """
+        query = select(self.model).where(self.model.created_by_id == user_id)
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def get_user_agent(self, agent_id: UUID, user_id: UUID) -> Optional[Agent]:
+        """
+        Get an agent by ID if owned by a specific user.
+
+        Args:
+            agent_id: Agent ID
+            user_id: User ID to check ownership
+
+        Returns:
+            Agent if found and owned by user, None otherwise
+        """
+        query = select(self.model).where(
+            and_(
+                self.model.id == agent_id,
+                self.model.created_by_id == user_id
+            )
+        )
+        result = await self.session.execute(query)
+        return result.scalars().first()
 
     async def has_related_evaluations(self, agent_id: UUID) -> bool:
         """
@@ -123,7 +172,7 @@ class AgentRepository(BaseRepository):
         count = result.scalar()
         return count > 0
 
-    # New methods for handling encrypted credentials
+    # Methods for handling encrypted credentials
 
     async def create_with_encrypted_credentials(self, data: Dict[str, Any]) -> Agent:
         """
@@ -201,6 +250,48 @@ class AgentRepository(BaseRepository):
 
         return agent
 
+    async def get_user_owned_with_decrypted_credentials(self, id: UUID, user_id: UUID) -> Optional[Agent]:
+        """
+        Get agent with decrypted credentials if owned by user.
+
+        Args:
+            id: Agent ID
+            user_id: User ID to check ownership
+
+        Returns:
+            Agent with decrypted credentials if owned by user, None otherwise
+        """
+        # First check if the user owns this agent
+        query = select(self.model).where(
+            and_(
+                self.model.id == id,
+                self.model.created_by_id == user_id
+            )
+        )
+        result = await self.session.execute(query)
+        agent = result.scalars().first()
+
+        if not agent:
+            return None
+
+        # Decrypt credentials if present
+        if agent.auth_credentials:
+            try:
+                # Check if credentials are already a dictionary (not encrypted)
+                if isinstance(agent.auth_credentials, dict):
+                    logger.debug(f"Credentials for agent {id} are already decrypted")
+                    return agent
+
+                # Decrypt the credentials
+                agent.auth_credentials = decrypt_credentials(agent.auth_credentials)
+                logger.debug(f"Decrypted credentials for agent {id}")
+            except Exception as e:
+                logger.error(f"Error decrypting credentials for agent {id}: {e}")
+                # Set to None if decryption fails
+                agent.auth_credentials = None
+
+        return agent
+
     async def search_agents(
             self,
             name: Optional[str] = None,
@@ -208,6 +299,7 @@ class AgentRepository(BaseRepository):
             is_active: Optional[bool] = None,
             tags: Optional[List[str]] = None,
             model_type: Optional[str] = None,
+            user_id: Optional[UUID] = None,
             skip: int = 0,
             limit: int = 100
     ) -> List[Agent]:
@@ -220,6 +312,7 @@ class AgentRepository(BaseRepository):
             is_active: Optional active status filter
             tags: Optional list of tags to filter by
             model_type: Optional model type filter
+            user_id: Optional user ID to filter by ownership
             skip: Number of records to skip
             limit: Maximum number of records to return
 
@@ -243,6 +336,9 @@ class AgentRepository(BaseRepository):
         if model_type:
             filters.append(self.model.model_type == model_type)
 
+        if user_id:
+            filters.append(self.model.created_by_id == user_id)
+
         # Tags require special handling since they're in a JSON field
         if tags and len(tags) > 0:
             # This implementation depends on your DB specifics
@@ -262,74 +358,3 @@ class AgentRepository(BaseRepository):
         # Execute query
         result = await self.session.execute(query)
         return list(result.scalars().all())
-
-    async def advanced_search(
-            self,
-            query_text: Optional[str] = None,
-            filters: Optional[Dict[str, Any]] = None,
-            skip: int = 0,
-            limit: int = 100
-    ) -> List[Agent]:
-        """
-        Advanced search with text search across multiple fields.
-
-        Args:
-            query_text: Text to search across name, description, and domain
-            filters: Additional filters to apply
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of agents matching the search criteria
-        """
-        query = select(self.model)
-
-        # Text search across multiple fields
-        if query_text:
-            search_term = f"%{query_text}%"
-            text_conditions = or_(
-                self.model.name.ilike(search_term),
-                self.model.description.ilike(search_term),
-                self.model.domain.ilike(search_term)
-            )
-            query = query.where(text_conditions)
-
-        # Apply additional filters
-        if filters:
-            for key, value in filters.items():
-                if hasattr(self.model, key):
-                    query = query.where(getattr(self.model, key) == value)
-
-        # Add pagination
-        query = query.offset(skip).limit(limit)
-
-        # Execute query
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
-
-    async def count_advanced_search(
-            self,
-            query_text: Optional[str] = None,
-            filters: Optional[Dict[str, Any]] = None
-    ) -> int:
-        """Count agents matching advanced search criteria."""
-        query = select(func.count()).select_from(self.model)
-
-        # Text search across multiple fields
-        if query_text:
-            search_term = f"%{query_text}%"
-            text_conditions = or_(
-                self.model.name.ilike(search_term),
-                self.model.description.ilike(search_term),
-                self.model.domain.ilike(search_term)
-            )
-            query = query.where(text_conditions)
-
-        # Apply additional filters
-        if filters:
-            for key, value in filters.items():
-                if hasattr(self.model, key):
-                    query = query.where(getattr(self.model, key) == value)
-
-        result = await self.session.execute(query)
-        return result.scalar() or 0

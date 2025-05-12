@@ -1,3 +1,4 @@
+# File: backend/app/services/agent_clients/mcp_client.py
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -47,24 +48,33 @@ def _extract_text_from_response(response: Any) -> str:
 class MCPAgentClient(AgentClient):
     """Client for MCP-based agents."""
 
-    def __init__(self, agent: Agent):
+    def __init__(self, agent: Agent, user_token: Optional[str] = None):
         """
         Initialize an MCP client.
 
         Args:
             agent: The agent configuration
+            user_token: Optional user JWT token to use for authentication
         """
         self.agent = agent
         self.session = None
         self.sse_url = agent.api_endpoint
 
-        # Get bearer token from credentials
-        if agent.auth_type != "bearer_token" or not agent.auth_credentials:
-            raise ValueError("MCP client requires bearer token authentication")
-
-        self.bearer_token = agent.auth_credentials.get("token")
-        if not self.bearer_token:
-            raise ValueError("Bearer token not found in credentials")
+        # Prefer user token if provided
+        if user_token:
+            logger.info(f"Using provided user token for MCP authentication for agent {agent.id}")
+            self.bearer_token = user_token
+        else:
+            logger.info(f"Using agent's stored token for MCP authentication for agent {agent.id}")
+            # Get bearer token from credentials
+            if agent.auth_credentials and "token" in agent.auth_credentials:
+                self.bearer_token = agent.auth_credentials.get("token")
+            else:
+                # If no credentials are stored and no user token is provided, raise an error
+                logger.error(
+                    f"No bearer token available for MCP agent {agent.id} - neither user token nor stored credentials")
+                raise ValueError(
+                    "MCP client requires bearer token authentication - provide either user token or stored credentials")
 
     async def initialize(self) -> None:
         """Initialize client - no-op as connection is handled per-request."""

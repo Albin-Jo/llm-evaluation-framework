@@ -1,3 +1,4 @@
+# File: backend/app/services/agent_clients/factory.py
 import logging
 
 from backend.app.db.models.orm import Agent, IntegrationType
@@ -13,12 +14,13 @@ class AgentClientFactory:
     """Factory for creating agent clients."""
 
     @staticmethod
-    async def create_client(agent: Agent) -> AgentClient:
+    async def create_client(agent: Agent, user_token: str = None) -> AgentClient:
         """
         Create an appropriate client for the given agent.
 
         Args:
             agent: The agent to create a client for
+            user_token: Optional user JWT token to use for authentication with MCP
 
         Returns:
             An initialized agent client
@@ -33,7 +35,7 @@ class AgentClientFactory:
             client = AzureOpenAIClient(agent)
         elif agent.integration_type == IntegrationType.MCP:
             logger.info(f"Creating MCP client for agent {agent.id}")
-            client = MCPAgentClient(agent)
+            client = MCPAgentClient(agent, user_token)
         else:
             raise ValueError(f"Unsupported integration type: {agent.integration_type}")
 

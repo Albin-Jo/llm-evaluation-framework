@@ -17,7 +17,7 @@ from backend.app.services.evaluation_service import EvaluationService, _run_eval
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.api.dependencies.rate_limiter import rate_limit
 from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
-from backend.app.api.dependencies.auth import get_required_current_user
+from backend.app.api.dependencies.auth import get_required_current_user, get_jwt_token
 from backend.app.api.middleware.jwt_validator import UserContext
 
 # Configure logger
@@ -488,6 +488,7 @@ async def start_evaluation(
         background_tasks: BackgroundTasks,
         db: AsyncSession = Depends(get_db),
         current_user: UserContext = Depends(get_required_current_user),
+        jwt_token: Optional[str] = Depends(get_jwt_token),  # Get JWT token from request
         _: None = Depends(rate_limit(max_requests=5, period_seconds=60))
 ):
     logger.info(f"Starting evaluation id={evaluation_id}")
@@ -546,14 +547,18 @@ async def start_evaluation(
         from backend.app.workers.tasks import run_evaluation_task
 
         try:
-            # Queue in Celery when available
-            run_evaluation_task.delay(str(evaluation_id))
-            logger.info(f"Queued evaluation job {evaluation_id} to Celery")
+            # Queue in Celery when available - pass JWT token
+            run_evaluation_task.delay(str(evaluation_id), jwt_token)
+            logger.info(f"Queued evaluation job {evaluation_id} to Celery with JWT token")
         except Exception as e:
             # Fallback to separate task if Celery not available
             logger.warning(f"Failed to queue to Celery: {e}. Running as separate task.")
-            background_tasks.add_task(_run_evaluation_as_separate_task, str(evaluation_id))
-            logger.info(f"Added evaluation {evaluation_id} as background task")
+            background_tasks.add_task(
+                _run_evaluation_as_separate_task,
+                str(evaluation_id),
+                jwt_token  # Pass the JWT token to the background task
+            )
+            logger.info(f"Added evaluation {evaluation_id} as background task with JWT token")
 
         # Get updated evaluation
         updated_evaluation = await evaluation_service.get_evaluation(evaluation_id)
@@ -569,7 +574,6 @@ async def start_evaluation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error starting evaluation: {str(e)}"
         )
-
 
 @router.get("/{evaluation_id}/progress", response_model=Dict)
 async def get_evaluation_progress(

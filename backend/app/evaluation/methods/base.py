@@ -13,7 +13,7 @@ from uuid import UUID
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm import Dataset, Evaluation, Agent, Prompt
+from backend.app.db.models.orm import Dataset, Evaluation, Agent, Prompt, IntegrationType
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 from backend.app.evaluation.utils.dataset_utils import (
     process_user_query_dataset, process_context_dataset,
@@ -288,7 +288,7 @@ class BaseEvaluationMethod(ABC):
             logger.info(f"Evaluation {evaluation_id}: {processed}/{total} items processed ({progress:.2f}%)")
 
     @abstractmethod
-    async def run_evaluation(self, evaluation: Evaluation) -> List[EvaluationResultCreate]:
+    async def run_evaluation(self, evaluation: Evaluation, jwt_token: Optional[str] = None) -> List[EvaluationResultCreate]:
         """
         Run the evaluation.
 
@@ -369,7 +369,8 @@ class BaseEvaluationMethod(ABC):
     async def batch_process(
             self,
             evaluation: Evaluation,
-            batch_size: int = 10
+            batch_size: int = 10,
+            jwt_token: Optional[str] = None
     ) -> List[EvaluationResultCreate]:
         """
         Process dataset items in batches with improved performance.
@@ -377,12 +378,15 @@ class BaseEvaluationMethod(ABC):
         Args:
             evaluation: Evaluation model
             batch_size: Number of items to process in each batch
+            jwt_token: Optional JWT token to use for authentication with MCP agents
 
         Returns:
             List[EvaluationResultCreate]: List of evaluation results
         """
         # Get related entities - fetch all at once
         from backend.app.db.repositories.agent_repository import AgentRepository
+        from backend.app.db.models.orm import IntegrationType
+
         agent_repo = AgentRepository(self.db_session)
 
         # Get agent with decrypted credentials
@@ -402,9 +406,13 @@ class BaseEvaluationMethod(ABC):
         from backend.app.services.agent_clients.factory import AgentClientFactory
 
         try:
-            # Create agent client
+            # Create agent client with JWT token if agent is MCP type
             logger.info(f"Creating client for agent type: {agent.integration_type}")
-            agent_client = await AgentClientFactory.create_client(agent)
+            if agent.integration_type == IntegrationType.MCP and jwt_token:
+                logger.info(f"Using JWT token for MCP agent in evaluation {evaluation.id}")
+                agent_client = await AgentClientFactory.create_client(agent, jwt_token)
+            else:
+                agent_client = await AgentClientFactory.create_client(agent)
 
             # Process in batches
             for batch_start in range(0, len(dataset_items), batch_size):

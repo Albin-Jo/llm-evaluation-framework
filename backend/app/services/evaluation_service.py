@@ -6,8 +6,8 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import asc, desc, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
+from backend.app.core.exceptions import NotFoundException, AuthorizationException
 from backend.app.db.models.orm import (
     Dataset, Evaluation, EvaluationResult,
     EvaluationStatus, MetricScore, Agent, Prompt, EvaluationMethod
@@ -19,13 +19,14 @@ from backend.app.db.schema.evaluation_schema import (
 )
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
-from backend.app.core.exceptions import NotFoundException, AuthorizationException
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
-async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
+# File: backend/app/services/evaluation_service.py
+
+async def _run_evaluation_as_separate_task(evaluation_id_str: str, jwt_token: Optional[str] = None) -> None:
     """
     Run evaluation in a completely separate task with its own database session.
 
@@ -33,6 +34,7 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
 
     Args:
         evaluation_id_str: Evaluation ID as string
+        jwt_token: Optional JWT token for authentication with MCP agents
     """
     from backend.app.db.session import db_session
     from uuid import UUID
@@ -70,8 +72,8 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str) -> None:
             # Get the evaluation method handler
             method_handler = await service.get_evaluation_method_handler(evaluation.method)
 
-            # Run the evaluation
-            results = await method_handler.run_evaluation(evaluation)
+            # Run the evaluation with JWT token
+            results = await method_handler.run_evaluation(evaluation, jwt_token=jwt_token)
 
             # Process results - create each result without a transaction
             for result_data in results:

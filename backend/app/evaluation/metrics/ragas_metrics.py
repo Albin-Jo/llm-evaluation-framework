@@ -66,10 +66,12 @@ async def get_ragas_embeddings():
                 openai_api_key=settings.AZURE_OPENAI_KEY,
                 azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
                 azure_deployment=settings.AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT,
-                api_version=settings.AZURE_OPENAI_VERSION,
+                api_version=settings.AZURE_OPENAI_EMBEDDINGS_VERSION,
             )
 
             _cache["ragas_embeddings"] = embeddings
+
+            logger.info(f"embeddings: {embeddings}")
             logger.info("Successfully initialized embeddings model for RAGAS")
         except Exception as e:
             logger.error(f"Error initializing embeddings model: {e}")

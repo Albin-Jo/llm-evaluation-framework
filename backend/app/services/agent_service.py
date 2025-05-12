@@ -1,3 +1,4 @@
+# File: backend/app/services/agent_service.py
 import json
 import logging
 import time
@@ -16,13 +17,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 30.0
 
 
-async def test_agent_service(agent: Agent, test_input: Dict[str, Any]) -> Dict[str, Any]:
+async def test_agent_service(agent: Agent, test_input: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]:
     """
     Test an agent by making a request using the appropriate client.
 
     Args:
         agent: The agent to test
         test_input: The input data for testing
+        user_token: Optional user JWT token to use for MCP authentication
 
     Returns:
         The response from the agent
@@ -36,7 +38,7 @@ async def test_agent_service(agent: Agent, test_input: Dict[str, Any]) -> Dict[s
         logger.info(f"Testing agent {agent.id} ({agent.name}) with input: {json.dumps(test_input)[:100]}...")
 
         # Create appropriate client based on agent type
-        client = await AgentClientFactory.create_client(agent)
+        client = await AgentClientFactory.create_client(agent, user_token)
 
         # Extract query, context, and system_message if provided
         query = test_input.get("query", test_input.get("message", ""))
@@ -122,7 +124,8 @@ async def get_agent_capabilities(agent: Agent) -> Dict[str, Any]:
 async def batch_test_agent(
         agent: Agent,
         test_inputs: List[Dict[str, Any]],
-        max_concurrent: int = 5
+        max_concurrent: int = 5,
+        user_token: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Test an agent with multiple inputs in parallel.
@@ -131,6 +134,7 @@ async def batch_test_agent(
         agent: The agent to test
         test_inputs: List of input data for testing
         max_concurrent: Maximum number of concurrent requests
+        user_token: Optional user JWT token for MCP authentication
 
     Returns:
         List of responses from the agent
@@ -139,7 +143,7 @@ async def batch_test_agent(
 
     try:
         # Create appropriate client
-        client = await AgentClientFactory.create_client(agent)
+        client = await AgentClientFactory.create_client(agent, user_token)
 
         # Create tasks for each input
         tasks = []
