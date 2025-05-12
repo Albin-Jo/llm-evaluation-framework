@@ -1,3 +1,4 @@
+/* Path: libs/data-access/services/src/lib/agent.service.ts */
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
@@ -8,7 +9,8 @@ import {
   AgentListResponse,
   AgentCreate,
   AgentUpdate,
-  AgentResponse
+  AgentResponse,
+  AgentToolsResponse
 } from '@ngtx-apps/data-access/models';
 import { environment } from '@ngtx-apps/utils/shared';
 import { HttpClientService } from './common/http-client.service';
@@ -134,6 +136,18 @@ export class AgentService {
       .pipe(
         catchError(error => {
           return this.handleError(`Failed to test agent with ID ${id}`, error);
+        })
+      );
+  }
+
+  /**
+   * Get available tools for an agent
+   */
+  getAgentTools(id: string): Observable<AgentToolsResponse> {
+    return this.httpClient.get<AgentToolsResponse>(`${this.baseUrl}/${id}/tools`)
+      .pipe(
+        catchError(error => {
+          return this.handleError(`Failed to fetch tools for agent with ID ${id}`, error);
         })
       );
   }

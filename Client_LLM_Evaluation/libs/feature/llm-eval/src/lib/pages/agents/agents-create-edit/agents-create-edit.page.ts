@@ -22,7 +22,7 @@ import {
   QracSelectComponent,
   QracTextAreaComponent
 } from '@ngtx-apps/ui/components';
-import { SimpleJsonEditorComponent } from '../../../components/simple-json-editor/simple-json-editor.component';
+import { SimpleJsonEditorComponent } from '../../../components/json-editor/json-editor.component';
 
 interface TabData {
   isLoaded: boolean;

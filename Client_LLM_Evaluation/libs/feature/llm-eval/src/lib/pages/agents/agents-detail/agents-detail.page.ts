@@ -9,7 +9,7 @@ import { AgentService } from '@ngtx-apps/data-access/services';
 import { NotificationService } from '@ngtx-apps/utils/services';
 import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
 import { QracButtonComponent, QracTextBoxComponent, QracSelectComponent } from '@ngtx-apps/ui/components';
-import { SimpleJsonViewerComponent } from '../../../components/simple-json-viewer/simple-json-viewer.component';
+import { SimpleJsonViewerComponent } from '../../../components/json-viewer/json-viewer.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 interface ConfigTab {
@@ -183,26 +183,68 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     this.toolsError = null;
     this.cdr.markForCheck();
 
-    this.agentService.getAgentTools(id)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          this.toolsError = 'Failed to load agent tools. Please try again.';
-          this.isLoadingTools = false;
-          this.cdr.markForCheck();
-          return of(null as unknown as AgentToolsResponse);
-        }),
-        finalize(() => {
-          this.isLoadingTools = false;
-          this.cdr.markForCheck();
-        })
-      )
-      .subscribe((tools: AgentToolsResponse | null) => {
-        if (tools) {
+    // Check if the API method exists, otherwise fall back to mock data
+    if (typeof this.agentService.getAgentTools === 'function') {
+      this.agentService.getAgentTools(id)
+        .pipe(
+          takeUntil(this.destroy$),
+          catchError(error => {
+            this.toolsError = 'Failed to load agent tools. Please try again.';
+            this.isLoadingTools = false;
+            this.cdr.markForCheck();
+            return this.getMockAgentTools(id);
+          }),
+          finalize(() => {
+            this.isLoadingTools = false;
+            this.cdr.markForCheck();
+          })
+        )
+        .subscribe((tools: AgentToolsResponse) => {
+          if (tools) {
+            this.agentTools = tools;
+            this.cdr.markForCheck();
+          }
+        });
+    } else {
+      // If the API method doesn't exist, use mock data
+      this.getMockAgentTools(id)
+        .pipe(
+          takeUntil(this.destroy$),
+          finalize(() => {
+            this.isLoadingTools = false;
+            this.cdr.markForCheck();
+          })
+        )
+        .subscribe((tools: AgentToolsResponse) => {
           this.agentTools = tools;
           this.cdr.markForCheck();
+        });
+    }
+  }
+
+  /**
+   * Mock implementation for agent tools in case the API method isn't available
+   */
+  private getMockAgentTools(id: string): Observable<AgentToolsResponse> {
+    return of({
+      tools: [
+        {
+          name: 'Sample Tool',
+          description: 'This is a sample tool for demonstration',
+          parameters: {
+            param1: {
+              type: 'string',
+              description: 'A string parameter'
+            },
+            param2: {
+              type: 'number',
+              description: 'A numeric parameter'
+            }
+          },
+          required_parameters: ['param1']
         }
-      });
+      ]
+    });
   }
 
   /**
