@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
+from backend.app.db.models.orm import IntegrationType, AuthType
+
 
 class AgentBase(BaseModel):
     """Base schema for Agent data."""
@@ -17,12 +19,69 @@ class AgentBase(BaseModel):
     version: Optional[str] = Field("1.0.0", pattern=r"^\d+\.\d+\.\d+$", description="Version of the agent")
     tags: Optional[List[str]] = Field(None, description="Tags for categorizing the agent")
 
+    # New fields
+    integration_type: Optional[IntegrationType] = Field(
+        IntegrationType.AZURE_OPENAI,
+        description="Type of integration for this agent"
+    )
+    auth_type: Optional[AuthType] = Field(
+        AuthType.API_KEY,
+        description="Authentication method for this agent"
+    )
+    auth_credentials: Optional[Dict] = Field(
+        None,
+        description="Credentials for authentication (stored securely)"
+    )
+    request_template: Optional[Dict] = Field(
+        None,
+        description="Template for request payload"
+    )
+    response_format: Optional[str] = Field(
+        None,
+        description="Expected response format"
+    )
+    retry_config: Optional[Dict] = Field(
+        None,
+        description="Configuration for retry behavior"
+    )
+    content_filter_config: Optional[Dict] = Field(
+        None,
+        description="Configuration for content filtering"
+    )
+
     @field_validator('api_endpoint')
     def validate_api_endpoint(cls, v):
         """Validate that the API endpoint is a valid URL."""
         # Simple validation, could be extended to use HttpUrl type for stricter validation
         if not v.startswith(('http://', 'https://')):
             raise ValueError('API endpoint must be a valid HTTP or HTTPS URL')
+        return v
+
+    @field_validator('auth_credentials')
+    def validate_credentials(cls, v, info):
+        """Validate that credentials match auth_type."""
+        if not v:
+            return v
+
+        auth_type = info.data.get('auth_type')
+        if not auth_type:
+            return v
+
+        if auth_type == AuthType.API_KEY and 'api_key' not in v:
+            raise ValueError("API key auth type requires 'api_key' in credentials")
+
+        if auth_type == AuthType.BEARER_TOKEN and 'token' not in v:
+            raise ValueError("Bearer token auth type requires 'token' in credentials")
+
+        return v
+        v
+
+        if auth_type == AuthType.API_KEY and 'api_key' not in v:
+            raise ValueError("API key auth type requires 'api_key' in credentials")
+
+        if auth_type == AuthType.BEARER_TOKEN and 'token' not in v:
+            raise ValueError("Bearer token auth type requires 'token' in credentials")
+
         return v
 
 
@@ -43,12 +102,31 @@ class AgentUpdate(BaseModel):
     version: Optional[str] = Field(None, pattern=r"^\d+\.\d+\.\d+$")
     tags: Optional[List[str]] = None
 
+    # New fields
+    integration_type: Optional[IntegrationType] = None
+    auth_type: Optional[AuthType] = None
+    auth_credentials: Optional[Dict] = None
+    request_template: Optional[Dict] = None
+    response_format: Optional[str] = None
+    retry_config: Optional[Dict] = None
+    content_filter_config: Optional[Dict] = None
+
     @field_validator('api_endpoint')
     def validate_api_endpoint(cls, v):
         """Validate that the API endpoint is a valid URL if provided."""
         if v is not None and not v.startswith(('http://', 'https://')):
             raise ValueError('API endpoint must be a valid HTTP or HTTPS URL')
         return v
+
+    @field_validator('auth_credentials')
+    def validate_credentials(cls, v, info):
+        """Validate that credentials match auth_type."""
+        if not v:
+            return v
+
+        auth_type = info.data.get('auth_type')
+        if not auth_type:
+            return
 
 
 class AgentInDB(AgentBase):

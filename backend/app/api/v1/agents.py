@@ -1,17 +1,20 @@
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, List, Optional, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.exceptions import NotFoundException, DuplicateResourceException
+from backend.app.db.models.orm import AuthType, IntegrationType
 from backend.app.db.repositories.agent_repository import AgentRepository
 from backend.app.db.schema.agent_schema import (
     AgentCreate, AgentResponse, AgentUpdate
 )
 from backend.app.db.session import get_db
+from backend.app.services.agent_clients.factory import AgentClientFactory
 from backend.app.services.agent_service import test_agent_service
+from backend.app.utils.credential_utils import mask_credentials
 from backend.app.utils.response_utils import create_paginated_response
 
 # Set up logging
@@ -51,10 +54,44 @@ async def create_agent(
             value=agent_data.name
         )
 
-    # Create agent
+    # Validate credentials based on auth type
+    if agent_data.auth_type == AuthType.BEARER_TOKEN:
+        if not agent_data.auth_credentials or "token" not in agent_data.auth_credentials:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bearer token authentication requires a 'token' field in auth_credentials"
+            )
+    elif agent_data.auth_type == AuthType.API_KEY:
+        if not agent_data.auth_credentials or "api_key" not in agent_data.auth_credentials:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API key authentication requires an 'api_key' field in auth_credentials"
+            )
+
+    # Validate integration type specific requirements
+    if agent_data.integration_type == IntegrationType.MCP:
+        if agent_data.auth_type != AuthType.BEARER_TOKEN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="MCP integration requires bearer token authentication"
+            )
+
+        # Ensure tool_name is specified in config
+        if not agent_data.config or "tool_name" not in agent_data.config:
+            if not agent_data.config:
+                agent_data.config = {}
+            agent_data.config["tool_name"] = "McpAskPolicyBot"  # Default tool
+            logger.info(f"Set default tool_name 'McpAskPolicyBot' for MCP agent {agent_data.name}")
+
+    # Create agent with encrypted credentials
     agent_dict = agent_data.model_dump()
 
-    agent = await agent_repo.create(agent_dict)
+    # Log masked credentials for debugging
+    if agent_data.auth_credentials:
+        masked_creds = mask_credentials(agent_data.auth_credentials)
+        logger.debug(f"Creating agent with credentials: {masked_creds}")
+
+    agent = await agent_repo.create_with_encrypted_credentials(agent_dict)
     logger.info(f"Agent created successfully: {agent.id}")
 
     return agent
@@ -67,6 +104,7 @@ async def list_agents(
         domain: Optional[str] = Query(None, description="Filter agents by domain"),
         is_active: Optional[bool] = Query(None, description="Filter agents by active status"),
         name: Optional[str] = Query(None, description="Filter agents by name (partial match)"),
+        integration_type: Optional[IntegrationType] = Query(None, description="Filter agents by integration type"),
         db: AsyncSession = Depends(get_db)
 ):
     """
@@ -78,18 +116,22 @@ async def list_agents(
         domain: Optional domain filter
         is_active: Optional active status filter
         name: Optional name filter (partial match)
+        integration_type: Optional integration type filter
         db: Database session
 
     Returns:
         Dict containing list of agents and pagination info
     """
-    logger.debug(f"Listing agents with filters: domain={domain}, is_active={is_active}, name={name}")
+    logger.debug(
+        f"Listing agents with filters: domain={domain}, is_active={is_active}, name={name}, integration_type={integration_type}")
 
     filters = {}
     if domain:
         filters["domain"] = domain
     if is_active is not None:
         filters["is_active"] = is_active
+    if integration_type:
+        filters["integration_type"] = integration_type
 
     agent_repo = AgentRepository(db)
 
@@ -106,48 +148,6 @@ async def list_agents(
     else:
         agents = await agent_repo.get_multi(skip=skip, limit=limit, filters=filters)
 
-    agents_schema_list = [AgentResponse.from_orm(agent) for agent in agents]
-    return create_paginated_response(agents_schema_list, total_count, skip, limit)
-
-
-@router.post("/search", response_model=Dict[str, Any])
-async def search_agents(
-        query: Optional[str] = Body(None, description="Search query for name, description, or domain"),
-        filters: Optional[Dict[str, Any]] = Body(None, description="Additional filters"),
-        skip: int = Body(0, ge=0, description="Number of records to skip"),
-        limit: int = Body(100, ge=1, le=1000, description="Maximum number of records to return"),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Advanced search for agents across multiple fields.
-
-    Supports text search across name, description, and domain fields,
-    as well as additional filters for exact matches.
-
-    Args:
-        query: Search query text
-        filters: Additional filters (exact match)
-        skip: Number of records to skip
-        limit: Maximum number of records to return
-        db: Database session
-
-    Returns:
-        Dict containing search results and pagination info
-    """
-    logger.info(f"Advanced search for agents with query: '{query}' and filters: {filters}")
-
-    agent_repo = AgentRepository(db)
-
-    # Get total count
-    total_count = await agent_repo.count_advanced_search(query, filters)
-
-    # Get agents
-    agents = await agent_repo.advanced_search(
-        query_text=query,
-        filters=filters,
-        skip=skip,
-        limit=limit
-    )
     agents_schema_list = [AgentResponse.from_orm(agent) for agent in agents]
     return create_paginated_response(agents_schema_list, total_count, skip, limit)
 
@@ -219,7 +219,48 @@ async def update_agent(
                 value=agent_data.name
             )
 
-    # Update the Agent
+    # If auth_type is being updated, validate credentials
+    if agent_data.auth_type is not None:
+        # Get effective credentials (updated or current)
+        credentials = agent_data.auth_credentials if agent_data.auth_credentials is not None else agent.auth_credentials
+
+        if agent_data.auth_type == AuthType.BEARER_TOKEN:
+            if not credentials or "token" not in credentials:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Bearer token authentication requires a 'token' field in auth_credentials"
+                )
+        elif agent_data.auth_type == AuthType.API_KEY:
+            if not credentials or "api_key" not in credentials:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="API key authentication requires an 'api_key' field in auth_credentials"
+                )
+
+    # If integration_type is being updated, validate requirements
+    if agent_data.integration_type is not None:
+        # Get effective auth_type (updated or current)
+        auth_type = agent_data.auth_type if agent_data.auth_type is not None else agent.auth_type
+
+        if agent_data.integration_type == IntegrationType.MCP and auth_type != AuthType.BEARER_TOKEN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="MCP integration requires bearer token authentication"
+            )
+
+        # Ensure tool_name is specified for MCP
+        if agent_data.integration_type == IntegrationType.MCP:
+            # Get effective config (updated or current)
+            config = agent_data.config if agent_data.config is not None else agent.config
+
+            if not config or "tool_name" not in config:
+                # Create or update config with default tool
+                update_config = config.copy() if config else {}
+                update_config["tool_name"] = "McpAskPolicyBot"  # Default tool
+                agent_data.config = update_config
+                logger.info(f"Set default tool_name 'McpAskPolicyBot' for MCP agent {agent_id}")
+
+    # Update the Agent with encrypted credentials
     update_data = {
         k: v for k, v in agent_data.model_dump().items() if v is not None
     }
@@ -227,7 +268,12 @@ async def update_agent(
     if not update_data:
         return agent
 
-    updated_agent = await agent_repo.update(agent_id, update_data)
+    # Log masked credentials if updating
+    if agent_data.auth_credentials:
+        masked_creds = mask_credentials(agent_data.auth_credentials)
+        logger.debug(f"Updating agent credentials: {masked_creds}")
+
+    updated_agent = await agent_repo.update_with_encrypted_credentials(agent_id, update_data)
     logger.info(f"Agent updated successfully: {agent_id}")
 
     return updated_agent
@@ -300,12 +346,38 @@ async def test_agent(
     logger.info(f"Testing agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get(agent_id)
+    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
     if not agent.is_active:
+        logger.warning(f"Cannot check health for inactive agent: {agent_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Agent is not active"
+        )
+
+    try:
+        # Create client based on integration type
+        client = await AgentClientFactory.create_client(agent)
+
+        # Check health
+        is_healthy = await client.health_check()
+
+        return {
+            "healthy": is_healthy,
+            "agent_id": str(agent_id),
+            "name": agent.name
+        }
+    except Exception as e:
+        logger.error(f"Error checking agent health {agent_id}: {str(e)}")
+        return {
+            "healthy": False,
+            "agent_id": str(agent_id),
+            "name": agent.name,
+            "error": str(e)
+        }
         logger.warning(f"Cannot test inactive agent: {agent_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -324,3 +396,186 @@ async def test_agent(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error testing agent: {str(e)}"
         )
+
+
+@router.post("/{agent_id}/test-mcp", response_model=Dict)
+async def test_mcp_agent(
+        agent_id: UUID,
+        test_message: str = Body(..., embed=True, description="Message to test with"),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Test an MCP agent with a simple message.
+
+    Args:
+        agent_id: The ID of the agent to test
+        test_message: Message to test with
+        db: Database session
+
+    Returns:
+        The response from the agent
+
+    Raises:
+        HTTPException: If agent not found, is inactive, or the test fails
+    """
+    logger.info(f"Testing MCP agent with ID: {agent_id}")
+
+    agent_repo = AgentRepository(db)
+    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
+
+    if not agent:
+        raise NotFoundException(resource="Agent", resource_id=str(agent_id))
+
+    if not agent.is_active:
+        logger.warning(f"Cannot test inactive agent: {agent_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Agent is not active"
+        )
+
+    # Verify agent is MCP type
+    if agent.integration_type != IntegrationType.MCP:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This endpoint is only for MCP agents"
+        )
+
+    try:
+        # Create MCP client
+        client = await AgentClientFactory.create_client(agent)
+
+        # Test with the client
+        response = await client.process_query(test_message)
+
+        logger.info(f"MCP agent test successful: {agent_id}")
+        return response
+
+    except Exception as e:
+        logger.error(f"Error testing MCP agent {agent_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error testing agent: {str(e)}"
+        )
+
+
+@router.get("/{agent_id}/tools", response_model=List[Dict])
+async def list_agent_tools(
+        agent_id: UUID,
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    List available tools for an MCP agent.
+
+    Args:
+        agent_id: The ID of the agent
+        db: Database session
+
+    Returns:
+        List of available tools
+
+    Raises:
+        HTTPException: If agent not found, is inactive, or is not an MCP agent
+    """
+    logger.info(f"Listing tools for agent with ID: {agent_id}")
+
+    agent_repo = AgentRepository(db)
+    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
+
+    if not agent:
+        raise NotFoundException(resource="Agent", resource_id=str(agent_id))
+
+    if not agent.is_active:
+        logger.warning(f"Cannot list tools for inactive agent: {agent_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Agent is not active"
+        )
+
+    # Verify agent is MCP type
+    if agent.integration_type != IntegrationType.MCP:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This endpoint is only for MCP agents"
+        )
+
+    try:
+        # Create MCP client
+        client = await AgentClientFactory.create_client(agent)
+
+        # List tools
+        tools = await client.list_tools()
+
+        # Convert to list of dictionaries for response
+        tool_list = []
+        for tool in tools:
+            tool_dict = {
+                "name": tool.name,
+                "description": getattr(tool, "description", ""),
+                "parameters": getattr(tool, "parameters", {}),
+                "returns": getattr(tool, "returns", {})
+            }
+            tool_list.append(tool_dict)
+
+        return tool_list
+
+    except Exception as e:
+        logger.error(f"Error listing tools for agent {agent_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error listing tools: {str(e)}"
+        )
+
+
+@router.post("/{agent_id}/health", response_model=Dict[str, bool])
+async def check_agent_health(
+        agent_id: UUID,
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Check if an agent is healthy and available.
+
+    Args:
+        agent_id: The ID of the agent to check
+        db: Database session
+
+    Returns:
+        Dict with health status
+
+    Raises:
+        HTTPException: If agent not found or is inactive
+    """
+    logger.info(f"Checking health for agent with ID: {agent_id}")
+
+    agent_repo = AgentRepository(db)
+    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
+
+    if not agent:
+        raise NotFoundException(resource="Agent", resource_id=str(agent_id))
+
+    if not agent.is_active:
+        logger.warning(f"Cannot check health for inactive agent: {agent_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Agent is not active"
+        )
+
+    try:
+        # Create client based on integration type
+        client = await AgentClientFactory.create_client(agent)
+
+        # Check health
+        is_healthy = await client.health_check()
+
+        return {
+            "healthy": is_healthy,
+            "agent_id": str(agent_id),
+            "name": agent.name
+        }
+    except Exception as e:
+        logger.error(f"Error checking agent health {agent_id}: {str(e)}")
+        return {
+            "healthy": False,
+            "agent_id": str(agent_id),
+            "name": agent.name,
+            "error": str(e)
+        }

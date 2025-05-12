@@ -1,4 +1,4 @@
-# backend/app/evaluation/methods/base.py
+
 import asyncio
 import csv
 import io
@@ -20,6 +20,7 @@ from backend.app.evaluation.utils.dataset_utils import (
     process_qa_dataset, process_conversation_dataset,
     process_custom_dataset
 )
+from backend.app.services.agent_clients.base import AgentClient
 from backend.app.services.storage import get_storage_service
 
 # Add logger configuration
@@ -381,7 +382,11 @@ class BaseEvaluationMethod(ABC):
             List[EvaluationResultCreate]: List of evaluation results
         """
         # Get related entities - fetch all at once
-        agent = await self.get_agent(evaluation.agent_id)
+        from backend.app.db.repositories.agent_repository import AgentRepository
+        agent_repo = AgentRepository(self.db_session)
+
+        # Get agent with decrypted credentials
+        agent = await agent_repo.get_with_decrypted_credentials(evaluation.agent_id)
         dataset = await self.get_dataset(evaluation.dataset_id)
         prompt = await self.get_prompt(evaluation.prompt_id)
 
@@ -393,10 +398,14 @@ class BaseEvaluationMethod(ABC):
         dataset_items = await self.load_dataset(dataset)
         all_results = []
 
-        # Create a reusable HTTP client
-        import httpx
+        # Create agent client factory
+        from backend.app.services.agent_clients.factory import AgentClientFactory
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            # Create agent client
+            logger.info(f"Creating client for agent type: {agent.integration_type}")
+            agent_client = await AgentClientFactory.create_client(agent)
+
             # Process in batches
             for batch_start in range(0, len(dataset_items), batch_size):
                 batch_end = min(batch_start + batch_size, len(dataset_items))
@@ -412,10 +421,9 @@ class BaseEvaluationMethod(ABC):
 
                     # Create task for processing
                     task = asyncio.create_task(
-                        self._process_batch_item(
-                            client=client,
+                        self._process_batch_item_with_client(
+                            client=agent_client,
                             evaluation=evaluation,
-                            agent=agent,
                             item=item,
                             item_index=item_index,
                             formatted_prompt=formatted_prompt
@@ -450,6 +458,20 @@ class BaseEvaluationMethod(ABC):
                     len(dataset_items),
                     batch_end
                 )
+
+        except Exception as e:
+            logger.error(f"Error in batch processing: {e}")
+            # Add error result
+            error_result = EvaluationResultCreate(
+                evaluation_id=evaluation.id,
+                overall_score=0.0,
+                raw_results={"error": str(e)},
+                dataset_sample_id="batch_error",
+                input_data={},
+                output_data={"error": str(e)},
+                metric_scores=[]
+            )
+            all_results.append(error_result)
 
         return all_results
 
@@ -843,3 +865,130 @@ class BaseEvaluationMethod(ABC):
             metric_name,
             f"Measures the {metric_name.replace('_', ' ')} of the response."
         )
+
+    async def _process_batch_item_with_client(
+            self,
+            client: AgentClient,
+            evaluation: Evaluation,
+            item: Dict[str, Any],
+            item_index: int,
+            formatted_prompt: str
+    ) -> EvaluationResultCreate:
+        """
+        Process a single dataset item using agent client abstraction.
+
+        Args:
+            client: Agent client
+            evaluation: Evaluation model
+            item: Dataset item
+            item_index: Index of the item
+            formatted_prompt: Formatted prompt
+
+        Returns:
+            EvaluationResultCreate: Evaluation result
+        """
+        try:
+            # Extract data
+            query = item.get("query", "")
+            context = item.get("context", "")
+            ground_truth = item.get("ground_truth", "")
+
+            # Start timing
+            start_time = time.time()
+
+            # Call the agent with the client abstraction
+            response = await client.process_query(
+                query=query,
+                context=context,
+                system_message=formatted_prompt,
+                config={
+                    "progress_token": item_index,
+                    "evaluation_id": str(evaluation.id)
+                }
+            )
+
+            # Extract results
+            success = response.get("success", False)
+            answer = response.get("answer", "")
+            processing_time = response.get("processing_time_ms", 0)
+            error = response.get("error")
+
+            # If there was an error, log it
+            if not success or error:
+                logger.warning(f"Error processing item {item_index}: {error}")
+
+                # Return result with error details
+                return EvaluationResultCreate(
+                    evaluation_id=evaluation.id,
+                    overall_score=0.0,
+                    raw_results={"error": error},
+                    dataset_sample_id=str(item_index),
+                    input_data={
+                        "query": query,
+                        "context": context,
+                        "ground_truth": ground_truth,
+                        "prompt": formatted_prompt
+                    },
+                    output_data={
+                        "error": error,
+                        "answer": answer if answer else "Error occurred during processing",
+                        "success": False
+                    },
+                    processing_time_ms=processing_time,
+                    metric_scores=[]
+                )
+
+            # Calculate metrics
+            metrics = await self.calculate_metrics(
+                input_data={
+                    "query": query,
+                    "context": context,
+                    "ground_truth": ground_truth
+                },
+                output_data={"answer": answer},
+                config=evaluation.config or {}
+            )
+
+            # Calculate overall score
+            overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
+
+            # Create metric scores
+            metric_scores = [
+                MetricScoreCreate(
+                    name=name,
+                    value=value,
+                    weight=1.0,
+                    meta_info={"description": self._get_metric_description(name)}
+                )
+                for name, value in metrics.items()
+            ]
+
+            # Create result
+            return EvaluationResultCreate(
+                evaluation_id=evaluation.id,
+                overall_score=overall_score,
+                raw_results=metrics,
+                dataset_sample_id=str(item_index),
+                input_data={
+                    "query": query,
+                    "context": context,
+                    "ground_truth": ground_truth,
+                    "prompt": formatted_prompt
+                },
+                output_data={"answer": answer},
+                processing_time_ms=processing_time,
+                metric_scores=metric_scores
+            )
+
+        except Exception as e:
+            logger.exception(f"Error processing dataset item {item_index}: {e}")
+            # Create error result
+            return EvaluationResultCreate(
+                evaluation_id=evaluation.id,
+                overall_score=0.0,
+                raw_results={"error": str(e)},
+                dataset_sample_id=str(item_index),
+                input_data=item,
+                output_data={"error": str(e)},
+                metric_scores=[]
+            )

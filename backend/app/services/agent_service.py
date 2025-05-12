@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 
 from backend.app.core.config import settings
 from backend.app.db.models.orm import Agent
+from backend.app.services.agent_clients.factory import AgentClientFactory
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ DEFAULT_TIMEOUT = 30.0
 
 async def test_agent_service(agent: Agent, test_input: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Test an agent by making a request to its API endpoint.
+    Test an agent by making a request using the appropriate client.
 
     Args:
         agent: The agent to test
@@ -34,52 +35,46 @@ async def test_agent_service(agent: Agent, test_input: Dict[str, Any]) -> Dict[s
     try:
         logger.info(f"Testing agent {agent.id} ({agent.name}) with input: {json.dumps(test_input)[:100]}...")
 
-        # Call the agent API
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                agent.api_endpoint,
-                json=test_input,
-                timeout=DEFAULT_TIMEOUT,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-API-Key": settings.AZURE_OPENAI_KEY,  # If your agents need authentication
-                }
-            )
+        # Create appropriate client based on agent type
+        client = await AgentClientFactory.create_client(agent)
 
-            # Calculate processing time
+        # Extract query, context, and system_message if provided
+        query = test_input.get("query", test_input.get("message", ""))
+        context = test_input.get("context", "")
+        system_message = test_input.get("system_message", None)
+
+        # Process query through client
+        response = await client.process_query(
+            query=query,
+            context=context,
+            system_message=system_message,
+            config=test_input.get("config", {})
+        )
+
+        # Calculate processing time if not already included
+        if "processing_time_ms" not in response:
             processing_time_ms = int((time.time() - start_time) * 1000)
+            response["processing_time_ms"] = processing_time_ms
 
-            # Handle response
-            response.raise_for_status()
-            result = response.json()
+        # Set status if not already included
+        if "status" not in response:
+            response["status"] = "success" if response.get("success", True) else "error"
 
-            # Add processing time to the result
-            return {
-                "result": result,
-                "processing_time_ms": processing_time_ms,
-                "status": "success"
-            }
-
-    except httpx.HTTPStatusError as e:
-        logger.error(f"HTTP error from agent API: {e.response.status_code} - {e.response.text}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Error from Agent API: {e.response.status_code} - {e.response.text}"
-        )
-
-    except httpx.RequestError as e:
-        logger.error(f"Connection error to agent API: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Error connecting to Agent API: {str(e)}"
-        )
+        return response
 
     except Exception as e:
         logger.error(f"Unexpected error testing agent: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unexpected error: {str(e)}"
-        )
+
+        # Calculate processing time
+        processing_time_ms = int((time.time() - start_time) * 1000)
+
+        # Return error response
+        return {
+            "result": None,
+            "processing_time_ms": processing_time_ms,
+            "status": "error",
+            "error": str(e)
+        }
 
 
 async def get_agent_capabilities(agent: Agent) -> Dict[str, Any]:
@@ -140,52 +135,67 @@ async def batch_test_agent(
     Returns:
         List of responses from the agent
     """
-    results = []
+    import asyncio
 
-    # Create a rate limiter for concurrent requests
-    limits = httpx.Limits(max_connections=max_concurrent)
+    try:
+        # Create appropriate client
+        client = await AgentClientFactory.create_client(agent)
 
-    async with httpx.AsyncClient(limits=limits) as client:
-        pending_tasks = []
+        # Create tasks for each input
+        tasks = []
+        for i, test_input in enumerate(test_inputs):
+            # Extract query and context
+            query = test_input.get("query", test_input.get("message", ""))
+            context = test_input.get("context", "")
+            system_message = test_input.get("system_message", None)
 
-        for test_input in test_inputs:
-            # Create task for each input
-            task = client.post(
-                agent.api_endpoint,
-                json=test_input,
-                timeout=DEFAULT_TIMEOUT,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-API-Key": settings.AGENT_API_KEY,
-                }
+            # Add progress token/identifier
+            config = test_input.get("config", {}).copy()
+            config["progress_token"] = i
+
+            # Create processing task
+            task = asyncio.create_task(
+                client.process_query(
+                    query=query,
+                    context=context,
+                    system_message=system_message,
+                    config=config
+                )
             )
-            pending_tasks.append((test_input, task))
+            tasks.append((test_input, task))
 
-        # Process results as they complete
-        for test_input, task in pending_tasks:
-            try:
-                start_time = time.time()
-                response = await task
-                processing_time_ms = int((time.time() - start_time) * 1000)
+        # Process with concurrency limit
+        # This will process tasks in batches of max_concurrent
+        results = []
+        for i in range(0, len(tasks), max_concurrent):
+            batch = tasks[i:i + max_concurrent]
+            batch_results = await asyncio.gather(
+                *[task for _, task in batch],
+                return_exceptions=True
+            )
 
-                response.raise_for_status()
-                result = response.json()
+            # Process results
+            for j, result in enumerate(batch_results):
+                input_data = batch[j][0]
+                if isinstance(result, Exception):
+                    results.append({
+                        "input": input_data,
+                        "error": str(result),
+                        "status": "error"
+                    })
+                else:
+                    result["input"] = input_data
+                    if "status" not in result:
+                        result["status"] = "success" if result.get("success", True) else "error"
+                    results.append(result)
 
-                results.append({
-                    "input": test_input,
-                    "result": result,
-                    "processing_time_ms": processing_time_ms,
-                    "status": "success"
-                })
-
-            except Exception as e:
-                results.append({
-                    "input": test_input,
-                    "error": str(e),
-                    "status": "error"
-                })
-
-    return results
+        return results
+    except Exception as e:
+        logger.error(f"Error in batch testing: {str(e)}", exc_info=True)
+        return [{
+            "error": str(e),
+            "status": "error"
+        }]
 
 
 async def azure_openai_agent_call(

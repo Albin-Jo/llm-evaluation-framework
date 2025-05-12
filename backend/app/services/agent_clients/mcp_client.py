@@ -1,0 +1,264 @@
+import logging
+import time
+from typing import Dict, Any, Optional, List, AsyncIterator
+
+from contextlib import asynccontextmanager
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+
+from backend.app.services.agent_clients.base import AgentClient
+from backend.app.db.models.orm import Agent
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+def _extract_text_from_response(response: Any) -> str:
+    """
+    Extract text from response based on the observed format.
+
+    Args:
+        response: The raw response from the policy bot
+
+    Returns:
+        Extracted text or error message
+    """
+    try:
+        # Check if response has expected structure
+        if hasattr(response, 'content') and isinstance(response.content, list):
+            # Extract text from all content items
+            text_parts = []
+            for item in response.content:
+                if hasattr(item, 'text'):
+                    text_parts.append(item.text)
+            return "\n".join(text_parts)
+
+        # Check for error
+        if hasattr(response, 'isError') and response.isError:
+            return f"Error from server: {getattr(response, 'error_message', 'Unknown error')}"
+
+        # Fall back to string representation
+        return str(response)
+    except Exception as e:
+        logger.error(f"Error extracting text from response: {e}")
+        return f"Failed to parse response: {str(e)}"
+
+
+class MCPAgentClient(AgentClient):
+    """Client for MCP-based agents."""
+
+    def __init__(self, agent: Agent):
+        """
+        Initialize an MCP client.
+
+        Args:
+            agent: The agent configuration
+        """
+        self.agent = agent
+        self.session = None
+        self.sse_url = agent.api_endpoint
+
+        # Get bearer token from credentials
+        if agent.auth_type != "bearer_token" or not agent.auth_credentials:
+            raise ValueError("MCP client requires bearer token authentication")
+
+        self.bearer_token = agent.auth_credentials.get("token")
+        if not self.bearer_token:
+            raise ValueError("Bearer token not found in credentials")
+
+    async def initialize(self) -> None:
+        """Initialize client - no-op as connection is handled per-request."""
+        pass
+
+    @asynccontextmanager
+    async def connection(self) -> AsyncIterator[ClientSession]:
+        """
+        Context manager for MCP connection.
+
+        Usage:
+            async with client.connection() as session:
+                # Use session here
+
+        Yields:
+            ClientSession: An initialized MCP client session
+
+        Raises:
+            Exception: If connection fails
+        """
+        # Set up authentication headers
+        headers = {
+            "Authorization": f"Bearer {self.bearer_token}",
+            "Content-Type": "application/json",
+        }
+
+        logger.info(f"Connecting to SSE endpoint with Bearer authentication: {self.sse_url}")
+
+        try:
+            # Establish SSE connection with authentication headers
+            async with sse_client(url=self.sse_url, headers=headers) as sse_transport:
+                read_stream, write_stream = sse_transport
+
+                # Create MCP client session
+                async with ClientSession(read_stream, write_stream) as session:
+                    # Initialize the session
+                    await session.initialize()
+                    logger.info("Successfully connected and initialized MCP session")
+                    self.session = session
+                    yield session
+
+        except Exception as e:
+            logger.error(f"Connection error: {e}")
+            raise
+        finally:
+            self.session = None
+            logger.info("Disconnected from MCP server")
+
+    async def list_tools(self) -> List[Any]:
+        """
+        List available tools on the server.
+
+        Returns:
+            List[Any]: List of available tools
+
+        Raises:
+            Exception: If connection fails or tools cannot be retrieved
+        """
+        async with self.connection() as session:
+            response = await session.list_tools()
+            return response.tools
+
+    async def process_query(self,
+                            query: str,
+                            context: Optional[str] = None,
+                            system_message: Optional[str] = None,
+                            config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Process a query using MCP.
+
+        Args:
+            query: The query to process
+            context: Optional context for the query
+            system_message: Optional system message
+            config: Optional additional configuration
+
+        Returns:
+            Dict containing the response and metadata
+
+        Raises:
+            Exception: If query processing fails
+        """
+        start_time = time.time()
+
+        # Build user message
+        user_message = query
+        if context:
+            user_message = f"{user_message}\n\nContext: {context}"
+
+        # Format arguments based on template or use default
+        if self.agent.request_template:
+            # Use custom template if provided
+            try:
+                arguments = self.agent.request_template.copy()
+                # Replace placeholders in the template
+                if isinstance(arguments.get("model"), list):
+                    for msg in arguments["model"]:
+                        if msg.get("role") == "user":
+                            msg["content"] = user_message
+                        elif msg.get("role") == "system" and system_message:
+                            msg["content"] = system_message
+            except Exception as e:
+                logger.error(f"Error applying custom template: {e}")
+                # Fall back to default format
+                arguments = self._build_default_arguments(user_message, system_message)
+        else:
+            # Use default format
+            arguments = self._build_default_arguments(user_message, system_message)
+
+        # Add progress token if configured
+        progress_token = config.get("progress_token", 1) if config else 1
+        if "_meta" not in arguments:
+            arguments["_meta"] = {}
+        arguments["_meta"]["progressToken"] = progress_token
+
+        try:
+            # Get tool name from config or use default
+            tool_name = self.agent.config.get("tool_name", "McpAskPolicyBot")
+
+            # Process using MCP connection
+            async with self.connection() as session:
+                # Call the tool
+                response = await session.call_tool(
+                    name=tool_name,
+                    arguments=arguments
+                )
+
+                # Extract text
+                text_response = _extract_text_from_response(response)
+
+                # Calculate processing time
+                processing_time = (time.time() - start_time) * 1000
+
+                return {
+                    "answer": text_response,
+                    "processing_time_ms": int(processing_time),
+                    "raw_response": str(response),
+                    "success": True
+                }
+
+        except Exception as e:
+            logger.error(f"Error processing query with MCP: {e}")
+            return {
+                "answer": f"Error: {str(e)}",
+                "processing_time_ms": int((time.time() - start_time) * 1000),
+                "error": str(e),
+                "success": False
+            }
+
+    def _build_default_arguments(self, user_message: str, system_message: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Build default MCP arguments structure.
+
+        Args:
+            user_message: The user's message
+            system_message: Optional system message
+
+        Returns:
+            Dict[str, Any]: MCP arguments dictionary
+        """
+        model_messages = [
+            {
+                "role": "user",
+                "content": user_message
+            }
+        ]
+
+        # Add system message if provided
+        if system_message:
+            model_messages.insert(0, {
+                "role": "system",
+                "content": system_message
+            })
+
+        return {
+            "model": model_messages,
+            "prompt": system_message or "You are an AI Assistant",
+            "_meta": {
+                "progressToken": 1
+            }
+        }
+
+    async def health_check(self) -> bool:
+        """
+        Check if the MCP server is available.
+
+        Returns:
+            bool: True if healthy, False otherwise
+        """
+        try:
+            async with self.connection() as session:
+                # Just list tools to check connection
+                await session.list_tools()
+                return True
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            return False

@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Dict
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -47,6 +47,21 @@ class User(Base, TimestampMixin, ModelMixin):
     reports: Mapped[List["Report"]] = relationship("Report", back_populates="created_by")
 
 
+class AuthType(str, Enum):
+    """Authentication types for agents."""
+    API_KEY = "api_key"
+    BEARER_TOKEN = "bearer_token"
+    NONE = "none"
+
+
+class IntegrationType(str, Enum):
+    """Integration types for agents."""
+    AZURE_OPENAI = "azure_openai"
+    MCP = "mcp"
+    DIRECT_API = "direct_api"
+    CUSTOM = "custom"
+
+
 class Agent(Base, TimestampMixin, ModelMixin):
     """
     Agent model representing individual specialized agents in the system.
@@ -57,6 +72,8 @@ class Agent(Base, TimestampMixin, ModelMixin):
         Index('idx_agent_domain', 'domain'),
         Index('idx_agent_is_active', 'is_active'),
         Index('idx_agent_domain_is_active', 'domain', 'is_active'),
+        Index('idx_agent_integration_type', 'integration_type'),
+        Index('idx_agent_auth_type', 'auth_type'),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -72,6 +89,30 @@ class Agent(Base, TimestampMixin, ModelMixin):
     model_type: Mapped[str] = mapped_column(String(100), nullable=True)
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=True)
+
+    # Integration fields
+    integration_type: Mapped[IntegrationType] = mapped_column(
+        SQLEnum(IntegrationType), nullable=False, default=IntegrationType.AZURE_OPENAI
+    )
+    auth_type: Mapped[AuthType] = mapped_column(
+        SQLEnum(AuthType), nullable=False, default=AuthType.API_KEY
+    )
+    auth_credentials: Mapped[Optional[Dict]] = mapped_column(
+        JSON, nullable=True
+    )
+    request_template: Mapped[Optional[Dict]] = mapped_column(
+        JSON, nullable=True
+    )
+    response_format: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )
+    retry_config: Mapped[Optional[Dict]] = mapped_column(
+        JSON, nullable=True,
+        default={"max_retries": 3, "backoff_factor": 1.5, "status_codes": [429, 500, 502, 503, 504]}
+    )
+    content_filter_config: Mapped[Optional[Dict]] = mapped_column(
+        JSON, nullable=True
+    )
 
     # User relationship field
     created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)

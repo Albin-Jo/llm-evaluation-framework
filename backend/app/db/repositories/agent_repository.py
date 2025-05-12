@@ -1,13 +1,17 @@
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any, Optional, Coroutine
+from typing import List
 from uuid import UUID
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import or_
 
-from backend.app.db.models.orm import Agent, Evaluation
+from backend.app.db.models.base import Base
+from backend.app.db.models.orm import Agent
+from backend.app.db.models.orm import Evaluation
 from backend.app.db.repositories.base import BaseRepository
+from backend.app.utils.credential_utils import encrypt_credentials, decrypt_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -254,3 +258,64 @@ class AgentRepository(BaseRepository):
 
         result = await self.session.execute(query)
         return result.scalar() or 0
+
+    async def create_with_encrypted_credentials(self, data: Dict[str, Any]) -> Agent:
+        """
+        Create an agent with encrypted credentials.
+
+        Args:
+            data: Agent data
+
+        Returns:
+            Created agent
+        """
+        # Encrypt credentials if present
+        if data.get('auth_credentials'):
+            # Store encrypted version
+            data['auth_credentials'] = encrypt_credentials(data['auth_credentials'])
+
+        # Create agent
+        return await self.create(data)
+
+    async def update_with_encrypted_credentials(self, id: UUID, data: Dict[str, Any]) -> Optional[Agent]:
+        """
+        Update an agent with encrypted credentials.
+
+        Args:
+            id: Agent ID
+            data: Update data
+
+        Returns:
+            Updated agent
+        """
+        # Encrypt credentials if present
+        if 'auth_credentials' in data and data['auth_credentials'] is not None:
+            data['auth_credentials'] = encrypt_credentials(data['auth_credentials'])
+
+        # Update agent
+        return await self.update(id, data)
+
+    async def get_with_decrypted_credentials(self, id: UUID) -> Base | None:
+        """
+        Get agent with decrypted credentials.
+
+        Args:
+            id: Agent ID
+
+        Returns:
+            Agent with decrypted credentials
+        """
+        agent = await self.get(id)
+        if not agent:
+            return None
+
+        # Decrypt credentials if present
+        if agent.auth_credentials:
+            try:
+                agent.auth_credentials = decrypt_credentials(agent.auth_credentials)
+            except Exception as e:
+                logger.error(f"Error decrypting credentials for agent {id}: {e}")
+                # Set to None if decryption fails
+                agent.auth_credentials = None
+
+        return agent
