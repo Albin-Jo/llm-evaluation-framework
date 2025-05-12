@@ -85,7 +85,7 @@ class Agent(Base, TimestampMixin, ModelMixin):
     domain: Mapped[str] = mapped_column(String(100), nullable=False)
     config: Mapped[dict] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    # New fields
+
     model_type: Mapped[str] = mapped_column(String(100), nullable=True)
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=True)

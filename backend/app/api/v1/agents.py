@@ -1,19 +1,25 @@
+"""
+API endpoints for managing agents.
+
+This module provides API endpoints for creating, retrieving, updating, and deleting agents,
+as well as specialized endpoints for testing agents and listing MCP tools.
+"""
 import logging
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.exceptions import NotFoundException, DuplicateResourceException
-from backend.app.db.models.orm import AuthType, IntegrationType
+from backend.app.db.models.orm import Agent, AuthType, IntegrationType
 from backend.app.db.repositories.agent_repository import AgentRepository
 from backend.app.db.schema.agent_schema import (
     AgentCreate, AgentResponse, AgentUpdate
 )
 from backend.app.db.session import get_db
-from backend.app.services.agent_clients.factory import AgentClientFactory
 from backend.app.services.agent_service import test_agent_service
+from backend.app.services.agent_clients.factory import AgentClientFactory
 from backend.app.utils.credential_utils import mask_credentials
 from backend.app.utils.response_utils import create_paginated_response
 
@@ -91,6 +97,7 @@ async def create_agent(
         masked_creds = mask_credentials(agent_data.auth_credentials)
         logger.debug(f"Creating agent with credentials: {masked_creds}")
 
+    # Use special repository method to handle credential encryption
     agent = await agent_repo.create_with_encrypted_credentials(agent_dict)
     logger.info(f"Agent created successfully: {agent.id}")
 
@@ -148,7 +155,7 @@ async def list_agents(
     else:
         agents = await agent_repo.get_multi(skip=skip, limit=limit, filters=filters)
 
-    agents_schema_list = [AgentResponse.from_orm(agent) for agent in agents]
+    agents_schema_list = [AgentResponse.model_validate(agent) for agent in agents]
     return create_paginated_response(agents_schema_list, total_count, skip, limit)
 
 
@@ -262,7 +269,7 @@ async def update_agent(
 
     # Update the Agent with encrypted credentials
     update_data = {
-        k: v for k, v in agent_data.model_dump().items() if v is not None
+        k: v for k, v in agent_data.model_dump(exclude_unset=True).items() if v is not None
     }
 
     if not update_data:
@@ -273,6 +280,7 @@ async def update_agent(
         masked_creds = mask_credentials(agent_data.auth_credentials)
         logger.debug(f"Updating agent credentials: {masked_creds}")
 
+    # Use special repository method to handle credential encryption
     updated_agent = await agent_repo.update_with_encrypted_credentials(agent_id, update_data)
     logger.info(f"Agent updated successfully: {agent_id}")
 
@@ -352,32 +360,6 @@ async def test_agent(
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
     if not agent.is_active:
-        logger.warning(f"Cannot check health for inactive agent: {agent_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Agent is not active"
-        )
-
-    try:
-        # Create client based on integration type
-        client = await AgentClientFactory.create_client(agent)
-
-        # Check health
-        is_healthy = await client.health_check()
-
-        return {
-            "healthy": is_healthy,
-            "agent_id": str(agent_id),
-            "name": agent.name
-        }
-    except Exception as e:
-        logger.error(f"Error checking agent health {agent_id}: {str(e)}")
-        return {
-            "healthy": False,
-            "agent_id": str(agent_id),
-            "name": agent.name,
-            "error": str(e)
-        }
         logger.warning(f"Cannot test inactive agent: {agent_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -526,7 +508,7 @@ async def list_agent_tools(
         )
 
 
-@router.post("/{agent_id}/health", response_model=Dict[str, bool])
+@router.post("/{agent_id}/health", response_model=Dict[str, Any])
 async def check_agent_health(
         agent_id: UUID,
         db: AsyncSession = Depends(get_db)

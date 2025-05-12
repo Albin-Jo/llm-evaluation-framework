@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
@@ -28,7 +28,19 @@ class AgentBase(BaseModel):
         AuthType.API_KEY,
         description="Authentication method for this agent"
     )
-    auth_credentials: Optional[Dict] = Field(
+
+    @field_validator('api_endpoint')
+    def validate_api_endpoint(cls, v):
+        """Validate that the API endpoint is a valid URL."""
+        # Simple validation, could be extended to use HttpUrl type for stricter validation
+        if not v.startswith(('http://', 'https://')):
+            raise ValueError('API endpoint must be a valid HTTP or HTTPS URL')
+        return v
+
+
+class AgentCreate(AgentBase):
+    """Schema for creating a new Agent."""
+    auth_credentials: Optional[Dict[str, Any]] = Field(
         None,
         description="Credentials for authentication (stored securely)"
     )
@@ -49,14 +61,6 @@ class AgentBase(BaseModel):
         description="Configuration for content filtering"
     )
 
-    @field_validator('api_endpoint')
-    def validate_api_endpoint(cls, v):
-        """Validate that the API endpoint is a valid URL."""
-        # Simple validation, could be extended to use HttpUrl type for stricter validation
-        if not v.startswith(('http://', 'https://')):
-            raise ValueError('API endpoint must be a valid HTTP or HTTPS URL')
-        return v
-
     @field_validator('auth_credentials')
     def validate_credentials(cls, v, info):
         """Validate that credentials match auth_type."""
@@ -74,20 +78,6 @@ class AgentBase(BaseModel):
             raise ValueError("Bearer token auth type requires 'token' in credentials")
 
         return v
-        v
-
-        if auth_type == AuthType.API_KEY and 'api_key' not in v:
-            raise ValueError("API key auth type requires 'api_key' in credentials")
-
-        if auth_type == AuthType.BEARER_TOKEN and 'token' not in v:
-            raise ValueError("Bearer token auth type requires 'token' in credentials")
-
-        return v
-
-
-class AgentCreate(AgentBase):
-    """Schema for creating a new Agent."""
-    pass
 
 
 class AgentUpdate(BaseModel):
@@ -105,7 +95,7 @@ class AgentUpdate(BaseModel):
     # New fields
     integration_type: Optional[IntegrationType] = None
     auth_type: Optional[AuthType] = None
-    auth_credentials: Optional[Dict] = None
+    auth_credentials: Optional[Dict[str, Any]] = None
     request_template: Optional[Dict] = None
     response_format: Optional[str] = None
     retry_config: Optional[Dict] = None
@@ -126,15 +116,41 @@ class AgentUpdate(BaseModel):
 
         auth_type = info.data.get('auth_type')
         if not auth_type:
-            return
+            return v
+
+        if auth_type == AuthType.API_KEY and 'api_key' not in v:
+            raise ValueError("API key auth type requires 'api_key' in credentials")
+
+        if auth_type == AuthType.BEARER_TOKEN and 'token' not in v:
+            raise ValueError("Bearer token auth type requires 'token' in credentials")
+
+        return v
 
 
-class AgentInDB(AgentBase):
+class AgentInDB(BaseModel):
     """Schema for Agent data from database."""
     id: UUID
+    name: str
+    description: Optional[str] = None
+    api_endpoint: str
+    domain: str
+    config: Optional[Dict] = None
+    is_active: bool = True
+    model_type: Optional[str] = None
+    version: Optional[str] = "1.0.0"
+    tags: Optional[List[str]] = None
+    integration_type: Optional[IntegrationType] = IntegrationType.AZURE_OPENAI
+    auth_type: Optional[AuthType] = AuthType.API_KEY
+
+    # Credentials in DB are encrypted string, not a dictionary
+    auth_credentials: Optional[Union[Dict[str, Any], str]] = None
+    request_template: Optional[Dict] = None
+    response_format: Optional[str] = None
+    retry_config: Optional[Dict] = None
+    content_filter_config: Optional[Dict] = None
+
     created_at: datetime
     updated_at: datetime
-    # created_by_id: Optional[UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
 

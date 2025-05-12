@@ -1,13 +1,13 @@
 import logging
 import time
+from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional, List, AsyncIterator
 
-from contextlib import asynccontextmanager
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
-from backend.app.services.agent_clients.base import AgentClient
 from backend.app.db.models.orm import Agent
+from backend.app.services.agent_clients.base import AgentClient
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -154,36 +154,31 @@ class MCPAgentClient(AgentClient):
         if context:
             user_message = f"{user_message}\n\nContext: {context}"
 
-        # Format arguments based on template or use default
-        if self.agent.request_template:
-            # Use custom template if provided
-            try:
-                arguments = self.agent.request_template.copy()
-                # Replace placeholders in the template
-                if isinstance(arguments.get("model"), list):
-                    for msg in arguments["model"]:
-                        if msg.get("role") == "user":
-                            msg["content"] = user_message
-                        elif msg.get("role") == "system" and system_message:
-                            msg["content"] = system_message
-            except Exception as e:
-                logger.error(f"Error applying custom template: {e}")
-                # Fall back to default format
-                arguments = self._build_default_arguments(user_message, system_message)
-        else:
-            # Use default format
-            arguments = self._build_default_arguments(user_message, system_message)
+        # Get tool name from config or use default
+        tool_name = self.agent.config.get("tool_name", "McpAskPolicyBot") if self.agent.config else "McpAskPolicyBot"
 
-        # Add progress token if configured
-        progress_token = config.get("progress_token", 1) if config else 1
-        if "_meta" not in arguments:
-            arguments["_meta"] = {}
-        arguments["_meta"]["progressToken"] = progress_token
+        # Format arguments exactly as shown in the working script
+        arguments = {
+            "model": [
+                {
+                    "role": "user",
+                    "content": user_message
+                }
+            ],
+            "prompt": system_message or "You are an AI Assistant",
+            "_meta": {
+                "progressToken": config.get("progress_token", 1) if config else 1
+            }
+        }
+
+        # Add system message if provided
+        if system_message:
+            arguments["model"].insert(0, {
+                "role": "system",
+                "content": system_message
+            })
 
         try:
-            # Get tool name from config or use default
-            tool_name = self.agent.config.get("tool_name", "McpAskPolicyBot")
-
             # Process using MCP connection
             async with self.connection() as session:
                 # Call the tool
@@ -195,6 +190,9 @@ class MCPAgentClient(AgentClient):
                 # Extract text
                 text_response = _extract_text_from_response(response)
 
+                # Check if this is an error response
+                is_error = hasattr(response, 'isError') and response.isError
+
                 # Calculate processing time
                 processing_time = (time.time() - start_time) * 1000
 
@@ -202,7 +200,8 @@ class MCPAgentClient(AgentClient):
                     "answer": text_response,
                     "processing_time_ms": int(processing_time),
                     "raw_response": str(response),
-                    "success": True
+                    "success": not is_error,
+                    "error": text_response if is_error else None
                 }
 
         except Exception as e:
@@ -213,39 +212,6 @@ class MCPAgentClient(AgentClient):
                 "error": str(e),
                 "success": False
             }
-
-    def _build_default_arguments(self, user_message: str, system_message: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Build default MCP arguments structure.
-
-        Args:
-            user_message: The user's message
-            system_message: Optional system message
-
-        Returns:
-            Dict[str, Any]: MCP arguments dictionary
-        """
-        model_messages = [
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ]
-
-        # Add system message if provided
-        if system_message:
-            model_messages.insert(0, {
-                "role": "system",
-                "content": system_message
-            })
-
-        return {
-            "model": model_messages,
-            "prompt": system_message or "You are an AI Assistant",
-            "_meta": {
-                "progressToken": 1
-            }
-        }
 
     async def health_check(self) -> bool:
         """
