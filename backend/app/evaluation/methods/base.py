@@ -1,4 +1,3 @@
-
 import asyncio
 import csv
 import io
@@ -13,7 +12,7 @@ from uuid import UUID
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm import Dataset, Evaluation, Agent, Prompt, IntegrationType
+from backend.app.db.models.orm import Dataset, Evaluation, Agent, Prompt
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 from backend.app.evaluation.utils.dataset_utils import (
     process_user_query_dataset, process_context_dataset,
@@ -288,7 +287,8 @@ class BaseEvaluationMethod(ABC):
             logger.info(f"Evaluation {evaluation_id}: {processed}/{total} items processed ({progress:.2f}%)")
 
     @abstractmethod
-    async def run_evaluation(self, evaluation: Evaluation, jwt_token: Optional[str] = None) -> List[EvaluationResultCreate]:
+    async def run_evaluation(self, evaluation: Evaluation, jwt_token: Optional[str] = None) -> List[
+        EvaluationResultCreate]:
         """
         Run the evaluation.
 
@@ -943,7 +943,9 @@ class BaseEvaluationMethod(ABC):
                         "success": False
                     },
                     processing_time_ms=processing_time,
-                    metric_scores=[]
+                    metric_scores=[],
+                    passed=False,
+                    pass_threshold=evaluation.pass_threshold
                 )
 
             # Calculate metrics
@@ -959,6 +961,10 @@ class BaseEvaluationMethod(ABC):
 
             # Calculate overall score
             overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
+
+            # Determine pass/fail status
+            pass_threshold = evaluation.pass_threshold or 0.7  # Default to 0.7 if not specified
+            passed = overall_score >= pass_threshold
 
             # Create metric scores
             metric_scores = [
@@ -985,7 +991,9 @@ class BaseEvaluationMethod(ABC):
                 },
                 output_data={"answer": answer},
                 processing_time_ms=processing_time,
-                metric_scores=metric_scores
+                metric_scores=metric_scores,
+                passed=passed,
+                pass_threshold=pass_threshold
             )
 
         except Exception as e:
@@ -998,5 +1006,7 @@ class BaseEvaluationMethod(ABC):
                 dataset_sample_id=str(item_index),
                 input_data=item,
                 output_data={"error": str(e)},
-                metric_scores=[]
+                metric_scores=[],
+                passed=False,
+                pass_threshold=evaluation.pass_threshold
             )

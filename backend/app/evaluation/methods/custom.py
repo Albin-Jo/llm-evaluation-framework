@@ -1,4 +1,3 @@
-# File: backend/app/evaluation/methods/custom.py
 import logging
 import time
 from typing import Any, Dict, List
@@ -9,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.db.models.orm import Evaluation, EvaluationStatus
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
+from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.evaluation.metrics.registry import MetricsRegistry
 
 # Configure logging
@@ -115,8 +115,19 @@ class CustomEvaluationMethod(BaseEvaluationMethod):
             logger.warning("Missing required data for custom evaluation")
             return {}
 
-        # Get enabled metrics from config or use defaults
-        enabled_metrics = config.get("metrics", ["faithfulness", "response_relevancy", "context_precision"])
+        # Get enabled metrics from config or use more comprehensive defaults
+        dataset_type = config.get("dataset_type", "custom")
+        available_metrics = DATASET_TYPE_METRICS.get(dataset_type, [
+            "faithfulness",
+            "response_relevancy",
+            "context_precision",
+            "answer_correctness",
+            "answer_relevancy",
+            "factual_correctness"
+        ])
+
+        # Use configured metrics or fall back to all available ones
+        enabled_metrics = config.get("metrics", available_metrics)
 
         # Apply weights from config if provided
         weights = config.get("weights", {})
@@ -160,6 +171,24 @@ class CustomEvaluationMethod(BaseEvaluationMethod):
                         logger.warning(f"Skipping {metric_name} - ground truth not provided")
                         continue
                     score = await metric_func(query, answer, context, ground_truth)
+                elif metric_name == "answer_correctness":
+                    # Requires ground truth
+                    if not ground_truth:
+                        logger.warning(f"Skipping {metric_name} - ground truth not provided")
+                        continue
+                    score = await metric_func(answer, ground_truth)
+                elif metric_name == "answer_relevancy":
+                    score = await metric_func(query, answer, context)
+                elif metric_name == "answer_similarity":
+                    # Requires ground truth
+                    if not ground_truth:
+                        logger.warning(f"Skipping {metric_name} - ground truth not provided")
+                        continue
+                    score = await metric_func(answer, ground_truth)
+                elif metric_name == "factual_correctness":
+                    score = await metric_func(answer, context)
+                elif metric_name == "topic_adherence":
+                    score = await metric_func(query, answer)
                 else:
                     # Default case - try to call with all parameters
                     score = await metric_func(query=query, answer=answer, context=context, ground_truth=ground_truth)

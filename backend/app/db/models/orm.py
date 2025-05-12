@@ -266,6 +266,8 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     experiment_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Add pass threshold for the evaluation
+    pass_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.7)
 
     # User relationship field
     created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
@@ -313,6 +315,7 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     __table_args__ = (
         Index('idx_evaluationresult_evaluation_id', 'evaluation_id'),
         Index('idx_evaluationresult_overall_score', 'overall_score'),
+        Index('idx_evaluationresult_passed', 'passed'),  # Add index for the passed field
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -324,6 +327,9 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     input_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     output_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     processing_time_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Add pass/fail fields
+    passed: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    pass_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Relationships
     evaluation_id: Mapped[UUID] = mapped_column(ForeignKey("evaluation.id"), nullable=False)

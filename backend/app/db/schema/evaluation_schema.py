@@ -43,6 +43,9 @@ class EvaluationResultBase(BaseModel):
     input_data: Optional[Dict] = None
     output_data: Optional[Dict] = None
     processing_time_ms: Optional[int] = None
+    # Add pass/fail flag
+    passed: Optional[bool] = None
+    pass_threshold: Optional[float] = None
 
 
 class EvaluationResultCreate(EvaluationResultBase):
@@ -77,6 +80,8 @@ class EvaluationBase(BaseModel):
     experiment_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    # Add pass threshold for the whole evaluation
+    pass_threshold: Optional[float] = Field(0.7, description="Threshold score to consider a result as passed")
     # Added created_by_id for user ownership
     created_by_id: Optional[UUID] = Field(None, description="ID of the user who created this evaluation")
 
@@ -98,6 +103,7 @@ class EvaluationUpdate(BaseModel):
     experiment_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    pass_threshold: Optional[float] = None
     # Don't allow updating created_by_id after creation
 
 

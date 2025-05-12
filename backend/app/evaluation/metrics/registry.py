@@ -38,7 +38,10 @@ def register_builtin_metrics():
     from backend.app.evaluation.metrics.ragas_metrics import (
         calculate_faithfulness, calculate_response_relevancy,
         calculate_context_precision, calculate_context_recall,
-        calculate_context_entity_recall, calculate_noise_sensitivity
+        calculate_context_entity_recall, calculate_noise_sensitivity,
+        calculate_answer_correctness, calculate_answer_relevancy,
+        calculate_answer_similarity, calculate_factual_correctness,
+        calculate_topic_adherence
     )
 
     MetricsRegistry.register(
@@ -80,6 +83,42 @@ def register_builtin_metrics():
         "noise_sensitivity",
         calculate_noise_sensitivity,
         "Measures the model's tendency to be misled by irrelevant information in the context (lower is better).",
+        1.0
+    )
+
+    # Register new metrics
+    MetricsRegistry.register(
+        "answer_correctness",
+        calculate_answer_correctness,
+        "Measures how accurately the answer matches the ground truth.",
+        1.0
+    )
+
+    MetricsRegistry.register(
+        "answer_relevancy",
+        calculate_answer_relevancy,
+        "Measures how relevant the answer is to the query.",
+        1.0
+    )
+
+    MetricsRegistry.register(
+        "answer_similarity",
+        calculate_answer_similarity,
+        "Measures the semantic similarity between the answer and the ground truth.",
+        1.0
+    )
+
+    MetricsRegistry.register(
+        "factual_correctness",
+        calculate_factual_correctness,
+        "Measures how factually accurate the answer is based on the provided context.",
+        1.0
+    )
+
+    MetricsRegistry.register(
+        "topic_adherence",
+        calculate_topic_adherence,
+        "Measures how well the answer stays on topic with the query.",
         1.0
     )
 

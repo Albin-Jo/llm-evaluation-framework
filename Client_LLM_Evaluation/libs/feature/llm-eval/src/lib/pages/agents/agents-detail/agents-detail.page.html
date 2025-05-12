@@ -15,11 +15,6 @@
           <span *ngIf="agent" class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
             {{ agent.is_active ? 'Active' : 'Inactive' }}
           </span>
-
-          <!-- Health Status Badge (if available) -->
-          <span *ngIf="healthStatus" class="status-badge" [ngClass]="getHealthStatusClass()">
-            {{ healthStatus.healthy ? 'Healthy' : 'Unhealthy' }}
-          </span>
         </div>
 
         <!-- Domain Label -->
@@ -30,13 +25,6 @@
       </div>
 
       <div class="action-buttons" *ngIf="agent">
-        <button
-          class="action-button status-toggle-button"
-          [class.active-status]="agent.is_active"
-          [class.inactive-status]="!agent.is_active"
-          (click)="toggleAgentStatus()">
-          {{ agent.is_active ? 'Deactivate' : 'Activate' }}
-        </button>
         <button class="action-button edit-button" (click)="onEditClick()">
           Edit Agent
         </button>
@@ -161,19 +149,61 @@
       <div class="card-content" [class.expanded]="expandedSections.configuration">
         <div class="config-tabs">
           <div class="config-tab-buttons">
-            <button class="config-tab-button active">Configuration</button>
-            <button class="config-tab-button">Auth Credentials</button>
-            <button class="config-tab-button">Retry Config</button>
-            <button class="config-tab-button">Content Filter</button>
+            <button
+              *ngFor="let tab of configTabs; let i = index"
+              class="config-tab-button"
+              [class.active]="selectedConfigTab === i"
+              (click)="selectConfigTab(i)">
+              {{ tab.label }}
+            </button>
           </div>
 
           <div class="config-tab-content">
-            <div *ngIf="agent.config">
-              <app-json-viewer [json]="agent.config"></app-json-viewer>
-            </div>
-            <div *ngIf="!agent.config">
-              <div class="empty-config">No configuration available</div>
-            </div>
+            <ng-container [ngSwitch]="selectedConfigTab">
+              <!-- Configuration -->
+              <div *ngSwitchCase="0">
+                <app-simple-json-viewer
+                  [json]="agent.config"
+                  *ngIf="agent.config">
+                </app-simple-json-viewer>
+                <div *ngIf="!agent.config" class="empty-config">
+                  No configuration available
+                </div>
+              </div>
+
+              <!-- Auth Credentials -->
+              <div *ngSwitchCase="1">
+                <app-simple-json-viewer
+                  [json]="agent.auth_credentials"
+                  *ngIf="agent.auth_credentials">
+                </app-simple-json-viewer>
+                <div *ngIf="!agent.auth_credentials" class="empty-config">
+                  No authentication credentials available
+                </div>
+              </div>
+
+              <!-- Retry Config -->
+              <div *ngSwitchCase="2">
+                <app-simple-json-viewer
+                  [json]="agent.retry_config"
+                  *ngIf="agent.retry_config">
+                </app-simple-json-viewer>
+                <div *ngIf="!agent.retry_config" class="empty-config">
+                  No retry configuration available
+                </div>
+              </div>
+
+              <!-- Content Filter -->
+              <div *ngSwitchCase="3">
+                <app-simple-json-viewer
+                  [json]="agent.content_filter_config"
+                  *ngIf="agent.content_filter_config">
+                </app-simple-json-viewer>
+                <div *ngIf="!agent.content_filter_config" class="empty-config">
+                  No content filter configuration available
+                </div>
+              </div>
+            </ng-container>
           </div>
         </div>
       </div>
@@ -210,7 +240,7 @@
 
               <div *ngIf="tool.parameters" class="tool-parameters">
                 <h4 class="parameters-title">Parameters:</h4>
-                <app-json-viewer [json]="tool.parameters" [collapsible]="true"></app-json-viewer>
+                <app-simple-json-viewer [json]="tool.parameters"></app-simple-json-viewer>
               </div>
 
               <div *ngIf="tool.required_parameters && tool.required_parameters.length > 0" class="required-parameters">
@@ -224,83 +254,6 @@
 
           <div *ngIf="!agentTools.tools || agentTools.tools.length === 0" class="empty-tools">
             <p>No tools available for this agent.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Health Check Card -->
-    <div class="detail-card">
-      <div class="card-header" (click)="toggleSection('health')">
-        <h2 class="card-title">Health & Status</h2>
-        <span class="expand-icon">{{ expandedSections.health ? '▼' : '►' }}</span>
-      </div>
-
-      <div class="card-content" [class.expanded]="expandedSections.health">
-        <div class="health-grid">
-          <!-- Health Status -->
-          <div class="health-status-section">
-            <h3 class="section-title">Health Status</h3>
-
-            <!-- Loading State -->
-            <div *ngIf="isCheckingHealth" class="section-loading">
-              <div class="spinner-sm"></div>
-              <p>Checking agent health...</p>
-            </div>
-
-            <!-- Error State -->
-            <div *ngIf="healthError" class="section-error">
-              <p>{{ healthError }}</p>
-              <button class="retry-button-sm" (click)="checkAgentHealth(agentId!)">Retry</button>
-            </div>
-
-            <!-- Health Details -->
-            <div *ngIf="healthStatus && !isCheckingHealth && !healthError" class="health-details">
-              <div class="health-indicator" [ngClass]="getHealthStatusClass()">
-                <span class="health-dot"></span>
-                <span class="health-text">{{ healthStatus.healthy ? 'Healthy' : 'Unhealthy' }}</span>
-              </div>
-
-              <div class="health-message">
-                <p>{{ healthStatus.message || 'Agent is responding correctly.' }}</p>
-              </div>
-
-              <button class="refresh-button" (click)="$event.stopPropagation(); checkAgentHealth(agentId!)">
-                Refresh Status
-              </button>
-
-              <div *ngIf="healthStatus.details" class="health-details-container">
-                <h4 class="details-title">Health Check Details:</h4>
-                <app-json-viewer [json]="healthStatus.details" [collapsible]="true"></app-json-viewer>
-              </div>
-            </div>
-          </div>
-
-          <!-- Usage Stats -->
-          <div class="usage-stats-section">
-            <h3 class="section-title">Usage Statistics</h3>
-
-            <div class="stats-grid">
-              <div class="stat-item">
-                <span class="stat-label">Total Requests</span>
-                <span class="stat-value">{{ usageStats.totalRequests }}</span>
-              </div>
-
-              <div class="stat-item">
-                <span class="stat-label">Success Rate</span>
-                <span class="stat-value">{{ formatPercentage(usageStats.successRate) }}</span>
-              </div>
-
-              <div class="stat-item">
-                <span class="stat-label">Avg. Latency</span>
-                <span class="stat-value">{{ formatMilliseconds(usageStats.avgLatency) }}</span>
-              </div>
-
-              <div class="stat-item">
-                <span class="stat-label">Last Used</span>
-                <span class="stat-value">{{ usageStats.lastUsed ? formatDate(usageStats.lastUsed.toISOString()) : 'Never' }}</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -336,12 +289,12 @@
         <div *ngIf="quickTestResult" class="quick-test-result">
           <div class="result-header">
             <h3 class="result-title">Test Result</h3>
-            <span class="result-status" [ngClass]="!quickTestResult.error ? 'success' : 'error'">
-              {{ !quickTestResult.error ? 'Success' : 'Error' }}
+            <span class="result-status" [ngClass]="testSuccess ? 'success' : 'error'">
+              {{ testSuccess ? 'Success' : 'Error' }}
             </span>
           </div>
 
-          <app-json-viewer [json]="quickTestResult" [collapsible]="true"></app-json-viewer>
+          <app-simple-json-viewer [json]="quickTestResult"></app-simple-json-viewer>
         </div>
       </div>
     </div>

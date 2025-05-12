@@ -2,15 +2,20 @@
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, BehaviorSubject, interval, Observable, of, throwError } from 'rxjs';
-import { takeUntil, switchMap, catchError, finalize, tap, startWith, map, share } from 'rxjs/operators';
-import { Agent, AgentResponse, AgentHealthResponse, AgentToolsResponse } from '@ngtx-apps/data-access/models';
+import { Subject, Observable, of, throwError } from 'rxjs';
+import { takeUntil, catchError, finalize } from 'rxjs/operators';
+import { Agent, AgentResponse, AgentToolsResponse } from '@ngtx-apps/data-access/models';
 import { AgentService } from '@ngtx-apps/data-access/services';
 import { NotificationService } from '@ngtx-apps/utils/services';
 import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
 import { QracButtonComponent, QracTextBoxComponent, QracSelectComponent } from '@ngtx-apps/ui/components';
-import { JsonViewerComponent } from '../../../components/json-viewer/json-viewer.component';
+import { SimpleJsonViewerComponent } from '../../../components/simple-json-viewer/simple-json-viewer.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+
+interface ConfigTab {
+  label: string;
+  field: string;
+}
 
 @Component({
   selector: 'app-agent-detail',
@@ -22,7 +27,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     QracButtonComponent,
     QracTextBoxComponent,
     QracSelectComponent,
-    JsonViewerComponent
+    SimpleJsonViewerComponent
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './agents-detail.page.html',
@@ -38,11 +43,6 @@ export class AgentDetailPage implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
 
-  // Health check
-  healthStatus: AgentHealthResponse | null = null;
-  isCheckingHealth = false;
-  healthError: string | null = null;
-
   // Agent tools
   agentTools: AgentToolsResponse | null = null;
   isLoadingTools = false;
@@ -53,25 +53,23 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     basicInfo: true,
     apiConfig: true,
     configuration: false,
-    tools: false,
-    health: false
+    tools: false
   };
+
+  // Configuration tabs
+  configTabs: ConfigTab[] = [
+    { label: 'Configuration', field: 'config' },
+    { label: 'Auth Credentials', field: 'auth_credentials' },
+    { label: 'Retry Config', field: 'retry_config' },
+    { label: 'Content Filter', field: 'content_filter_config' }
+  ];
+  selectedConfigTab = 0;
 
   // Quick test function
   quickTestQuery = '';
   isRunningTest = false;
   quickTestResult: any = null;
-
-  // Stats
-  usageStats = {
-    totalRequests: 0,
-    successRate: 0,
-    avgLatency: 0,
-    lastUsed: null as Date | null
-  };
-
-  // Automated health check (every 30 seconds)
-  private healthCheckEnabled = false;
+  testSuccess = false;
 
   private destroy$ = new Subject<void>();
 
@@ -112,7 +110,6 @@ export class AgentDetailPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.disableHealthCheck();
   }
 
   /**
@@ -167,12 +164,10 @@ export class AgentDetailPage implements OnInit, OnDestroy {
           AgentDetailPage.agentCache.set(id, agent);
 
           if (!silent) {
-            // Load tools and health data on initial load
-            this.loadAgentTools(id);
-            this.checkAgentHealth(id);
-
-            // Load usage stats if available
-            this.loadUsageStats(id);
+            // Load tools if this section is expanded
+            if (this.expandedSections.tools) {
+              this.loadAgentTools(id);
+            }
           }
 
           this.cdr.markForCheck();
@@ -181,15 +176,14 @@ export class AgentDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Load agent tools - Mock implementation for now
+   * Load agent tools using the API
    */
   loadAgentTools(id: string): void {
     this.isLoadingTools = true;
     this.toolsError = null;
     this.cdr.markForCheck();
 
-    // Use our mock implementation since API method is not available yet
-    this.getAgentTools(id)
+    this.agentService.getAgentTools(id)
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
@@ -203,95 +197,12 @@ export class AgentDetailPage implements OnInit, OnDestroy {
           this.cdr.markForCheck();
         })
       )
-      .subscribe((tools: AgentToolsResponse) => {
+      .subscribe((tools: AgentToolsResponse | null) => {
         if (tools) {
           this.agentTools = tools;
           this.cdr.markForCheck();
         }
       });
-  }
-
-  /**
-   * Check agent health status - Mock implementation for now
-   */
-  checkAgentHealth(id: string): void {
-    this.isCheckingHealth = true;
-    this.healthError = null;
-    this.cdr.markForCheck();
-
-    // Use our mock implementation since API method is not available yet
-    this.mockCheckAgentHealth(id)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          this.healthError = 'Failed to check agent health. Please try again.';
-          this.isCheckingHealth = false;
-          this.cdr.markForCheck();
-          return of(null as unknown as AgentHealthResponse);
-        }),
-        finalize(() => {
-          this.isCheckingHealth = false;
-          this.cdr.markForCheck();
-        })
-      )
-      .subscribe((health: AgentHealthResponse) => {
-        if (health) {
-          this.healthStatus = health;
-          this.cdr.markForCheck();
-        }
-      });
-  }
-
-  /**
-   * Enable automated health check (every 30 seconds)
-   */
-  enableHealthCheck(): void {
-    if (this.healthCheckEnabled || !this.agentId) return;
-
-    this.healthCheckEnabled = true;
-
-    // Check initially and then every 30 seconds
-    interval(30000)
-      .pipe(
-        startWith(0),
-        takeUntil(this.destroy$),
-        switchMap(() => this.mockCheckAgentHealth(this.agentId!))
-      )
-      .subscribe({
-        next: (health: AgentHealthResponse) => {
-          this.healthStatus = health;
-          this.cdr.markForCheck();
-        },
-        error: (error) => {
-          console.error('Health check error:', error);
-        }
-      });
-  }
-
-  /**
-   * Disable automated health check
-   */
-  disableHealthCheck(): void {
-    this.healthCheckEnabled = false;
-  }
-
-  /**
-   * Load usage statistics for the agent - Simulated
-   */
-  loadUsageStats(id: string): void {
-    // Placeholder for real implementation
-    // This would be connected to a real API endpoint
-
-    // Simulate loading stats
-    setTimeout(() => {
-      this.usageStats = {
-        totalRequests: Math.floor(Math.random() * 1000),
-        successRate: Math.random() * 100,
-        avgLatency: Math.random() * 500,
-        lastUsed: new Date(Date.now() - Math.floor(Math.random() * 86400000))
-      };
-      this.cdr.markForCheck();
-    }, 700);
   }
 
   /**
@@ -319,6 +230,7 @@ export class AgentDetailPage implements OnInit, OnDestroy {
       .subscribe({
         next: (result) => {
           this.quickTestResult = result;
+          this.testSuccess = true;
           this.cdr.markForCheck();
         },
         error: (error) => {
@@ -327,6 +239,7 @@ export class AgentDetailPage implements OnInit, OnDestroy {
             message: error.message || 'Test failed',
             details: error.error
           };
+          this.testSuccess = false;
           this.cdr.markForCheck();
         }
       });
@@ -340,22 +253,23 @@ export class AgentDetailPage implements OnInit, OnDestroy {
       this.expandedSections[section as keyof typeof this.expandedSections] =
         !this.expandedSections[section as keyof typeof this.expandedSections];
 
-      // If expanding tools or health sections, load data if needed
+      // If expanding tools section, load data if needed
       if (this.expandedSections[section as keyof typeof this.expandedSections] && this.agentId) {
         if (section === 'tools' && !this.agentTools) {
           this.loadAgentTools(this.agentId);
-        } else if (section === 'health') {
-          this.checkAgentHealth(this.agentId);
-
-          // Enable automated health check when health section is expanded
-          if (this.expandedSections.health) {
-            this.enableHealthCheck();
-          } else {
-            this.disableHealthCheck();
-          }
         }
       }
 
+      this.cdr.markForCheck();
+    }
+  }
+
+  /**
+   * Select configuration tab
+   */
+  selectConfigTab(index: number): void {
+    if (index >= 0 && index < this.configTabs.length) {
+      this.selectedConfigTab = index;
       this.cdr.markForCheck();
     }
   }
@@ -388,56 +302,6 @@ export class AgentDetailPage implements OnInit, OnDestroy {
       .subscribe(confirmed => {
         if (confirmed) {
           this.deleteAgent(this.agentId!);
-        }
-      });
-  }
-
-  /**
-   * Toggle agent active status
-   */
-  toggleAgentStatus(): void {
-    if (!this.agentId || !this.agent) return;
-
-    const newStatus = !this.agent.is_active;
-    const actionText = newStatus ? 'activate' : 'deactivate';
-
-    this.confirmationDialogService.confirm({
-      title: `${newStatus ? 'Activate' : 'Deactivate'} Agent`,
-      message: `Are you sure you want to ${actionText} this agent?`,
-      confirmText: 'Yes',
-      cancelText: 'No'
-    }).subscribe(confirmed => {
-      if (confirmed) {
-        this.updateAgentStatus(this.agentId!, newStatus);
-      }
-    });
-  }
-
-  /**
-   * Update agent status
-   */
-  private updateAgentStatus(id: string, isActive: boolean): void {
-    const updateData = {
-      is_active: isActive
-    };
-
-    this.agentService.updateAgent(id, updateData)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (agent) => {
-          this.agent = agent;
-          this.notificationService.success(`Agent ${isActive ? 'activated' : 'deactivated'} successfully`);
-
-          // Update cache
-          if (AgentDetailPage.agentCache.has(id)) {
-            AgentDetailPage.agentCache.set(id, agent);
-          }
-
-          this.cdr.markForCheck();
-        },
-        error: (error) => {
-          this.notificationService.error(`Failed to ${isActive ? 'activate' : 'deactivate'} agent. Please try again.`);
-          console.error('Error updating agent status:', error);
         }
       });
   }
@@ -502,64 +366,5 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     } catch (e) {
       return JSON.stringify({});
     }
-  }
-
-  /**
-   * Get health status class
-   */
-  getHealthStatusClass(): string {
-    if (!this.healthStatus) return '';
-
-    return this.healthStatus.healthy ? 'status-healthy' : 'status-unhealthy';
-  }
-
-  /**
-   * Get percentage format for display
-   */
-  formatPercentage(value: number): string {
-    return value.toFixed(1) + '%';
-  }
-
-  /**
-   * Format milliseconds for display
-   */
-  formatMilliseconds(ms: number): string {
-    return ms.toFixed(0) + ' ms';
-  }
-
-  /**
-   * Mock implementation of getAgentTools - Replace when API is available
-   */
-  private getAgentTools(id: string): Observable<AgentToolsResponse> {
-    // Return mock data for now
-    return of({
-      tools: [
-        {
-          name: 'Sample Tool',
-          description: 'This is a sample tool for demonstration',
-          parameters: {
-            param1: 'string',
-            param2: 'number'
-          },
-          required_parameters: ['param1']
-        }
-      ]
-    });
-  }
-
-  /**
-   * Mock implementation of checkAgentHealth - Replace when API is available
-   */
-  private mockCheckAgentHealth(id: string): Observable<AgentHealthResponse> {
-    // Simulate API call
-    return of({
-      status: 'ok',
-      healthy: true,
-      message: 'Agent is responding normally',
-      details: {
-        latency: '120ms',
-        lastCheck: new Date().toISOString()
-      }
-    });
   }
 }

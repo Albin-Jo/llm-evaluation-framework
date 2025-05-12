@@ -1,226 +1,81 @@
-/* Path: libs/feature/llm-eval/src/lib/components/json-viewer/json-viewer.component.scss */
-@import '../../../../../../styles/variables';
-@import '../../../../../../styles/mixins';
+/* Path: libs/feature/llm-eval/src/lib/components/simple-json-viewer/simple-json-viewer.component.scss */
+@import '../../../../../styles/variables';
+@import '../../../../../styles/mixins';
 
 :host {
   display: block;
   width: 100%;
 }
 
-.json-viewer-container {
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  background-color: $background;
-  border-radius: $radius-sm;
-  overflow: hidden;
+.json-viewer {
+  width: 100%;
   border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  background-color: $background-light;
+  overflow: hidden;
 }
 
-// Toolbar
-.json-viewer-toolbar {
+.json-viewer-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: $spacing-2 $spacing-3;
-  background-color: $background-light;
+  background-color: rgba($background, 0.6);
   border-bottom: 1px solid $border-color;
-  flex-wrap: wrap;
-  gap: $spacing-2;
 
-  @include media-breakpoint-down(sm) {
-    flex-direction: column;
+  .viewer-title {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $text-primary;
   }
 
-  .json-viewer-actions {
-    display: flex;
-    gap: $spacing-1;
-    flex-wrap: wrap;
-
-    .toolbar-button {
-      background: none;
-      border: none;
-      padding: $spacing-1 $spacing-2;
-      border-radius: $radius-sm;
-      font-size: $font-size-xs;
-      color: $text-secondary;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      transition: all 0.2s ease;
-
-      &:hover {
-        background-color: rgba($primary, 0.05);
-        color: $primary;
-      }
-
-      .button-icon {
-        margin-right: $spacing-1;
-      }
-    }
-  }
-
-  .json-viewer-search {
-    display: flex;
-    gap: $spacing-1;
-
-    .search-input {
-      min-width: 150px;
-      padding: $spacing-1 $spacing-2;
-      border: 1px solid $border-color;
-      border-radius: $radius-sm;
-      font-size: $font-size-xs;
-
-      &:focus {
-        outline: none;
-        border-color: $primary;
-      }
-    }
-
-    .search-button, .clear-button {
-      padding: $spacing-1 $spacing-2;
-      font-size: $font-size-xs;
-      border-radius: $radius-sm;
-      border: none;
-      cursor: pointer;
-    }
-
-    .search-button {
-      background-color: $primary-light;
-      color: $primary;
-
-      &:hover {
-        background-color: rgba($primary, 0.2);
-      }
-    }
-
-    .clear-button {
-      background-color: $background-light;
-      color: $text-secondary;
-
-      &:hover {
-        background-color: rgba($text-secondary, 0.1);
-      }
-    }
-  }
-}
-
-// Search results
-.search-results {
-  padding: $spacing-2 $spacing-3;
-  font-size: $font-size-xs;
-  background-color: rgba($primary, 0.05);
-  border-bottom: 1px solid $border-color;
-  color: $primary;
-}
-
-// JSON Tree
-.json-tree {
-  padding: $spacing-3;
-  max-height: 400px;
-  overflow-y: auto;
-  color: $text-primary;
-
-  .empty-json {
-    padding: $spacing-4;
-    text-align: center;
-    color: $text-secondary;
-    font-style: italic;
-  }
-
-  .json-tree-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    padding-left: $spacing-3;
-  }
-
-  .json-tree-item {
-    margin: $spacing-1 0;
-  }
-
-  .json-node-header {
-    display: flex;
-    align-items: center;
-    gap: $spacing-1;
+  .copy-button {
+    background: none;
+    border: none;
+    color: $primary;
+    font-size: $font-size-xs;
     cursor: pointer;
-    padding: $spacing-1;
+    padding: $spacing-1 $spacing-2;
     border-radius: $radius-sm;
     transition: background-color 0.2s;
 
     &:hover {
-      background-color: rgba($primary, 0.05);
+      background-color: rgba($primary, 0.1);
     }
-
-    .toggle-icon {
-      color: $text-secondary;
-      width: 10px;
-      display: inline-block;
-    }
-
-    .toggle-icon-placeholder {
-      width: 10px;
-      display: inline-block;
-    }
-
-    .json-key {
-      color: $primary;
-      font-weight: $font-weight-medium;
-
-      &.json-object-key {
-        color: $primary;
-      }
-
-      &.json-array-key {
-        color: $primary-dark;
-      }
-    }
-
-    .json-separator {
-      color: $text-secondary;
-    }
-
-    .json-value {
-      &.json-string {
-        color: $success;
-      }
-
-      &.json-number {
-        color: $warning;
-      }
-
-      &.json-boolean {
-        color: $primary;
-      }
-
-      &.json-null {
-        color: $text-tertiary;
-        font-style: italic;
-      }
-
-      &.json-undefined {
-        color: $text-tertiary;
-        font-style: italic;
-      }
-    }
-
-    .json-summary {
-      color: $text-secondary;
-      font-style: italic;
-    }
-  }
-
-  .json-node-children {
-    animation: fadeIn 0.3s ease;
   }
 }
 
-// Animations
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
+.json-content {
+  padding: $spacing-3;
+  margin: 0;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  line-height: 1.5;
+  color: $text-primary;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+
+  // Styling for syntax highlighting appearance without actual highlighting
+  .key {
+    color: $primary;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .string {
+    color: $success;
+  }
+
+  .number {
+    color: $warning;
+  }
+
+  .boolean {
+    color: $primary-dark;
+  }
+
+  .null {
+    color: $text-tertiary;
+    font-style: italic;
   }
 }

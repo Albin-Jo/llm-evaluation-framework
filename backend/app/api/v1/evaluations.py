@@ -7,18 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Path
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.api.dependencies.auth import get_required_current_user, get_jwt_token
+from backend.app.api.dependencies.rate_limiter import rate_limit
+from backend.app.api.middleware.jwt_validator import UserContext
+from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
 from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod, EvaluationResult
 from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationDetailResponse,
     EvaluationResponse, EvaluationUpdate
 )
 from backend.app.db.session import get_db
-from backend.app.services.evaluation_service import EvaluationService, _run_evaluation_as_separate_task
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
-from backend.app.api.dependencies.rate_limiter import rate_limit
-from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
-from backend.app.api.dependencies.auth import get_required_current_user, get_jwt_token
-from backend.app.api.middleware.jwt_validator import UserContext
+from backend.app.services.evaluation_service import EvaluationService, _run_evaluation_as_separate_task
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -276,6 +276,7 @@ async def get_evaluation(
     - Basic evaluation metadata
     - Configuration details
     - All results with their metrics
+    - Pass/fail status for each result
 
     - **evaluation_id**: The unique identifier of the evaluation
 
@@ -315,8 +316,49 @@ async def get_evaluation(
             "prompt_id": evaluation.prompt_id,
             "created_at": evaluation.created_at,
             "updated_at": evaluation.updated_at,
+            "pass_threshold": evaluation.pass_threshold,  # Include pass threshold
             "results": result_responses
         }
+
+        # Calculate summary statistics if there are results
+        if result_responses:
+            # Calculate overall pass rate
+            pass_count = sum(1 for r in result_responses if r.get("passed", False))
+            total_count = len(result_responses)
+            pass_rate = (pass_count / total_count) * 100 if total_count > 0 else 0
+
+            # Calculate metric averages
+            metric_averages = {}
+            for result in result_responses:
+                for metric in result.get("metric_scores", []):
+                    metric_name = metric.get("name")
+                    metric_value = metric.get("value")
+
+                    if metric_name and metric_value is not None:
+                        if metric_name not in metric_averages:
+                            metric_averages[metric_name] = []
+                        metric_averages[metric_name].append(metric_value)
+
+            # Calculate the averages
+            metric_summary = {}
+            for metric_name, values in metric_averages.items():
+                if values:
+                    metric_summary[metric_name] = {
+                        "average": sum(values) / len(values),
+                        "min": min(values),
+                        "max": max(values),
+                        "count": len(values)
+                    }
+
+            # Add summary to response
+            response_dict["summary"] = {
+                "overall_score": sum(r.get("overall_score", 0) for r in result_responses) / len(
+                    result_responses) if result_responses else 0,
+                "pass_rate": pass_rate,
+                "pass_count": pass_count,
+                "total_count": total_count,
+                "metrics": metric_summary
+            }
 
         # Return the response data directly - FastAPI will handle conversion
         return response_dict
@@ -575,6 +617,7 @@ async def start_evaluation(
             detail=f"Error starting evaluation: {str(e)}"
         )
 
+
 @router.get("/{evaluation_id}/progress", response_model=Dict)
 async def get_evaluation_progress(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to check progress")],
@@ -700,8 +743,8 @@ async def get_evaluation_results(
     """
     Get results for an evaluation with pagination.
 
-    This endpoint returns the detailed results for an evaluation, including all metric scores.
-    Results are paginated for better performance with large evaluations.
+    This endpoint returns the detailed results for an evaluation, including all metric scores
+    and pass/fail status for each result.
 
     - **evaluation_id**: The unique identifier of the evaluation
     - **skip**: Number of records to skip (for pagination)
@@ -747,7 +790,16 @@ async def get_evaluation_results(
             metric_scores = await evaluation_service.get_metric_scores(result.id)
             result_dict["metric_scores"] = [score.to_dict() for score in metric_scores]
 
+            # Include pass/fail status
+            if hasattr(result, 'passed'):
+                result_dict["passed"] = result.passed
+                result_dict["pass_threshold"] = result.pass_threshold or evaluation.pass_threshold or 0.7
+
             processed_results.append(result_dict)
+
+        # Calculate summary statistics
+        pass_count = sum(1 for r in processed_results if r.get("passed", False))
+        pass_rate = (pass_count / len(processed_results)) * 100 if processed_results else 0
 
         logger.info(f"Successfully retrieved {len(processed_results)} results for evaluation id={evaluation_id}")
         return {
@@ -756,7 +808,13 @@ async def get_evaluation_results(
             "page": (skip // limit) + 1,
             "page_size": limit,
             "has_next": (skip + limit) < total_count,
-            "has_previous": skip > 0
+            "has_previous": skip > 0,
+            "summary": {
+                "pass_rate": pass_rate,
+                "pass_count": pass_count,
+                "total_evaluated": len(processed_results),
+                "pass_threshold": evaluation.pass_threshold or 0.7
+            }
         }
     except NotFoundException:
         raise

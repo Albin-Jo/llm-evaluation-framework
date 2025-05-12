@@ -9,1197 +9,7 @@
     }
   },
   "paths": {
-    "/api/datasets/": {
-      "post": {
-        "tags": [
-          "Datasets"
-        ],
-        "summary": "Create Dataset",
-        "description": "Create a new dataset with file upload.\n\nArgs:\n    name: Dataset name\n    description: Dataset description\n    type: Dataset type (USER_QUERY, CONTEXT, QUESTION_ANSWER, CONVERSATION, CUSTOM)\n    file: Uploaded file (CSV, JSON, or plain text)\n    is_public: Whether the dataset is public\n    db: Database session\n\nReturns:\n    DatasetResponse: Created dataset\n\nRaises:\n    HTTPException: If file is too large, has invalid format, or other errors occur",
-        "operationId": "create_dataset_api_datasets__post",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_create_dataset_api_datasets__post"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "Datasets"
-        ],
-        "summary": "List Datasets",
-        "description": "List datasets with optional filtering.\n\nArgs:\n    skip: Number of records to skip (for pagination)\n    limit: Maximum number of records to return\n    type: Filter by dataset type\n    is_public: Filter by public/private status\n    db: Database session\n\nReturns:\n    List[DatasetResponse]: List of datasets",
-        "operationId": "list_datasets_api_datasets__get",
-        "parameters": [
-          {
-            "name": "skip",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 0,
-              "title": "Skip"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/DatasetType"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Type"
-            }
-          },
-          {
-            "name": "is_public",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Is Public"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DatasetResponse"
-                  },
-                  "title": "Response List Datasets Api Datasets  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/datasets/{dataset_id}": {
-      "get": {
-        "tags": [
-          "Datasets"
-        ],
-        "summary": "Get Dataset",
-        "description": "Get dataset by ID.\n\nArgs:\n    dataset_id: Dataset ID\n    db: Database session\n\nReturns:\n    DatasetResponse: Dataset details\n\nRaises:\n    HTTPException: If dataset not found or user doesn't have access",
-        "operationId": "get_dataset_api_datasets__dataset_id__get",
-        "parameters": [
-          {
-            "name": "dataset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Dataset Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Datasets"
-        ],
-        "summary": "Delete Dataset",
-        "description": "Delete dataset by ID.\n\nArgs:\n    dataset_id: Dataset ID\n    db: Database session\n\nRaises:\n    HTTPException: If dataset not found or user doesn't have permission",
-        "operationId": "delete_dataset_api_datasets__dataset_id__delete",
-        "parameters": [
-          {
-            "name": "dataset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Dataset Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Datasets"
-        ],
-        "summary": "Update Dataset",
-        "description": "Update dataset by ID.\n\nArgs:\n    dataset_id: Dataset ID\n    dataset_data: Dataset update data\n    db: Database session\n\nReturns:\n    DatasetResponse: Updated dataset\n\nRaises:\n    HTTPException: If dataset not found or user doesn't have permission",
-        "operationId": "update_dataset_api_datasets__dataset_id__put",
-        "parameters": [
-          {
-            "name": "dataset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Dataset Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DatasetUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/datasets/schema/{dataset_type}": {
-      "get": {
-        "tags": [
-          "Datasets"
-        ],
-        "summary": "Get Dataset Type Schema",
-        "description": "Get the schema for a specific dataset type.\n\nThis endpoint provides information about required and optional fields,\nas well as which evaluation metrics are supported for this dataset type.\n\nArgs:\n    dataset_type: Type of dataset to get schema for\n\nReturns:\n    DatasetSchemaResponse: Schema information including supported metrics",
-        "operationId": "get_dataset_type_schema_api_datasets_schema__dataset_type__get",
-        "parameters": [
-          {
-            "name": "dataset_type",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/DatasetType"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetSchemaResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/datasets/metrics/{dataset_type}": {
-      "get": {
-        "tags": [
-          "Datasets"
-        ],
-        "summary": "Get Supported Metrics",
-        "description": "Get supported metrics for a specific dataset type.\n\nArgs:\n    dataset_type: Type of dataset to get metrics for\n\nReturns:\n    Dict: Dictionary with dataset type and list of supported metrics",
-        "operationId": "get_supported_metrics_api_datasets_metrics__dataset_type__get",
-        "parameters": [
-          {
-            "name": "dataset_type",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/DatasetType"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "title": "Response Get Supported Metrics Api Datasets Metrics  Dataset Type  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/prompts/": {
-      "post": {
-        "tags": [
-          "Prompts"
-        ],
-        "summary": "Create Prompt",
-        "description": "Create a new prompt.",
-        "operationId": "create_prompt_api_prompts__post",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "Prompts"
-        ],
-        "summary": "List Prompts",
-        "description": "List prompts with optional filtering.",
-        "operationId": "list_prompts_api_prompts__get",
-        "parameters": [
-          {
-            "name": "skip",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 0,
-              "title": "Skip"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "is_public",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Is Public"
-            }
-          },
-          {
-            "name": "template_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Template Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PromptResponse"
-                  },
-                  "title": "Response List Prompts Api Prompts  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/prompts/{prompt_id}": {
-      "get": {
-        "tags": [
-          "Prompts"
-        ],
-        "summary": "Get Prompt",
-        "description": "Get prompt by ID.",
-        "operationId": "get_prompt_api_prompts__prompt_id__get",
-        "parameters": [
-          {
-            "name": "prompt_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Prompt Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Prompts"
-        ],
-        "summary": "Update Prompt",
-        "description": "Update prompt by ID.",
-        "operationId": "update_prompt_api_prompts__prompt_id__put",
-        "parameters": [
-          {
-            "name": "prompt_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Prompt Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Prompts"
-        ],
-        "summary": "Delete Prompt",
-        "description": "Delete prompt by ID.",
-        "operationId": "delete_prompt_api_prompts__prompt_id__delete",
-        "parameters": [
-          {
-            "name": "prompt_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Prompt Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/": {
-      "post": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Create Evaluation",
-        "description": "Create a new evaluation.",
-        "operationId": "create_evaluation_api_evaluations__post",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EvaluationCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "List Evaluations",
-        "description": "List evaluations with optional filtering.",
-        "operationId": "list_evaluations_api_evaluations__get",
-        "parameters": [
-          {
-            "name": "skip",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 0,
-              "title": "Skip"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/EvaluationStatus"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "name": "agent_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Agent Id"
-            }
-          },
-          {
-            "name": "dataset_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/EvaluationResponse"
-                  },
-                  "title": "Response List Evaluations Api Evaluations  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/{evaluation_id}": {
-      "get": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Get Evaluation",
-        "description": "Get evaluation by ID with all related details.",
-        "operationId": "get_evaluation_api_evaluations__evaluation_id__get",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationDetailResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Update Evaluation",
-        "description": "Update evaluation by ID.",
-        "operationId": "update_evaluation_api_evaluations__evaluation_id__put",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EvaluationUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Delete Evaluation",
-        "description": "Delete evaluation by ID.",
-        "operationId": "delete_evaluation_api_evaluations__evaluation_id__delete",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/{evaluation_id}/start": {
-      "post": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Start Evaluation",
-        "description": "Start an evaluation.\n\nThis endpoint initiates the evaluation process, which will run asynchronously.\nThe status will change from PENDING to RUNNING, and eventually to COMPLETED or FAILED.\nYou can check the progress using the /progress endpoint.",
-        "operationId": "start_evaluation_api_evaluations__evaluation_id__start_post",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/{evaluation_id}/progress": {
-      "get": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Get Evaluation Progress",
-        "description": "Get the progress of an evaluation.\n\nThis endpoint returns detailed information about the evaluation progress,\nincluding the current status, number of processed items, and percentage complete.",
-        "operationId": "get_evaluation_progress_api_evaluations__evaluation_id__progress_get",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Evaluation Progress Api Evaluations  Evaluation Id  Progress Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/{evaluation_id}/cancel": {
-      "post": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Cancel Evaluation",
-        "description": "Cancel a running evaluation.",
-        "operationId": "cancel_evaluation_api_evaluations__evaluation_id__cancel_post",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/{evaluation_id}/results": {
-      "get": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Get Evaluation Results",
-        "description": "Get results for an evaluation.",
-        "operationId": "get_evaluation_results_api_evaluations__evaluation_id__results_get",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  },
-                  "title": "Response Get Evaluation Results Api Evaluations  Evaluation Id  Results Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/metrics/{dataset_type}": {
-      "get": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Get Supported Metrics",
-        "description": "Get supported metrics for a specific dataset type.\n\nThis endpoint returns the list of metrics that can be calculated for a given dataset type.",
-        "operationId": "get_supported_metrics_api_evaluations_metrics__dataset_type__get",
-        "parameters": [
-          {
-            "name": "dataset_type",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Dataset Type"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    ]
-                  },
-                  "title": "Response Get Supported Metrics Api Evaluations Metrics  Dataset Type  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/evaluations/{evaluation_id}/test": {
-      "post": {
-        "tags": [
-          "Evaluations"
-        ],
-        "summary": "Test Evaluation",
-        "description": "Test an evaluation with sample data without creating results.\n\nThis is useful for validating configurations and testing metrics\nbefore running a full evaluation.\n\nThe request body should contain test data in the format:\n{\n    \"query\": \"Sample query\",\n    \"context\": \"Sample context\",\n    \"answer\": \"Sample answer\",\n    \"ground_truth\": \"Optional ground truth\"\n}",
-        "operationId": "test_evaluation_api_evaluations__evaluation_id__test_post",
-        "parameters": [
-          {
-            "name": "evaluation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evaluation Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "title": "Test Data"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Test Evaluation Api Evaluations  Evaluation Id  Test Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
+
     "/api/agents/": {
       "post": {
         "tags": [
@@ -1246,7 +56,7 @@
           "Agents"
         ],
         "summary": "List Agents",
-        "description": "List Agents with optional filtering.\n\nArgs:\n    skip: Number of records to skip\n    limit: Maximum number of records to return\n    domain: Optional domain filter\n    is_active: Optional active status filter\n    name: Optional name filter (partial match)\n    db: Database session\n\nReturns:\n    List of agents matching the criteria",
+        "description": "List Agents with optional filtering and pagination.\n\nArgs:\n    skip: Number of records to skip\n    limit: Maximum number of records to return\n    domain: Optional domain filter\n    is_active: Optional active status filter\n    name: Optional name filter (partial match)\n    integration_type: Optional integration type filter\n    db: Database session\n\nReturns:\n    Dict containing list of agents and pagination info",
         "operationId": "list_agents_api_agents__get",
         "parameters": [
           {
@@ -1322,6 +132,24 @@
               "title": "Name"
             },
             "description": "Filter agents by name (partial match)"
+          },
+          {
+            "name": "integration_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/IntegrationType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter agents by integration type",
+              "title": "Integration Type"
+            },
+            "description": "Filter agents by integration type"
           }
         ],
         "responses": {
@@ -1330,10 +158,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AgentResponse"
-                  },
+                  "type": "object",
+                  "additionalProperties": true,
                   "title": "Response List Agents Api Agents  Get"
                 }
               }
@@ -1541,31 +367,45 @@
         }
       }
     },
-    "/api/reports/": {
+    "/api/agents/{agent_id}/test-mcp": {
       "post": {
         "tags": [
-          "Reports"
+          "Agents"
         ],
-        "summary": "Create Report",
-        "description": "Create a new Report.\n\nArgs:\n    report_data: The report data to create\n    db: Database session\n\nReturns:\n    The created report\n\nRaises:\n    HTTPException: If validation fails",
-        "operationId": "create_report_api_reports__post",
+        "summary": "Test Mcp Agent",
+        "description": "Test an MCP agent with a simple message.\n\nArgs:\n    agent_id: The ID of the agent to test\n    test_message: Message to test with\n    db: Database session\n\nReturns:\n    The response from the agent\n\nRaises:\n    HTTPException: If agent not found, is inactive, or the test fails",
+        "operationId": "test_mcp_agent_api_agents__agent_id__test_mcp_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReportCreate"
+                "$ref": "#/components/schemas/Body_test_mcp_agent_api_agents__agent_id__test_mcp_post"
               }
             }
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReportResponse"
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Test Mcp Agent Api Agents  Agent Id  Test Mcp Post"
                 }
               }
             }
@@ -1581,107 +421,26 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/agents/{agent_id}/tools": {
       "get": {
         "tags": [
-          "Reports"
+          "Agents"
         ],
-        "summary": "List Reports",
-        "description": "List Reports with optional filtering.\n\nArgs:\n    skip: Number of records to skip\n    limit: Maximum number of records to return\n    evaluation_id: Optional filter by evaluation ID\n    status: Optional filter by report status\n    is_public: Optional filter by public status\n    name: Optional filter by name (partial match)\n    db: Database session\n\nReturns:\n    List of reports",
-        "operationId": "list_reports_api_reports__get",
+        "summary": "List Agent Tools",
+        "description": "List available tools for an MCP agent.\n\nArgs:\n    agent_id: The ID of the agent\n    db: Database session\n\nReturns:\n    List of available tools\n\nRaises:\n    HTTPException: If agent not found, is inactive, or is not an MCP agent",
+        "operationId": "list_agent_tools_api_agents__agent_id__tools_get",
         "parameters": [
           {
-            "name": "skip",
-            "in": "query",
-            "required": false,
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
             "schema": {
-              "type": "integer",
-              "default": 0,
-              "title": "Skip"
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
             }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "evaluation_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by evaluation ID",
-              "title": "Evaluation Id"
-            },
-            "description": "Filter by evaluation ID"
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ReportStatus"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by report status",
-              "title": "Status"
-            },
-            "description": "Filter by report status"
-          },
-          {
-            "name": "is_public",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by public status",
-              "title": "Is Public"
-            },
-            "description": "Filter by public status"
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by name (partial match)",
-              "title": "Name"
-            },
-            "description": "Filter by name (partial match)"
           }
         ],
         "responses": {
@@ -1692,9 +451,10 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ReportResponse"
+                    "type": "object",
+                    "additionalProperties": true
                   },
-                  "title": "Response List Reports Api Reports  Get"
+                  "title": "Response List Agent Tools Api Agents  Agent Id  Tools Get"
                 }
               }
             }
@@ -1712,261 +472,23 @@
         }
       }
     },
-    "/api/reports/{report_id}": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Get Report",
-        "description": "Get Report by ID.\n\nArgs:\n    report_id: The ID of the report to retrieve\n    db: Database session\n\nReturns:\n    The requested report\n\nRaises:\n    HTTPException: If report not found",
-        "operationId": "get_report_api_reports__report_id__get",
-        "parameters": [
-          {
-            "name": "report_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Report Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReportDetailResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Update Report",
-        "description": "Update Report by ID.\n\nArgs:\n    report_id: The ID of the report to update\n    report_data: The updated report data\n    db: Database session\n\nReturns:\n    The updated report\n\nRaises:\n    HTTPException: If report not found or validation fails",
-        "operationId": "update_report_api_reports__report_id__put",
-        "parameters": [
-          {
-            "name": "report_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Report Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReportUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReportResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Delete Report",
-        "description": "Delete Report by ID.\n\nArgs:\n    report_id: The ID of the report to delete\n    db: Database session\n\nRaises:\n    HTTPException: If report not found or deletion fails",
-        "operationId": "delete_report_api_reports__report_id__delete",
-        "parameters": [
-          {
-            "name": "report_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Report Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reports/{report_id}/generate": {
+    "/api/agents/{agent_id}/health": {
       "post": {
         "tags": [
-          "Reports"
+          "Agents"
         ],
-        "summary": "Generate Report",
-        "description": "Generate a report file.\n\nArgs:\n    report_id: The ID of the report to generate\n    force_regenerate: Whether to force regeneration even if already generated\n    db: Database session\n\nReturns:\n    The updated report\n\nRaises:\n    HTTPException: If report not found or generation fails",
-        "operationId": "generate_report_api_reports__report_id__generate_post",
+        "summary": "Check Agent Health",
+        "description": "Check if an agent is healthy and available.\n\nArgs:\n    agent_id: The ID of the agent to check\n    db: Database session\n\nReturns:\n    Dict with health status\n\nRaises:\n    HTTPException: If agent not found or is inactive",
+        "operationId": "check_agent_health_api_agents__agent_id__health_post",
         "parameters": [
           {
-            "name": "report_id",
+            "name": "agent_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Report Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_generate_report_api_reports__report_id__generate_post"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReportResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reports/{report_id}/send": {
-      "post": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Send Report",
-        "description": "Send a report via email.\n\nArgs:\n    report_id: The ID of the report to send\n    send_data: Email sending configuration\n    db: Database session\n\nReturns:\n    Success message\n\nRaises:\n    HTTPException: If report not found or sending fails",
-        "operationId": "send_report_api_reports__report_id__send_post",
-        "parameters": [
-          {
-            "name": "report_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Report Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SendReportRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reports/{report_id}/download": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Download Report",
-        "description": "Download a report file.\n\nArgs:\n    report_id: The ID of the report to download\n    db: Database session\n\nReturns:\n    The report file for download\n\nRaises:\n    HTTPException: If report not found or file not generated",
-        "operationId": "download_report_api_reports__report_id__download_get",
-        "parameters": [
-          {
-            "name": "report_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Report Id"
+              "title": "Agent Id"
             }
           }
         ],
@@ -1976,87 +498,19 @@
             "content": {
               "application/json": {
                 "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reports/{report_id}/preview": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Preview Report",
-        "description": "Preview a report in HTML format.\n\nArgs:\n    report_id: The ID of the report to preview\n    db: Database session\n\nReturns:\n    HTML preview of the report\n\nRaises:\n    HTTPException: If report not found or preview generation fails",
-        "operationId": "preview_report_api_reports__report_id__preview_get",
-        "parameters": [
-          {
-            "name": "report_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Report Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reports/status/counts": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Get Report Status Counts",
-        "description": "Get counts of reports by status.\n\nArgs:\n    db: Database session\n\nReturns:\n    Dictionary mapping status to count",
-        "operationId": "get_report_status_counts_api_reports_status_counts_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
-                  },
                   "type": "object",
-                  "title": "Response Get Report Status Counts Api Reports Status Counts Get"
+                  "additionalProperties": true,
+                  "title": "Response Check Agent Health Api Agents  Agent Id  Health Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2180,6 +634,94 @@
             ],
             "title": "Tags",
             "description": "Tags for categorizing the agent"
+          },
+          "integration_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntegrationType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Type of integration for this agent",
+            "default": "azure_openai"
+          },
+          "auth_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuthType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Authentication method for this agent",
+            "default": "api_key"
+          },
+          "auth_credentials": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Credentials",
+            "description": "Credentials for authentication (stored securely)"
+          },
+          "request_template": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Template",
+            "description": "Template for request payload"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format",
+            "description": "Expected response format"
+          },
+          "retry_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Config",
+            "description": "Configuration for retry behavior"
+          },
+          "content_filter_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Filter Config",
+            "description": "Configuration for content filtering"
           }
         },
         "type": "object",
@@ -2193,12 +735,14 @@
       },
       "AgentResponse": {
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
           "name": {
             "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Name",
-            "description": "Name of the agent"
+            "title": "Name"
           },
           "description": {
             "anyOf": [
@@ -2209,20 +753,15 @@
                 "type": "null"
               }
             ],
-            "title": "Description",
-            "description": "Description of the agent's purpose and capabilities"
+            "title": "Description"
           },
           "api_endpoint": {
             "type": "string",
-            "title": "Api Endpoint",
-            "description": "API endpoint URL for the agent"
+            "title": "Api Endpoint"
           },
           "domain": {
             "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Domain",
-            "description": "Domain/category the agent specializes in"
+            "title": "Domain"
           },
           "config": {
             "anyOf": [
@@ -2234,13 +773,11 @@
                 "type": "null"
               }
             ],
-            "title": "Config",
-            "description": "Configuration options for the agent"
+            "title": "Config"
           },
           "is_active": {
             "type": "boolean",
             "title": "Is Active",
-            "description": "Whether the agent is currently active",
             "default": true
           },
           "model_type": {
@@ -2252,21 +789,18 @@
                 "type": "null"
               }
             ],
-            "title": "Model Type",
-            "description": "Type of model used by the agent"
+            "title": "Model Type"
           },
           "version": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
             "title": "Version",
-            "description": "Version of the agent",
             "default": "1.0.0"
           },
           "tags": {
@@ -2281,13 +815,91 @@
                 "type": "null"
               }
             ],
-            "title": "Tags",
-            "description": "Tags for categorizing the agent"
+            "title": "Tags"
           },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
+          "integration_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntegrationType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "azure_openai"
+          },
+          "auth_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuthType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "api_key"
+          },
+          "auth_credentials": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Credentials"
+          },
+          "request_template": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Template"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          },
+          "retry_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Config"
+          },
+          "content_filter_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Filter Config"
           },
           "created_at": {
             "type": "string",
@@ -2302,10 +914,10 @@
         },
         "type": "object",
         "required": [
+          "id",
           "name",
           "api_endpoint",
           "domain",
-          "id",
           "created_at",
           "updated_at"
         ],
@@ -2421,11 +1033,119 @@
               }
             ],
             "title": "Tags"
+          },
+          "integration_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntegrationType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "auth_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuthType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "auth_credentials": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Credentials"
+          },
+          "request_template": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Template"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          },
+          "retry_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Config"
+          },
+          "content_filter_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Filter Config"
           }
         },
         "type": "object",
         "title": "AgentUpdate",
         "description": "Schema for updating an Agent."
+      },
+      "AuthStatusResponse": {
+        "properties": {
+          "authenticated": {
+            "type": "boolean",
+            "title": "Authenticated"
+          },
+          "user": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User"
+          }
+        },
+        "type": "object",
+        "required": [
+          "authenticated"
+        ],
+        "title": "AuthStatusResponse",
+        "description": "Schema for authentication status response."
+      },
+      "AuthType": {
+        "type": "string",
+        "enum": [
+          "api_key",
+          "bearer_token",
+          "none"
+        ],
+        "title": "AuthType",
+        "description": "Authentication types for agents."
       },
       "Body_create_dataset_api_datasets__post": {
         "properties": {
@@ -2477,13 +1197,9 @@
         "type": "object",
         "title": "Body_generate_report_api_reports__report_id__generate_post"
       },
-      "DatasetResponse": {
+      "Body_search_evaluations_api_evaluations_search_post": {
         "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
+          "query": {
             "anyOf": [
               {
                 "type": "string"
@@ -2492,12 +1208,10 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Query",
+            "description": "Search query for name or description"
           },
-          "type": {
-            "$ref": "#/components/schemas/DatasetType"
-          },
-          "schema_definition": {
+          "filters": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -2507,885 +1221,53 @@
                 "type": "null"
               }
             ],
-            "title": "Schema Definition"
+            "title": "Filters",
+            "description": "Additional filters"
           },
-          "meta_info": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Meta Info"
+          "skip": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Skip",
+            "description": "Number of records to skip",
+            "default": 0
           },
-          "version": {
+          "limit": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "Limit",
+            "description": "Maximum number of records to return",
+            "default": 100
+          },
+          "sort_by": {
             "type": "string",
-            "title": "Version",
-            "default": "1.0.0"
+            "title": "Sort By",
+            "description": "Field to sort by",
+            "default": "created_at"
           },
-          "row_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Row Count"
-          },
-          "is_public": {
-            "type": "boolean",
-            "title": "Is Public",
-            "default": false
-          },
-          "id": {
+          "sort_dir": {
             "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "file_path": {
+            "title": "Sort Dir",
+            "description": "Sort direction (asc or desc)",
+            "default": "desc"
+          }
+        },
+        "type": "object",
+        "title": "Body_search_evaluations_api_evaluations_search_post"
+      },
+      "Body_test_mcp_agent_api_agents__agent_id__test_mcp_post": {
+        "properties": {
+          "test_message": {
             "type": "string",
-            "title": "File Path"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
+            "title": "Test Message",
+            "description": "Message to test with"
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "type",
-          "id",
-          "file_path",
-          "created_at",
-          "updated_at"
+          "test_message"
         ],
-        "title": "DatasetResponse",
-        "description": "Schema for Dataset response."
-      },
-      "DatasetSchemaInfo": {
-        "properties": {
-          "required_fields": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Required Fields",
-            "description": "Fields that must be present in dataset items"
-          },
-          "optional_fields": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Optional Fields",
-            "description": "Fields that may be present in dataset items"
-          },
-          "field_descriptions": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
-            "title": "Field Descriptions",
-            "description": "Descriptions of each field"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description",
-            "description": "Description of the dataset schema",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "required": [
-          "required_fields"
-        ],
-        "title": "DatasetSchemaInfo",
-        "description": "Schema information for a dataset type."
-      },
-      "DatasetSchemaResponse": {
-        "properties": {
-          "dataset_type": {
-            "$ref": "#/components/schemas/DatasetType",
-            "description": "Type of the dataset"
-          },
-          "schema": {
-            "$ref": "#/components/schemas/DatasetSchemaInfo",
-            "description": "Schema information for the dataset type"
-          },
-          "supported_metrics": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Supported Metrics",
-            "description": "Metrics that can be calculated with this dataset type"
-          }
-        },
-        "type": "object",
-        "required": [
-          "dataset_type",
-          "schema"
-        ],
-        "title": "DatasetSchemaResponse",
-        "description": "Response for dataset schema information."
-      },
-      "DatasetType": {
-        "type": "string",
-        "enum": [
-          "user_query",
-          "context",
-          "question_answer",
-          "conversation",
-          "custom"
-        ],
-        "title": "DatasetType"
-      },
-      "DatasetUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DatasetType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "schema_definition": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Schema Definition"
-          },
-          "meta_info": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Meta Info"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version"
-          },
-          "row_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Row Count"
-          },
-          "is_public": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Public"
-          }
-        },
-        "type": "object",
-        "title": "DatasetUpdate",
-        "description": "Schema for updating a Dataset."
-      },
-      "EmailRecipient": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "title": "Email",
-            "description": "Email address of the recipient"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name",
-            "description": "Name of the recipient"
-          }
-        },
-        "type": "object",
-        "required": [
-          "email"
-        ],
-        "title": "EmailRecipient",
-        "description": "Schema for email recipient."
-      },
-      "EvaluationCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "method": {
-            "$ref": "#/components/schemas/EvaluationMethod"
-          },
-          "status": {
-            "$ref": "#/components/schemas/EvaluationStatus",
-            "default": "pending"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config"
-          },
-          "metrics": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metrics"
-          },
-          "experiment_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Experiment Id"
-          },
-          "start_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Start Time"
-          },
-          "end_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "End Time"
-          },
-          "agent_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Agent Id"
-          },
-          "dataset_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Dataset Id"
-          },
-          "prompt_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Prompt Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "method",
-          "agent_id",
-          "dataset_id",
-          "prompt_id"
-        ],
-        "title": "EvaluationCreate",
-        "description": "Schema for creating a new Evaluation."
-      },
-      "EvaluationDetailResponse": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "method": {
-            "$ref": "#/components/schemas/EvaluationMethod"
-          },
-          "status": {
-            "$ref": "#/components/schemas/EvaluationStatus",
-            "default": "pending"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config"
-          },
-          "metrics": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metrics"
-          },
-          "experiment_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Experiment Id"
-          },
-          "start_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Start Time"
-          },
-          "end_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "End Time"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "agent_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Agent Id"
-          },
-          "dataset_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Dataset Id"
-          },
-          "prompt_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Prompt Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          },
-          "results": {
-            "items": {
-              "$ref": "#/components/schemas/EvaluationResultResponse"
-            },
-            "type": "array",
-            "title": "Results",
-            "default": []
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "method",
-          "id",
-          "agent_id",
-          "dataset_id",
-          "prompt_id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "EvaluationDetailResponse",
-        "description": "Schema for detailed Evaluation response with results."
-      },
-      "EvaluationMethod": {
-        "type": "string",
-        "enum": [
-          "ragas",
-          "deepeval",
-          "custom",
-          "manual"
-        ],
-        "title": "EvaluationMethod"
-      },
-      "EvaluationResponse": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "method": {
-            "$ref": "#/components/schemas/EvaluationMethod"
-          },
-          "status": {
-            "$ref": "#/components/schemas/EvaluationStatus",
-            "default": "pending"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config"
-          },
-          "metrics": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metrics"
-          },
-          "experiment_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Experiment Id"
-          },
-          "start_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Start Time"
-          },
-          "end_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "End Time"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "agent_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Agent Id"
-          },
-          "dataset_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Dataset Id"
-          },
-          "prompt_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Prompt Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "method",
-          "id",
-          "agent_id",
-          "dataset_id",
-          "prompt_id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "EvaluationResponse",
-        "description": "Schema for Evaluation response."
-      },
-      "EvaluationResultResponse": {
-        "properties": {
-          "overall_score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Overall Score"
-          },
-          "raw_results": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Raw Results"
-          },
-          "dataset_sample_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dataset Sample Id"
-          },
-          "input_data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input Data"
-          },
-          "output_data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output Data"
-          },
-          "processing_time_ms": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Processing Time Ms"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "evaluation_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Evaluation Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          },
-          "metric_scores": {
-            "items": {
-              "$ref": "#/components/schemas/MetricScoreResponse"
-            },
-            "type": "array",
-            "title": "Metric Scores",
-            "default": []
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "evaluation_id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "EvaluationResultResponse",
-        "description": "Schema for EvaluationResult response."
-      },
-      "EvaluationStatus": {
-        "type": "string",
-        "enum": [
-          "pending",
-          "running",
-          "completed",
-          "failed",
-          "cancelled"
-        ],
-        "title": "EvaluationStatus"
-      },
-      "EvaluationUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EvaluationStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config"
-          },
-          "metrics": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metrics"
-          },
-          "experiment_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Experiment Id"
-          },
-          "start_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Start Time"
-          },
-          "end_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "End Time"
-          }
-        },
-        "type": "object",
-        "title": "EvaluationUpdate",
-        "description": "Schema for updating an Evaluation."
+        "title": "Body_test_mcp_agent_api_agents__agent_id__test_mcp_post"
       },
       "HTTPValidationError": {
         "properties": {
@@ -3400,767 +1282,53 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "MetricScoreResponse": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "value": {
-            "type": "number",
-            "title": "Value"
-          },
-          "weight": {
-            "type": "number",
-            "title": "Weight",
-            "default": 1
-          },
-          "meta_info": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Meta Info"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "result_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Result Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "value",
-          "id",
-          "result_id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "MetricScoreResponse",
-        "description": "Schema for MetricScore response."
-      },
-      "PromptCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "content": {
-            "type": "string",
-            "title": "Content"
-          },
-          "parameters": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parameters"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version",
-            "default": "1.0.0"
-          },
-          "is_public": {
-            "type": "boolean",
-            "title": "Is Public",
-            "default": false
-          },
-          "template_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Template Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "content"
-        ],
-        "title": "PromptCreate",
-        "description": "Schema for creating a new Prompt."
-      },
-      "PromptResponse": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "content": {
-            "type": "string",
-            "title": "Content"
-          },
-          "parameters": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parameters"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version",
-            "default": "1.0.0"
-          },
-          "is_public": {
-            "type": "boolean",
-            "title": "Is Public",
-            "default": false
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "template_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Template Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "content",
-          "id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "PromptResponse",
-        "description": "Schema for Prompt response."
-      },
-      "PromptUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "content": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
-          },
-          "parameters": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parameters"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version"
-          },
-          "is_public": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Public"
-          },
-          "template_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Template Id"
-          }
-        },
-        "type": "object",
-        "title": "PromptUpdate",
-        "description": "Schema for updating a Prompt."
-      },
-      "ReportCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Name",
-            "description": "Name of the report"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Description of the report"
-          },
-          "format": {
-            "$ref": "#/components/schemas/ReportFormat",
-            "description": "Format of the report",
-            "default": "pdf"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config",
-            "description": "Configuration options for the report"
-          },
-          "evaluation_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Evaluation Id",
-            "description": "ID of the evaluation this report is based on"
-          },
-          "include_executive_summary": {
-            "type": "boolean",
-            "title": "Include Executive Summary",
-            "description": "Include executive summary in the report",
-            "default": true
-          },
-          "include_evaluation_details": {
-            "type": "boolean",
-            "title": "Include Evaluation Details",
-            "description": "Include evaluation details in the report",
-            "default": true
-          },
-          "include_metrics_overview": {
-            "type": "boolean",
-            "title": "Include Metrics Overview",
-            "description": "Include metrics overview in the report",
-            "default": true
-          },
-          "include_detailed_results": {
-            "type": "boolean",
-            "title": "Include Detailed Results",
-            "description": "Include detailed results in the report",
-            "default": true
-          },
-          "include_agent_responses": {
-            "type": "boolean",
-            "title": "Include Agent Responses",
-            "description": "Include agent responses in the report",
-            "default": true
-          },
-          "max_examples": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Examples",
-            "description": "Maximum number of examples to include in detailed results"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "evaluation_id"
-        ],
-        "title": "ReportCreate",
-        "description": "Schema for creating a new Report."
-      },
-      "ReportDetailResponse": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Name",
-            "description": "Name of the report"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Description of the report"
-          },
-          "format": {
-            "$ref": "#/components/schemas/ReportFormat",
-            "description": "Format of the report",
-            "default": "pdf"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config",
-            "description": "Configuration options for the report"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "evaluation_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Evaluation Id"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ReportStatus"
-          },
-          "file_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "File Path"
-          },
-          "content": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
-          },
-          "last_sent_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Sent At"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          },
-          "evaluation_summary": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Evaluation Summary",
-            "description": "Summary of the evaluation"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "id",
-          "evaluation_id",
-          "status",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "ReportDetailResponse",
-        "description": "Schema for detailed Report response with evaluation summary."
-      },
-      "ReportFormat": {
+      "IntegrationType": {
         "type": "string",
         "enum": [
-          "pdf",
-          "html",
-          "json"
+          "azure_openai",
+          "mcp",
+          "direct_api",
+          "custom"
         ],
-        "title": "ReportFormat"
+        "title": "IntegrationType",
+        "description": "Integration types for agents."
       },
-      "ReportResponse": {
+      "UserResponse": {
         "properties": {
+          "sub": {
+            "type": "string",
+            "title": "Sub"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
           "name": {
             "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Name",
-            "description": "Name of the report"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Description of the report"
-          },
-          "format": {
-            "$ref": "#/components/schemas/ReportFormat",
-            "description": "Format of the report",
-            "default": "pdf"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config",
-            "description": "Configuration options for the report"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "evaluation_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Evaluation Id"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ReportStatus"
-          },
-          "file_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "File Path"
-          },
-          "content": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
-          },
-          "last_sent_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Sent At"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "id",
-          "evaluation_id",
-          "status",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "ReportResponse",
-        "description": "Schema for Report response."
-      },
-      "ReportStatus": {
-        "type": "string",
-        "enum": [
-          "draft",
-          "generated",
-          "sent",
-          "failed"
-        ],
-        "title": "ReportStatus"
-      },
-      "ReportUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 255,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Name"
           },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "format": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ReportFormat"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config"
-          },
-          "is_public": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Public"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ReportStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "title": "ReportUpdate",
-        "description": "Schema for updating a Report."
-      },
-      "SendReportRequest": {
-        "properties": {
-          "recipients": {
+          "roles": {
             "items": {
-              "$ref": "#/components/schemas/EmailRecipient"
+              "type": "string"
             },
             "type": "array",
-            "title": "Recipients",
-            "description": "List of recipients"
-          },
-          "subject": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subject",
-            "description": "Email subject"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message",
-            "description": "Email message"
-          },
-          "include_pdf": {
-            "type": "boolean",
-            "title": "Include Pdf",
-            "description": "Whether to include the PDF attachment",
-            "default": true
+            "title": "Roles"
           }
         },
         "type": "object",
         "required": [
-          "recipients"
+          "sub",
+          "username",
+          "email",
+          "name",
+          "roles"
         ],
-        "title": "SendReportRequest",
-        "description": "Schema for sending a report via email."
+        "title": "UserResponse",
+        "description": "Schema for user response."
       },
       "ValidationError": {
         "properties": {
@@ -4195,6 +1363,19 @@
         ],
         "title": "ValidationError"
       }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter your JWT token in the format: **Bearer &lt;token&gt;**"
+      }
     }
-  }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
 }

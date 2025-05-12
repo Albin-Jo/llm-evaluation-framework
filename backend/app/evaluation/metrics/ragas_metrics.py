@@ -8,10 +8,16 @@ from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import (
     Faithfulness,
     ResponseRelevancy,
-    LLMContextPrecisionWithoutReference,
-    LLMContextRecall,
     ContextEntityRecall,
-    NoiseSensitivity
+    AnswerCorrectness,
+    AnswerRelevancy,
+    AnswerSimilarity,
+    FactualCorrectness,
+    ContextPrecision,
+    ContextRecall,
+    NoiseSensitivity,
+    AspectCritic,
+    TopicAdherenceScore
 )
 
 logger = logging.getLogger(__name__)
@@ -144,6 +150,7 @@ async def _calculate_with_ragas(
         return None
 
 
+# Existing metric implementations
 async def calculate_faithfulness(answer: str, context: Union[str, List[str]]) -> float:
     """
     Calculate faithfulness score using RAGAS if available.
@@ -269,10 +276,10 @@ async def calculate_context_precision(context: Union[str, List[str]], query: str
     """
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        # LLMContextPrecisionWithoutReference doesn't need an answer but the API requires it
+        # ContextPrecision doesn't need an answer but the API requires it
         placeholder_answer = "This is a placeholder answer for context precision evaluation."
         result = await _calculate_with_ragas(
-            LLMContextPrecisionWithoutReference,
+            ContextPrecision,
             {"query": query, "answer": placeholder_answer, "context": context}
         )
         if result is not None:
@@ -315,10 +322,10 @@ async def calculate_context_recall(context: Union[str, List[str]], query: str, g
     """
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        # LLMContextRecall requires a reference/ground_truth
+        # ContextRecall requires a reference/ground_truth
         placeholder_answer = "This is a placeholder answer for context recall evaluation."
         result = await _calculate_with_ragas(
-            LLMContextRecall,
+            ContextRecall,
             {
                 "query": query,
                 "answer": placeholder_answer,
@@ -483,6 +490,232 @@ def _calculate_noise_sensitivity_fallback(answer: str, ground_truth: str) -> flo
     return min(1.0, 1.0 - f1)
 
 
+# NEW METRIC IMPLEMENTATIONS
+
+async def calculate_answer_correctness(answer: str, ground_truth: str) -> float:
+    """
+    Calculate answer correctness score using RAGAS if available.
+
+    Args:
+        answer: LLM answer
+        ground_truth: Expected answer
+
+    Returns:
+        float: Correctness score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        placeholder_query = "This is a placeholder query for answer correctness."
+        placeholder_context = ["This is a placeholder context for answer correctness evaluation."]
+
+        result = await _calculate_with_ragas(
+            AnswerCorrectness,
+            {
+                "query": placeholder_query,
+                "answer": answer,
+                "context": placeholder_context,
+                "ground_truth": ground_truth
+            },
+            requires_reference=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback implementation
+    return _calculate_answer_correctness_fallback(answer, ground_truth)
+
+
+def _calculate_answer_correctness_fallback(answer: str, ground_truth: str) -> float:
+    """Simple fallback implementation for answer correctness when RAGAS is not available."""
+    if not answer or not ground_truth:
+        return 0.0
+
+    answer_tokens = answer.lower().split()
+    ground_truth_tokens = ground_truth.lower().split()
+
+    if not answer_tokens or not ground_truth_tokens:
+        return 0.0
+
+    # Calculate F1-like score
+    common_tokens = sum(1 for token in answer_tokens if token in ground_truth_tokens)
+
+    if not common_tokens:
+        return 0.0
+
+    precision = common_tokens / len(answer_tokens)
+    recall = common_tokens / len(ground_truth_tokens)
+
+    if precision + recall == 0:
+        return 0.0
+
+    f1 = 2 * (precision * recall) / (precision + recall)
+    return f1
+
+
+async def calculate_answer_relevancy(query: str, answer: str, context: Optional[Union[str, List[str]]] = None) -> float:
+    """
+    Calculate answer relevancy score using RAGAS if available.
+
+    Args:
+        query: User query
+        answer: LLM answer
+        context: Optional context
+
+    Returns:
+        float: Answer relevancy score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        sample = {
+            "query": query,
+            "answer": answer,
+            "context": context if context else [""]
+        }
+
+        result = await _calculate_with_ragas(
+            AnswerRelevancy,
+            sample,
+            requires_embeddings=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback to response relevancy as they measure similar things
+    return await calculate_response_relevancy(answer, query, context)
+
+
+async def calculate_answer_similarity(answer: str, ground_truth: str) -> float:
+    """
+    Calculate answer similarity score using RAGAS if available.
+
+    Args:
+        answer: LLM answer
+        ground_truth: Expected answer
+
+    Returns:
+        float: Similarity score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        placeholder_query = "This is a placeholder query for answer similarity."
+        placeholder_context = ["This is a placeholder context for answer similarity evaluation."]
+
+        result = await _calculate_with_ragas(
+            AnswerSimilarity,
+            {
+                "query": placeholder_query,
+                "answer": answer,
+                "context": placeholder_context,
+                "ground_truth": ground_truth
+            },
+            requires_reference=True,
+            requires_embeddings=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback implementation
+    return _calculate_answer_similarity_fallback(answer, ground_truth)
+
+
+def _calculate_answer_similarity_fallback(answer: str, ground_truth: str) -> float:
+    """Simple fallback implementation for answer similarity when RAGAS is not available."""
+    if not answer or not ground_truth:
+        return 0.0
+
+    # Convert to sets of words for a simple Jaccard similarity
+    answer_words = set(answer.lower().split())
+    ground_truth_words = set(ground_truth.lower().split())
+
+    if not answer_words or not ground_truth_words:
+        return 0.0
+
+    # Jaccard similarity: intersection size / union size
+    intersection = answer_words.intersection(ground_truth_words)
+    union = answer_words.union(ground_truth_words)
+
+    return len(intersection) / len(union)
+
+
+async def calculate_factual_correctness(answer: str, context: Union[str, List[str]]) -> float:
+    """
+    Calculate factual correctness score using RAGAS if available.
+
+    Args:
+        answer: LLM answer
+        context: Input context (string or list of strings)
+
+    Returns:
+        float: Factual correctness score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        placeholder_query = "This is a placeholder query for factual correctness."
+
+        result = await _calculate_with_ragas(
+            FactualCorrectness,
+            {
+                "query": placeholder_query,
+                "answer": answer,
+                "context": context
+            }
+        )
+        if result is not None:
+            return result
+
+    # Fallback to faithfulness as they measure similar things
+    return await calculate_faithfulness(answer, context)
+
+
+async def calculate_topic_adherence(query: str, answer: str) -> float:
+    """
+    Calculate topic adherence score using RAGAS if available.
+
+    Args:
+        query: User query
+        answer: LLM answer
+
+    Returns:
+        float: Topic adherence score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        placeholder_context = ["This is a placeholder context for topic adherence evaluation."]
+
+        result = await _calculate_with_ragas(
+            TopicAdherenceScore,
+            {
+                "query": query,
+                "answer": answer,
+                "context": placeholder_context
+            },
+            requires_embeddings=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback to response relevancy as they measure similar things
+    return await calculate_response_relevancy(answer, query)
+
+
+async def calculate_aspect_critic(query: str, answer: str, aspects: List[str]) -> Dict[str, float]:
+    """
+    Calculate aspect critic scores using RAGAS if available.
+
+    Args:
+        query: User query
+        answer: LLM answer
+        aspects: List of aspects to evaluate
+
+    Returns:
+        Dict[str, float]: Dictionary of aspect scores
+    """
+    # This is a special metric that returns multiple scores, one per aspect
+    # It's not directly compatible with our current metric framework
+    # So we'll just return a placeholder for now
+    return {aspect: 0.5 for aspect in aspects}
+
+
 # Mapping of metrics to their required dataset fields and calculation functions
 METRIC_REQUIREMENTS = {
     "faithfulness": {
@@ -514,15 +747,78 @@ METRIC_REQUIREMENTS = {
         "required_fields": ["query", "answer", "context", "ground_truth"],
         "calculation_func": calculate_noise_sensitivity,
         "description": "Measures the model's tendency to be misled by irrelevant information (lower is better)."
+    },
+    "answer_correctness": {
+        "required_fields": ["answer", "ground_truth"],
+        "calculation_func": calculate_answer_correctness,
+        "description": "Measures how accurately the answer matches the ground truth."
+    },
+    "answer_relevancy": {
+        "required_fields": ["query", "answer"],
+        "calculation_func": calculate_answer_relevancy,
+        "description": "Measures how relevant the answer is to the query."
+    },
+    "answer_similarity": {
+        "required_fields": ["answer", "ground_truth"],
+        "calculation_func": calculate_answer_similarity,
+        "description": "Measures the semantic similarity between the answer and the ground truth."
+    },
+    "factual_correctness": {
+        "required_fields": ["answer", "context"],
+        "calculation_func": calculate_factual_correctness,
+        "description": "Measures how factually accurate the answer is based on the provided context."
+    },
+    "TopicAdherenceScore": {
+        "required_fields": ["query", "answer"],
+        "calculation_func": calculate_topic_adherence,
+        "description": "Measures how well the answer stays on topic with the query."
     }
 }
 
 # Mapping of which metrics can be applied to which dataset types
 DATASET_TYPE_METRICS = {
-    "user_query": ["faithfulness", "response_relevancy", "context_precision"],
-    "context": ["context_precision", "context_recall", "context_entity_recall"],
-    "question_answer": ["faithfulness", "response_relevancy", "context_recall", "noise_sensitivity"],
-    "conversation": ["response_relevancy", "faithfulness"],
-    "custom": ["faithfulness", "response_relevancy", "context_precision", "context_recall",
-               "context_entity_recall", "noise_sensitivity"]
+    "user_query": [
+        "faithfulness",
+        "response_relevancy",
+        "context_precision",
+        "answer_relevancy",
+        "topic_adherence",
+        "factual_correctness"
+    ],
+    "context": [
+        "context_precision",
+        "context_recall",
+        "context_entity_recall",
+        "factual_correctness"
+    ],
+    "question_answer": [
+        "faithfulness",
+        "response_relevancy",
+        "context_recall",
+        "noise_sensitivity",
+        "answer_correctness",
+        "answer_similarity",
+        "answer_relevancy",
+        "factual_correctness",
+        "topic_adherence"
+    ],
+    "conversation": [
+        "response_relevancy",
+        "faithfulness",
+        "answer_relevancy",
+        "topic_adherence"
+    ],
+    "custom": [
+        "faithfulness",
+        "response_relevancy",
+        "context_precision",
+        "context_recall",
+        "context_entity_recall",
+        "noise_sensitivity",
+        "answer_correctness",
+        "answer_similarity",
+        "answer_relevancy",
+        "factual_correctness",
+        "topic_adherence"
+    ]
 }

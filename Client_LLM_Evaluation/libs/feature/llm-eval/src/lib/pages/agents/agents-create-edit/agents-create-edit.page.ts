@@ -3,8 +3,8 @@ import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule, AbstractControl } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, finalize, of, takeUntil, BehaviorSubject, Observable, timer } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
+import { Subject, finalize, of, takeUntil } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import {
   Agent,
   AgentCreate,
@@ -22,7 +22,7 @@ import {
   QracSelectComponent,
   QracTextAreaComponent
 } from '@ngtx-apps/ui/components';
-import { JsonEditorComponent } from '../../../components/json-editor/json-editor.component';
+import { SimpleJsonEditorComponent } from '../../../components/simple-json-editor/simple-json-editor.component';
 
 interface TabData {
   isLoaded: boolean;
@@ -40,7 +40,7 @@ interface TabData {
     QracTextBoxComponent,
     QracSelectComponent,
     QracTextAreaComponent,
-    JsonEditorComponent
+    SimpleJsonEditorComponent
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './agents-create-edit.page.html',
@@ -72,15 +72,6 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
   // JSON validation tracking
   jsonErrors: { [key: string]: string } = {};
   jsonCache: { [key: string]: any } = {};
-
-  // JSON editor states
-  jsonEditorStates: { [key: string]: boolean } = {
-    auth_credentials: false,
-    request_template: false,
-    config: false,
-    retry_config: false,
-    content_filter_config: false
-  };
 
   // Domain options for select dropdown
   domainOptions = [
@@ -654,14 +645,14 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
       case 1: // API Configuration Tab
         return (
           this.isFieldInvalid('api_endpoint') ||
-          !!this.jsonErrors['auth_credentials'] ||
-          !!this.jsonErrors['request_template']
+          !!this.jsonErrors['auth_credentials']
         );
       case 2: // Advanced Settings Tab
         return (
           !!this.jsonErrors['config'] ||
           !!this.jsonErrors['retry_config'] ||
-          !!this.jsonErrors['content_filter_config']
+          !!this.jsonErrors['content_filter_config'] ||
+          !!this.jsonErrors['request_template']
         );
       default:
         return false;

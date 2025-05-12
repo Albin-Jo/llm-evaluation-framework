@@ -5,14 +5,6 @@
 :host {
   display: block;
   width: 100%;
-
-  // Make sure styles apply to component 
-  ::ng-deep {
-    // Global component styles
-    .spinner, .spinner-sm {
-      @include spinner($size: 16px, $border-width: 2px, $color: $primary);
-    }
-  }
 }
 
 .agent-test-container {
@@ -53,10 +45,8 @@
 
   .title-container {
     .page-title {
-      font-size: $font-size-2xl;
-      font-weight: $font-weight-bold;
-      color: $text-primary;
-      margin: 0 0 $spacing-1 0;
+      @include page-title;
+      margin-bottom: $spacing-1;
     }
 
     .agent-name {
@@ -69,33 +59,16 @@
       flex-wrap: wrap;
 
       .domain-badge {
-        display: inline-block;
-        padding: $spacing-1 $spacing-2;
-        background-color: rgba($primary, 0.1);
-        color: $primary;
-        border-radius: $radius-sm;
-        font-size: $font-size-xs;
+        @include badge($primary-light, $primary);
       }
 
       .status-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: $spacing-1 $spacing-3;
-        border-radius: 9999px; // Fully rounded
-        font-size: $font-size-xs;
-        font-weight: $font-weight-semibold;
-        text-transform: capitalize;
-        height: 28px;
-
         &.active {
-          background-color: rgba($success, 0.1);
-          color: $success;
+          @include status-badge('success');
         }
 
         &.inactive {
-          background-color: rgba($error, 0.1);
-          color: $error;
+          @include status-badge('error');
         }
       }
     }
@@ -104,60 +77,11 @@
 
 // Loading and error states
 .loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: white;
-  padding: $spacing-12;
-  margin-bottom: $spacing-6;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
-  text-align: center;
-  
-  .spinner {
-    margin-bottom: $spacing-4;
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba($primary, 0.1);
-    border-radius: 50%;
-    border-top: 4px solid $primary;
-    animation: spin 1s linear infinite;
-  }
-  
-  p {
-    margin: 0;
-    color: $text-secondary;
-  }
+  @include loading-container;
 }
 
 .error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: white;
-  padding: $spacing-12;
-  margin-bottom: $spacing-6;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
-  text-align: center;
-  
-  .error-icon {
-    font-size: 2rem;
-    color: $error;
-    margin-bottom: $spacing-4;
-  }
-  
-  p {
-    margin: 0 0 $spacing-6 0;
-    color: $text-secondary;
-  }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  @include error-container;
 }
 
 // Test interface
@@ -165,20 +89,22 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: $spacing-6;
-  
+
   @include media-breakpoint-down(md) {
     grid-template-columns: 1fr;
   }
 
   .test-form-container {
-    background-color: white;
-    border-radius: $radius-lg;
+    @include card;
     overflow: hidden;
-    box-shadow: $shadow-sm;
   }
 
   .test-form {
     padding: $spacing-6;
+
+    @include media-breakpoint-down(md) {
+      padding: $spacing-4;
+    }
 
     .form-section {
       display: flex;
@@ -186,12 +112,10 @@
       gap: $spacing-5;
 
       .section-title {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
-        color: $text-primary;
+        @include section-title;
         border-bottom: 1px solid $border-color;
         padding-bottom: $spacing-3;
-        margin: 0 0 $spacing-4 0;
+        margin-bottom: $spacing-4;
       }
 
       .form-row {
@@ -200,11 +124,11 @@
         gap: $spacing-2;
 
         .form-field {
-          display: flex;
-          flex-direction: column;
-          gap: $spacing-1;
+          @include form-group;
+          margin-bottom: $spacing-3;
 
           .field-hint {
+            margin-top: $spacing-1;
             font-size: $font-size-xs;
             color: $text-secondary;
           }
@@ -212,37 +136,27 @@
           .error-message {
             color: $error;
             font-size: $font-size-xs;
+            margin-top: $spacing-1;
           }
 
-          // Enhancing the qrac components
-          ::ng-deep {
-            qrac-textbox, qrac-text-area {
-              width: 100%;
+          .parameters-container {
+            position: relative;
 
-              input, textarea {
-                width: 100%;
-                padding: $spacing-2 $spacing-3;
-                border: 1px solid $border-color;
-                border-radius: $radius-sm;
-                font-size: $font-size-sm;
-                
-                &:focus {
-                  outline: none;
-                  border-color: $primary;
-                  box-shadow: 0 0 0 2px rgba($primary, 0.1);
-                }
-              }
+            .format-button {
+              position: absolute;
+              right: $spacing-3;
+              top: $spacing-3;
+              background-color: rgba($primary, 0.1);
+              color: $primary;
+              border: none;
+              padding: $spacing-1 $spacing-2;
+              border-radius: $radius-sm;
+              font-size: $font-size-xs;
+              cursor: pointer;
+              transition: background-color 0.2s;
 
-              textarea {
-                min-height: 100px;
-                resize: vertical;
-              }
-
-              label {
-                font-size: $font-size-sm;
-                font-weight: $font-weight-medium;
-                color: $text-primary;
-                margin-bottom: $spacing-1;
+              &:hover {
+                background-color: rgba($primary, 0.2);
               }
             }
           }
@@ -251,42 +165,21 @@
 
       .form-actions {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
         margin-top: $spacing-6;
 
         .test-button {
+          @include button-primary;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           padding: $spacing-3 $spacing-6;
           height: 44px;
           min-width: 120px;
-          font-weight: $font-weight-medium;
-          background-color: $primary;
-          color: white;
-          border: none;
-          border-radius: $radius-md;
-          font-size: $font-size-sm;
-          cursor: pointer;
-          transition: background-color 0.2s;
 
           .spinner-small {
+            @include spinner($size: 16px, $border-width: 2px, $color: white);
             margin-right: $spacing-2;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(white, 0.3);
-            border-radius: 50%;
-            border-top: 2px solid white;
-            animation: spin 1s linear infinite;
-          }
-
-          &:hover:not(:disabled) {
-            background-color: darken($primary, 5%);
-          }
-
-          &:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
           }
         }
 
@@ -305,15 +198,15 @@
           font-weight: $font-weight-medium;
           cursor: pointer;
           transition: all 0.2s ease;
-          
+
           .history-icon {
             margin-right: $spacing-2;
           }
-          
+
           &:hover {
             background-color: $background-light;
           }
-          
+
           &.active {
             background-color: rgba($primary, 0.1);
             color: $primary;
@@ -324,129 +217,75 @@
     }
   }
 
-  // Results section
-  .test-results-container {
-    background-color: white;
-    border-radius: $radius-lg;
-    padding: $spacing-6;
-    box-shadow: $shadow-sm;
-    height: fit-content;
-
-    .section-title {
-      font-size: $font-size-lg;
-      font-weight: $font-weight-semibold;
-      color: $text-primary;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid $border-color;
-      padding-bottom: $spacing-3;
-      margin: 0 0 $spacing-4 0;
-
-      .result-status {
-        font-size: $font-size-xs;
-        padding: $spacing-1 $spacing-2;
-        border-radius: $radius-sm;
-        font-weight: $font-weight-medium;
-
-        &.success {
-          background-color: rgba($success, 0.1);
-          color: $success;
-        }
-
-        &.error {
-          background-color: rgba($error, 0.1);
-          color: $error;
-        }
-      }
-    }
-
-    .results-content {
-      .result-json {
-        background-color: $background-light;
-        padding: $spacing-4;
-        border-radius: $radius-sm;
-        font-family: $font-family-mono;
-        font-size: $font-size-sm;
-        white-space: pre-wrap;
-        max-height: 500px;
-        overflow-y: auto;
-        margin: 0;
-      }
-    }
-  }
-  
-  // History section
+  // History container
   .history-container {
-    background-color: white;
-    border-radius: $radius-lg;
-    padding: $spacing-4;
-    box-shadow: $shadow-sm;
+    @include card;
     margin-top: $spacing-4;
-    
+    padding: $spacing-4;
+
     .history-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: $spacing-3;
-      
+
       .history-title {
         font-size: $font-size-md;
         font-weight: $font-weight-medium;
         color: $text-primary;
         margin: 0;
       }
-      
+
       .clear-history-button {
         background: none;
         border: none;
         color: $text-secondary;
         font-size: $font-size-sm;
         cursor: pointer;
-        
+
         &:hover {
           color: $error;
           text-decoration: underline;
         }
       }
     }
-    
+
     .history-list {
       display: flex;
       flex-direction: column;
       gap: $spacing-2;
       max-height: 200px;
       overflow-y: auto;
-      
+
       .history-item {
         padding: $spacing-2 $spacing-3;
         border-radius: $radius-sm;
         cursor: pointer;
         transition: background-color 0.2s;
-        
+
         &:hover {
           background-color: $background-light;
         }
-        
+
         &.success {
           border-left: 3px solid $success;
         }
-        
+
         &.error {
           border-left: 3px solid $error;
         }
-        
+
         .history-item-content {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          
+
           .history-query {
             font-size: $font-size-sm;
             font-weight: $font-weight-medium;
             color: $text-primary;
           }
-          
+
           .history-time {
             font-size: $font-size-xs;
             color: $text-secondary;
@@ -455,82 +294,48 @@
       }
     }
   }
-  
-  // No results state
-  .no-results-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background-color: white;
-    padding: $spacing-12;
-    height: 100%;
-    min-height: 300px;
-    border-radius: $radius-lg;
-    box-shadow: $shadow-sm;
-    text-align: center;
-    
-    .no-results-icon {
-      font-size: 3rem;
-      color: $text-tertiary;
-      margin-bottom: $spacing-4;
-    }
-    
-    h3 {
-      font-size: $font-size-lg;
-      font-weight: $font-weight-medium;
-      color: $text-primary;
-      margin: 0 0 $spacing-2 0;
-    }
-    
-    p {
-      color: $text-secondary;
-      margin: 0;
-    }
-  }
-}
 
-// Parameters container styling
-.parameters-container {
-  position: relative;
-  
-  .param-label {
-    font-size: $font-size-sm;
-    font-weight: $font-weight-medium;
-    color: $text-primary;
-    margin-bottom: $spacing-1;
-  }
-  
-  .format-button {
-    position: absolute;
-    right: $spacing-2;
-    top: 30px; // Position below the label
-    background-color: rgba($primary, 0.1);
-    color: $primary;
-    border: none;
-    padding: $spacing-1 $spacing-2;
-    border-radius: $radius-sm;
-    font-size: $font-size-xs;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    
-    &:hover {
-      background-color: rgba($primary, 0.2);
+  // Test Results
+  .right-panel {
+    .test-results-container {
+      @include card;
+      height: fit-content;
+
+      .results-header {
+        padding: $spacing-4 $spacing-6;
+        border-bottom: 1px solid $border-color;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .section-title {
+          @include section-title;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: $spacing-3;
+        }
+
+        .result-status {
+          &.success {
+            @include status-badge('success');
+          }
+
+          &.error {
+            @include status-badge('error');
+          }
+        }
+      }
+
+      .results-content {
+        padding: $spacing-6;
+      }
     }
-  }
-}
 
-// Responsive adjustments
-@media screen and (max-width: 768px) {
-  .agent-test-container {
-    padding: $spacing-4;
-  }
-
-  .test-form {
-    padding: $spacing-4;
-  }
-  
-  .test-interface {
-    gap: $spacing-4;
+    // No results placeholder
+    .no-results-container {
+      @include empty-state;
+      height: 300px;
+    }
   }
 }

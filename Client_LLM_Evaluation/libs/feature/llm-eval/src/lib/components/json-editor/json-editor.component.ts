@@ -1,23 +1,19 @@
-/* Path: libs/feature/llm-eval/src/lib/components/json-editor/json-editor.component.ts */
-import { 
-  Component, 
-  Input, 
-  Output, 
-  EventEmitter, 
-  OnInit, 
-  OnDestroy,
+/* Path: libs/feature/llm-eval/src/lib/components/simple-json-editor/simple-json-editor.component.ts */
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
   ChangeDetectionStrategy,
-  ChangeDetectorRef,
-  ElementRef,
-  ViewChild
+  ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { QracButtonComponent } from '@ngtx-apps/ui/components';
 
 @Component({
-  selector: 'app-json-editor',
+  selector: 'app-simple-json-editor',
   standalone: true,
   imports: [
     CommonModule,
@@ -25,236 +21,241 @@ import { QracButtonComponent } from '@ngtx-apps/ui/components';
     ReactiveFormsModule,
     QracButtonComponent
   ],
-  templateUrl: './json-editor.component.html',
-  styleUrls: ['./json-editor.component.scss'],
+  template: `
+    <div class="simple-json-editor">
+      <!-- Label -->
+      <div *ngIf="label" class="editor-label" [class.required]="required">{{ label }}</div>
+
+      <!-- JSON Preview Container -->
+      <div class="json-preview-container" [class.invalid]="!isValid" (click)="showEditor = !showEditor">
+        <div class="json-preview">{{ previewText }}</div>
+        <div class="preview-actions">
+          <span *ngIf="!isValid" class="error-indicator">⚠️</span>
+          <span class="edit-icon">✎</span>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <div *ngIf="!isValid" class="json-error">{{ errorMessage }}</div>
+
+      <!-- Expanded Editor -->
+      <div *ngIf="showEditor" class="editor-container">
+        <textarea
+          class="json-textarea"
+          [formControl]="jsonControl"
+          placeholder="Enter JSON..."
+          rows="5">
+        </textarea>
+
+        <div class="editor-actions">
+          <qrac-button
+            [label]="'Format'"
+            [type]="'secondary'"
+            size="small"
+            (buttonClick)="formatJson()">
+          </qrac-button>
+
+          <qrac-button
+            [label]="'Apply'"
+            [type]="'primary'"
+            [disabled]="!isValid"
+            size="small"
+            (buttonClick)="applyChanges()">
+          </qrac-button>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .simple-json-editor {
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .editor-label {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .editor-label.required::after {
+      content: "*";
+      color: #dc3545;
+      margin-left: 4px;
+    }
+
+    .json-preview-container {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      background-color: #f8f9fa;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .json-preview-container:hover {
+      border-color: #80bdff;
+      background-color: #f0f7ff;
+    }
+
+    .json-preview-container.invalid {
+      border-color: #dc3545;
+      background-color: #fff5f5;
+    }
+
+    .json-preview {
+      font-family: monospace;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .error-indicator {
+      color: #dc3545;
+    }
+
+    .edit-icon {
+      color: #6c757d;
+    }
+
+    .json-error {
+      font-size: 12px;
+      color: #dc3545;
+      margin-top: 4px;
+    }
+
+    .editor-container {
+      margin-top: 8px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      padding: 8px;
+      background-color: #fff;
+    }
+
+    .json-textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    .editor-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
+    }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JsonEditorComponent implements OnInit, OnDestroy {
-  @Input() jsonValue: string = '{}';
-  @Input() title: string = 'Edit JSON';
-  @Input() placeholder: string = 'Enter JSON content';
-  @Input() readOnly: boolean = false;
-  @Input() rows: number = 6;
-  @Input() maxLength: number = 10000;
-  @Input() required: boolean = false;
+export class SimpleJsonEditorComponent implements OnInit {
+  @Input() value: string = '{}';
   @Input() label: string = '';
-  
-  // Two-way binding for modal state
-  @Input() isOpen: boolean = false;
-  @Output() isOpenChange = new EventEmitter<boolean>();
-  
-  // Events
+  @Input() required: boolean = false;
+
   @Output() valueChange = new EventEmitter<string>();
   @Output() validChange = new EventEmitter<boolean>();
-  
-  // Add ViewChild for the textarea to focus when modal opens
-  @ViewChild('jsonTextarea') jsonTextarea?: ElementRef<HTMLTextAreaElement>;
-  
-  jsonControl = new FormControl('');
+
+  jsonControl = new FormControl('{}');
   isValid = true;
-  previewSummary: string = '';
-  errorMessage: string = '';
-  
-  private destroy$ = new Subject<void>();
+  errorMessage = '';
+  showEditor = false;
+  previewText = '{}';
 
   constructor(private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
-    // Initialize control with input value
-    this.updateJsonControl(this.jsonValue);
-    
-    // Set up listener for changes
-    this.jsonControl.valueChanges
-      .pipe(
-        debounceTime(300),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(value => {
-        this.validateJson(value || '{}');
-      });
+  ngOnInit(): void {
+    // Initialize with input value
+    this.updateValue(this.value);
+
+    // Listen for input changes
+    this.jsonControl.valueChanges.subscribe(value => {
+      this.validateJson(value || '{}');
+    });
   }
-  
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-  
-  /**
-   * Update the form control with new JSON value
-   */
-  private updateJsonControl(value: string): void {
+
+  updateValue(value: string): void {
     try {
-      // Ensure the value is a string
-      const jsonString = typeof value === 'object' 
-        ? JSON.stringify(value, null, 2) 
+      // Handle object values passed in
+      const jsonString = typeof value === 'object'
+        ? JSON.stringify(value, null, 2)
         : (value || '{}');
-        
-      this.jsonControl.setValue(jsonString, { emitEvent: false });
+
+      this.jsonControl.setValue(jsonString);
       this.validateJson(jsonString);
     } catch (e) {
-      this.isValid = false;
-      this.errorMessage = 'Invalid JSON format';
-      this.validChange.emit(false);
+      this.jsonControl.setValue('{}');
+      this.validateJson('{}');
     }
   }
-  
-  /**
-   * Validate JSON and update preview
-   */
-  private validateJson(value: string): void {
+
+  validateJson(value: string): void {
     if (!value || value.trim() === '') {
-      this.previewSummary = '{}';
-      this.isValid = true;
-      this.errorMessage = '';
-      this.validChange.emit(true);
-      return;
+      value = '{}';
     }
-    
+
     try {
       const parsed = JSON.parse(value);
       this.isValid = true;
       this.errorMessage = '';
       this.validChange.emit(true);
-      
-      // Create preview summary
-      this.generatePreviewSummary(parsed);
+
+      // Generate preview text
+      this.previewText = this.generatePreview(parsed);
+      this.cdr.markForCheck();
     } catch (e) {
       this.isValid = false;
       this.errorMessage = 'Invalid JSON format';
       this.validChange.emit(false);
-    }
-    
-    this.cdr.markForCheck();
-  }
-  
-  /**
-   * Generate a preview of the JSON content
-   */
-  private generatePreviewSummary(json: any): void {
-    try {
-      const compact = JSON.stringify(json);
-      if (compact === '{}') {
-        this.previewSummary = '{}';
-        return;
-      }
-      
-      if (compact.length > 50) {
-        this.previewSummary = compact.substring(0, 47) + '...';
-      } else {
-        this.previewSummary = compact;
-      }
-    } catch (e) {
-      this.previewSummary = 'Error generating preview';
-    }
-  }
-  
-  /**
-   * Open the editor modal
-   */
-  openModal(): void {
-    this.isOpen = true;
-    this.isOpenChange.emit(true);
-    this.cdr.markForCheck();
-    
-    // Focus the textarea after the modal is rendered
-    setTimeout(() => {
-      if (this.jsonTextarea) {
-        this.jsonTextarea.nativeElement.focus();
-      }
-    }, 100);
-  }
-  
-  /**
-   * Close the editor modal
-   */
-  closeModal(event?: MouseEvent): void {
-    // If this is a direct call with no event, or the click was on the modal overlay itself
-    // and not on its children, close the modal
-    if (!event || event.target === event.currentTarget) {
-      this.isOpen = false;
-      this.isOpenChange.emit(false);
       this.cdr.markForCheck();
     }
   }
-  
-  /**
-   * Prevent event propagation when clicking inside the modal
-   */
-  stopPropagation(event: MouseEvent): void {
-    event.stopPropagation();
+
+  generatePreview(json: any): string {
+    try {
+      const str = JSON.stringify(json);
+      if (str.length > 50) {
+        return str.substring(0, 47) + '...';
+      }
+      return str;
+    } catch (e) {
+      return '{}';
+    }
   }
-  
-  /**
-   * Apply changes and close modal
-   */
+
+  formatJson(): void {
+    try {
+      const value = this.jsonControl.value || '{}';
+      const parsed = JSON.parse(value);
+      const formatted = JSON.stringify(parsed, null, 2);
+      this.jsonControl.setValue(formatted);
+    } catch (e) {
+      // If parsing fails, do nothing
+    }
+  }
+
   applyChanges(): void {
     if (!this.isValid) {
       return;
     }
-    
+
     const value = this.jsonControl.value || '{}';
     this.valueChange.emit(value);
-    this.closeModal();
-  }
-  
-  /**
-   * Format the JSON for better readability
-   */
-  formatJson(): void {
-    const value = this.jsonControl.value || '{}';
-    
-    try {
-      const formatted = JSON.stringify(JSON.parse(value), null, 2);
-      this.jsonControl.setValue(formatted);
-      this.isValid = true;
-      this.errorMessage = '';
-      this.validChange.emit(true);
-      this.cdr.markForCheck();
-    } catch (e) {
-      // Keep current value if parsing fails
-      this.isValid = false;
-      this.errorMessage = 'Invalid JSON format';
-      this.validChange.emit(false);
-    }
-  }
-  
-  /**
-   * Clear the JSON editor
-   */
-  clearJson(): void {
-    this.jsonControl.setValue('{}');
-    this.isValid = true;
-    this.errorMessage = '';
-    this.validChange.emit(true);
+    this.showEditor = false;
     this.cdr.markForCheck();
-  }
-  
-  /**
-   * Add a new property to the JSON object
-   */
-  addNewProperty(): void {
-    try {
-      const currentJson = JSON.parse(this.jsonControl.value || '{}');
-      // Generate a unique key
-      let newKey = 'newProperty';
-      let counter = 1;
-      
-      while (currentJson.hasOwnProperty(newKey)) {
-        newKey = `newProperty${counter}`;
-        counter++;
-      }
-      
-      currentJson[newKey] = '';
-      this.jsonControl.setValue(JSON.stringify(currentJson, null, 2));
-      this.isValid = true;
-      this.errorMessage = '';
-      this.validChange.emit(true);
-      this.cdr.markForCheck();
-    } catch (e) {
-      // Keep current value if parsing fails
-      this.isValid = false;
-      this.errorMessage = 'Invalid JSON format';
-      this.validChange.emit(false);
-    }
   }
 }

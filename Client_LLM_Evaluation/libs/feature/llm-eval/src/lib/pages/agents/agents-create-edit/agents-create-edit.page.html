@@ -193,14 +193,13 @@
             </div>
 
             <div class="form-group">
-              <app-json-editor
-                [jsonValue]="getFormattedJson('auth_credentials')"
-                [title]="'Edit Authentication Credentials'"
-                [label]="'Auth Credentials'"
+              <label>Auth Credentials</label>
+              <app-simple-json-editor
+                [value]="getFormattedJson('auth_credentials')"
+                [label]="'Authentication Credentials'"
                 (valueChange)="updateJsonField('auth_credentials', $event)"
-                (validChange)="isJsonFieldValid('auth_credentials', $event)"
-                [(isOpen)]="jsonEditorStates['auth_credentials']">
-              </app-json-editor>
+                (validChange)="isJsonFieldValid('auth_credentials', $event)">
+              </app-simple-json-editor>
               <div *ngIf="jsonErrors['auth_credentials']" class="invalid-feedback">
                 {{ jsonErrors['auth_credentials'] }}
               </div>
@@ -226,14 +225,13 @@
         <div class="two-column-layout">
           <div class="column">
             <div class="form-group">
-              <app-json-editor
-                [jsonValue]="getFormattedJson('config')"
-                [title]="'Edit Configuration'"
-                [label]="'Configuration Parameters'"
+              <label>Configuration Parameters</label>
+              <app-simple-json-editor
+                [value]="getFormattedJson('config')"
+                [label]="'Configuration'"
                 (valueChange)="updateJsonField('config', $event)"
-                (validChange)="isJsonFieldValid('config', $event)"
-                [(isOpen)]="jsonEditorStates['config']">
-              </app-json-editor>
+                (validChange)="isJsonFieldValid('config', $event)">
+              </app-simple-json-editor>
               <div *ngIf="jsonErrors['config']" class="invalid-feedback">
                 {{ jsonErrors['config'] }}
               </div>
@@ -243,14 +241,13 @@
             </div>
 
             <div class="form-group">
-              <app-json-editor
-                [jsonValue]="getFormattedJson('request_template')"
-                [title]="'Edit Request Template'"
+              <label>Request Template</label>
+              <app-simple-json-editor
+                [value]="getFormattedJson('request_template')"
                 [label]="'Request Template'"
                 (valueChange)="updateJsonField('request_template', $event)"
-                (validChange)="isJsonFieldValid('request_template', $event)"
-                [(isOpen)]="jsonEditorStates['request_template']">
-              </app-json-editor>
+                (validChange)="isJsonFieldValid('request_template', $event)">
+              </app-simple-json-editor>
               <div *ngIf="jsonErrors['request_template']" class="invalid-feedback">
                 {{ jsonErrors['request_template'] }}
               </div>
@@ -260,14 +257,13 @@
 
           <div class="column">
             <div class="form-group">
-              <app-json-editor
-                [jsonValue]="getFormattedJson('retry_config')"
-                [title]="'Edit Retry Configuration'"
+              <label>Retry Configuration</label>
+              <app-simple-json-editor
+                [value]="getFormattedJson('retry_config')"
                 [label]="'Retry Configuration'"
                 (valueChange)="updateJsonField('retry_config', $event)"
-                (validChange)="isJsonFieldValid('retry_config', $event)"
-                [(isOpen)]="jsonEditorStates['retry_config']">
-              </app-json-editor>
+                (validChange)="isJsonFieldValid('retry_config', $event)">
+              </app-simple-json-editor>
               <div *ngIf="jsonErrors['retry_config']" class="invalid-feedback">
                 {{ jsonErrors['retry_config'] }}
               </div>
@@ -275,14 +271,13 @@
             </div>
 
             <div class="form-group">
-              <app-json-editor
-                [jsonValue]="getFormattedJson('content_filter_config')"
-                [title]="'Edit Content Filter Configuration'"
+              <label>Content Filter Configuration</label>
+              <app-simple-json-editor
+                [value]="getFormattedJson('content_filter_config')"
                 [label]="'Content Filter Configuration'"
                 (valueChange)="updateJsonField('content_filter_config', $event)"
-                (validChange)="isJsonFieldValid('content_filter_config', $event)"
-                [(isOpen)]="jsonEditorStates['content_filter_config']">
-              </app-json-editor>
+                (validChange)="isJsonFieldValid('content_filter_config', $event)">
+              </app-simple-json-editor>
               <div *ngIf="jsonErrors['content_filter_config']" class="invalid-feedback">
                 {{ jsonErrors['content_filter_config'] }}
               </div>

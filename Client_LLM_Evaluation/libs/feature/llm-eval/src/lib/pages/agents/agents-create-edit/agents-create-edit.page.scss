@@ -6,25 +6,20 @@
   display: block;
   width: 100%;
 }
-:host ::ng-deep {
-  .cdk-overlay-container {
-    z-index: 10000;
-  }
-}
 
 .agent-create-edit-container {
-  padding: $spacing-4;
+  padding: $spacing-6;
   max-width: $container-xxl;
   margin: 0 auto;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-3;
+    padding: $spacing-4;
   }
 }
 
-// Back navigation - more compact
+// Back navigation - using global styles
 .back-navigation {
-  margin-bottom: $spacing-3;
+  margin-bottom: $spacing-4;
 
   .back-button {
     display: inline-flex;
@@ -34,7 +29,7 @@
     color: $primary;
     font-size: $font-size-sm;
     cursor: pointer;
-    padding: $spacing-1 $spacing-2;
+    padding: $spacing-2;
     border-radius: $radius-sm;
     transition: background-color 0.2s;
 
@@ -43,7 +38,7 @@
     }
 
     .back-icon {
-      margin-right: $spacing-1;
+      margin-right: $spacing-2;
       font-size: $font-size-md;
     }
   }
@@ -58,12 +53,11 @@
   box-shadow: $shadow-sm;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 120px); // Ensure it fits in viewport
 }
 
-// Header styles - reduced height
+// Header styles
 .agent-header {
-  padding: $spacing-3 $spacing-4;
+  padding: $spacing-6;
   background-color: $background-light;
   border-bottom: 1px solid $border-color;
 
@@ -81,7 +75,7 @@
   }
 }
 
-// Tabs styles - more compact
+// Tabs styles
 .tabs-container {
   display: flex;
   background-color: white;
@@ -99,7 +93,7 @@
   }
 
   .tab {
-    padding: $spacing-3 $spacing-4;
+    padding: $spacing-4 $spacing-6;
     cursor: pointer;
     text-align: center;
     font-weight: $font-weight-medium;
@@ -111,7 +105,7 @@
     z-index: 1;
 
     @include media-breakpoint-down(md) {
-      padding: $spacing-2 $spacing-3;
+      padding: $spacing-3 $spacing-4;
       min-width: auto;
       flex: 1;
       font-size: $font-size-sm;
@@ -130,77 +124,47 @@
   }
 }
 
-// Tab content - optimize for vertical space
+// Tab content
 .tab-content {
-  padding: $spacing-4;
+  padding: $spacing-6;
   overflow-y: auto;
-  flex: 1;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-3;
+    padding: $spacing-4;
   }
 }
 
-// Form layout
+// Two-column layout
 .two-column-layout {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: $spacing-4;
+  gap: $spacing-6;
 
   @include media-breakpoint-down(md) {
     grid-template-columns: 1fr;
-    gap: $spacing-3;
+    gap: $spacing-4;
   }
 }
 
-// Form controls - more compact
+// Form controls
 .form-control {
-  width: 100%;
-  padding: $spacing-2;
-  font-size: $font-size-sm;
-  color: $text-primary;
-  background-color: white;
-  border: 1px solid $border-color;
-  border-radius: $radius-sm;
-  transition: all 0.2s ease;
-  height: 38px; // Reduced height
-
-  &:focus {
-    outline: none;
-    border-color: $primary;
-    box-shadow: 0 0 0 3px rgba($primary, 0.1);
-  }
-
-  &.is-invalid {
-    border-color: $error;
-
-    &:focus {
-      box-shadow: 0 0 0 3px rgba($error, 0.1);
-    }
-  }
+  @include form-control;
 
   &.textarea {
-    height: auto;
-    min-height: 100px; // Reduced height
+    min-height: 120px;
     resize: vertical;
-  }
-
-  &.json-editor {
-    font-family: $font-family-mono;
-    font-size: $font-size-xs;
-    height: auto;
-    min-height: 60px; // Optimized for JSON content
-    max-height: 120px; // Limit height to prevent oversized fields
   }
 }
 
-select.form-control {
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 8px 10px;
-  padding-right: 2.5rem;
+// Form group
+.form-group {
+  @include form-group;
+
+  .field-hint {
+    margin-top: $spacing-1;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+  }
 }
 
 // Invalid feedback
@@ -212,35 +176,10 @@ select.form-control {
   color: $error;
 }
 
-// Form group - reduced margins
-.form-group:has(app-json-editor) {
-  margin-bottom: $spacing-3;
-
-  label {
-    display: block;
-    margin-bottom: $spacing-1;
-    font-weight: $font-weight-medium;
-    color: $text-primary;
-    font-size: $font-size-sm;
-
-    &.required::after {
-      content: '*';
-      margin-left: $spacing-1;
-      color: $error;
-    }
-  }
-
-  .helper-text {
-    margin-top: $spacing-1;
-    font-size: $font-size-xs;
-    color: $text-secondary;
-  }
-}
-
 // Status containers
 .status-container {
   @include card-padded;
-  padding: $spacing-6;
+  padding: $spacing-8;
   text-align: center;
 }
 
@@ -254,60 +193,26 @@ select.form-control {
   .retry-button {
     @include button-secondary;
     margin-top: $spacing-4;
-    min-width: 120px;
   }
 }
 
-// Form actions - sticky bottom bar
+// Form actions - consistent with global styles
 .form-actions {
-  z-index: 1000 !important;
   display: flex;
   justify-content: space-between;
-  padding: $spacing-3 $spacing-4;
+  padding: $spacing-4 $spacing-6;
   border-top: 1px solid $border-color;
   background-color: $background-light;
   position: sticky;
   bottom: 0;
   z-index: 10;
 
-  .outline-button, .primary-button {
-    padding: $spacing-2 $spacing-4;
-    border-radius: $radius-sm;
-    font-weight: $font-weight-medium;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: $font-size-sm;
-    height: 38px; // Reduced height
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 100px; // Reduced width
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-
   .outline-button {
-    background-color: white;
-    color: $text-primary;
-    border: 1px solid $border-color;
-
-    &:hover:not(:disabled) {
-      background-color: $background;
-      border-color: darken($border-color, 10%);
-    }
+    @include button-secondary;
   }
 
   .primary-button {
-    background-color: $primary;
-    color: white;
-    border: none;
-
-    &:hover:not(:disabled) {
-      background-color: darken($primary, 10%);
-    }
+    @include button-primary;
   }
 
   // Loading spinner
@@ -317,13 +222,12 @@ select.form-control {
   }
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-2 $spacing-3;
+    padding: $spacing-3 $spacing-4;
     flex-wrap: wrap;
-    gap: $spacing-2;
+    gap: $spacing-3;
 
     button {
       flex: 1;
-      min-width: auto;
     }
   }
 }
@@ -333,79 +237,4 @@ select.form-control {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-// JSON Editor Host Styling
-app-json-editor {
-  display: block;
-  width: 100%;
-  min-height: 40px;
-  margin-bottom: $spacing-1;
-  
-  // Override nested component styles that might conflict
-  ::ng-deep {
-    .json-summary {
-      margin-bottom: 0; // Remove extra margin to fix spacing
-    }
-    
-    // Make sure preview has correct size
-    .json-preview {
-      min-height: 40px !important;
-      max-height: 40px !important;
-      font-size: $font-size-xs !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-    }
-    
-    // Fix button sizes
-    .json-actions {
-      .add-key-btn, .edit-json-btn {
-        height: 30px !important; 
-        font-size: $font-size-xs !important;
-        min-width: 0 !important;
-        padding: $spacing-1 $spacing-2 !important;
-      }
-    }
-    
-    // Make sure the modal is on top of everything
-    .modal-overlay {
-      z-index: 9998 !important;
-    }
-    
-    .modal-dialog {
-      z-index: 9999 !important;
-    }
-  }
-}
-
-// No JSON data state
-.no-json-data {
-  font-style: italic;
-  color: $text-secondary;
-  text-align: center;
-  padding: $spacing-2;
-  background-color: $background-light;
-  border-radius: $radius-sm;
-  font-size: $font-size-xs;
-}
-
-// Animations for tab transitions
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.tab-content {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-// Ensure modals can appear above everything
-.cdk-overlay-container {
-  z-index: 1500;
 }

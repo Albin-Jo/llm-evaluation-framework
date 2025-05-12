@@ -1,4 +1,3 @@
-# File: backend/app/evaluation/methods/ragas.py
 import datetime
 import logging
 from typing import Any, Dict, List, Optional
@@ -133,7 +132,20 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
         logger.info(f"Answer: {answer[:100]}..." if len(answer) > 100 else f"Answer: {answer}")
 
         # Get enabled metrics from config or use defaults
-        enabled_metrics = config.get("metrics", ["faithfulness", "response_relevancy", "context_precision"])
+        # Update this to use more metrics from the DATASET_TYPE_METRICS mapping
+        # Instead of using a hard-coded list of metrics
+        dataset_type = config.get("dataset_type", "custom")
+        available_metrics = DATASET_TYPE_METRICS.get(dataset_type, [
+            "faithfulness",
+            "response_relevancy",
+            "context_precision",
+            "answer_correctness",
+            "answer_relevancy",
+            "factual_correctness"
+        ])
+
+        # Use configured metrics or fall back to all available ones
+        enabled_metrics = config.get("metrics", available_metrics)
 
         # Initialize metrics dictionary
         metrics = {}
