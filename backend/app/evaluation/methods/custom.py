@@ -13,6 +13,7 @@ from backend.app.evaluation.metrics.registry import MetricsRegistry
 
 # Configure logging
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.ERROR)
 
 
 class CustomEvaluationMethod(BaseEvaluationMethod):
