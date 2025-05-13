@@ -40,6 +40,12 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
   error: string | null = null;
   evaluationProgress: EvaluationProgress | null = null;
   evaluationId: string = '';
+
+expandedSections = {
+  input: false,
+  output: false,
+  raw: false
+};
   
   // For displaying result details
   selectedResult: EvaluationResult | null = null;
@@ -458,4 +464,14 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       this.router.navigate(['app/prompts', this.evaluation.prompt_id]);
     }
   }
+
+/**
+ * Toggle expanded state for a section
+ */
+toggleSection(section: string): void {
+  if (section in this.expandedSections) {
+    this.expandedSections[section as keyof typeof this.expandedSections] =
+      !this.expandedSections[section as keyof typeof this.expandedSections];
+  }
+}
 }

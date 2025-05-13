@@ -84,258 +84,133 @@
   @include error-container;
 }
 
-// Test interface
-.test-interface {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: $spacing-6;
+/* Chat Interface */
+.chat-interface {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  height: calc(100vh - 220px);
+  min-height: 500px;
+}
 
-  @include media-breakpoint-down(md) {
-    grid-template-columns: 1fr;
-  }
+.chat-container {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
 
-  .test-form-container {
-    @include card;
-    overflow: hidden;
-  }
+  .chat-header {
+    padding: $spacing-3 $spacing-6;
+    background-color: $background-light;
+    border-bottom: 1px solid $border-color;
 
-  .test-form {
-    padding: $spacing-6;
-
-    @include media-breakpoint-down(md) {
-      padding: $spacing-4;
-    }
-
-    .form-section {
-      display: flex;
-      flex-direction: column;
-      gap: $spacing-5;
-
-      .section-title {
-        @include section-title;
-        border-bottom: 1px solid $border-color;
-        padding-bottom: $spacing-3;
-        margin-bottom: $spacing-4;
-      }
-
-      .form-row {
-        display: flex;
-        flex-direction: column;
-        gap: $spacing-2;
-
-        .form-field {
-          @include form-group;
-          margin-bottom: $spacing-3;
-
-          .field-hint {
-            margin-top: $spacing-1;
-            font-size: $font-size-xs;
-            color: $text-secondary;
-          }
-
-          .error-message {
-            color: $error;
-            font-size: $font-size-xs;
-            margin-top: $spacing-1;
-          }
-
-          .parameters-container {
-            position: relative;
-
-            .format-button {
-              position: absolute;
-              right: $spacing-3;
-              top: $spacing-3;
-              background-color: rgba($primary, 0.1);
-              color: $primary;
-              border: none;
-              padding: $spacing-1 $spacing-2;
-              border-radius: $radius-sm;
-              font-size: $font-size-xs;
-              cursor: pointer;
-              transition: background-color 0.2s;
-
-              &:hover {
-                background-color: rgba($primary, 0.2);
-              }
-            }
-          }
-        }
-      }
-
-      .form-actions {
-        display: flex;
-        justify-content: space-between;
-        margin-top: $spacing-6;
-
-        .test-button {
-          @include button-primary;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: $spacing-3 $spacing-6;
-          height: 44px;
-          min-width: 120px;
-
-          .spinner-small {
-            @include spinner($size: 16px, $border-width: 2px, $color: white);
-            margin-right: $spacing-2;
-          }
-        }
-
-        .history-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: $spacing-3 $spacing-4;
-          height: 44px;
-          margin-right: auto; // Push to the left
-          background-color: white;
-          color: $text-primary;
-          border: 1px solid $border-color;
-          border-radius: $radius-md;
-          font-size: $font-size-sm;
-          font-weight: $font-weight-medium;
-          cursor: pointer;
-          transition: all 0.2s ease;
-
-          .history-icon {
-            margin-right: $spacing-2;
-          }
-
-          &:hover {
-            background-color: $background-light;
-          }
-
-          &.active {
-            background-color: rgba($primary, 0.1);
-            color: $primary;
-            border-color: rgba($primary, 0.2);
-          }
-        }
-      }
+    h3 {
+      margin: 0;
+      font-size: $font-size-md;
+      font-weight: $font-weight-medium;
+      color: $text-secondary;
+      text-align: center;
     }
   }
 
-  // History container
-  .history-container {
-    @include card;
-    margin-top: $spacing-4;
-    padding: $spacing-4;
+  .chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-4;
+    padding: $spacing-4 $spacing-6;
+    overflow-y: auto;
+    flex: 1;
+  }
 
-    .history-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: $spacing-3;
+  .user-message, .agent-message {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-1;
+    max-width: 80%;
+    padding: $spacing-3 $spacing-4;
+    border-radius: $radius-md;
 
-      .history-title {
-        font-size: $font-size-md;
-        font-weight: $font-weight-medium;
-        color: $text-primary;
-        margin: 0;
-      }
-
-      .clear-history-button {
-        background: none;
-        border: none;
-        color: $text-secondary;
-        font-size: $font-size-sm;
-        cursor: pointer;
-
-        &:hover {
-          color: $error;
-          text-decoration: underline;
-        }
-      }
+    .message-content {
+      font-size: $font-size-sm;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
-    .history-list {
-      display: flex;
-      flex-direction: column;
-      gap: $spacing-2;
-      max-height: 200px;
-      overflow-y: auto;
-
-      .history-item {
-        padding: $spacing-2 $spacing-3;
-        border-radius: $radius-sm;
-        cursor: pointer;
-        transition: background-color 0.2s;
-
-        &:hover {
-          background-color: $background-light;
-        }
-
-        &.success {
-          border-left: 3px solid $success;
-        }
-
-        &.error {
-          border-left: 3px solid $error;
-        }
-
-        .history-item-content {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-
-          .history-query {
-            font-size: $font-size-sm;
-            font-weight: $font-weight-medium;
-            color: $text-primary;
-          }
-
-          .history-time {
-            font-size: $font-size-xs;
-            color: $text-secondary;
-          }
-        }
-      }
+    .message-meta {
+      font-size: $font-size-xs;
+      color: $text-secondary;
     }
   }
 
-  // Test Results
-  .right-panel {
-    .test-results-container {
-      @include card;
-      height: fit-content;
+  .user-message {
+    align-self: flex-end;
+    background-color: $primary-light;
+    color: $text-primary;
+  }
 
-      .results-header {
-        padding: $spacing-4 $spacing-6;
-        border-bottom: 1px solid $border-color;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+  .agent-message {
+    align-self: flex-start;
+    background-color: $background-light;
+    color: $text-primary;
+  }
 
-        .section-title {
-          @include section-title;
-          margin: 0;
-          display: flex;
-          align-items: center;
-          gap: $spacing-3;
-        }
+  .response-details {
+    margin-top: $spacing-2;
+    padding: $spacing-3 $spacing-4;
+    background-color: $secondary-light;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    align-self: stretch;
 
-        .result-status {
-          &.success {
-            @include status-badge('success');
-          }
-
-          &.error {
-            @include status-badge('error');
-          }
-        }
-      }
-
-      .results-content {
-        padding: $spacing-6;
-      }
+    h4 {
+      font-size: $font-size-sm;
+      margin: 0 0 $spacing-1 0;
+      font-weight: $font-weight-medium;
     }
 
-    // No results placeholder
-    .no-results-container {
-      @include empty-state;
-      height: 300px;
+    p {
+      font-size: $font-size-xs;
+      color: $text-secondary;
+      margin: 0;
+    }
+  }
+
+  .empty-state {
+    @include empty-state;
+    flex: 1;
+    margin: $spacing-4;
+
+    .empty-icon {
+      font-size: $font-size-3xl;
+      color: $text-tertiary;
+      margin-bottom: $spacing-4;
+    }
+  }
+}
+
+.input-container {
+  display: flex;
+  gap: $spacing-3;
+
+  .query-input {
+    @include form-control;
+    flex: 1;
+    height: 48px;
+  }
+
+  .send-button {
+    @include button-primary;
+    min-width: 100px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .spinner-sm {
+      @include spinner($size: 16px, $border-width: 2px, $color: white);
+      margin-right: $spacing-2;
     }
   }
 }

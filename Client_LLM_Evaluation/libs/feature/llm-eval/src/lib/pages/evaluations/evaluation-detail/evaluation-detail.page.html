@@ -1,251 +1,270 @@
 <!-- Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluation-detail/evaluation-detail.page.html (Update) -->
 <div class="evaluation-detail-container">
-  <!-- Header Section -->
-  <div class="header-section">
-    <div class="back-navigation">
-      <a routerLink="/app/evaluations" class="back-link">
-        <span class="back-icon">←</span> Back to Evaluations
-      </a>
-    </div>
-
-    <div class="title-actions">
-      <div class="title-section">
-        <h1 class="page-title" *ngIf="evaluation">{{ evaluation.name }}</h1>
-        <div class="status-badge-container" *ngIf="evaluation">
-          <span class="status-badge" [ngClass]="getStatusBadgeClass(evaluation.status)">
-            {{ evaluation.status }}
-          </span>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="back-navigation">
+            <a routerLink="/app/evaluations" class="back-link"> <span class="back-icon">←</span> Back to Evaluations </a>
         </div>
-      </div>
 
-      <div class="action-buttons" *ngIf="evaluation">
-        <button *ngIf="canStartEvaluation()" class="action-button start-button" (click)="startEvaluation()">
-          Start Evaluation
-        </button>
-        <button *ngIf="canCancelEvaluation()" class="action-button cancel-button" (click)="cancelEvaluation()">
-          Cancel Evaluation
-        </button>
-        <button class="action-button edit-button" (click)="editEvaluation()">
-          Edit
-        </button>
-        <button class="action-button report-button" (click)="navigateToCreateReport()">
-          Generate Report
-        </button>
-        <button class="action-button delete-button" (click)="deleteEvaluation()">
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  <div *ngIf="isLoading" class="loading-container">
-    <div class="spinner"></div>
-    <p>Loading evaluation details...</p>
-  </div>
-
-  <!-- Error State -->
-  <div *ngIf="error" class="error-container">
-    <div class="error-icon">❌</div>
-    <p>{{ error }}</p>
-    <button class="retry-button" (click)="loadEvaluation(evaluationId)">Try Again</button>
-  </div>
-
-  <!-- Evaluation Content -->
-  <div *ngIf="evaluation && !isLoading" class="evaluation-content">
-    <!-- Progress Bar (for running evaluations) -->
-    <div *ngIf="evaluation.status === EvaluationStatus.RUNNING && evaluationProgress" class="progress-section">
-      <div class="progress-header">
-        <h3>Evaluation Progress</h3>
-        <span class="progress-percentage">{{ evaluationProgress.percentage_complete }}%</span>
-      </div>
-      <div class="progress-bar-container">
-        <div class="progress-bar" [style.width.%]="evaluationProgress.percentage_complete"></div>
-      </div>
-      <div class="progress-details">
-        <span>{{ evaluationProgress.processed_items }} of {{ evaluationProgress.total_items }} items processed</span>
-        <span *ngIf="evaluationProgress.estimated_completion">Est. completion: {{ formatDate(evaluationProgress.estimated_completion) }}</span>
-      </div>
-    </div>
-
-    <!-- Information Cards -->
-    <div class="info-cards">
-      <!-- Basic Information Card -->
-      <div class="info-card">
-        <h3 class="card-title">Evaluation Details</h3>
-        <div class="card-content">
-          <div class="info-row">
-            <span class="info-label">ID:</span>
-            <span class="info-value">{{ evaluation.id }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Method:</span>
-            <span class="info-value">{{ evaluation.method }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Created:</span>
-            <span class="info-value">{{ formatDate(evaluation.created_at) }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Description:</span>
-            <span class="info-value description-value">{{ evaluation.description || 'No description provided' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Timing Information Card -->
-      <div class="info-card">
-        <h3 class="card-title">Timing Information</h3>
-        <div class="card-content">
-          <div class="info-row">
-            <span class="info-label">Start Time:</span>
-            <span class="info-value">{{ formatDate(evaluation.start_time) }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">End Time:</span>
-            <span class="info-value">{{ formatDate(evaluation.end_time) }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Duration:</span>
-            <span class="info-value">{{ formatDuration(evaluation.start_time, evaluation.end_time) }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Last Updated:</span>
-            <span class="info-value">{{ formatDate(evaluation.updated_at) }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Related Items Card -->
-      <div class="info-card">
-        <h3 class="card-title">Related Items</h3>
-        <div class="card-content">
-          <div class="info-row clickable" (click)="viewAgent()">
-            <span class="info-label">Agent:</span>
-            <span class="info-value link-value">{{ evaluation.agent?.name || evaluation.agent_id }}</span>
-          </div>
-          <div class="info-row clickable" (click)="viewDataset()">
-            <span class="info-label">Dataset:</span>
-            <span class="info-value link-value">{{ evaluation.dataset?.name || evaluation.dataset_id }}</span>
-          </div>
-          <div class="info-row clickable" (click)="viewPrompt()">
-            <span class="info-label">Prompt:</span>
-            <span class="info-value link-value">{{ evaluation.prompt?.name || evaluation.prompt_id }}</span>
-          </div>
-          <div class="info-row" *ngIf="evaluation.experiment_id">
-            <span class="info-label">Experiment ID:</span>
-            <span class="info-value">{{ evaluation.experiment_id }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Configuration Section -->
-    <div class="config-section" *ngIf="evaluation.config">
-      <h3 class="section-title">Configuration</h3>
-      <div class="config-content">
-        <pre class="config-json">{{ evaluation.config | json }}</pre>
-      </div>
-    </div>
-
-    <!-- Metrics Section -->
-    <div class="metrics-section" *ngIf="hasResults() && metricsData.length > 0">
-      <h3 class="section-title">Metrics Overview</h3>
-      <div class="metrics-content">
-        <div class="metrics-chart">
-          <!-- Simple bar chart representation -->
-          <div class="chart-container">
-            <div *ngFor="let metric of metricsData" class="chart-bar">
-              <div class="bar-label">{{ metric.name }}</div>
-              <div class="bar-container">
-                <div class="bar" [style.width.%]="metric.value * 100"></div>
-                <div class="bar-value">{{ metric.value }}</div>
-              </div>
+        <div class="title-actions">
+            <div class="title-section">
+                <h1 class="page-title" *ngIf="evaluation">{{ evaluation.name }}</h1>
+                <div class="status-badge-container" *ngIf="evaluation">
+                    <span class="status-badge" [ngClass]="getStatusBadgeClass(evaluation.status)">
+                        {{ evaluation.status }}
+                    </span>
+                </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Results Section -->
-    <div class="results-section" *ngIf="hasResults()">
-      <h3 class="section-title">Evaluation Results</h3>
-      <div class="results-content">
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Sample ID</th>
-              <th>Score</th>
-              <th>Processing Time</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let result of evaluation.results; let i = index">
-              <td>{{ i + 1 }}</td>
-              <td>{{ result['dataset_sample_id'] || 'N/A' }}</td>
-              <td>{{ result['overall_score'] ? (result['overall_score'] | number:'1.2-2') : 'N/A' }}</td>
-              <td>{{ result['processing_time_ms'] ? (result['processing_time_ms'] | number) + ' ms' : 'N/A' }}</td>
-              <td>{{ formatDate(result['created_at']) }}</td>
-              <td>
-                <button class="view-button" (click)="viewResultDetails(result)">View Details</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Result Details Modal -->
-    <div class="modal-overlay" *ngIf="showResultDetails" (click)="closeResultDetails()">
-      <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h2>Result Details</h2>
-          <button class="close-button" (click)="closeResultDetails()">×</button>
-        </div>
-        <div class="modal-body" *ngIf="selectedResult">
-          <!-- Input/Output Data Section -->
-          <div class="result-io-section">
-            <div class="result-input" *ngIf="selectedResult.input_data">
-              <h4>Input Data</h4>
-              <pre class="code-block">{{ selectedResult.input_data | json }}</pre>
+            <div class="action-buttons" *ngIf="evaluation">
+                <button *ngIf="canStartEvaluation()" class="action-button start-button" (click)="startEvaluation()">
+                    Start Evaluation
+                </button>
+                <button *ngIf="canCancelEvaluation()" class="action-button cancel-button" (click)="cancelEvaluation()">
+                    Cancel Evaluation
+                </button>
+                <button class="action-button edit-button" (click)="editEvaluation()">
+                    Edit
+                </button>
+                <button class="action-button report-button" (click)="navigateToCreateReport()">
+                    Generate Report
+                </button>
+                <button class="action-button delete-button" (click)="deleteEvaluation()">
+                    Delete
+                </button>
             </div>
-            <div class="result-output" *ngIf="selectedResult.output_data">
-              <h4>Output Data</h4>
-              <pre class="code-block">{{ selectedResult.output_data | json }}</pre>
-            </div>
-          </div>
-
-          <!-- Metric Scores -->
-          <div class="result-metrics-section" *ngIf="selectedResult.metric_scores && selectedResult.metric_scores.length > 0">
-            <h4>Metric Scores</h4>
-            <table class="metrics-table">
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  <th>Score</th>
-                  <th>Weight</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let metric of selectedResult.metric_scores">
-                  <td>{{ metric.name }}</td>
-                  <td>{{ metric.value | number:'1.2-2' }}</td>
-                  <td>{{ metric.weight | number:'1.2-2' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Raw Results -->
-          <div class="result-raw-section" *ngIf="selectedResult.raw_results">
-            <h4>Raw Results</h4>
-            <pre class="code-block">{{ selectedResult.raw_results | json }}</pre>
-          </div>
         </div>
-      </div>
     </div>
-  </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading evaluation details...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="error-container">
+        <div class="error-icon">❌</div>
+        <p>{{ error }}</p>
+        <button class="retry-button" (click)="loadEvaluation(evaluationId)">Try Again</button>
+    </div>
+
+    <!-- Evaluation Content -->
+    <div *ngIf="evaluation && !isLoading" class="evaluation-content">
+        <!-- Progress Bar (for running evaluations) -->
+        <div *ngIf="evaluation.status === EvaluationStatus.RUNNING && evaluationProgress" class="progress-section">
+            <div class="progress-header">
+                <h3>Evaluation Progress</h3>
+                <span class="progress-percentage">{{ evaluationProgress.percentage_complete }}%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" [style.width.%]="evaluationProgress.percentage_complete"></div>
+            </div>
+            <div class="progress-details">
+                <span>{{ evaluationProgress.processed_items }} of {{ evaluationProgress.total_items }} items processed</span>
+                <span *ngIf="evaluationProgress.estimated_completion">Est. completion: {{ formatDate(evaluationProgress.estimated_completion) }}</span>
+            </div>
+        </div>
+
+        <!-- Information Cards -->
+        <div class="info-cards">
+            <!-- Basic Information Card -->
+            <div class="info-card">
+                <h3 class="card-title">Evaluation Details</h3>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">ID:</span>
+                        <span class="info-value">{{ evaluation.id }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Method:</span>
+                        <span class="info-value">{{ evaluation.method }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Created:</span>
+                        <span class="info-value">{{ formatDate(evaluation.created_at) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Description:</span>
+                        <span class="info-value description-value">{{ evaluation.description || 'No description provided' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timing Information Card -->
+            <div class="info-card">
+                <h3 class="card-title">Timing Information</h3>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Start Time:</span>
+                        <span class="info-value">{{ formatDate(evaluation.start_time) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">End Time:</span>
+                        <span class="info-value">{{ formatDate(evaluation.end_time) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Duration:</span>
+                        <span class="info-value">{{ formatDuration(evaluation.start_time, evaluation.end_time) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Last Updated:</span>
+                        <span class="info-value">{{ formatDate(evaluation.updated_at) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Items Card -->
+            <div class="info-card">
+                <h3 class="card-title">Related Items</h3>
+                <div class="card-content">
+                    <div class="info-row clickable" (click)="viewAgent()">
+                        <span class="info-label">Agent:</span>
+                        <span class="info-value link-value">{{ evaluation.agent?.name || evaluation.agent_id }}</span>
+                    </div>
+                    <div class="info-row clickable" (click)="viewDataset()">
+                        <span class="info-label">Dataset:</span>
+                        <span class="info-value link-value">{{ evaluation.dataset?.name || evaluation.dataset_id }}</span>
+                    </div>
+                    <div class="info-row clickable" (click)="viewPrompt()">
+                        <span class="info-label">Prompt:</span>
+                        <span class="info-value link-value">{{ evaluation.prompt?.name || evaluation.prompt_id }}</span>
+                    </div>
+                    <div class="info-row" *ngIf="evaluation.experiment_id">
+                        <span class="info-label">Experiment ID:</span>
+                        <span class="info-value">{{ evaluation.experiment_id }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Section -->
+        <div class="config-section" *ngIf="evaluation.config">
+            <h3 class="section-title">Configuration</h3>
+            <div class="config-content">
+                <pre class="config-json">{{ evaluation.config | json }}</pre>
+            </div>
+        </div>
+
+        <!-- Metrics Section -->
+        <div class="metrics-section" *ngIf="hasResults() && metricsData.length > 0">
+            <h3 class="section-title">Metrics Overview</h3>
+            <div class="metrics-content">
+                <div class="metrics-chart">
+                    <!-- Simple bar chart representation -->
+                    <div class="chart-container">
+                        <div *ngFor="let metric of metricsData" class="chart-bar">
+                            <div class="bar-label">{{ metric.name }}</div>
+                            <div class="bar-container">
+                                <div class="bar" [style.width.%]="metric.value * 100"></div>
+                                <div class="bar-value">{{ metric.value }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" *ngIf="hasResults()">
+            <h3 class="section-title">Evaluation Results</h3>
+            <div class="results-content">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Sample ID</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <!-- New column -->
+                            <th>Processing Time</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let result of evaluation.results; let i = index">
+                            <td>{{ i + 1 }}</td>
+                            <td>{{ result['dataset_sample_id'] || 'N/A' }}</td>
+                            <td>{{ result['overall_score'] ? (result['overall_score'] | number:'1.2-2') : 'N/A' }}</td>
+                            <!-- New pass/fail status column -->
+                            <td>
+                                <span class="status-badge" [ngClass]="result['passed'] ? 'completed' : 'failed'" *ngIf="result['passed'] !== undefined">
+                                    {{ result['passed'] ? 'PASS' : 'FAIL' }}
+                                </span>
+                                <span *ngIf="result['passed'] === undefined">N/A</span>
+                            </td>
+                            <td>{{ result['processing_time_ms'] ? (result['processing_time_ms'] | number) + ' ms' : 'N/A' }}</td>
+                            <td>{{ formatDate(result['created_at']) }}</td>
+                            <td>
+                                <button class="view-button" (click)="viewResultDetails(result)">View Details</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Result Details Modal -->
+        <div class="modal-overlay" *ngIf="showResultDetails" (click)="closeResultDetails()">
+            <div class="modal-content" (click)="$event.stopPropagation()">
+                <div class="modal-header">
+                    <h2>Result Details</h2>
+                    <button class="close-button" (click)="closeResultDetails()">×</button>
+                </div>
+                <!-- Replace the modal body section in evaluation-detail.page.html -->
+                <div class="modal-body" *ngIf="selectedResult">
+                    <!-- Input/Output Data Section -->
+                    <div class="result-io-section">
+                        <div class="result-input" *ngIf="selectedResult.input_data">
+                            <h4>Input Data</h4>
+                            <pre [class]="'code-block expandable ' + (expandedSections.input ? 'expanded' : '')" #inputBlock>{{ selectedResult.input_data | json }}</pre>
+                            <div class="expand-toggle" *ngIf="inputBlock.scrollHeight > 250" (click)="toggleSection('input')">
+                                {{ expandedSections.input ? 'Collapse' : 'Expand' }}
+                            </div>
+                        </div>
+                        <div class="result-output" *ngIf="selectedResult.output_data">
+                            <h4>Output Data</h4>
+                            <pre [class]="'code-block expandable ' + (expandedSections.output ? 'expanded' : '')" #outputBlock>{{ selectedResult.output_data | json }}</pre>
+                            <div class="expand-toggle" *ngIf="outputBlock.scrollHeight > 250" (click)="toggleSection('output')">
+                                {{ expandedSections.output ? 'Collapse' : 'Expand' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metric Scores -->
+                    <div class="result-metrics-section" *ngIf="selectedResult.metric_scores && selectedResult.metric_scores.length > 0">
+                        <h4>Metric Scores</h4>
+                        <table class="metrics-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Score</th>
+                                    <th>Weight</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let metric of selectedResult.metric_scores">
+                                    <td>{{ metric.name }}</td>
+                                    <td>{{ metric.value | number:'1.2-2' }}</td>
+                                    <td>{{ metric.weight | number:'1.2-2' }}</td>
+                                    <td>{{ metric.meta_info?.description || 'N/A' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Raw Results -->
+                    <div class="result-raw-section" *ngIf="selectedResult.raw_results">
+                        <h4>Raw Results</h4>
+                        <pre [class]="'code-block expandable ' + (expandedSections.raw ? 'expanded' : '')" #rawBlock>{{ selectedResult.raw_results | json }}</pre>
+                        <div class="expand-toggle" *ngIf="rawBlock.scrollHeight > 250" (click)="toggleSection('raw')">
+                            {{ expandedSections.raw ? 'Collapse' : 'Expand' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

@@ -1,302 +1,271 @@
 <!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-detail/agents-detail.page.html -->
 <div class="agent-detail-container">
-  <!-- Header Section -->
-  <div class="header-section">
-    <div class="back-navigation">
-      <button class="back-button" (click)="onBackClick()">
-        <span class="back-icon">←</span> Back to Agents
-      </button>
-    </div>
-
-    <div class="title-actions">
-      <div class="title-section">
-        <div class="title-status-container">
-          <h1 class="page-title" *ngIf="agent">{{ agent.name }}</h1>
-          <span *ngIf="agent" class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
-            {{ agent.is_active ? 'Active' : 'Inactive' }}
-          </span>
-        </div>
-
-        <!-- Domain Label -->
-        <div *ngIf="agent" class="domain-container">
-          <span class="domain-label">Domain:</span>
-          <span class="domain-badge">{{ agent.domain }}</span>
-        </div>
+   <!-- Header Section -->
+   <div class="header-section">
+      <div class="back-navigation">
+         <button class="back-button" (click)="onBackClick()">
+         <span class="back-icon">←</span> Back to Agents
+         </button>
       </div>
-
-      <div class="action-buttons" *ngIf="agent">
-        <button class="action-button edit-button" (click)="onEditClick()">
-          Edit Agent
-        </button>
-        <button class="action-button test-button" (click)="onTestClick()">
-          Test Agent
-        </button>
-        <button class="action-button delete-button" (click)="onDeleteClick()">
-          Delete Agent
-        </button>
+      <div class="title-actions">
+         <div class="title-section">
+            <div class="title-status-container">
+               <h1 class="page-title" *ngIf="agent">{{ agent.name }}</h1>
+               <span *ngIf="agent" class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
+               {{ agent.is_active ? 'Active' : 'Inactive' }}
+               </span>
+            </div>
+            <!-- Domain Label -->
+            <div *ngIf="agent" class="domain-container">
+               <span class="domain-label">Domain:</span>
+               <span class="domain-badge">{{ agent.domain }}</span>
+            </div>
+         </div>
+         <div class="action-buttons" *ngIf="agent">
+            <button class="action-button edit-button" (click)="onEditClick()">
+            Edit Agent
+            </button>
+            <button class="action-button test-button" (click)="onTestClick()">
+            Test Agent
+            </button>
+            <button class="action-button delete-button" (click)="onDeleteClick()">
+            Delete Agent
+            </button>
+         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  <div *ngIf="isLoading" class="loading-container">
-    <div class="spinner"></div>
-    <p>Loading agent details...</p>
-  </div>
-
-  <!-- Error State -->
-  <div *ngIf="error" class="error-container">
-    <div class="error-icon">❌</div>
-    <p>{{ error }}</p>
-    <qrac-button
+   </div>
+   <!-- Loading State -->
+   <div *ngIf="isLoading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading agent details...</p>
+   </div>
+   <!-- Error State -->
+   <div *ngIf="error" class="error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error }}</p>
+      <qrac-button
       *ngIf="agentId"
       label="Try Again"
       type="secondary"
       (buttonClick)="loadAgent(agentId)">
-    </qrac-button>
-  </div>
-
-  <!-- Agent Details -->
-  <div *ngIf="agent && !isLoading" class="agent-details">
-    <!-- Basic Information Card -->
-    <div class="detail-card">
-      <div class="card-header" (click)="toggleSection('basicInfo')">
-        <h2 class="card-title">Basic Information</h2>
-        <span class="expand-icon">{{ expandedSections.basicInfo ? '▼' : '►' }}</span>
-      </div>
-
-      <div class="card-content" [class.expanded]="expandedSections.basicInfo">
-        <div class="info-grid">
-          <div class="info-row">
-            <span class="info-label">Description</span>
-            <div class="info-value description-value">{{ agent.description || 'No description provided' }}</div>
-          </div>
-
-          <div class="info-row">
-            <span class="info-label">Model Type</span>
-            <span class="info-value model-value">{{ agent.model_type || 'Not specified' }}</span>
-          </div>
-
-          <div class="info-row">
-            <span class="info-label">Version</span>
-            <span class="info-value">{{ agent.version || '1.0.0' }}</span>
-          </div>
-
-          <div class="info-row">
-            <span class="info-label">Created</span>
-            <span class="info-value">{{ formatDate(agent.created_at) }}</span>
-          </div>
-
-          <div class="info-row">
-            <span class="info-label">Last Updated</span>
-            <span class="info-value">{{ formatDate(agent.updated_at) }}</span>
-          </div>
-
-          <div class="info-row" *ngIf="agent.tags && agent.tags.length > 0">
-            <span class="info-label">Tags</span>
-            <div class="tags-container info-value">
-              <span class="tag" *ngFor="let tag of agent.tags">{{ tag }}</span>
+      </qrac-button>
+   </div>
+   <!-- Agent Details -->
+   <div *ngIf="agent && !isLoading" class="agent-details">
+      <!-- Basic Information Card -->
+      <div class="detail-card">
+         <div class="card-header" (click)="toggleSection('basicInfo')">
+            <h2 class="card-title">Basic Information</h2>
+            <span class="expand-icon">{{ expandedSections.basicInfo ? '▼' : '►' }}</span>
+         </div>
+         <div class="card-content" [class.expanded]="expandedSections.basicInfo">
+            <div class="info-grid">
+               <div class="info-row">
+                  <span class="info-label">Description</span>
+                  <div class="info-value description-value">{{ agent.description || 'No description provided' }}</div>
+               </div>
+               <div class="info-row">
+                  <span class="info-label">Model Type</span>
+                  <span class="info-value model-value">{{ agent.model_type || 'Not specified' }}</span>
+               </div>
+               <div class="info-row">
+                  <span class="info-label">Version</span>
+                  <span class="info-value">{{ agent.version || '1.0.0' }}</span>
+               </div>
+               <div class="info-row">
+                  <span class="info-label">Created</span>
+                  <span class="info-value">{{ formatDate(agent.created_at) }}</span>
+               </div>
+               <div class="info-row">
+                  <span class="info-label">Last Updated</span>
+                  <span class="info-value">{{ formatDate(agent.updated_at) }}</span>
+               </div>
+               <div class="info-row" *ngIf="agent.tags && agent.tags.length > 0">
+                  <span class="info-label">Tags</span>
+                  <div class="tags-container info-value">
+                     <span class="tag" *ngFor="let tag of agent.tags">{{ tag }}</span>
+                  </div>
+               </div>
             </div>
-          </div>
-        </div>
+         </div>
       </div>
-    </div>
-
-    <!-- API Configuration Card -->
-    <div class="detail-card">
-      <div class="card-header" (click)="toggleSection('apiConfig')">
-        <h2 class="card-title">API Configuration</h2>
-        <span class="expand-icon">{{ expandedSections.apiConfig ? '▼' : '►' }}</span>
-      </div>
-
-      <div class="card-content" [class.expanded]="expandedSections.apiConfig">
-        <div class="info-grid">
-          <div class="info-row full-width">
-            <span class="info-label">API Endpoint</span>
-            <div class="endpoint-container">
-              <span class="info-value endpoint">{{ agent.api_endpoint }}</span>
-              <button class="copy-button" (click)="$event.stopPropagation(); copyToClipboard(agent.api_endpoint)" title="Copy to clipboard">
-                Copy
-              </button>
+      <!-- API Configuration Card -->
+      <div class="detail-card">
+         <div class="card-header" (click)="toggleSection('apiConfig')">
+            <h2 class="card-title">API Configuration</h2>
+            <span class="expand-icon">{{ expandedSections.apiConfig ? '▼' : '►' }}</span>
+         </div>
+         <div class="card-content" [class.expanded]="expandedSections.apiConfig">
+            <div class="info-grid">
+               <div class="info-row full-width">
+                  <span class="info-label">API Endpoint</span>
+                  <div class="endpoint-container">
+                     <span class="info-value endpoint">{{ agent.api_endpoint }}</span>
+                     <button class="copy-button" (click)="$event.stopPropagation(); copyToClipboard(agent.api_endpoint)" title="Copy to clipboard">
+                     Copy
+                     </button>
+                  </div>
+               </div>
+               <div class="info-row" *ngIf="agent.integration_type">
+                  <span class="info-label">Integration Type</span>
+                  <span class="info-value integration-badge">{{ agent.integration_type }}</span>
+               </div>
+               <div class="info-row" *ngIf="agent.auth_type">
+                  <span class="info-label">Auth Type</span>
+                  <span class="info-value auth-badge">{{ agent.auth_type }}</span>
+               </div>
+               <div class="info-row" *ngIf="agent.response_format">
+                  <span class="info-label">Response Format</span>
+                  <span class="info-value">{{ agent.response_format }}</span>
+               </div>
             </div>
-          </div>
-
-          <div class="info-row" *ngIf="agent.integration_type">
-            <span class="info-label">Integration Type</span>
-            <span class="info-value integration-badge">{{ agent.integration_type }}</span>
-          </div>
-
-          <div class="info-row" *ngIf="agent.auth_type">
-            <span class="info-label">Auth Type</span>
-            <span class="info-value auth-badge">{{ agent.auth_type }}</span>
-          </div>
-
-          <div class="info-row" *ngIf="agent.response_format">
-            <span class="info-label">Response Format</span>
-            <span class="info-value">{{ agent.response_format }}</span>
-          </div>
-        </div>
+         </div>
       </div>
-    </div>
-
-    <!-- Configuration Card -->
-    <div class="detail-card">
-      <div class="card-header" (click)="toggleSection('configuration')">
-        <h2 class="card-title">Configuration</h2>
-        <span class="expand-icon">{{ expandedSections.configuration ? '▼' : '►' }}</span>
-      </div>
-
-      <div class="card-content" [class.expanded]="expandedSections.configuration">
-        <div class="config-tabs">
-          <div class="config-tab-buttons">
-            <button
-              *ngFor="let tab of configTabs; let i = index"
-              class="config-tab-button"
-              [class.active]="selectedConfigTab === i"
-              (click)="selectConfigTab(i)">
-              {{ tab.label }}
-            </button>
-          </div>
-
-          <div class="config-tab-content">
-            <ng-container [ngSwitch]="selectedConfigTab">
-              <!-- Configuration -->
-              <div *ngSwitchCase="0">
-                <app-simple-json-viewer
-                  [json]="agent.config"
-                  *ngIf="agent.config">
-                </app-simple-json-viewer>
-                <div *ngIf="!agent.config" class="empty-config">
-                  No configuration available
-                </div>
-              </div>
-
-              <!-- Auth Credentials -->
-              <div *ngSwitchCase="1">
-                <app-simple-json-viewer
-                  [json]="agent.auth_credentials"
-                  *ngIf="agent.auth_credentials">
-                </app-simple-json-viewer>
-                <div *ngIf="!agent.auth_credentials" class="empty-config">
-                  No authentication credentials available
-                </div>
-              </div>
-
-              <!-- Retry Config -->
-              <div *ngSwitchCase="2">
-                <app-simple-json-viewer
-                  [json]="agent.retry_config"
-                  *ngIf="agent.retry_config">
-                </app-simple-json-viewer>
-                <div *ngIf="!agent.retry_config" class="empty-config">
-                  No retry configuration available
-                </div>
-              </div>
-
-              <!-- Content Filter -->
-              <div *ngSwitchCase="3">
-                <app-simple-json-viewer
-                  [json]="agent.content_filter_config"
-                  *ngIf="agent.content_filter_config">
-                </app-simple-json-viewer>
-                <div *ngIf="!agent.content_filter_config" class="empty-config">
-                  No content filter configuration available
-                </div>
-              </div>
-            </ng-container>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tools Card -->
-    <div class="detail-card">
-      <div class="card-header" (click)="toggleSection('tools')">
-        <h2 class="card-title">Tools & Capabilities</h2>
-        <span class="expand-icon">{{ expandedSections.tools ? '▼' : '►' }}</span>
-      </div>
-
-      <div class="card-content" [class.expanded]="expandedSections.tools">
-        <!-- Loading State -->
-        <div *ngIf="isLoadingTools" class="section-loading">
-          <div class="spinner-sm"></div>
-          <p>Loading agent tools...</p>
-        </div>
-
-        <!-- Error State -->
-        <div *ngIf="toolsError" class="section-error">
-          <p>{{ toolsError }}</p>
-          <button class="retry-button-sm" (click)="loadAgentTools(agentId!)">Retry</button>
-        </div>
-
-        <!-- Tools List -->
-        <div *ngIf="agentTools && !isLoadingTools && !toolsError" class="tools-container">
-          <div *ngIf="agentTools.tools && agentTools.tools.length > 0" class="tools-list">
-            <div *ngFor="let tool of agentTools.tools" class="tool-item">
-              <div class="tool-header">
-                <h3 class="tool-name">{{ tool.name }}</h3>
-              </div>
-              <p class="tool-description">{{ tool.description }}</p>
-
-              <div *ngIf="tool.parameters" class="tool-parameters">
-                <h4 class="parameters-title">Parameters:</h4>
-                <app-simple-json-viewer [json]="tool.parameters"></app-simple-json-viewer>
-              </div>
-
-              <div *ngIf="tool.required_parameters && tool.required_parameters.length > 0" class="required-parameters">
-                <h4 class="parameters-title">Required Parameters:</h4>
-                <ul class="parameters-list">
-                  <li *ngFor="let param of tool.required_parameters">{{ param }}</li>
-                </ul>
-              </div>
+      <!-- Configuration Card -->
+      <div class="detail-card">
+         <div class="card-header" (click)="toggleSection('configuration')">
+            <h2 class="card-title">Configuration</h2>
+            <span class="expand-icon">{{ expandedSections.configuration ? '▼' : '►' }}</span>
+         </div>
+         <div class="card-content" [class.expanded]="expandedSections.configuration">
+            <div class="config-tabs">
+               <div class="config-tab-buttons">
+                  <button
+                  *ngFor="let tab of configTabs; let i = index"
+                  class="config-tab-button"
+                  [class.active]="selectedConfigTab === i"
+                  (click)="selectConfigTab(i)">
+                  {{ tab.label }}
+                  </button>
+               </div>
+               <div class="config-tab-content">
+                  <ng-container [ngSwitch]="selectedConfigTab">
+                     <!-- Configuration -->
+                     <div *ngSwitchCase="0">
+                        <app-simple-json-viewer
+                        [json]="agent.config"
+                        *ngIf="agent.config">
+                        </app-simple-json-viewer>
+                        <div *ngIf="!agent.config" class="empty-config">
+                           No configuration available
+                        </div>
+                     </div>
+                     <!-- Auth Credentials -->
+                     <div *ngSwitchCase="1">
+                        <app-simple-json-viewer
+                        [json]="agent.auth_credentials"
+                        *ngIf="agent.auth_credentials">
+                        </app-simple-json-viewer>
+                        <div *ngIf="!agent.auth_credentials" class="empty-config">
+                           No authentication credentials available
+                        </div>
+                     </div>
+                     <!-- Retry Config -->
+                     <div *ngSwitchCase="2">
+                        <app-simple-json-viewer
+                        [json]="agent.retry_config"
+                        *ngIf="agent.retry_config">
+                        </app-simple-json-viewer>
+                        <div *ngIf="!agent.retry_config" class="empty-config">
+                           No retry configuration available
+                        </div>
+                     </div>
+                     <!-- Content Filter -->
+                     <div *ngSwitchCase="3">
+                        <app-simple-json-viewer
+                        [json]="agent.content_filter_config"
+                        *ngIf="agent.content_filter_config">
+                        </app-simple-json-viewer>
+                        <div *ngIf="!agent.content_filter_config" class="empty-config">
+                           No content filter configuration available
+                        </div>
+                     </div>
+                  </ng-container>
+               </div>
             </div>
-          </div>
-
-          <div *ngIf="!agentTools.tools || agentTools.tools.length === 0" class="empty-tools">
-            <p>No tools available for this agent.</p>
-          </div>
-        </div>
+         </div>
       </div>
-    </div>
-
-    <!-- Quick Test Card -->
-    <div class="detail-card quick-test-card">
-      <div class="card-header">
-        <h2 class="card-title">Quick Test</h2>
+      <!-- Tools Card -->
+      <div class="detail-card">
+         <div class="card-header" (click)="toggleSection('tools')">
+            <h2 class="card-title">Tools & Capabilities</h2>
+            <span class="expand-icon">{{ expandedSections.tools ? '▼' : '►' }}</span>
+         </div>
+         <div class="card-content" [class.expanded]="expandedSections.tools">
+            <!-- Loading State -->
+            <div *ngIf="isLoadingTools" class="section-loading">
+               <div class="spinner-sm"></div>
+               <p>Loading agent tools...</p>
+            </div>
+            <!-- Error State -->
+            <div *ngIf="toolsError" class="section-error">
+               <p>{{ toolsError }}</p>
+               <button class="retry-button-sm" (click)="loadAgentTools(agentId!)">Retry</button>
+            </div>
+            <!-- Tools List -->
+            <div *ngIf="agentTools && !isLoadingTools && !toolsError" class="tools-container">
+               <div *ngIf="agentTools.tools && agentTools.tools.length > 0" class="tools-list">
+                  <div *ngFor="let tool of agentTools.tools" class="tool-item">
+                     <div class="tool-header">
+                        <h3 class="tool-name">{{ tool.name }}</h3>
+                     </div>
+                     <p class="tool-description">{{ tool.description || 'No description available' }}</p>
+                     <div *ngIf="tool.parameters && !isEmptyObject(tool.parameters)" class="tool-parameters">
+                        <h4 class="parameters-title">Parameters:</h4>
+                        <app-simple-json-viewer [json]="tool.parameters"></app-simple-json-viewer>
+                     </div>
+                     <div *ngIf="tool.returns && !isEmptyObject(tool.returns)" class="tool-returns">
+                        <h4 class="returns-title">Returns:</h4>
+                        <app-simple-json-viewer [json]="tool.returns"></app-simple-json-viewer>
+                     </div>
+                     <div *ngIf="tool.required_parameters && tool.required_parameters.length > 0" class="required-parameters">
+                        <h4 class="parameters-title">Required Parameters:</h4>
+                        <ul class="parameters-list">
+                           <li *ngFor="let param of tool.required_parameters">{{ param }}</li>
+                        </ul>
+                     </div>
+                  </div>
+               </div>
+               <div *ngIf="!agentTools.tools || agentTools.tools.length === 0" class="empty-tools">
+                  <p>No tools available for this agent.</p>
+               </div>
+            </div>
+         </div>
       </div>
-
-      <div class="card-content expanded">
-        <div class="quick-test-form">
-          <div class="test-input-container">
-            <label for="quick-test-query">Test Query</label>
-            <input
-              type="text"
-              id="quick-test-query"
-              class="test-input"
-              [(ngModel)]="quickTestQuery"
-              placeholder="Enter a test query..." />
-          </div>
-
-          <button
-            class="run-test-button"
-            [disabled]="!quickTestQuery || isRunningTest"
-            (click)="runQuickTest()">
-            <span *ngIf="isRunningTest" class="spinner-sm"></span>
-            {{ isRunningTest ? 'Running...' : 'Run Test' }}
-          </button>
-        </div>
-
-        <div *ngIf="quickTestResult" class="quick-test-result">
-          <div class="result-header">
-            <h3 class="result-title">Test Result</h3>
-            <span class="result-status" [ngClass]="testSuccess ? 'success' : 'error'">
-              {{ testSuccess ? 'Success' : 'Error' }}
-            </span>
-          </div>
-
-          <app-simple-json-viewer [json]="quickTestResult"></app-simple-json-viewer>
-        </div>
+      <!-- Quick Test Card -->
+      <div class="detail-card quick-test-card">
+         <div class="card-header">
+            <h2 class="card-title">Quick Test</h2>
+         </div>
+         <div class="card-content expanded">
+            <div class="quick-test-form">
+               <div class="test-input-container">
+                  <label for="quick-test-query">Test Query</label>
+                  <input
+                  type="text"
+                  id="quick-test-query"
+                  class="test-input"
+                  [(ngModel)]="quickTestQuery"
+                  placeholder="Enter a test query..." />
+               </div>
+               <button
+               class="run-test-button"
+               [disabled]="!quickTestQuery || isRunningTest"
+               (click)="runQuickTest()">
+               <span *ngIf="isRunningTest" class="spinner-sm"></span>
+               {{ isRunningTest ? 'Running...' : 'Run Test' }}
+               </button>
+            </div>
+            <div *ngIf="quickTestResult" class="quick-test-result">
+               <div class="result-header">
+                  <h3 class="result-title">Test Result</h3>
+                  <span class="result-status" [ngClass]="testSuccess ? 'success' : 'error'">
+                  {{ testSuccess ? 'Success' : 'Error' }}
+                  </span>
+               </div>
+               <app-simple-json-viewer [json]="quickTestResult"></app-simple-json-viewer>
+            </div>
+         </div>
       </div>
-    </div>
-  </div>
+   </div>
 </div>

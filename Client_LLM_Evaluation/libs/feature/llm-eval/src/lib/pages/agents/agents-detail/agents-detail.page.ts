@@ -129,51 +129,60 @@ export class AgentDetailPage implements OnInit, OnDestroy {
   /**
    * Load agent details from the API with caching
    */
-  loadAgent(id: string, silent: boolean = false): void {
-    if (!silent) {
-      this.isLoading = true;
-      this.error = null;
-      this.cdr.markForCheck();
-    }
+loadAgentTools(id: string): void {
+  this.isLoadingTools = true;
+  this.toolsError = null;
+  this.cdr.markForCheck();
 
-    this.agentService.getAgent(id)
+  // Check if the API method exists, otherwise fall back to mock data
+  if (typeof this.agentService.getAgentTools === 'function') {
+    this.agentService.getAgentTools(id)
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          if (!silent) {
-            this.error = 'Failed to load agent details. Please try again.';
-            this.notificationService.error(this.error);
-            this.isLoading = false;
-            console.error('Error loading agent:', error);
-            this.cdr.markForCheck();
-          }
-          return throwError(() => error);
+          this.toolsError = 'Failed to load agent tools. Please try again.';
+          this.isLoadingTools = false;
+          this.cdr.markForCheck();
+          return this.getMockAgentTools(id);
         }),
         finalize(() => {
-          if (!silent) {
-            this.isLoading = false;
-            this.cdr.markForCheck();
-          }
+          this.isLoadingTools = false;
+          this.cdr.markForCheck();
         })
       )
-      .subscribe({
-        next: (agent: AgentResponse) => {
-          this.agent = agent;
-
-          // Update cache
-          AgentDetailPage.agentCache.set(id, agent);
-
-          if (!silent) {
-            // Load tools if this section is expanded
-            if (this.expandedSections.tools) {
-              this.loadAgentTools(id);
-            }
+      .subscribe((response: any) => {
+        if (response) {
+          // Handle both API response formats: direct array or object with tools property
+          if (Array.isArray(response)) {
+            this.agentTools = { tools: response };
+          } else if (response.tools && Array.isArray(response.tools)) {
+            this.agentTools = response;
+          } else {
+            // If structure doesn't match expectations, normalize it
+            this.agentTools = {
+              tools: Array.isArray(response) ? response : [response]
+            };
           }
-
+          console.log('Loaded agent tools:', this.agentTools);
           this.cdr.markForCheck();
         }
       });
+  } else {
+    // If the API method doesn't exist, use mock data
+    this.getMockAgentTools(id)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isLoadingTools = false;
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe((tools: AgentToolsResponse) => {
+        this.agentTools = tools;
+        this.cdr.markForCheck();
+      });
   }
+}
 
   /**
    * Load agent tools using the API
@@ -409,4 +418,11 @@ export class AgentDetailPage implements OnInit, OnDestroy {
       return JSON.stringify({});
     }
   }
+/**
+ * Helper method to check if an object is empty (for conditional rendering)
+ */
+isEmptyObject(obj: any): boolean {
+  if (!obj) return true;
+  return Object.keys(obj).length === 0;
+}
 }

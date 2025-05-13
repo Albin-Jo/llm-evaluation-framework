@@ -457,4 +457,79 @@ export class AgentTestPage implements OnInit, OnDestroy {
     if (!date) return '';
     return date.toLocaleTimeString() + ' ' + date.toLocaleDateString();
   }
+
+// Add these methods to the AgentTestPage class
+
+/**
+ * Run a quick test with minimal inputs
+ */
+runQuickTest(): void {
+  if (!this.quickTestQuery || !this.agentId) return;
+
+  this.isRunningTest = true;
+  this.testResult = null;
+  this.testSuccess = false;
+  this.cdr.markForCheck();
+
+  const testInput = {
+    query: this.quickTestQuery
+  };
+
+  this.agentService.testAgent(this.agentId, testInput)
+    .pipe(
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.isRunningTest = false;
+        this.cdr.markForCheck();
+      })
+    )
+    .subscribe({
+      next: (result) => {
+        this.testResult = result;
+        this.testSuccess = true;
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        this.testResult = {
+          error: true,
+          message: error.message || 'Test failed',
+          details: error.error
+        };
+        this.testSuccess = false;
+        this.cdr.markForCheck();
+      }
+    });
+}
+
+/**
+ * Extract response text from various possible response formats
+ */
+getResponseText(): string {
+  if (!this.testResult) return '';
+
+  // Handle different response formats
+  if (this.testResult.answer) return this.testResult.answer;
+  if (this.testResult.response) return this.testResult.response;
+  if (this.testResult.message) return this.testResult.message;
+  if (this.testResult.text) return this.testResult.text;
+  if (this.testResult.content) return this.testResult.content;
+
+  // If the result is a direct string
+  if (typeof this.testResult === 'string') return this.testResult;
+
+  // Try to stringify the result if it's an object without known properties
+  if (typeof this.testResult === 'object') {
+    try {
+      // Exclude error details and metadata for cleaner display
+      const { error, status, details, processing_time_ms, time, tokens, ...contentProps } = this.testResult;
+
+      // If we still have properties to show
+      if (Object.keys(contentProps).length > 0) {
+        return JSON.stringify(contentProps, null, 2);
+      }
+    } catch (e) {}
+  }
+
+  return 'No response content available';
+}
 }
