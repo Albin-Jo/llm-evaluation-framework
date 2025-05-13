@@ -634,7 +634,7 @@ class EvaluationService:
             # Add relationships to load eagerly
             load_relationships = ["agent", "dataset", "prompt"]
 
-            # Debug log the query parameters
+            # Debug log.json the query parameters
             logger.debug(f"Listing evaluations with filters={filters}, skip={skip}, limit={limit}, sort={sort_expr}")
 
             # Execute the query through the repository
@@ -646,7 +646,7 @@ class EvaluationService:
                 load_relationships=load_relationships
             )
 
-            # Debug log the result count
+            # Debug log.json the result count
             logger.debug(f"Query returned {len(evaluations)} evaluations")
 
             return evaluations
@@ -803,12 +803,11 @@ class EvaluationService:
         Raises:
             HTTPException: If result creation fails
         """
-        # REMOVED TRANSACTION to avoid conflict with FastAPI dependency
         try:
             # Create evaluation result
             result_dict = result_data.model_dump(exclude={"metric_scores"})
             result = await self.result_repo.create(result_dict)
-            logger.debug(f"Created evaluation result {result.id} for evaluation {result_data.evaluation_id}")
+            logger.info(f"Created evaluation result {result.id} for evaluation {result_data.evaluation_id}")
 
             # Create metric scores if provided
             metric_scores = []

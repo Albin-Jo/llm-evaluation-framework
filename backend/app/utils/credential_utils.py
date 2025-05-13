@@ -35,7 +35,7 @@ def get_encryption_key():
     # This is NOT secure for production, just for development
     fallback_key = b'Jt8MKKG6RYS42ZmvYYNbDT0Na4NFNg5J8xb7Yc4NS8c='
 
-    # If this is production, log a warning
+    # If this is production, log.json a warning
     if os.getenv("APP_ENV") == "production":
         logger.warning(
             "Using fallback encryption key in production! "

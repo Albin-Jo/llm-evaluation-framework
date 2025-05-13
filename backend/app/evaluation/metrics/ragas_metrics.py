@@ -1,4 +1,3 @@
-# backend/app/evaluation/metrics/ragas_metrics.py
 import logging
 from typing import Dict, List, Optional, Union, Any
 
@@ -6,21 +5,20 @@ import ragas
 from ragas import SingleTurnSample
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import (
+    ContextPrecision,
     Faithfulness,
     ResponseRelevancy,
     ContextEntityRecall,
-    AnswerCorrectness,
-    AnswerRelevancy,
-    AnswerSimilarity,
-    FactualCorrectness,
-    ContextPrecision,
-    ContextRecall,
     NoiseSensitivity,
-    AspectCritic,
-    TopicAdherenceScore
+    ContextRecall,
+    AnswerCorrectness,
+    AnswerSimilarity,
+    AnswerRelevancy,
+    FactualCorrectness
 )
 
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.ERROR)
 RAGAS_AVAILABLE = True
 logger.info(f"RAGAS library found (version: {ragas.__version__})")
 
@@ -44,7 +42,10 @@ async def get_ragas_llm():
                 azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
                 azure_deployment=settings.AZURE_OPENAI_DEPLOYMENT,
                 api_version=settings.AZURE_OPENAI_VERSION,
-                temperature=0.0
+                temperature=0.0,
+                # Add rate limiting settings
+                max_retries=5,
+                timeout=60.0
             )
 
             # Wrap in the RAGAS LLM interface
@@ -67,17 +68,17 @@ async def get_ragas_embeddings():
             from langchain_openai import AzureOpenAIEmbeddings
             from backend.app.core.config import settings
 
-            # Initialize Azure OpenAI embeddings
+            # Initialize Azure OpenAI embeddings with rate limit handling
             embeddings = AzureOpenAIEmbeddings(
                 openai_api_key=settings.AZURE_OPENAI_KEY,
                 azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
                 azure_deployment=settings.AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT,
                 api_version=settings.AZURE_OPENAI_EMBEDDINGS_VERSION,
+                max_retries=5,
+                timeout=60.0
             )
 
             _cache["ragas_embeddings"] = embeddings
-
-            logger.info(f"embeddings: {embeddings}")
             logger.info("Successfully initialized embeddings model for RAGAS")
         except Exception as e:
             logger.error(f"Error initializing embeddings model: {e}")
@@ -118,42 +119,71 @@ async def _calculate_with_ragas(
                 logger.error(f"Embeddings required for {metric_class.__name__} but could not be initialized")
                 return None
 
-        # Create metric instance with appropriate parameters
-        if requires_embeddings:
-            metric_instance = metric_class(llm=ragas_llm, embeddings=embeddings)
-            logger.debug(f"Created {metric_class.__name__} with LLM and embeddings")
-        else:
-            metric_instance = metric_class(llm=ragas_llm)
-            logger.debug(f"Created {metric_class.__name__} with LLM only")
-
         # Prepare context (ensure it's a list)
         contexts = sample["context"]
         if isinstance(contexts, str):
             contexts = [contexts]
 
-        # Create SingleTurnSample
+        # Special handling for metrics that have dependencies or require special initialization
+        if metric_class == AnswerCorrectness:
+            # AnswerCorrectness requires AnswerSimilarity instance
+            if not embeddings:
+                embeddings = await get_ragas_embeddings()
+                if not embeddings:
+                    logger.error("Could not initialize embeddings for AnswerSimilarity dependency")
+                    return None
+
+            # First initialize AnswerSimilarity (which only needs embeddings)
+            answer_similarity = AnswerSimilarity(embeddings=embeddings)
+
+            # Then initialize AnswerCorrectness with all required dependencies
+            metric_instance = metric_class(
+                llm=ragas_llm,
+                embeddings=embeddings,
+                answer_similarity=answer_similarity
+            )
+            logger.info(f"Created {metric_class.__name__} with LLM, embeddings, and AnswerSimilarity dependency")
+        elif metric_class == AnswerSimilarity:
+            # AnswerSimilarity only uses embeddings, not LLM
+            metric_instance = metric_class(embeddings=embeddings)
+            logger.info(f"Created {metric_class.__name__} with embeddings only")
+        elif requires_embeddings:
+            # Other metrics that need both LLM and embeddings
+            metric_instance = metric_class(llm=ragas_llm, embeddings=embeddings)
+            logger.info(f"Created {metric_class.__name__} with LLM and embeddings")
+        else:
+            # Metrics that only need LLM
+            metric_instance = metric_class(llm=ragas_llm)
+
+        # Create SingleTurnSample with the correct field mapping for RAGAS
         ragas_sample = SingleTurnSample(
             user_input=sample["query"],
             response=sample["answer"],
             retrieved_contexts=contexts,
-            reference=sample.get("ground_truth")
+            reference=sample.get("ground_truth", "")  # Ensure reference is not None
         )
 
-        # Calculate score
+        # Calculate score with proper timeout handling
+        import asyncio
         logger.info(f"Calculating {metric_class.__name__} using RAGAS")
-        score = await metric_instance.single_turn_ascore(ragas_sample)
+        score = await asyncio.wait_for(
+            metric_instance.single_turn_ascore(ragas_sample),
+            timeout=120.0  # 2-minute timeout
+        )
         logger.info(f"{metric_class.__name__} score: {score}")
         return float(score)
 
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout calculating {metric_class.__name__}")
+        return None
     except Exception as e:
         logger.error(f"Error calculating RAGAS metric {metric_class.__name__}: {e}", exc_info=True)
         return None
 
 
-# Existing metric implementations
 async def calculate_faithfulness(answer: str, context: Union[str, List[str]]) -> float:
     """
-    Calculate faithfulness score using RAGAS if available.
+    Calculate faithfulness score using RAGAS.
 
     Args:
         answer: LLM answer
@@ -197,7 +227,7 @@ def _calculate_faithfulness_fallback(answer: str, context: Union[str, List[str]]
 async def calculate_response_relevancy(answer: str, query: str,
                                        context: Optional[Union[str, List[str]]] = None) -> float:
     """
-    Calculate response relevancy score using RAGAS if available.
+    Calculate response relevancy score using RAGAS.
 
     Args:
         answer: LLM answer
@@ -215,7 +245,7 @@ async def calculate_response_relevancy(answer: str, query: str,
         else:
             sample["context"] = [""]  # Empty context as placeholder
 
-        # Note: ResponseRelevancy requires embeddings
+        # ResponseRelevancy requires embeddings
         result = await _calculate_with_ragas(
             ResponseRelevancy,
             sample,
@@ -265,7 +295,7 @@ def _calculate_response_relevancy_fallback(answer: str, query: str) -> float:
 
 async def calculate_context_precision(context: Union[str, List[str]], query: str) -> float:
     """
-    Calculate context precision score using RAGAS if available.
+    Calculate context precision score using RAGAS.
 
     Args:
         context: Input context (string or list of strings)
@@ -276,11 +306,16 @@ async def calculate_context_precision(context: Union[str, List[str]], query: str
     """
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        # ContextPrecision doesn't need an answer but the API requires it
+        # ContextPrecision requires a response and empty reference
         placeholder_answer = "This is a placeholder answer for context precision evaluation."
         result = await _calculate_with_ragas(
             ContextPrecision,
-            {"query": query, "answer": placeholder_answer, "context": context}
+            {
+                "query": query,
+                "answer": placeholder_answer,
+                "context": context,
+                "ground_truth": ""  # Empty reference - crucial!
+            }
         )
         if result is not None:
             return result
@@ -310,7 +345,7 @@ def _calculate_context_precision_fallback(context: Union[str, List[str]], query:
 
 async def calculate_context_recall(context: Union[str, List[str]], query: str, ground_truth: str) -> float:
     """
-    Calculate context recall score using RAGAS if available.
+    Calculate context recall score using RAGAS.
 
     Args:
         context: Input context (string or list of strings)
@@ -363,7 +398,7 @@ def _calculate_context_recall_fallback(context: Union[str, List[str]], ground_tr
 
 async def calculate_context_entity_recall(context: Union[str, List[str]], ground_truth: str) -> float:
     """
-    Calculate context entity recall score using RAGAS if available.
+    Calculate context entity recall score using RAGAS.
 
     Args:
         context: Input context (string or list of strings)
@@ -426,7 +461,7 @@ def _calculate_entity_recall_fallback(context: Union[str, List[str]], ground_tru
 async def calculate_noise_sensitivity(query: str, answer: str, context: Union[str, List[str]],
                                       ground_truth: str) -> float:
     """
-    Calculate noise sensitivity score using RAGAS if available.
+    Calculate noise sensitivity score using RAGAS.
     Lower scores are better for this metric (0 is best).
 
     Args:
@@ -490,11 +525,9 @@ def _calculate_noise_sensitivity_fallback(answer: str, ground_truth: str) -> flo
     return min(1.0, 1.0 - f1)
 
 
-# NEW METRIC IMPLEMENTATIONS
-
 async def calculate_answer_correctness(answer: str, ground_truth: str) -> float:
     """
-    Calculate answer correctness score using RAGAS if available.
+    Calculate answer correctness score using RAGAS.
 
     Args:
         answer: LLM answer
@@ -516,7 +549,8 @@ async def calculate_answer_correctness(answer: str, ground_truth: str) -> float:
                 "context": placeholder_context,
                 "ground_truth": ground_truth
             },
-            requires_reference=True
+            requires_reference=True,
+            requires_embeddings=True
         )
         if result is not None:
             return result
@@ -552,41 +586,9 @@ def _calculate_answer_correctness_fallback(answer: str, ground_truth: str) -> fl
     return f1
 
 
-async def calculate_answer_relevancy(query: str, answer: str, context: Optional[Union[str, List[str]]] = None) -> float:
-    """
-    Calculate answer relevancy score using RAGAS if available.
-
-    Args:
-        query: User query
-        answer: LLM answer
-        context: Optional context
-
-    Returns:
-        float: Answer relevancy score (0-1)
-    """
-    # Try using RAGAS
-    if RAGAS_AVAILABLE:
-        sample = {
-            "query": query,
-            "answer": answer,
-            "context": context if context else [""]
-        }
-
-        result = await _calculate_with_ragas(
-            AnswerRelevancy,
-            sample,
-            requires_embeddings=True
-        )
-        if result is not None:
-            return result
-
-    # Fallback to response relevancy as they measure similar things
-    return await calculate_response_relevancy(answer, query, context)
-
-
 async def calculate_answer_similarity(answer: str, ground_truth: str) -> float:
     """
-    Calculate answer similarity score using RAGAS if available.
+    Calculate answer similarity score using RAGAS.
 
     Args:
         answer: LLM answer
@@ -637,13 +639,47 @@ def _calculate_answer_similarity_fallback(answer: str, ground_truth: str) -> flo
     return len(intersection) / len(union)
 
 
-async def calculate_factual_correctness(answer: str, context: Union[str, List[str]]) -> float:
+async def calculate_answer_relevancy(query: str, answer: str, context: Optional[Union[str, List[str]]] = None) -> float:
     """
-    Calculate factual correctness score using RAGAS if available.
+    Calculate answer relevancy score using RAGAS.
+
+    Args:
+        query: User query
+        answer: LLM answer
+        context: Optional context
+
+    Returns:
+        float: Answer relevancy score (0-1)
+    """
+    # Try using RAGAS
+    if RAGAS_AVAILABLE:
+        sample = {
+            "query": query,
+            "answer": answer,
+            "context": context if context else [""]
+        }
+
+        result = await _calculate_with_ragas(
+            AnswerRelevancy,
+            sample,
+            requires_embeddings=True
+        )
+        if result is not None:
+            return result
+
+    # Fallback to response relevancy as they measure similar things
+    return await calculate_response_relevancy(answer, query, context)
+
+
+async def calculate_factual_correctness(answer: str, context: Union[str, List[str]],
+                                        ground_truth: Optional[str] = None) -> float:
+    """
+    Calculate factual correctness score using RAGAS.
 
     Args:
         answer: LLM answer
         context: Input context (string or list of strings)
+        ground_truth: Optional ground truth answer (if not provided, context will be used as reference)
 
     Returns:
         float: Factual correctness score (0-1)
@@ -652,68 +688,26 @@ async def calculate_factual_correctness(answer: str, context: Union[str, List[st
     if RAGAS_AVAILABLE:
         placeholder_query = "This is a placeholder query for factual correctness."
 
+        # If ground_truth is not provided, use context as reference
+        reference = ground_truth if ground_truth else (
+            context if isinstance(context, str) else " ".join(context)
+        )
+
         result = await _calculate_with_ragas(
             FactualCorrectness,
             {
                 "query": placeholder_query,
                 "answer": answer,
-                "context": context
-            }
+                "context": context,
+                "ground_truth": reference
+            },
+            requires_reference=True
         )
         if result is not None:
             return result
 
     # Fallback to faithfulness as they measure similar things
     return await calculate_faithfulness(answer, context)
-
-
-async def calculate_topic_adherence(query: str, answer: str) -> float:
-    """
-    Calculate topic adherence score using RAGAS if available.
-
-    Args:
-        query: User query
-        answer: LLM answer
-
-    Returns:
-        float: Topic adherence score (0-1)
-    """
-    # Try using RAGAS
-    if RAGAS_AVAILABLE:
-        placeholder_context = ["This is a placeholder context for topic adherence evaluation."]
-
-        result = await _calculate_with_ragas(
-            TopicAdherenceScore,
-            {
-                "query": query,
-                "answer": answer,
-                "context": placeholder_context
-            },
-            requires_embeddings=True
-        )
-        if result is not None:
-            return result
-
-    # Fallback to response relevancy as they measure similar things
-    return await calculate_response_relevancy(answer, query)
-
-
-async def calculate_aspect_critic(query: str, answer: str, aspects: List[str]) -> Dict[str, float]:
-    """
-    Calculate aspect critic scores using RAGAS if available.
-
-    Args:
-        query: User query
-        answer: LLM answer
-        aspects: List of aspects to evaluate
-
-    Returns:
-        Dict[str, float]: Dictionary of aspect scores
-    """
-    # This is a special metric that returns multiple scores, one per aspect
-    # It's not directly compatible with our current metric framework
-    # So we'll just return a placeholder for now
-    return {aspect: 0.5 for aspect in aspects}
 
 
 # Mapping of metrics to their required dataset fields and calculation functions
@@ -753,25 +747,20 @@ METRIC_REQUIREMENTS = {
         "calculation_func": calculate_answer_correctness,
         "description": "Measures how accurately the answer matches the ground truth."
     },
-    "answer_relevancy": {
-        "required_fields": ["query", "answer"],
-        "calculation_func": calculate_answer_relevancy,
-        "description": "Measures how relevant the answer is to the query."
-    },
     "answer_similarity": {
         "required_fields": ["answer", "ground_truth"],
         "calculation_func": calculate_answer_similarity,
         "description": "Measures the semantic similarity between the answer and the ground truth."
     },
+    "answer_relevancy": {
+        "required_fields": ["query", "answer"],
+        "calculation_func": calculate_answer_relevancy,
+        "description": "Measures how relevant the answer is to the query."
+    },
     "factual_correctness": {
-        "required_fields": ["answer", "context"],
+        "required_fields": ["answer", "context", "ground_truth"],
         "calculation_func": calculate_factual_correctness,
         "description": "Measures how factually accurate the answer is based on the provided context."
-    },
-    "TopicAdherenceScore": {
-        "required_fields": ["query", "answer"],
-        "calculation_func": calculate_topic_adherence,
-        "description": "Measures how well the answer stays on topic with the query."
     }
 }
 
@@ -782,7 +771,6 @@ DATASET_TYPE_METRICS = {
         "response_relevancy",
         "context_precision",
         "answer_relevancy",
-        "topic_adherence",
         "factual_correctness"
     ],
     "context": [
@@ -799,14 +787,12 @@ DATASET_TYPE_METRICS = {
         "answer_correctness",
         "answer_similarity",
         "answer_relevancy",
-        "factual_correctness",
-        "topic_adherence"
+        "factual_correctness"
     ],
     "conversation": [
         "response_relevancy",
         "faithfulness",
-        "answer_relevancy",
-        "topic_adherence"
+        "answer_relevancy"
     ],
     "custom": [
         "faithfulness",
@@ -818,7 +804,6 @@ DATASET_TYPE_METRICS = {
         "answer_correctness",
         "answer_similarity",
         "answer_relevancy",
-        "factual_correctness",
-        "topic_adherence"
+        "factual_correctness"
     ]
 }

@@ -157,7 +157,7 @@ def mock_storage_service(monkeypatch):
     return MockStorageService()
 
 
-# Add fixture to log test start/end for better debugging
+# Add fixture to log.json test start/end for better debugging
 @pytest.fixture(autouse=True)
 def log_test_info(request):
     """Log info about each test as it runs."""

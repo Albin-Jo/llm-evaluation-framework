@@ -14,6 +14,7 @@ from backend.app.evaluation.metrics.ragas_metrics import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.ERROR)
 
 
 class RagasEvaluationMethod(BaseEvaluationMethod):

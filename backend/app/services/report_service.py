@@ -1085,7 +1085,7 @@ class ReportService:
 
         try:
             # In a real implementation, use an email service here
-            # For now, we'll just log the email details
+            # For now, we'll just log.json the email details
 
             logger.info(f"Would send email: {subject}")
             logger.info(f"To: {', '.join([r.email for r in recipients])}")

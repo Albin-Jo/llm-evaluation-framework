@@ -5,6 +5,7 @@ from typing import Dict, Optional, List, Any
 
 import httpx
 from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 from jose import jwt, JWTError, ExpiredSignatureError
 
 from backend.app.core.config import settings
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def timed_function(func):
     """
-    Decorator to time function execution and log the results.
+    Decorator to time function execution and log.json the results.
     """
 
     @wraps(func)
@@ -36,11 +37,44 @@ _jwks_cache = {
     "keys": None,
     "last_updated": 0,
     "expires_in": getattr(settings, "JWKS_CACHE_TTL", 3600),  # Configurable cache TTL
-    "hits": 0,  # Cache hit counter
-    "misses": 0,  # Cache miss counter
-    "total_fetch_time": 0.0,  # Total time spent fetching JWKS
-    "avg_fetch_time": 0.0  # Average time spent fetching JWKS
+    "stats": {
+        "hits": 0,
+        "misses": 0,
+        "fetch_times": [],  # Only keep last 10 fetch times
+        "errors": 0
+    },
+    "circuit_breaker": {
+        "failures": 0,
+        "max_failures": 3,
+        "open_until": 0,
+        "backoff_multiplier": 1.5,
+        "base_backoff": 30  # seconds
+    }
 }
+
+
+def update_cache_stats(hit=False, fetch_time=None, error=False):
+    """
+    Update JWKS cache statistics with bounded counters.
+
+    Args:
+        hit: Whether this was a cache hit
+        fetch_time: Time taken to fetch JWKS, if applicable
+        error: Whether an error occurred
+    """
+    if hit:
+        _jwks_cache["stats"]["hits"] = (_jwks_cache["stats"]["hits"] + 1) % 1_000_000  # Prevent overflow
+    else:
+        _jwks_cache["stats"]["misses"] = (_jwks_cache["stats"]["misses"] + 1) % 1_000_000
+
+    if fetch_time is not None:
+        # Keep only last 10 fetch times for average calculation
+        _jwks_cache["stats"]["fetch_times"].append(fetch_time)
+        if len(_jwks_cache["stats"]["fetch_times"]) > 10:
+            _jwks_cache["stats"]["fetch_times"].pop(0)
+
+    if error:
+        _jwks_cache["stats"]["errors"] = (_jwks_cache["stats"]["errors"] + 1) % 1_000_000
 
 
 @timed_function
@@ -56,23 +90,36 @@ async def get_jwks() -> List[Dict[str, Any]]:
     """
     current_time = time.time()
 
+    # Check circuit breaker
+    if _jwks_cache["circuit_breaker"]["open_until"] > current_time:
+        logger.warning(
+            f"Circuit breaker open until {_jwks_cache['circuit_breaker']['open_until'] - current_time:.1f}s from now, using cached keys")
+        if _jwks_cache["keys"] is not None:
+            return _jwks_cache["keys"]
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable"
+        )
+
     # Return cached JWKS if still valid
     if (_jwks_cache["keys"] is not None and
             current_time - _jwks_cache["last_updated"] < _jwks_cache["expires_in"]):
         cache_age = int(current_time - _jwks_cache["last_updated"])
-        _jwks_cache["hits"] += 1
+        update_cache_stats(hit=True)
 
         # Log every 100 hits or at debug level
-        if _jwks_cache["hits"] % 100 == 0:
-            logger.info(f"JWKS cache stats: {_jwks_cache['hits']} hits, {_jwks_cache['misses']} misses")
+        if _jwks_cache["stats"]["hits"] % 100 == 0:
+            logger.info(
+                f"JWKS cache stats: {_jwks_cache['stats']['hits']} hits, {_jwks_cache['stats']['misses']} misses, {_jwks_cache['stats']['errors']} errors")
 
         logger.debug(
-            f"JWKS cache hit #{_jwks_cache['hits']} (age: {cache_age}s, "
+            f"JWKS cache hit (age: {cache_age}s, "
             f"expires in: {_jwks_cache['expires_in'] - cache_age}s)")
         return _jwks_cache["keys"]
 
-    _jwks_cache["misses"] += 1
-    logger.info(f"JWKS cache miss #{_jwks_cache['misses']}, fetching fresh JWKS from authority")
+    update_cache_stats(hit=False)
+    logger.info(f"JWKS cache miss, fetching fresh JWKS from authority")
+
     # Otherwise fetch new JWKS
     try:
         start_time = time.time()
@@ -81,19 +128,22 @@ async def get_jwks() -> List[Dict[str, Any]]:
             response.raise_for_status()
 
             fetch_time = time.time() - start_time
-            # Update fetch time statistics
-            _jwks_cache["total_fetch_time"] += fetch_time
-            _jwks_cache["avg_fetch_time"] = _jwks_cache["total_fetch_time"] / _jwks_cache["misses"]
+            update_cache_stats(fetch_time=fetch_time)
+
+            avg_fetch_time = sum(_jwks_cache["stats"]["fetch_times"]) / len(_jwks_cache["stats"]["fetch_times"]) if \
+                _jwks_cache["stats"]["fetch_times"] else 0
 
             jwks_data = response.json()
             logger.info(
-                f"Retrieved JWKS data from authority in {fetch_time:.2f}s (avg: {_jwks_cache['avg_fetch_time']:.2f}s)")
+                f"Retrieved JWKS data from authority in {fetch_time:.2f}s (avg: {avg_fetch_time:.2f}s)")
 
             # Handle standard JWKS format with "keys" array
             if "keys" in jwks_data:
                 keys = jwks_data.get("keys", [])
                 _jwks_cache["keys"] = keys
                 _jwks_cache["last_updated"] = current_time
+                # Reset circuit breaker on successful fetch
+                _jwks_cache["circuit_breaker"]["failures"] = 0
                 logger.info(f"Cached standard JWKS with {len(keys)} keys, next refresh in {_jwks_cache['expires_in']}s")
                 return _jwks_cache["keys"]
 
@@ -113,12 +163,25 @@ async def get_jwks() -> List[Dict[str, Any]]:
 
                 _jwks_cache["keys"] = [synthetic_key]
                 _jwks_cache["last_updated"] = current_time
+                # Reset circuit breaker on successful fetch
+                _jwks_cache["circuit_breaker"]["failures"] = 0
                 logger.info(f"Cached synthetic JWKS from public key, next refresh in {_jwks_cache['expires_in']}s")
                 return _jwks_cache["keys"]
 
             # No valid keys found
             else:
                 logger.error("No keys or public key found in JWKS response")
+                update_cache_stats(error=True)
+                # Update circuit breaker
+                _jwks_cache["circuit_breaker"]["failures"] += 1
+                if _jwks_cache["circuit_breaker"]["failures"] >= _jwks_cache["circuit_breaker"]["max_failures"]:
+                    backoff = _jwks_cache["circuit_breaker"]["base_backoff"] * (
+                            _jwks_cache["circuit_breaker"]["backoff_multiplier"] **
+                            (_jwks_cache["circuit_breaker"]["failures"] - _jwks_cache["circuit_breaker"][
+                                "max_failures"])
+                    )
+                    _jwks_cache["circuit_breaker"]["open_until"] = current_time + min(backoff, 300)  # Max 5 minutes
+
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="Invalid authentication key format"
@@ -126,6 +189,19 @@ async def get_jwks() -> List[Dict[str, Any]]:
 
     except Exception as e:
         logger.error(f"Error fetching JWKS: {str(e)}")
+        update_cache_stats(error=True)
+
+        # Update circuit breaker
+        _jwks_cache["circuit_breaker"]["failures"] += 1
+        if _jwks_cache["circuit_breaker"]["failures"] >= _jwks_cache["circuit_breaker"]["max_failures"]:
+            backoff = _jwks_cache["circuit_breaker"]["base_backoff"] * (
+                    _jwks_cache["circuit_breaker"]["backoff_multiplier"] **
+                    (_jwks_cache["circuit_breaker"]["failures"] - _jwks_cache["circuit_breaker"]["max_failures"])
+            )
+            _jwks_cache["circuit_breaker"]["open_until"] = current_time + min(backoff, 300)  # Max 5 minutes
+            logger.warning(
+                f"Circuit breaker opened for {min(backoff, 300):.1f}s after {_jwks_cache['circuit_breaker']['failures']} failures")
+
         # Return cached keys if available, otherwise raise error
         if _jwks_cache["keys"] is not None:
             logger.warning("Using cached JWKS due to fetch error")
@@ -149,7 +225,7 @@ class UserContext:
             name: Optional[str] = None,
             roles: Optional[List[str]] = None,
             db_user: Optional[User] = None,
-            token: Optional[str] = None  # Store original JWT token (new parameter)
+            token: Optional[str] = None
     ):
         self.sub = sub
         self.preferred_username = preferred_username
@@ -162,35 +238,44 @@ class UserContext:
     @classmethod
     def from_token_payload(cls, payload: Dict[str, Any], token: Optional[str] = None) -> "UserContext":
         """
-        Create UserContext from token payload.
+        Create UserContext from token payload with flexible role extraction.
 
         Args:
             payload: The decoded JWT payload
-            token: Original JWT token string (new parameter)
+            token: Original JWT token string
 
         Returns:
             UserContext: User context object with token data
         """
-        # Extract roles from token
+        # Extract roles from token with safer access patterns
         roles = []
 
         # Extract from realm_access if available
         realm_access = payload.get("realm_access", {})
-        if realm_access and "roles" in realm_access:
+        if isinstance(realm_access, dict) and isinstance(realm_access.get("roles", []), list):
             roles.extend(realm_access.get("roles", []))
 
         # Extract from resource_access if available
         resource_access = payload.get("resource_access", {})
-        if resource_access:
+        if isinstance(resource_access, dict):
             for resource, resource_data in resource_access.items():
-                if resource_data and "roles" in resource_data:
+                if isinstance(resource_data, dict) and isinstance(resource_data.get("roles", []), list):
                     roles.extend(resource_data.get("roles", []))
+
+        # Support multiple role formats
+        # Some systems use a simple 'roles' array at root level
+        if isinstance(payload.get("roles", []), list):
+            roles.extend(payload.get("roles", []))
+
+        # Alternative role format
+        if isinstance(payload.get("authorities", []), list):
+            roles.extend(payload.get("authorities", []))
 
         return cls(
             sub=payload.get("sub", ""),
-            preferred_username=payload.get("preferred_username", ""),
+            preferred_username=payload.get("preferred_username", "") or payload.get("username", ""),
             email=payload.get("email", ""),
-            name=payload.get("name", ""),
+            name=payload.get("name", "") or payload.get("display_name", ""),
             roles=roles,
             token=token  # Include the original token
         )
@@ -233,6 +318,10 @@ async def verify_token(token: str) -> Dict[str, Any]:
             headers={"WWW-Authenticate": "Bearer"}
         )
 
+    # Log token verification attempt with partial token for debugging
+    token_prefix = token[:10] if len(token) > 10 else token
+    logger.debug(f"Verifying token: {token_prefix}...")
+
     # Get token header to extract kid (key ID)
     try:
         headers = jwt.get_unverified_header(token)
@@ -248,6 +337,7 @@ async def verify_token(token: str) -> Dict[str, Any]:
             )
 
     except JWTError:
+        logger.error("Failed to parse token header")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token header",
@@ -259,6 +349,7 @@ async def verify_token(token: str) -> Dict[str, Any]:
 
     # Check if we got a valid JWKS
     if not isinstance(jwks, list):
+        logger.error(f"Invalid JWKS format: {type(jwks)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid JWKS format",
@@ -378,6 +469,27 @@ async def verify_token(token: str) -> Dict[str, Any]:
         )
 
 
+async def create_error_response(status_code: int, detail: str,
+                                headers: Optional[Dict[str, str]] = None) -> JSONResponse:
+    """
+    Create a proper FastAPI response for errors in middleware.
+
+    Args:
+        status_code: HTTP status code
+        detail: Error detail message
+        headers: Optional response headers
+
+    Returns:
+        JSONResponse: The formatted error response
+    """
+    content = {"detail": detail}
+    return JSONResponse(
+        status_code=status_code,
+        content=content,
+        headers=headers or {}
+    )
+
+
 async def jwt_auth_middleware(request: Request, call_next):
     """
     Middleware to validate JWT tokens and add user context to request state.
@@ -411,11 +523,12 @@ async def jwt_auth_middleware(request: Request, call_next):
 
     if not authorization:
         if strict_auth_mode:
-            return HTTPException(
+            # Create a proper response for unauthorized request
+            return await create_error_response(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Missing authentication token",
                 headers={"WWW-Authenticate": "Bearer"}
-            )(request)
+            )
         else:
             # Allow request without token if not in strict mode
             return await call_next(request)
@@ -423,11 +536,11 @@ async def jwt_auth_middleware(request: Request, call_next):
     # Parse token from header
     token_parts = authorization.split()
     if len(token_parts) != 2 or token_parts[0].lower() != "bearer":
-        return HTTPException(
+        return await create_error_response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authorization header format. Expected 'Bearer {token}'",
             headers={"WWW-Authenticate": "Bearer"}
-        )(request)
+        )
 
     token = token_parts[1]
 
@@ -465,11 +578,64 @@ async def jwt_auth_middleware(request: Request, call_next):
     except HTTPException as e:
         # Log the error
         logger.warning(f"Authentication error: {e.detail}")
-        return e(request)
+        # Return a properly formatted response instead of calling the exception
+        return await create_error_response(
+            status_code=e.status_code,
+            detail=e.detail,
+            headers=e.headers
+        )
 
     except Exception as e:
         logger.error(f"Unexpected error in JWT middleware: {str(e)}")
-        return HTTPException(
+        return await create_error_response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during authentication"
-        )(request)
+        )
+
+
+async def check_token_expiration(token: str) -> Dict[str, Any]:
+    """
+    Check if a token is nearing expiration and should be refreshed.
+
+    Args:
+        token: JWT token string
+
+    Returns:
+        Dict with expiration info: 
+        {
+            "expires_at": timestamp,
+            "expires_in_seconds": seconds,
+            "should_refresh": boolean
+        }
+    """
+    try:
+        # Get payload without verifying signature - just to check exp
+        payload = jwt.get_unverified_claims(token)
+
+        if "exp" not in payload:
+            return {
+                "expires_at": None,
+                "expires_in_seconds": None,
+                "should_refresh": True  # No expiration found, safer to refresh
+            }
+
+        exp_timestamp = payload["exp"]
+        current_time = time.time()
+        time_remaining = exp_timestamp - current_time
+
+        # Configure the threshold for refresh (e.g., 5 minutes before expiration)
+        refresh_threshold = getattr(settings, "TOKEN_REFRESH_THRESHOLD_SECONDS", 300)
+
+        return {
+            "expires_at": exp_timestamp,
+            "expires_in_seconds": time_remaining,
+            "should_refresh": time_remaining < refresh_threshold
+        }
+
+    except Exception as e:
+        logger.warning(f"Error checking token expiration: {str(e)}")
+        return {
+            "expires_at": None,
+            "expires_in_seconds": None,
+            "should_refresh": True  # Error checking, safer to refresh
+        }

@@ -24,6 +24,7 @@ from backend.app.services.storage import get_storage_service
 
 # Add logger configuration
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.ERROR)
 
 
 class BaseEvaluationMethod(ABC):
@@ -354,7 +355,7 @@ class BaseEvaluationMethod(ABC):
                     formatted_prompt = formatted_prompt.replace(placeholder, str_value)
                     logger.info(f"Replaced placeholder {placeholder} with value (length: {len(str_value)})")
 
-            # Check for any remaining placeholders and log them
+            # Check for any remaining placeholders and log.json them
             remaining = re.findall(r'\{([^{}]*)}', formatted_prompt)
             if remaining:
                 logger.warning(f"Unreplaced placeholders in prompt template: {remaining}")
@@ -842,7 +843,6 @@ class BaseEvaluationMethod(ABC):
         logger.error(f"Exhausted retries calling agent API: {last_exception}")
         raise Exception(f"Failed to call agent API after {max_retries} retries: {str(last_exception)}")
 
-    # File: backend/app/evaluation/methods/base.py (Add this method to BaseEvaluationMethod class)
 
     def _get_metric_description(self, metric_name: str) -> str:
         """
@@ -921,7 +921,7 @@ class BaseEvaluationMethod(ABC):
             processing_time = response.get("processing_time_ms", 0)
             error = response.get("error")
 
-            # If there was an error, log it
+            # If there was an error, log.json it
             if not success or error:
                 logger.warning(f"Error processing item {item_index}: {error}")
 
@@ -963,8 +963,10 @@ class BaseEvaluationMethod(ABC):
             overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
 
             # Determine pass/fail status
-            pass_threshold = evaluation.pass_threshold or 0.7  # Default to 0.7 if not specified
+            pass_threshold = evaluation.pass_threshold or 0.5  # Default to 0.7 if not specified
             passed = overall_score >= pass_threshold
+
+            logger.info(f"passed value ****: {passed}")
 
             # Create metric scores
             metric_scores = [
