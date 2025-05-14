@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/components/dataset-filters/dataset-filters.component.html -->
 <div class="filters-wrapper">
   <form [formGroup]="filterForm" class="filters-form">
     <div class="search-field">
@@ -23,10 +22,28 @@
 
       <div class="filter-field">
         <qrac-select
-          [label]="'Format'"
-          [controlName]="'format'"
-          [formControlName]="'format'"
+          [label]="'Type'"
+          [controlName]="'type'"
+          [formControlName]="'type'"
           [options]="typeOptions">
+        </qrac-select>
+      </div>
+
+      <div class="filter-field">
+        <qrac-select
+          [label]="'Date'"
+          [controlName]="'dateRange'"
+          [formControlName]="'dateRange'"
+          [options]="dateRangeOptions">
+        </qrac-select>
+      </div>
+
+      <div class="filter-field">
+        <qrac-select
+          [label]="'Size'"
+          [controlName]="'sizeRange'"
+          [formControlName]="'sizeRange'"
+          [options]="sizeRangeOptions">
         </qrac-select>
       </div>
 
@@ -41,7 +58,11 @@
     </div>
 
     <div class="filter-actions">
-      <button class="clear-button" type="button" (click)="clearFilters()">
+      <button
+        class="clear-button"
+        type="button"
+        (click)="clearFilters()"
+        aria-label="Clear all filters">
         Clear Filters
       </button>
     </div>

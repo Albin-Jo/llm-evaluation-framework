@@ -2,7 +2,8 @@ import { Component, OnDestroy, OnInit, ViewChild, ElementRef, NO_ERRORS_SCHEMA }
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Subject, takeUntil, finalize } from 'rxjs';
+import { Subject, takeUntil, finalize, Observable } from 'rxjs';
+import { HttpEventType, HttpResponse } from '@angular/common/http';
 import { DatasetUploadRequest } from '@ngtx-apps/data-access/models';
 import { DatasetService } from '@ngtx-apps/data-access/services';
 import { AlertService } from '@ngtx-apps/utils/services';
@@ -71,7 +72,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   ) {
     this.uploadForm = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(100)]],
-      type: ['question_answer', Validators.required], // Changed default to question_answer
+      type: ['question_answer', Validators.required], // Default to question_answer
       description: ['', Validators.maxLength(500)],
       files: [null, Validators.required]
     });
@@ -276,59 +277,94 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     this.uploadError = false;
     this.errorMessage = null;
 
-    // Set up progress simulation
-    const progressInterval = setInterval(() => {
-      if (this.uploadProgress < 90) {
-        this.uploadProgress += Math.floor(Math.random() * 5) + 1;
-      }
-    }, 200);
-
     // If existing dataset ID, upload to that dataset
     if (this.existingDatasetId) {
-      this.datasetService.uploadDocumentsToDataset(this.existingDatasetId, this.selectedFiles)
-        .pipe(
-          takeUntil(this.destroy$),
-          finalize(() => clearInterval(progressInterval))
-        )
-        .subscribe({
-          next: (response) => {
-            this.uploadProgress = 100;
-            this.handleUploadSuccess();
-          },
-          error: (error) => {
-            this.handleUploadError(error);
-            clearInterval(progressInterval);
-          }
-        });
+      this.uploadDocumentToExistingDataset();
     } else {
       // Create a new dataset
-      const formValues = this.uploadForm.value;
-      const uploadRequest: DatasetUploadRequest = {
-        name: formValues.name,
-        description: formValues.description || '',
-        tags: this.selectedTags,
-        files: this.selectedFiles,
-        type: formValues.type // Include type in the request
-      };
-
-      this.pendingUploadRequest = uploadRequest;
-      this.datasetService.uploadDataset(uploadRequest)
-        .pipe(
-          takeUntil(this.destroy$),
-          finalize(() => clearInterval(progressInterval))
-        )
-        .subscribe({
-          next: (response) => {
-            this.uploadProgress = 100;
-            this.createdDatasetId = response.id;
-            this.handleUploadSuccess();
-          },
-          error: (error) => {
-            this.handleUploadError(error);
-            clearInterval(progressInterval);
-          }
-        });
+      this.createNewDatasetWithFile();
     }
+  }
+
+  /**
+   * Upload document to existing dataset with progress tracking
+   */
+  private uploadDocumentToExistingDataset(): void {
+    // Create the form data with just the file
+    const formData = new FormData();
+    formData.append('file', this.selectedFiles[0]);
+
+    this.datasetService.uploadDocumentsToDataset(this.existingDatasetId!, this.selectedFiles)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          // Ensure upload state is reset regardless of outcome
+          if (this.uploadProgress < 100) {
+            this.uploadProgress = 100;
+          }
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          // For progress events (if supported by the API)
+          if (response.type === HttpEventType.UploadProgress && response.total) {
+            this.uploadProgress = Math.round((response.loaded / response.total) * 100);
+          }
+          // For complete responses
+          else if (response instanceof HttpResponse) {
+            this.uploadProgress = 100;
+            this.handleUploadSuccess();
+          }
+        },
+        error: (error) => {
+          this.handleUploadError(error);
+        }
+      });
+  }
+
+  /**
+   * Create new dataset with file and progress tracking
+   */
+  private createNewDatasetWithFile(): void {
+    // Create the upload request
+    const formValues = this.uploadForm.value;
+    const uploadRequest: DatasetUploadRequest = {
+      name: formValues.name,
+      description: formValues.description || '',
+      tags: this.selectedTags,
+      files: this.selectedFiles,
+      type: formValues.type
+    };
+
+    this.pendingUploadRequest = uploadRequest;
+
+    this.datasetService.uploadDataset(uploadRequest)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          // Ensure upload state is reset regardless of outcome
+          if (this.uploadProgress < 100) {
+            this.uploadProgress = 100;
+          }
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          // For progress events (if supported by the API)
+          if (response.type === HttpEventType.UploadProgress && response.total) {
+            this.uploadProgress = Math.round((response.loaded / response.total) * 100);
+          }
+          // For complete responses
+          else if (response instanceof HttpResponse) {
+            this.uploadProgress = 100;
+            this.createdDatasetId = response.body.id;
+            this.handleUploadSuccess();
+          }
+        },
+        error: (error) => {
+          this.handleUploadError(error);
+        }
+      });
   }
 
   /**
@@ -415,25 +451,28 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   }
 
   /**
- * Navigate back based on context - Fixed to always go to dataset list
- */
-private navigateBack(): void {
-  // Always navigate to the datasets list to avoid recursion
-  this.router.navigate(['/app/datasets/datasets']);
-}
+   * Navigate back based on context
+   */
+  private navigateBack(): void {
+    if (this.existingDatasetId) {
+      this.router.navigate(['/app/datasets/datasets', this.existingDatasetId]);
+    } else {
+      this.router.navigate(['/app/datasets/datasets']);
+    }
+  }
 
   /**
- * View dataset after successful upload
- */
-viewDataset(): void {
-  if (this.existingDatasetId) {
-    this.router.navigate(['/app/datasets/datasets', this.existingDatasetId]);
-  } else if (this.createdDatasetId) {
-    this.router.navigate(['/app/datasets/datasets', this.createdDatasetId]);
-  } else {
-    this.router.navigate(['/app/datasets/datasets']);
+   * View dataset after successful upload
+   */
+  viewDataset(): void {
+    if (this.existingDatasetId) {
+      this.router.navigate(['/app/datasets/datasets', this.existingDatasetId]);
+    } else if (this.createdDatasetId) {
+      this.router.navigate(['/app/datasets/datasets', this.createdDatasetId]);
+    } else {
+      this.router.navigate(['/app/datasets/datasets']);
+    }
   }
-}
 
   /**
    * Form control getters

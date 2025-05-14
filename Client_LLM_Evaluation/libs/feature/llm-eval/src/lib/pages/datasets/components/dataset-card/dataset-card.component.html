@@ -1,9 +1,12 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/components/dataset-card/dataset-card.component.html -->
-<div class="dataset-card">
+<div class="dataset-card" [attr.aria-label]="'Dataset: ' + dataset.name">
   <div class="dataset-header">
-    <div class="status-badge" [ngClass]="statusClass">{{ statusText }}</div>
+    <div class="status-badge" [ngClass]="statusClass" [attr.title]="statusText + ' status'">{{ statusText }}</div>
     <div class="action-buttons">
-      <button class="delete-button" (click)="onDelete($event)" aria-label="Delete dataset">
+      <button
+        class="delete-button"
+        (click)="onDelete($event)"
+        aria-label="Delete dataset"
+        title="Delete dataset">
         <i class="icon-trash"></i>
       </button>
     </div>
@@ -18,6 +21,11 @@
     No description provided
   </p>
 
+  <div class="dataset-type" *ngIf="dataset.type">
+    <span class="type-label">Type:</span>
+    <span class="type-value">{{ dataset.type }}</span>
+  </div>
+
   <div class="dataset-tags" *ngIf="dataset.tags && dataset.tags.length > 0">
     <qractagbutton
       *ngFor="let tag of dataset.tags.slice(0, 3)"
@@ -30,15 +38,15 @@
 
   <div class="dataset-metadata">
     <div class="metadata-item">
-      <i class="icon-document"></i>
-      <span>{{ dataset.documentCount }} documents</span>
+      <i class="icon-document" aria-hidden="true"></i>
+      <span>{{ dataset.documentCount || 0 }} document{{ dataset.documentCount !== 1 ? 's' : '' }}</span>
     </div>
     <div class="metadata-item">
-      <i class="icon-database"></i>
+      <i class="icon-database" aria-hidden="true"></i>
       <span>{{ formatSize(dataset.size) }}</span>
     </div>
     <div class="metadata-item">
-      <i class="icon-calendar"></i>
+      <i class="icon-calendar" aria-hidden="true"></i>
       <span>{{ formatDate(dataset.createdAt) }}</span>
     </div>
   </div>

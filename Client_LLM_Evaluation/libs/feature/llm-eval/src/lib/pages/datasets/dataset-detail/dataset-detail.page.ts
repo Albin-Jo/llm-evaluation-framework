@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, finalize } from 'rxjs';
-import { Location } from '@angular/common';
+import { Subscription, finalize, Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -36,8 +36,8 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   isEditing: boolean = false;
   error: string | null = null;
 
-  // Document preview
-  previewingDocument: boolean = false;
+  // Document preview state
+  isPreviewActive: boolean = false;
   currentPreviewDocument: Document | null = null;
   isLoadingPreview: boolean = false;
   documentPreviewContent: string = '';
@@ -63,6 +63,16 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     'queries', 'internal', 'external', 'training', 'evaluation'
   ];
 
+  // Status enums for template
+  DatasetStatus = DatasetStatus;
+
+  // Expanded sections in preview
+  expandedSections = {
+    input: false,
+    output: false,
+    raw: false
+  };
+
   // Subscriptions
   private subscriptions: Subscription = new Subscription();
 
@@ -70,8 +80,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private datasetService: DatasetService,
-    private location: Location,
-    private confirmationService: ConfirmationDialogService,
+    private confirmationDialogService: ConfirmationDialogService,
     private alertService: AlertService
   ) {}
 
@@ -119,231 +128,11 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Navigate back to datasets list - Fixed navigation
+   * Navigate back to datasets list
    */
   goBack(event: Event): void {
     event.preventDefault();
     this.router.navigate(['/app/datasets/datasets']);
-  }
-
-  /**
-   * Format a date string
-   */
-  formatDate(dateString: string | undefined): string {
-    if (!dateString) return 'N/A';
-
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  }
-
-  /**
-   * Get CSS class for status badge
-   */
-  get statusClass(): string {
-    if (!this.dataset || !this.dataset.status) return '';
-
-    const status = this.dataset.status.toString().toLowerCase();
-
-    switch (status) {
-      case DatasetStatus.READY.toLowerCase():
-        return 'status-ready';
-      case DatasetStatus.PROCESSING.toLowerCase():
-        return 'status-processing';
-      case DatasetStatus.ERROR.toLowerCase():
-        return 'status-error';
-      default:
-        return '';
-    }
-  }
-
-  /**
-   * Get display text for status
-   */
-  get statusText(): string {
-    if (!this.dataset || !this.dataset.status) return 'Unknown';
-
-    const status = this.dataset.status.toString().toLowerCase();
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  }
-
-  /**
-   * Get formatted size of dataset
-   */
-  get formattedSize(): string {
-    if (!this.dataset) return '0 B';
-
-    const bytes = this.dataset.size || 0;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-
-    if (bytes === 0) return '0 B';
-
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
-  }
-
-  /**
-   * Get average document length in tokens (placeholder calculation)
-   */
-  getAverageDocLength(): number {
-    if (!this.dataset || !this.dataset.documentCount || this.dataset.documentCount === 0) {
-      return 0;
-    }
-
-    // This is a placeholder. In a real application, this would come from the API
-    return Math.round((this.dataset.size || 0) / (this.dataset.documentCount * 4)); // Average 4 bytes per token
-  }
-
-  /**
-   * Get document format based on filename
-   */
-  getDocumentFormat(document: Document | null): string {
-    if (!document || !document.name) return 'Unknown';
-
-    const filename = document.name.toLowerCase();
-
-    if (filename.endsWith('.csv')) return 'CSV';
-    if (filename.endsWith('.txt')) return 'TXT';
-    if (filename.endsWith('.json')) return 'JSON';
-    if (filename.endsWith('.pdf')) return 'PDF';
-    if (filename.endsWith('.docx')) return 'DOCX';
-
-    // Extract extension
-    const extension = filename.split('.').pop();
-    return extension ? extension.toUpperCase() : 'Unknown';
-  }
-
-  /**
-   * Get document size formatted
-   */
-  getDocumentSize(document: Document): string {
-    // Checking for size safely
-    const docSize = document?.metadata?.size || 0;
-
-    const bytes = docSize;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-
-    if (bytes === 0) return '0 B';
-
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
-  }
-
-  /**
-   * Check if dataset already has a document
-   */
-  hasDocument(): boolean {
-    return (this.documents && this.documents.length > 0) || 
-           (this.dataset?.metadata?.['meta_info']?.['filename'] != null);
-  }
-
-  /**
-   * Open document preview modal - Fixed preview functionality
-   */
-  previewDocument(document: Document | { id: string; name: string } | null): void {
-    if (!document || !document.id) {
-      return;
-    }
-
-    // Create a Document-like object for files that aren't in the documents array
-    const documentToPreview: Document = 'datasetId' in document 
-      ? document 
-      : {
-          id: document.id,
-          datasetId: this.datasetId,
-          name: document.name,
-          content: '',
-          createdAt: new Date().toISOString()
-        };
-
-    this.previewingDocument = true;
-    this.currentPreviewDocument = documentToPreview;
-    this.isLoadingPreview = true;
-    this.documentPreviewError = null;
-
-    // Get the document format
-    const documentFormat = this.getDocumentFormat(documentToPreview);
-
-    // Simulate loading preview data
-    setTimeout(() => {
-      this.isLoadingPreview = false;
-
-      // If the dataset has metadata with example content, use it
-      if (this.dataset?.metadata?.['meta_info']?.['validation_result']) {
-        const validationResult = this.dataset.metadata['meta_info']['validation_result'];
-        
-        if (documentFormat === 'JSON' && validationResult.count) {
-          // Show example JSON data structure
-          this.documentPreviewContent = JSON.stringify({
-            "query": "Example question?",
-            "ground_truth": "Example answer",
-            "context": "Optional context information"
-          }, null, 2);
-        } else if (documentFormat === 'CSV') {
-          // Show example CSV data
-          this.documentPreviewHeaders = ['query', 'ground_truth', 'context'];
-          this.documentPreviewData = [
-            { 
-              query: 'What is the capital of France?', 
-              ground_truth: 'Paris', 
-              context: 'France is a country in Europe.' 
-            },
-            { 
-              query: 'What is 2+2?', 
-              ground_truth: '4', 
-              context: 'Basic arithmetic' 
-            }
-          ];
-        } else {
-          this.documentPreviewContent = 'Preview content for ' + documentFormat + ' files';
-        }
-      } else {
-        // Fallback preview content
-        this.documentPreviewContent = 'Preview not available for this file type';
-        this.documentPreviewError = 'Unable to load preview content';
-      }
-    }, 800);
-  }
-
-  /**
-   * Format JSON for display
-   */
-  formatJson(json: string): string {
-    try {
-      const parsed = JSON.parse(json);
-      return JSON.stringify(parsed, null, 2);
-    } catch (e) {
-      return json;
-    }
-  }
-
-  /**
-   * Close document preview modal
-   */
-  closeDocumentPreview(): void {
-    this.previewingDocument = false;
-    this.currentPreviewDocument = null;
-    this.documentPreviewContent = '';
-    this.documentPreviewHeaders = [];
-    this.documentPreviewData = [];
-    this.documentPreviewError = null;
-  }
-
-  /**
-   * Download current preview document
-   */
-  downloadDocument(): void {
-    if (!this.currentPreviewDocument) return;
-
-    // In a real application, this would call an API endpoint to download the file
-    this.alertService.showAlert({
-      show: true,
-      message: 'Download functionality would be implemented here',
-      title: 'Info'
-    });
   }
 
   /**
@@ -362,14 +151,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Cancel editing
-   */
-  cancelEditing(): void {
-    this.isEditing = false;
-  }
-
-  /**
-   * Toggle tag selection
+   * Toggle tag selection while editing
    */
   toggleTag(tag: string): void {
     if (!this.editingDataset.tags) {
@@ -377,12 +159,18 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     }
 
     const index = this.editingDataset.tags.indexOf(tag);
-
     if (index === -1) {
       this.editingDataset.tags.push(tag);
     } else {
       this.editingDataset.tags.splice(index, 1);
     }
+  }
+
+  /**
+   * Cancel editing mode
+   */
+  cancelEditing(): void {
+    this.isEditing = false;
   }
 
   /**
@@ -436,13 +224,12 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Delete dataset - Fixed functionality
+   * Delete dataset
    */
   deleteDataset(event: Event): void {
     event.preventDefault();
 
-    // Show confirmation dialog
-    this.confirmationService.confirm({
+    this.confirmationDialogService.confirm({
       title: 'Delete Dataset',
       message: 'Are you sure you want to delete this dataset? This action cannot be undone.',
       confirmText: 'Delete',
@@ -479,21 +266,67 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Open file upload dialog - Modified to check for existing documents
+   * Format a date string
+   */
+  formatDate(dateString: string | undefined): string {
+    if (!dateString) return 'N/A';
+
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+
+  /**
+   * Get CSS class for status badge
+   */
+  getStatusBadgeClass(status: DatasetStatus | string): string {
+    if (!status) return '';
+
+    const statusStr = status.toString().toLowerCase();
+
+    switch (statusStr) {
+      case DatasetStatus.READY.toLowerCase():
+        return 'status-ready';
+      case DatasetStatus.PROCESSING.toLowerCase():
+        return 'status-processing';
+      case DatasetStatus.ERROR.toLowerCase():
+        return 'status-error';
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Get formatted size of dataset
+   */
+  get formattedSize(): string {
+    if (!this.dataset) return '0 B';
+
+    const bytes = this.dataset.size || 0;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+    if (bytes === 0) return '0 B';
+
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+  }
+
+  /**
+   * Check if dataset has a document
+   */
+  hasDocument(): boolean {
+    return (this.documents && this.documents.length > 0) ||
+           (this.dataset?.metadata?.['meta_info']?.['filename'] != null);
+  }
+
+  /**
+   * Upload document to dataset
    */
   uploadDocuments(event: Event): void {
     event.preventDefault();
-    event.stopPropagation();
-
-    // Check if dataset already has a document
-    if (this.hasDocument()) {
-      this.alertService.showAlert({
-        show: true,
-        message: 'This dataset already has a document. Please delete the existing document before adding a new one.',
-        title: 'Info'
-      });
-      return;
-    }
 
     // Navigate to upload page with existing dataset ID
     this.router.navigate(['/app/datasets/datasets/upload'], {
@@ -502,99 +335,186 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle file selection
+   * Get document format from file name
    */
-  private handleFileSelection(files: FileList): void {
-    this.selectedFiles = Array.from(files);
-    this.uploadSelectedFiles();
+  getDocumentFormat(document: Document | null): string {
+    if (!document || !document.name) return 'Unknown';
+
+    const filename = document.name.toLowerCase();
+
+    if (filename.endsWith('.csv')) return 'CSV';
+    if (filename.endsWith('.txt')) return 'TXT';
+    if (filename.endsWith('.json')) return 'JSON';
+    if (filename.endsWith('.pdf')) return 'PDF';
+    if (filename.endsWith('.docx')) return 'DOCX';
+
+    // Extract extension
+    const extension = filename.split('.').pop();
+    return extension ? extension.toUpperCase() : 'Unknown';
   }
 
   /**
-   * Upload selected files
+   * Preview document content
    */
-  private uploadSelectedFiles(): void {
-    if (this.selectedFiles.length === 0) return;
+  previewDocument(document: Document | { id: string; name: string } | null): void {
+    if (!document || !document.id) {
+      return;
+    }
 
-    this.isUploading = true;
-    this.uploadProgress = 0;
+    // Create a Document-like object for files that aren't in the documents array
+    const documentToPreview: Document = 'datasetId' in document
+      ? document
+      : {
+          id: document.id,
+          datasetId: this.datasetId,
+          name: document.name,
+          content: '',
+          createdAt: new Date().toISOString()
+        };
 
-    // Upload interval simulation (for demo)
-    const interval = setInterval(() => {
-      this.uploadProgress += 10;
-      if (this.uploadProgress >= 100) {
-        clearInterval(interval);
-        this.completeUpload();
-      }
-    }, 300);
+    this.isPreviewActive = true;
+    this.currentPreviewDocument = documentToPreview;
+    this.isLoadingPreview = true;
+    this.documentPreviewError = null;
 
-    // In a real application, call the API
-    this.subscriptions.add(
-      this.datasetService.uploadDocumentsToDataset(this.datasetId, this.selectedFiles)
-        .subscribe({
-          next: (updatedDataset) => {
-            // Clear interval
-            clearInterval(interval);
-            this.uploadProgress = 100;
+    // In a real implementation, we would call an API to fetch the document content
+    this.getDocumentContent(documentToPreview.id)
+      .subscribe({
+        next: (content) => {
+          this.isLoadingPreview = false;
+          // Process the document content based on format
+          this.processDocumentContent(content, this.getDocumentFormat(documentToPreview));
+        },
+        error: (error) => {
+          this.isLoadingPreview = false;
+          this.documentPreviewError = 'Failed to load document content. Please try again.';
+          console.error('Error loading document content:', error);
+        }
+      });
+  }
 
-            // Update dataset and fetch updated document list
-            this.dataset = updatedDataset;
-            this.loadDatasetDetails();
-
-            this.completeUpload();
-          },
-          error: (err: any) => {
-            // Clear interval
-            clearInterval(interval);
-
-            console.error('Error uploading documents:', err);
-            this.alertService.showAlert({
-              show: true,
-              message: 'Failed to upload document. Please try again.',
-              title: 'Error'
-            });
-            this.completeUpload();
-          }
-        })
+  /**
+   * Get document content from API
+   * Note: This is a placeholder that should be replaced with actual API call
+   */
+  private getDocumentContent(documentId: string): Observable<any> {
+    // Simulate API call with a delay
+    return of(this.getMockContent(documentId)).pipe(
+      catchError(error => {
+        console.error('Error fetching document content:', error);
+        return of(null);
+      })
     );
   }
 
   /**
-   * Complete upload process
+   * Process document content based on format
    */
-  private completeUpload(): void {
-    this.isUploading = false;
-    this.selectedFiles = [];
-    this.uploadProgress = 0;
+  private processDocumentContent(content: any, format: string): void {
+    if (!content) {
+      this.documentPreviewError = 'No content available for this document';
+      return;
+    }
+
+    if (format === 'CSV') {
+      try {
+        // For CSV, parse the content and extract headers and rows
+        const rows = content.split('\n');
+        if (rows.length > 0) {
+          this.documentPreviewHeaders = rows[0].split(',').map((h: string) => h.trim());
+
+          this.documentPreviewData = [];
+          for (let i = 1; i < rows.length && i < 10; i++) { // Limit to 10 rows for preview
+            if (rows[i].trim()) {
+              const values = rows[i].split(',');
+              const rowData: Record<string, string> = {};
+
+              this.documentPreviewHeaders.forEach((header, index) => {
+                rowData[header] = values[index]?.trim() || '';
+              });
+
+              this.documentPreviewData.push(rowData);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing CSV:', e);
+        this.documentPreviewError = 'Error parsing CSV content';
+      }
+    } else if (format === 'JSON') {
+      try {
+        // For JSON, format the content for display
+        this.documentPreviewContent = typeof content === 'string'
+          ? content
+          : JSON.stringify(content, null, 2);
+      } catch (e) {
+        console.error('Error parsing JSON:', e);
+        this.documentPreviewError = 'Error parsing JSON content';
+      }
+    } else {
+      // For other formats, display as plain text
+      this.documentPreviewContent = content;
+    }
   }
 
   /**
-   * Confirm document deletion
+   * Get mock content for document preview (simulated API response)
    */
-  confirmDeleteDocument(event: Event, documentId: string): void {
-    event.preventDefault();
+  private getMockContent(documentId: string): any {
+    const format = this.currentPreviewDocument
+      ? this.getDocumentFormat(this.currentPreviewDocument).toLowerCase()
+      : '';
 
-    this.confirmationService.confirm({
-      title: 'Delete Document',
-      message: 'Are you sure you want to delete this document? This action cannot be undone.',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
-      type: 'danger'
-    }).subscribe((confirmed: boolean) => {
-      if (confirmed) {
-        // Update local document list (in a real app would call API)
-        this.documents = this.documents.filter(doc => doc.id !== documentId);
+    if (format === 'csv') {
+      return 'query,ground_truth,context\nHow do I reset my password?,Go to login page and click "Forgot Password",Account management\nWhere is my order?,Check order status in your account,Order tracking\nHow to cancel subscription?,Go to account settings, select subscriptions,Subscription management';
+    } else if (format === 'json') {
+      return JSON.stringify({
+        "items": [
+          {
+            "query": "How do I reset my password?",
+            "ground_truth": "Go to login page and click \"Forgot Password\"",
+            "context": "Account management"
+          },
+          {
+            "query": "Where is my order?",
+            "ground_truth": "Check order status in your account",
+            "context": "Order tracking"
+          }
+        ]
+      }, null, 2);
+    } else {
+      return "Sample text content for document preview.\nThis would contain the actual document content in a real implementation.";
+    }
+  }
 
-        // If dataset information exists, decrement document count
-        if (this.dataset && this.dataset.documentCount !== undefined) {
-          this.dataset.documentCount = Math.max(0, this.dataset.documentCount - 1);
-        }
+  /**
+   * Format JSON for display
+   */
+  formatJson(json: string): string {
+    try {
+      const parsed = JSON.parse(json);
+      return JSON.stringify(parsed, null, 2);
+    } catch (e) {
+      return json;
+    }
+  }
 
-        this.alertService.showAlert({
-          show: true,
-          message: 'Document deleted successfully',
-          title: 'Success'
-        });
-      }
-    });
+  /**
+   * Close document preview
+   */
+  closeDocumentPreview(): void {
+    this.isPreviewActive = false;
+    this.currentPreviewDocument = null;
+    this.documentPreviewContent = '';
+    this.documentPreviewHeaders = [];
+    this.documentPreviewData = [];
+    this.documentPreviewError = null;
+  }
+
+  /**
+   * Toggle expanded section in preview
+   */
+  toggleSection(section: keyof typeof this.expandedSections): void {
+    this.expandedSections[section] = !this.expandedSections[section];
   }
 }
