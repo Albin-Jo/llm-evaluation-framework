@@ -10,7 +10,10 @@
       <p *ngIf="agent" class="agent-name">
         {{ agent.name }}
         <span class="domain-badge">{{ agent.domain }}</span>
-        <span class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
+        <span
+          class="status-badge"
+          [ngClass]="agent.is_active ? 'active' : 'inactive'"
+        >
           {{ agent.is_active ? 'Active' : 'Inactive' }}
         </span>
       </p>
@@ -31,7 +34,8 @@
       *ngIf="agentId"
       label="Try Again"
       type="secondary"
-      (buttonClick)="loadAgent(agentId)">
+      (buttonClick)="loadAgent(agentId)"
+    >
     </qrac-button>
   </div>
 
@@ -54,17 +58,25 @@
         <div class="agent-message">
           <div class="message-content">{{ getResponseText() }}</div>
           <div class="message-meta" *ngIf="testSuccess">
-            Response time: {{ testResult['processing_time_ms'] || testResult['time'] || 'N/A' }}ms
+            Response time: {{ testResult['processing_time_ms'] ||
+            testResult['time'] || 'N/A' }}ms
           </div>
         </div>
 
         <!-- Response Details -->
         <div class="response-details">
           <h4>Response Details:</h4>
-          <p>Status: {{ testSuccess ? 'Success' : 'Error' }}
-            <span *ngIf="testResult['tool']">| Source: {{ testResult['tool'] }}</span>
-            <span *ngIf="testResult['tokens']">| Tokens: {{ testResult['tokens'] }}</span>
-            <span *ngIf="testResult['processing_time_ms']">| Processing Time: {{ testResult['processing_time_ms'] }}ms</span>
+          <p>
+            Status: {{ testSuccess ? 'Success' : 'Error' }}
+            <span *ngIf="testResult['tool']"
+              >| Source: {{ testResult['tool'] }}</span
+            >
+            <span *ngIf="testResult['tokens']"
+              >| Tokens: {{ testResult['tokens'] }}</span
+            >
+            <span *ngIf="testResult['processing_time_ms']"
+              >| Processing Time: {{ testResult['processing_time_ms'] }}ms</span
+            >
           </p>
         </div>
       </div>
@@ -89,7 +101,8 @@
       <button
         class="send-button"
         [disabled]="!testQuery || isRunningTest"
-        (click)="runTest()">
+        (click)="runTest()"
+      >
         <span *ngIf="isRunningTest" class="spinner-sm"></span>
         {{ isRunningTest ? 'Sending...' : 'Send' }}
       </button>

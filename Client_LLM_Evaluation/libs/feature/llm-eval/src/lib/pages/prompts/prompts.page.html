@@ -1,9 +1,12 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/prompts.page.html -->
 <div class="prompts-container">
   <div class="header-section">
     <div class="title-section">
       <h1 class="page-title">Prompts</h1>
-      <p class="page-description">Create, customize, and manage LLM prompts for model evaluations. These prompts serve as templates for generating consistent model responses across different evaluation scenarios and benchmarks.</p>
+      <p class="page-description">
+        Create, customize, and manage LLM prompts for model evaluations. These
+        prompts serve as templates for generating consistent model responses
+        across different evaluation scenarios and benchmarks.
+      </p>
     </div>
     <div class="action-section">
       <button class="create-button" (click)="onCreatePrompt()">
@@ -21,7 +24,8 @@
             [controlName]="'search'"
             formControlName="search"
             [placeholder]="'Search prompts by name'"
-            [size]="'small'">
+            [size]="'small'"
+          >
           </qrac-textbox>
         </div>
 
@@ -30,7 +34,8 @@
             <qrac-select
               [controlName]="'category'"
               formControlName="category"
-              [options]="categoryOptions">
+              [options]="categoryOptions"
+            >
             </qrac-select>
           </div>
 
@@ -38,7 +43,8 @@
             <qrac-select
               [controlName]="'isTemplate'"
               formControlName="isTemplate"
-              [options]="templateOptions">
+              [options]="templateOptions"
+            >
             </qrac-select>
           </div>
         </div>
@@ -65,11 +71,16 @@
     </div>
 
     <!-- No Results State -->
-    <div *ngIf="!isLoading && prompts.length === 0 && !error" class="no-results-container">
+    <div
+      *ngIf="!isLoading && prompts.length === 0 && !error"
+      class="no-results-container"
+    >
       <div class="no-results-icon">📝</div>
       <h3>No prompts found</h3>
       <p>Create a new prompt or adjust your filters</p>
-      <button class="create-prompt-button" (click)="onCreatePrompt()">Create Prompt</button>
+      <button class="create-prompt-button" (click)="onCreatePrompt()">
+        Create Prompt
+      </button>
     </div>
 
     <!-- Prompts List View -->
@@ -80,16 +91,25 @@
             <th class="name-col sortable" (click)="onSortChange('name')">
               <span class="th-content">
                 Name
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'name'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
             </th>
             <th class="description-col">Description</th>
-            <th class="category-col sortable" (click)="onSortChange('category')">
+            <th
+              class="category-col sortable"
+              (click)="onSortChange('category')"
+            >
               <span class="th-content">
                 Category
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'category'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'category'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -98,7 +118,10 @@
             <th class="date-col sortable" (click)="onSortChange('created_at')">
               <span class="th-content">
                 Created
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'created_at'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'created_at'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -106,7 +129,10 @@
             <th class="date-col sortable" (click)="onSortChange('updated_at')">
               <span class="th-content">
                 Updated
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'updated_at'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'updated_at'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -115,12 +141,21 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let prompt of prompts" class="prompt-row" (click)="onPromptClick(prompt.id)">
+          <tr
+            *ngFor="let prompt of prompts"
+            class="prompt-row"
+            (click)="onPromptClick(prompt.id)"
+          >
             <td class="name-col">{{ prompt.name }}</td>
-            <td class="description-col">{{ truncateText(prompt.description || '', 80) }}</td>
+            <td class="description-col">
+              {{ truncateText(prompt.description || '', 80) }}
+            </td>
             <td class="category-col">{{ prompt.category || 'General' }}</td>
             <td class="template-col">
-              <span class="status-badge" [ngClass]="getTemplateBadgeClass(prompt.is_public)">
+              <span
+                class="status-badge"
+                [ngClass]="getTemplateBadgeClass(prompt.is_public)"
+              >
                 {{ prompt.is_public ? 'Public' : 'Private' }}
               </span>
             </td>
@@ -128,14 +163,18 @@
             <td class="date-col">{{ formatDate(prompt.updated_at) }}</td>
             <td class="actions-col">
               <div class="action-buttons">
-                <button class="action-button edit-button"
+                <button
+                  class="action-button edit-button"
                   title="Edit prompt"
-                  (click)="onEditPrompt($event, prompt.id)">
+                  (click)="onEditPrompt($event, prompt.id)"
+                >
                   Edit
                 </button>
-                <button class="action-button delete-button"
+                <button
+                  class="action-button delete-button"
                   title="Delete prompt"
-                  (click)="onDeletePromptClick($event, prompt.id)">
+                  (click)="onDeletePromptClick($event, prompt.id)"
+                >
                   Del
                 </button>
               </div>
@@ -146,16 +185,21 @@
     </div>
 
     <!-- Pagination -->
-    <div *ngIf="prompts.length > 0 && totalCount > itemsPerPage" class="pagination-container">
+    <div
+      *ngIf="prompts.length > 0 && totalCount > itemsPerPage"
+      class="pagination-container"
+    >
       <div class="pagination-info">
-        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
-        {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} prompts
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to {{
+        Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{
+        totalCount }} prompts
       </div>
       <div class="pagination-controls">
         <button
           class="pagination-button"
           [disabled]="filterParams.page === 1"
-          (click)="onPageChange(filterParams.page! - 1, $event)">
+          (click)="onPageChange(filterParams.page! - 1, $event)"
+        >
           Previous
         </button>
 
@@ -166,7 +210,8 @@
               *ngIf="page > 0"
               class="page-button"
               [class.active]="page === filterParams.page"
-              (click)="onPageChange(page, $event)">
+              (click)="onPageChange(page, $event)"
+            >
               {{ page }}
             </button>
           </ng-container>
@@ -175,7 +220,8 @@
         <button
           class="pagination-button"
           [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
-          (click)="onPageChange(filterParams.page! + 1, $event)">
+          (click)="onPageChange(filterParams.page! + 1, $event)"
+        >
           Next
         </button>
       </div>

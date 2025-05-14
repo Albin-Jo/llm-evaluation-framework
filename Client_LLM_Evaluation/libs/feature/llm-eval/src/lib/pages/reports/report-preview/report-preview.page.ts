@@ -3,23 +3,17 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import {
-  Report,
-  ReportStatus
-} from '@ngtx-apps/data-access/models';
+import { Report, ReportStatus } from '@ngtx-apps/data-access/models';
 import { ReportService } from '@ngtx-apps/data-access/services';
 import { NotificationService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-report-preview',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule
-  ],
+  imports: [CommonModule, RouterModule],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './report-preview.page.html',
-  styleUrls: ['./report-preview.page.scss']
+  styleUrls: ['./report-preview.page.scss'],
 })
 export class ReportPreviewPage implements OnInit, OnDestroy {
   report: Report | null = null;
@@ -40,9 +34,7 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.route.paramMap.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(params => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const id = params.get('id');
       if (id) {
         this.reportId = id;
@@ -62,7 +54,8 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.reportService.getReport(id)
+    this.reportService
+      .getReport(id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (report) => {
@@ -70,7 +63,8 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
 
           // Check if report is generated
           if (report.status !== ReportStatus.GENERATED) {
-            this.error = 'This report has not been generated yet. Please generate the report first.';
+            this.error =
+              'This report has not been generated yet. Please generate the report first.';
             this.isLoading = false;
             return;
           }
@@ -82,26 +76,28 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
           this.error = 'Failed to load report details. Please try again.';
           this.isLoading = false;
           console.error('Error loading report:', error);
-        }
+        },
       });
   }
 
   loadPreview(): void {
     if (!this.reportId) return;
 
-    this.reportService.previewReport(this.reportId)
+    this.reportService
+      .previewReport(this.reportId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (htmlContent) => {
           // Sanitize the HTML content
-          this.previewHtml = this.sanitizer.bypassSecurityTrustHtml(htmlContent);
+          this.previewHtml =
+            this.sanitizer.bypassSecurityTrustHtml(htmlContent);
           this.isLoading = false;
         },
         error: (error) => {
           this.error = 'Failed to load report preview. Please try again.';
           this.isLoading = false;
           console.error('Error loading preview:', error);
-        }
+        },
       });
   }
 
@@ -109,7 +105,8 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
     if (!this.report) return;
 
     this.isDownloading = true;
-    this.reportService.downloadReport(this.report.id)
+    this.reportService
+      .downloadReport(this.report.id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (blob) => {
@@ -118,7 +115,9 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
           // Create an anchor element and trigger download
           const a = document.createElement('a');
           a.href = url;
-          a.download = `report-${this.report!.id}.${this.report!.format.toLowerCase()}`;
+          a.download = `report-${
+            this.report!.id
+          }.${this.report!.format.toLowerCase()}`;
           document.body.appendChild(a);
           a.click();
           // Cleanup
@@ -130,9 +129,11 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
         },
         error: (error) => {
           this.isDownloading = false;
-          this.notificationService.error('Failed to download report. Please try again.');
+          this.notificationService.error(
+            'Failed to download report. Please try again.'
+          );
           console.error('Error downloading report:', error);
-        }
+        },
       });
   }
 
@@ -141,7 +142,9 @@ export class ReportPreviewPage implements OnInit, OnDestroy {
 
     // Navigate to send report page or open a modal
     // For now, just show a notification that this feature is coming
-    this.notificationService.info('Send report feature will be implemented soon.');
+    this.notificationService.info(
+      'Send report feature will be implemented soon.'
+    );
   }
 
   backToReport(): void {

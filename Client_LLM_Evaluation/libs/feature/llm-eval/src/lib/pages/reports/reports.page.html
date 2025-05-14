@@ -1,10 +1,13 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/reports/reports.page.html -->
 <div class="reports-container">
   <!-- Header Section -->
   <div class="header-section">
     <div class="title-section">
       <h1 class="page-title">Reports</h1>
-      <p class="page-description">View and manage generated evaluation reports. Create comprehensive reports to analyze and share evaluation results across teams and stakeholders.</p>
+      <p class="page-description">
+        View and manage generated evaluation reports. Create comprehensive
+        reports to analyze and share evaluation results across teams and
+        stakeholders.
+      </p>
     </div>
     <div class="action-section">
       <button class="create-button" (click)="createNewReport($event)">
@@ -23,7 +26,8 @@
             [controlName]="'search'"
             formControlName="search"
             [placeholder]="'Search reports by name'"
-            [size]="'small'">
+            [size]="'small'"
+          >
           </qrac-textbox>
         </div>
         <div class="filter-fields">
@@ -31,14 +35,16 @@
             <qrac-select
               [controlName]="'status'"
               formControlName="status"
-              [options]="statusOptions">
+              [options]="statusOptions"
+            >
             </qrac-select>
           </div>
           <div class="filter-field">
             <qrac-select
               [controlName]="'format'"
               formControlName="format"
-              [options]="formatOptions">
+              [options]="formatOptions"
+            >
             </qrac-select>
           </div>
         </div>
@@ -64,55 +70,90 @@
     </div>
 
     <!-- No Results State -->
-    <div *ngIf="!isLoading && !error && reports.length === 0" class="no-results-container">
+    <div
+      *ngIf="!isLoading && !error && reports.length === 0"
+      class="no-results-container"
+    >
       <div class="no-results-icon">📊</div>
       <h3>No reports found</h3>
       <p>Create a new report or adjust your filters</p>
-      <button class="create-report-button" (click)="createNewReport($event)">Create Report</button>
+      <button class="create-report-button" (click)="createNewReport($event)">
+        Create Report
+      </button>
     </div>
 
     <!-- Reports Table -->
-    <div *ngIf="!isLoading && !error && reports.length > 0" class="reports-list">
+    <div
+      *ngIf="!isLoading && !error && reports.length > 0"
+      class="reports-list"
+    >
       <table class="reports-table">
         <thead>
           <tr>
             <th class="name-col">
               <span class="th-content sortable" (click)="onSortChange('name')">
                 Name
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'name'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
             </th>
             <th class="description-col">Description</th>
             <th class="format-col">
-              <span class="th-content sortable" (click)="onSortChange('format')">
+              <span
+                class="th-content sortable"
+                (click)="onSortChange('format')"
+              >
                 Format
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'format'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'format'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
             </th>
             <th class="status-col">
-              <span class="th-content sortable" (click)="onSortChange('status')">
+              <span
+                class="th-content sortable"
+                (click)="onSortChange('status')"
+              >
                 Status
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'status'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'status'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
             </th>
             <th class="date-col">
-              <span class="th-content sortable" (click)="onSortChange('created_at')">
+              <span
+                class="th-content sortable"
+                (click)="onSortChange('created_at')"
+              >
                 Created
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'created_at'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'created_at'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
             </th>
             <th class="date-col">
-              <span class="th-content sortable" (click)="onSortChange('updated_at')">
+              <span
+                class="th-content sortable"
+                (click)="onSortChange('updated_at')"
+              >
                 Updated
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'updated_at'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'updated_at'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -121,14 +162,21 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let report of reports; trackBy: trackByReportId"
-              class="report-row"
-              (click)="onReportClick(report)">
+          <tr
+            *ngFor="let report of reports; trackBy: trackByReportId"
+            class="report-row"
+            (click)="onReportClick(report)"
+          >
             <td class="name-col">{{ report.name }}</td>
-            <td class="description-col">{{ truncateText(report.description || '', 80) }}</td>
+            <td class="description-col">
+              {{ truncateText(report.description || '', 80) }}
+            </td>
             <td class="format-col">{{ report.format | uppercase }}</td>
             <td class="status-col">
-              <span class="status-badge" [ngClass]="getStatusBadgeClass(report.status)">
+              <span
+                class="status-badge"
+                [ngClass]="getStatusBadgeClass(report.status)"
+              >
                 {{ report.status | titlecase }}
               </span>
             </td>
@@ -136,31 +184,41 @@
             <td class="date-col">{{ formatDate(report.updated_at) }}</td>
             <td class="actions-col">
               <div class="action-buttons">
-                <button class="action-button view-button"
+                <button
+                  class="action-button view-button"
                   title="View report"
-                  (click)="onViewReport($event, report.id)">
+                  (click)="onViewReport($event, report.id)"
+                >
                   View
                 </button>
-                <button *ngIf="canGenerateReport(report.status)"
+                <button
+                  *ngIf="canGenerateReport(report.status)"
                   class="action-button generate-button"
                   title="Generate report"
-                  (click)="generateReport($event, report.id)">
+                  (click)="generateReport($event, report.id)"
+                >
                   Generate
                 </button>
-                <button *ngIf="canDownloadReport(report.status)"
+                <button
+                  *ngIf="canDownloadReport(report.status)"
                   class="action-button download-button"
                   title="Download report"
-                  (click)="downloadReport($event, report.id)">
+                  (click)="downloadReport($event, report.id)"
+                >
                   Download
                 </button>
-                <button class="action-button edit-button"
+                <button
+                  class="action-button edit-button"
                   title="Edit report"
-                  (click)="onEditReport($event, report.id)">
+                  (click)="onEditReport($event, report.id)"
+                >
                   Edit
                 </button>
-                <button class="action-button delete-button"
+                <button
+                  class="action-button delete-button"
                   title="Delete report"
-                  (click)="confirmDeleteReport($event, report.id)">
+                  (click)="confirmDeleteReport($event, report.id)"
+                >
                   Del
                 </button>
               </div>
@@ -171,16 +229,21 @@
     </div>
 
     <!-- Pagination -->
-    <div *ngIf="reports.length > 0 && totalCount > itemsPerPage" class="pagination-container">
+    <div
+      *ngIf="reports.length > 0 && totalCount > itemsPerPage"
+      class="pagination-container"
+    >
       <div class="pagination-info">
-        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
-        {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} reports
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to {{
+        Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{
+        totalCount }} reports
       </div>
       <div class="pagination-controls">
         <button
           class="pagination-button"
           [disabled]="filterParams.page === 1"
-          (click)="onPageChange(filterParams.page! - 1, $event)">
+          (click)="onPageChange(filterParams.page! - 1, $event)"
+        >
           Previous
         </button>
 
@@ -191,7 +254,8 @@
               *ngIf="page > 0"
               class="page-button"
               [class.active]="page === filterParams.page"
-              (click)="onPageChange(page, $event)">
+              (click)="onPageChange(page, $event)"
+            >
               {{ page }}
             </button>
           </ng-container>
@@ -200,7 +264,8 @@
         <button
           class="pagination-button"
           [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
-          (click)="onPageChange(filterParams.page! + 1, $event)">
+          (click)="onPageChange(filterParams.page! + 1, $event)"
+        >
           Next
         </button>
       </div>

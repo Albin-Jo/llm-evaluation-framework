@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.page.scss */
 @import '../../../../../../styles/variables';
 @import '../../../../../../styles/mixins';
 
@@ -336,7 +335,8 @@
     flex-direction: column;
     gap: $spacing-4;
 
-    .pagination-info, .pagination-controls {
+    .pagination-info,
+    .pagination-controls {
       width: 100%;
       justify-content: center;
       text-align: center;

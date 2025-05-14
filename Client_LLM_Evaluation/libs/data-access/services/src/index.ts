@@ -10,3 +10,4 @@ export * from './lib/prompt.service';
 export * from './lib/agent.service';
 export * from './lib/evaluation.service';
 export * from './lib/report.service';
+export * from './lib/dataset-content.service';

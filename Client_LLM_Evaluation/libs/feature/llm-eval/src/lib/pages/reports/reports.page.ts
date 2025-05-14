@@ -1,6 +1,18 @@
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  NO_ERRORS_SCHEMA,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
@@ -8,17 +20,16 @@ import {
   Report,
   ReportFilterParams,
   ReportStatus,
-  ReportFormat
+  ReportFormat,
 } from '@ngtx-apps/data-access/models';
 import { ReportService } from '@ngtx-apps/data-access/services';
 import {
-  
   QracTextBoxComponent,
-  QracSelectComponent
+  QracSelectComponent,
 } from '@ngtx-apps/ui/components';
 import {
   ConfirmationDialogService,
-  NotificationService
+  NotificationService,
 } from '@ngtx-apps/utils/services';
 
 @Component({
@@ -28,14 +39,14 @@ import {
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    
+
     QracTextBoxComponent,
-    QracSelectComponent
+    QracSelectComponent,
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './reports.page.html',
   styleUrls: ['./reports.page.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportsPage implements OnInit, OnDestroy {
   reports: Report[] = [];
@@ -52,14 +63,14 @@ export class ReportsPage implements OnInit, OnDestroy {
     page: 1,
     limit: 5,
     sortBy: 'created_at',
-    sortDirection: 'desc'
+    sortDirection: 'desc',
   };
 
   // For filtering by status
   statusOptions = [
     { value: '', label: 'All Statuses' },
     { value: ReportStatus.DRAFT, label: 'Draft' },
-    { value: ReportStatus.GENERATED, label: 'Generated' }
+    { value: ReportStatus.GENERATED, label: 'Generated' },
   ];
 
   // Format options
@@ -67,7 +78,7 @@ export class ReportsPage implements OnInit, OnDestroy {
     { value: '', label: 'All Formats' },
     { value: ReportFormat.PDF, label: 'PDF' },
     { value: ReportFormat.HTML, label: 'HTML' },
-    { value: ReportFormat.JSON, label: 'JSON' }
+    { value: ReportFormat.JSON, label: 'JSON' },
   ];
 
   // Expose enums for template usage
@@ -87,7 +98,7 @@ export class ReportsPage implements OnInit, OnDestroy {
     this.filterForm = this.fb.group({
       search: [''],
       status: [''],
-      format: ['']
+      format: [''],
     });
   }
 
@@ -103,8 +114,9 @@ export class ReportsPage implements OnInit, OnDestroy {
 
   setupFilterListeners(): void {
     // Set up search debounce
-    this.filterForm.get('search')?.valueChanges
-      .pipe(
+    this.filterForm
+      .get('search')
+      ?.valueChanges.pipe(
         debounceTime(400),
         distinctUntilChanged(),
         takeUntil(this.destroy$)
@@ -116,19 +128,21 @@ export class ReportsPage implements OnInit, OnDestroy {
       });
 
     // Listen to status changes
-    this.filterForm.get('status')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('status')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
-        this.filterParams.status = value ? value as ReportStatus : undefined;
+        this.filterParams.status = value ? (value as ReportStatus) : undefined;
         this.filterParams.page = 1;
         this.loadReports();
       });
 
     // Listen to format changes
-    this.filterForm.get('format')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('format')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
-        this.filterParams.format = value ? value as ReportFormat : undefined;
+        this.filterParams.format = value ? (value as ReportFormat) : undefined;
         this.filterParams.page = 1;
         this.loadReports();
       });
@@ -139,7 +153,8 @@ export class ReportsPage implements OnInit, OnDestroy {
     this.error = null;
     this.cdr.markForCheck(); // Mark for check at start of loading
 
-    this.reportService.getReports(this.filterParams)
+    this.reportService
+      .getReports(this.filterParams)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -159,7 +174,7 @@ export class ReportsPage implements OnInit, OnDestroy {
           this.notificationService.error(this.error);
           console.error('Error loading reports:', error);
           this.cdr.markForCheck(); // Mark for check on error
-        }
+        },
       });
   }
 
@@ -219,7 +234,7 @@ export class ReportsPage implements OnInit, OnDestroy {
     this.filterForm.reset({
       search: '',
       status: '',
-      format: ''
+      format: '',
     });
 
     this.filterParams.name = undefined;
@@ -231,14 +246,23 @@ export class ReportsPage implements OnInit, OnDestroy {
   }
 
   onSortChange(sortBy: string): void {
-    const validSortFields = ["created_at", "updated_at", "name", "status", "format"];
+    const validSortFields = [
+      'created_at',
+      'updated_at',
+      'name',
+      'status',
+      'format',
+    ];
 
     if (validSortFields.includes(sortBy)) {
       if (this.filterParams.sortBy === sortBy) {
         this.filterParams.sortDirection =
           this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
       } else {
-        this.filterParams.sortBy = sortBy as "created_at" | "name" | "updated_at";
+        this.filterParams.sortBy = sortBy as
+          | 'created_at'
+          | 'name'
+          | 'updated_at';
         this.filterParams.sortDirection = 'desc';
       }
 
@@ -269,8 +293,9 @@ export class ReportsPage implements OnInit, OnDestroy {
   confirmDeleteReport(event: Event, reportId: string): void {
     event.stopPropagation();
 
-    this.confirmationDialogService.confirmDelete('Report')
-      .subscribe(confirmed => {
+    this.confirmationDialogService
+      .confirmDelete('Report')
+      .subscribe((confirmed) => {
         if (confirmed) {
           this.deleteReport(reportId);
         }
@@ -278,7 +303,8 @@ export class ReportsPage implements OnInit, OnDestroy {
   }
 
   private deleteReport(reportId: string): void {
-    this.reportService.deleteReport(reportId)
+    this.reportService
+      .deleteReport(reportId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
@@ -286,49 +312,59 @@ export class ReportsPage implements OnInit, OnDestroy {
           this.loadReports();
         },
         error: (error) => {
-          this.notificationService.error('Failed to delete report. Please try again.');
+          this.notificationService.error(
+            'Failed to delete report. Please try again.'
+          );
           console.error('Error deleting report:', error);
-        }
+        },
       });
   }
 
   generateReport(event: Event, reportId: string): void {
     event.stopPropagation();
 
-    this.confirmationDialogService.confirm({
-      title: 'Generate Report',
-      message: 'Are you sure you want to generate this report?',
-      confirmText: 'Generate',
-      cancelText: 'Cancel',
-      type: 'info'
-    }).subscribe(confirmed => {
-      if (confirmed) {
-        this.reportService.generateReport(reportId)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: () => {
-              this.notificationService.success('Report generated successfully');
-              this.loadReports();
-            },
-            error: (error) => {
-              this.notificationService.error('Failed to generate report. Please try again.');
-              console.error('Error generating report:', error);
-            }
-          });
-      }
-    });
+    this.confirmationDialogService
+      .confirm({
+        title: 'Generate Report',
+        message: 'Are you sure you want to generate this report?',
+        confirmText: 'Generate',
+        cancelText: 'Cancel',
+        type: 'info',
+      })
+      .subscribe((confirmed) => {
+        if (confirmed) {
+          this.reportService
+            .generateReport(reportId)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: () => {
+                this.notificationService.success(
+                  'Report generated successfully'
+                );
+                this.loadReports();
+              },
+              error: (error) => {
+                this.notificationService.error(
+                  'Failed to generate report. Please try again.'
+                );
+                console.error('Error generating report:', error);
+              },
+            });
+        }
+      });
   }
 
   downloadReport(event: Event, reportId: string): void {
     event.stopPropagation();
 
-    const report = this.reports.find(r => r.id === reportId);
+    const report = this.reports.find((r) => r.id === reportId);
     if (!report) return;
 
     this.isLoading = true;
     this.cdr.markForCheck();
 
-    this.reportService.downloadReport(reportId)
+    this.reportService
+      .downloadReport(reportId)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -350,9 +386,11 @@ export class ReportsPage implements OnInit, OnDestroy {
           this.notificationService.success('Report downloaded successfully');
         },
         error: (error) => {
-          this.notificationService.error('Failed to download report. Please try again.');
+          this.notificationService.error(
+            'Failed to download report. Please try again.'
+          );
           console.error('Error downloading report:', error);
-        }
+        },
       });
   }
 
@@ -363,7 +401,7 @@ export class ReportsPage implements OnInit, OnDestroy {
       return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       }).format(date);
     } catch (e) {
       return 'Invalid date';

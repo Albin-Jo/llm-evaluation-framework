@@ -1,6 +1,11 @@
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
 
@@ -8,7 +13,7 @@ import {
   EvaluationService,
   AgentService,
   DatasetService,
-  PromptService
+  PromptService,
 } from '@ngtx-apps/data-access/services';
 import {
   EvaluationCreate,
@@ -18,24 +23,17 @@ import {
   EvaluationStatus,
   Agent,
   Dataset,
-  PromptResponse
+  PromptResponse,
 } from '@ngtx-apps/data-access/models';
-import {
-  NotificationService
-} from '@ngtx-apps/utils/services';
-
+import { NotificationService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-evaluation-create-edit',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './evaluation-create-edit.page.html',
-  styleUrls: ['./evaluation-create-edit.page.scss']
+  styleUrls: ['./evaluation-create-edit.page.scss'],
 })
 export class EvaluationCreateEditPage implements OnInit, OnDestroy {
   selectedTabIndex = 0;
@@ -67,7 +65,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     { value: EvaluationMethod.RAGAS, label: 'RAGAS' },
     { value: EvaluationMethod.DEEPEVAL, label: 'DeepEval' },
     { value: EvaluationMethod.CUSTOM, label: 'Custom' },
-    { value: EvaluationMethod.MANUAL, label: 'Manual' }
+    { value: EvaluationMethod.MANUAL, label: 'Manual' },
   ];
 
   private destroy$ = new Subject<void>();
@@ -81,7 +79,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private notificationService: NotificationService
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     this.initializeForm();
@@ -96,9 +94,10 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     }
 
     // Listen for dataset changes to update available metrics
-    this.evaluationForm.get('dataset_id')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(datasetId => {
+    this.evaluationForm
+      .get('dataset_id')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((datasetId) => {
         if (datasetId) {
           this.loadDatasetMetrics(datasetId);
         }
@@ -125,26 +124,35 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         temperature: [0.7],
         max_tokens: [1000],
         include_references: [true],
-        include_context: [true]
+        include_context: [true],
       }),
-      metrics: [[]]
+      metrics: [[]],
     });
   }
 
   /**
- * Determines if the Next button should be disabled
- * @returns True if the button should be disabled, false otherwise
- */
+   * Determines if the Next button should be disabled
+   * @returns True if the button should be disabled, false otherwise
+   */
   isNextButtonDisabled(): boolean {
     if (this.selectedTabIndex === 0) {
       // Check each required field on the Basic Setup tab
       const nameInvalid = this.evaluationForm.get('name')?.invalid === true;
       const methodInvalid = this.evaluationForm.get('method')?.invalid === true;
-      const agentInvalid = this.evaluationForm.get('agent_id')?.invalid === true;
-      const datasetInvalid = this.evaluationForm.get('dataset_id')?.invalid === true;
-      const promptInvalid = this.evaluationForm.get('prompt_id')?.invalid === true;
+      const agentInvalid =
+        this.evaluationForm.get('agent_id')?.invalid === true;
+      const datasetInvalid =
+        this.evaluationForm.get('dataset_id')?.invalid === true;
+      const promptInvalid =
+        this.evaluationForm.get('prompt_id')?.invalid === true;
 
-      return nameInvalid || methodInvalid || agentInvalid || datasetInvalid || promptInvalid;
+      return (
+        nameInvalid ||
+        methodInvalid ||
+        agentInvalid ||
+        datasetInvalid ||
+        promptInvalid
+      );
     }
 
     return false; // Enable the button on other tabs
@@ -167,19 +175,21 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     // Check if the evaluation is editable
     const isNotEditable = !this.isEvaluationEditable;
 
-    return formInvalid || noMetricsSelected || isSavingInProgress || isNotEditable;
+    return (
+      formInvalid || noMetricsSelected || isSavingInProgress || isNotEditable
+    );
   }
 
   /**
    * Load reference data for dropdowns (agents, datasets, prompts)
    */
-   private loadReferenceData(): void {
+  private loadReferenceData(): void {
     this.isLoading = true;
     this.error = null;
     forkJoin({
       agents: this.agentService.getAgents(),
       datasets: this.datasetService.getDatasets(),
-      prompts: this.promptService.getPrompts()
+      prompts: this.promptService.getPrompts(),
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -187,12 +197,20 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
           // Store original data
           this.agents = data.agents.agents || [];
           this.datasets = data.datasets.datasets || [];
-          
+
           // Handle prompts data with proper type checking for PromptsResponse
-          if (data.prompts && 'prompts' in data.prompts && Array.isArray(data.prompts.prompts)) {
+          if (
+            data.prompts &&
+            'prompts' in data.prompts &&
+            Array.isArray(data.prompts.prompts)
+          ) {
             // New response format with { prompts: [...], totalCount: number }
             this.prompts = data.prompts.prompts;
-          } else if (data.prompts && 'items' in data.prompts && Array.isArray(data.prompts.items)) {
+          } else if (
+            data.prompts &&
+            'items' in data.prompts &&
+            Array.isArray(data.prompts.items)
+          ) {
             // Alternative format with { items: [...], total: number }
             this.prompts = data.prompts.items;
           } else if (Array.isArray(data.prompts)) {
@@ -203,23 +221,23 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
             console.warn('Unexpected prompts response format:', data.prompts);
             this.prompts = [];
           }
-          
+
           // Convert to option format for qrac-select components
-          this.agentOptions = this.agents.map(agent => ({
+          this.agentOptions = this.agents.map((agent) => ({
             value: agent.id,
-            label: agent.name
+            label: agent.name,
           }));
-          
-          this.datasetOptions = this.datasets.map(dataset => ({
+
+          this.datasetOptions = this.datasets.map((dataset) => ({
             value: dataset.id,
-            label: dataset.name
+            label: dataset.name,
           }));
-          
-          this.promptOptions = this.prompts.map(prompt => ({
+
+          this.promptOptions = this.prompts.map((prompt) => ({
             value: prompt.id,
-            label: prompt.name
+            label: prompt.name,
           }));
-          
+
           this.isLoading = false;
         },
         error: (err) => {
@@ -227,7 +245,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
           this.isLoading = false;
           console.error('Error loading reference data:', err);
           this.notificationService.error(this.error);
-        }
+        },
       });
   }
   /**
@@ -235,14 +253,15 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
    */
   private loadDatasetMetrics(datasetId: string): void {
     // Find the selected dataset to get its type
-    const selectedDataset = this.datasets.find(d => d.id === datasetId);
+    const selectedDataset = this.datasets.find((d) => d.id === datasetId);
     if (!selectedDataset || !selectedDataset.type) {
       this.availableMetrics = [];
       this.selectedMetrics = [];
       return;
     }
 
-    this.evaluationService.getSupportedMetrics(selectedDataset.type)
+    this.evaluationService
+      .getSupportedMetrics(selectedDataset.type)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (metrics) => {
@@ -253,8 +272,10 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         },
         error: (err) => {
           console.error('Error loading metrics for dataset type:', err);
-          this.notificationService.error('Failed to load metrics for the selected dataset type.');
-        }
+          this.notificationService.error(
+            'Failed to load metrics for the selected dataset type.'
+          );
+        },
       });
   }
 
@@ -267,14 +288,20 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.evaluationService.getEvaluation(this.evaluationId)
+    this.evaluationService
+      .getEvaluation(this.evaluationId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (evaluation) => {
           // Check if evaluation is editable (only PENDING evaluations can be edited)
-          if (this.isEditMode && evaluation.status !== EvaluationStatus.PENDING) {
+          if (
+            this.isEditMode &&
+            evaluation.status !== EvaluationStatus.PENDING
+          ) {
             this.isLoading = false;
-            this.notificationService.error('Only pending evaluations can be edited');
+            this.notificationService.error(
+              'Only pending evaluations can be edited'
+            );
             this.router.navigate(['app/evaluations']);
             return;
           }
@@ -292,7 +319,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
           this.isLoading = false;
           console.error('Error loading evaluation data:', err);
           this.notificationService.error(this.error);
-        }
+        },
       });
   }
 
@@ -338,7 +365,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       agent_id: evaluation.agent_id,
       dataset_id: evaluation.dataset_id,
       prompt_id: evaluation.prompt_id,
-      metrics: evaluation.metrics || []
+      metrics: evaluation.metrics || [],
     });
   }
 
@@ -365,7 +392,8 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
    * Create a new evaluation
    */
   createEvaluation(formData: EvaluationCreate): void {
-    this.evaluationService.createEvaluation(formData)
+    this.evaluationService
+      .createEvaluation(formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -375,9 +403,11 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.isSaving = false;
-          this.notificationService.error('Failed to create evaluation. Please try again.');
+          this.notificationService.error(
+            'Failed to create evaluation. Please try again.'
+          );
           console.error('Error creating evaluation:', err);
-        }
+        },
       });
   }
 
@@ -387,7 +417,8 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
   updateEvaluation(formData: EvaluationUpdate): void {
     if (!this.evaluationId) return;
 
-    this.evaluationService.updateEvaluation(this.evaluationId, formData)
+    this.evaluationService
+      .updateEvaluation(this.evaluationId, formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -397,9 +428,11 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.isSaving = false;
-          this.notificationService.error('Failed to update evaluation. Please try again.');
+          this.notificationService.error(
+            'Failed to update evaluation. Please try again.'
+          );
           console.error('Error updating evaluation:', err);
-        }
+        },
       });
   }
 
@@ -444,10 +477,14 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     if (!control || !control.errors) return '';
 
     if (control.errors['required']) {
-      return `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required`;
+      return `${
+        fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+      } is required`;
     }
     if (control.errors['maxlength']) {
-      return `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} cannot exceed ${control.errors['maxlength'].requiredLength} characters`;
+      return `${
+        fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+      } cannot exceed ${control.errors['maxlength'].requiredLength} characters`;
     }
 
     return 'Invalid value';
@@ -457,7 +494,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
    * Helper method to mark all controls in a form group as touched
    */
   markFormGroupTouched(formGroup: FormGroup): void {
-    Object.values(formGroup.controls).forEach(control => {
+    Object.values(formGroup.controls).forEach((control) => {
       control.markAsTouched();
 
       if ((control as FormGroup).controls) {
@@ -478,7 +515,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
    */
   get flatMetricsList(): string[] {
     const result: string[] = [];
-    Object.values(this.availableMetrics).forEach(metrics => {
+    Object.values(this.availableMetrics).forEach((metrics) => {
       if (Array.isArray(metrics)) {
         result.push(...metrics);
       } else if (typeof metrics === 'string') {

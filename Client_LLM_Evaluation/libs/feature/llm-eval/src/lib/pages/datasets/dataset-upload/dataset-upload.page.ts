@@ -1,6 +1,18 @@
-import { Component, OnDestroy, OnInit, ViewChild, ElementRef, NO_ERRORS_SCHEMA } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  ElementRef,
+  NO_ERRORS_SCHEMA,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subject, takeUntil, finalize, Observable } from 'rxjs';
 import { DatasetUploadRequest } from '@ngtx-apps/data-access/models';
@@ -10,13 +22,10 @@ import { AlertService } from '@ngtx-apps/utils/services';
 @Component({
   selector: 'app-dataset-upload',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './dataset-upload.page.html',
-  styleUrls: ['./dataset-upload.page.scss']
+  styleUrls: ['./dataset-upload.page.scss'],
 })
 export class DatasetUploadPage implements OnInit, OnDestroy {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -43,7 +52,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     'text/csv',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/json',
-    'application/x-ndjson' // For JSONL files
+    'application/x-ndjson', // For JSONL files
   ];
   validFileExtensions = ['.pdf', '.txt', '.csv', '.docx', '.json', '.jsonl'];
   maxFileSize = 50 * 1024 * 1024; // 50MB
@@ -56,7 +65,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     'knowledge-base',
     'training',
     'api',
-    'legal'
+    'legal',
   ];
 
   private destroy$ = new Subject<void>();
@@ -73,7 +82,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       name: ['', [Validators.required, Validators.maxLength(100)]],
       type: ['question_answer', Validators.required], // Default to question_answer
       description: ['', Validators.maxLength(500)],
-      files: [null, Validators.required]
+      files: [null, Validators.required],
     });
   }
 
@@ -81,7 +90,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     // Check if uploading to an existing dataset
     this.route.queryParams
       .pipe(takeUntil(this.destroy$))
-      .subscribe(params => {
+      .subscribe((params) => {
         if (params['datasetId']) {
           this.existingDatasetId = params['datasetId'];
 
@@ -164,7 +173,8 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   }
 
@@ -173,7 +183,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
    */
   toggleTag(tag: string): void {
     if (this.selectedTags.includes(tag)) {
-      this.selectedTags = this.selectedTags.filter(t => t !== tag);
+      this.selectedTags = this.selectedTags.filter((t) => t !== tag);
     } else {
       this.selectedTags = [...this.selectedTags, tag];
     }
@@ -184,7 +194,9 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
    */
   removeFile(index: number): void {
     this.selectedFiles.splice(index, 1);
-    this.uploadForm.patchValue({ files: this.selectedFiles.length ? this.selectedFiles : null });
+    this.uploadForm.patchValue({
+      files: this.selectedFiles.length ? this.selectedFiles : null,
+    });
     this.uploadForm.markAsDirty();
   }
 
@@ -194,8 +206,11 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   isValidFile(file: File): boolean {
     // Check file type
     const fileExt = file.name.toLowerCase().split('.').pop();
-    const isValidType = this.validFileTypes.includes(file.type) ||
-                       (fileExt ? this.validFileExtensions.some(ext => ext.endsWith(fileExt)) : false);
+    const isValidType =
+      this.validFileTypes.includes(file.type) ||
+      (fileExt
+        ? this.validFileExtensions.some((ext) => ext.endsWith(fileExt))
+        : false);
 
     // Check file size
     const isValidSize = file.size <= this.maxFileSize;
@@ -207,7 +222,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
    * Check if we have valid files
    */
   hasValidFiles(): boolean {
-    return this.selectedFiles.some(file => this.isValidFile(file));
+    return this.selectedFiles.some((file) => this.isValidFile(file));
   }
 
   /**
@@ -223,9 +238,17 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       return 'icon-csv';
     } else if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
       return 'icon-txt';
-    } else if (fileType.includes('wordprocessingml') || fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+    } else if (
+      fileType.includes('wordprocessingml') ||
+      fileName.endsWith('.docx') ||
+      fileName.endsWith('.doc')
+    ) {
       return 'icon-docx';
-    } else if (fileType === 'application/json' || fileName.endsWith('.json') || fileName.endsWith('.jsonl')) {
+    } else if (
+      fileType === 'application/json' ||
+      fileName.endsWith('.json') ||
+      fileName.endsWith('.jsonl')
+    ) {
       return 'icon-json';
     } else {
       return 'icon-unknown';
@@ -245,9 +268,17 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       return 'CSV';
     } else if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
       return 'TXT';
-    } else if (fileType.includes('wordprocessingml') || fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+    } else if (
+      fileType.includes('wordprocessingml') ||
+      fileName.endsWith('.docx') ||
+      fileName.endsWith('.doc')
+    ) {
       return 'DOC';
-    } else if (fileType === 'application/json' || fileName.endsWith('.json') || fileName.endsWith('.jsonl')) {
+    } else if (
+      fileType === 'application/json' ||
+      fileName.endsWith('.json') ||
+      fileName.endsWith('.jsonl')
+    ) {
       return 'JSON';
     } else {
       const ext = fileName.split('.').pop()?.toUpperCase();
@@ -265,7 +296,11 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
         return;
       }
     } else {
-      if (this.uploadForm.invalid || this.isUploading || this.selectedFiles.length === 0) {
+      if (
+        this.uploadForm.invalid ||
+        this.isUploading ||
+        this.selectedFiles.length === 0
+      ) {
         this.markFormGroupTouched(this.uploadForm);
         return;
       }
@@ -296,7 +331,8 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     // Simulate upload progress
     this.simulateProgress();
 
-    this.datasetService.uploadDocumentsToDataset(this.existingDatasetId!, this.selectedFiles)
+    this.datasetService
+      .uploadDocumentsToDataset(this.existingDatasetId!, this.selectedFiles)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -314,7 +350,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
         },
         error: (error) => {
           this.handleUploadError(error);
-        }
+        },
       });
   }
 
@@ -329,7 +365,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       description: formValues.description || '',
       tags: this.selectedTags,
       files: this.selectedFiles,
-      type: formValues.type
+      type: formValues.type,
     };
 
     this.pendingUploadRequest = uploadRequest;
@@ -337,7 +373,8 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     // Simulate upload progress
     this.simulateProgress();
 
-    this.datasetService.uploadDataset(uploadRequest)
+    this.datasetService
+      .uploadDataset(uploadRequest)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -356,7 +393,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
         },
         error: (error) => {
           this.handleUploadError(error);
-        }
+        },
       });
   }
 
@@ -366,24 +403,25 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   private simulateProgress(): void {
     // Reset progress
     this.uploadProgress = 0;
-    
+
     // Create progress simulation intervals
     const progressInterval = setInterval(() => {
       // Increment by random amount, but slow down as we approach 90%
       if (this.uploadProgress < 90) {
-        const increment = this.uploadProgress < 50 
-          ? Math.floor(Math.random() * 10) + 1  // Faster at the beginning
-          : Math.floor(Math.random() * 5) + 1;  // Slower as we approach 90%
-        
+        const increment =
+          this.uploadProgress < 50
+            ? Math.floor(Math.random() * 10) + 1 // Faster at the beginning
+            : Math.floor(Math.random() * 5) + 1; // Slower as we approach 90%
+
         this.uploadProgress = Math.min(90, this.uploadProgress + increment);
       }
-      
+
       // Clear interval when complete or on error
       if (this.uploadProgress >= 90 || !this.isUploading) {
         clearInterval(progressInterval);
       }
     }, 300);
-    
+
     // Auto-clear the interval after 30 seconds as a safeguard
     setTimeout(() => clearInterval(progressInterval), 30000);
   }
@@ -409,9 +447,10 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     this.uploadError = true;
 
     if (error?.error?.detail) {
-      this.errorMessage = typeof error.error.detail === 'string'
-        ? error.error.detail
-        : 'Failed to upload. Please try again.';
+      this.errorMessage =
+        typeof error.error.detail === 'string'
+          ? error.error.detail
+          : 'Failed to upload. Please try again.';
     } else if (error?.message) {
       this.errorMessage = error.message;
     } else {
@@ -447,7 +486,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
    * Helper method to mark all form controls as touched
    */
   private markFormGroupTouched(formGroup: FormGroup) {
-    Object.values(formGroup.controls).forEach(control => {
+    Object.values(formGroup.controls).forEach((control) => {
       control.markAsTouched();
       if ((control as any).controls) {
         this.markFormGroupTouched(control as FormGroup);
@@ -462,7 +501,9 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
     event.preventDefault();
 
     if (this.isUploading) {
-      if (confirm('Uploading is in progress. Are you sure you want to cancel?')) {
+      if (
+        confirm('Uploading is in progress. Are you sure you want to cancel?')
+      ) {
         // In a real application, we would cancel the upload request here
         this.navigateBack();
       }
@@ -498,7 +539,13 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   /**
    * Form control getters
    */
-  get nameControl() { return this.uploadForm.get('name'); }
-  get descriptionControl() { return this.uploadForm.get('description'); }
-  get filesControl() { return this.uploadForm.get('files'); }
+  get nameControl() {
+    return this.uploadForm.get('name');
+  }
+  get descriptionControl() {
+    return this.uploadForm.get('description');
+  }
+  get filesControl() {
+    return this.uploadForm.get('files');
+  }
 }

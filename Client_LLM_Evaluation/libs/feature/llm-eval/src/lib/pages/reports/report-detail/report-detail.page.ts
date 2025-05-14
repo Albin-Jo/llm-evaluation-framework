@@ -9,27 +9,24 @@ import {
   ReportStatus,
   ReportFormat,
   EvaluationDetail,
-  EvaluationStatus
+  EvaluationStatus,
 } from '@ngtx-apps/data-access/models';
 import {
   ReportService,
-  EvaluationService
+  EvaluationService,
 } from '@ngtx-apps/data-access/services';
 import {
   ConfirmationDialogService,
-  NotificationService
+  NotificationService,
 } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-report-detail',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule
-  ],
+  imports: [CommonModule, RouterModule],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './report-detail.page.html',
-  styleUrls: ['./report-detail.page.scss']
+  styleUrls: ['./report-detail.page.scss'],
 })
 export class ReportDetailPage implements OnInit, OnDestroy {
   report: Report | null = null;
@@ -55,9 +52,7 @@ export class ReportDetailPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.route.paramMap.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(params => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const id = params.get('id');
       if (id) {
         this.reportId = id;
@@ -77,7 +72,8 @@ export class ReportDetailPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.reportService.getReport(id)
+    this.reportService
+      .getReport(id)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -96,21 +92,22 @@ export class ReportDetailPage implements OnInit, OnDestroy {
         error: (error) => {
           this.error = 'Failed to load report details. Please try again.';
           console.error('Error loading report:', error);
-        }
+        },
       });
   }
 
   loadEvaluationDetails(evaluationId: string): void {
-    this.evaluationService.getEvaluation(evaluationId)
+    this.evaluationService
+      .getEvaluation(evaluationId)
       .pipe(
         takeUntil(this.destroy$),
-        catchError(error => {
+        catchError((error) => {
           console.error('Error loading evaluation details:', error);
           // Don't set main error - this is supplementary data
           return of(null);
         })
       )
-      .subscribe(evaluation => {
+      .subscribe((evaluation) => {
         if (evaluation) {
           this.evaluation = evaluation;
         }
@@ -126,10 +123,12 @@ export class ReportDetailPage implements OnInit, OnDestroy {
   deleteReport(): void {
     if (!this.report) return;
 
-    this.confirmationDialogService.confirmDelete('Report')
-      .subscribe(confirmed => {
+    this.confirmationDialogService
+      .confirmDelete('Report')
+      .subscribe((confirmed) => {
         if (confirmed) {
-          this.reportService.deleteReport(this.report!.id)
+          this.reportService
+            .deleteReport(this.report!.id)
             .pipe(takeUntil(this.destroy$))
             .subscribe({
               next: () => {
@@ -138,9 +137,11 @@ export class ReportDetailPage implements OnInit, OnDestroy {
                 this.router.navigate(['app/reports']);
               },
               error: (error) => {
-                this.notificationService.error('Failed to delete report. Please try again.');
+                this.notificationService.error(
+                  'Failed to delete report. Please try again.'
+                );
                 console.error('Error deleting report:', error);
-              }
+              },
             });
         }
       });
@@ -150,10 +151,11 @@ export class ReportDetailPage implements OnInit, OnDestroy {
     if (!this.report) return;
 
     this.isDownloading = true;
-    this.reportService.downloadReport(this.report.id)
+    this.reportService
+      .downloadReport(this.report.id)
       .pipe(
         takeUntil(this.destroy$),
-        finalize(() => this.isDownloading = false)
+        finalize(() => (this.isDownloading = false))
       )
       .subscribe({
         next: (blob) => {
@@ -162,7 +164,9 @@ export class ReportDetailPage implements OnInit, OnDestroy {
           // Create an anchor element and trigger download
           const a = document.createElement('a');
           a.href = url;
-          a.download = `report-${this.report!.id}.${this.report!.format.toLowerCase()}`;
+          a.download = `report-${
+            this.report!.id
+          }.${this.report!.format.toLowerCase()}`;
           document.body.appendChild(a);
           a.click();
           // Cleanup
@@ -172,41 +176,50 @@ export class ReportDetailPage implements OnInit, OnDestroy {
           this.notificationService.success('Report downloaded successfully');
         },
         error: (error) => {
-          this.notificationService.error('Failed to download report. Please try again.');
+          this.notificationService.error(
+            'Failed to download report. Please try again.'
+          );
           console.error('Error downloading report:', error);
-        }
+        },
       });
   }
 
   generateReport(): void {
     if (!this.report) return;
 
-    this.confirmationDialogService.confirm({
-      title: 'Generate Report',
-      message: 'Are you sure you want to generate this report?',
-      confirmText: 'Generate',
-      cancelText: 'Cancel',
-      type: 'info'
-    }).subscribe(confirmed => {
-      if (confirmed) {
-        this.isLoading = true;
-        this.reportService.generateReport(this.report!.id)
-          .pipe(
-            takeUntil(this.destroy$),
-            finalize(() => this.isLoading = false)
-          )
-          .subscribe({
-            next: (response) => {
-              this.report = response;
-              this.notificationService.success('Report generated successfully');
-            },
-            error: (error) => {
-              this.notificationService.error('Failed to generate report. Please try again.');
-              console.error('Error generating report:', error);
-            }
-          });
-      }
-    });
+    this.confirmationDialogService
+      .confirm({
+        title: 'Generate Report',
+        message: 'Are you sure you want to generate this report?',
+        confirmText: 'Generate',
+        cancelText: 'Cancel',
+        type: 'info',
+      })
+      .subscribe((confirmed) => {
+        if (confirmed) {
+          this.isLoading = true;
+          this.reportService
+            .generateReport(this.report!.id)
+            .pipe(
+              takeUntil(this.destroy$),
+              finalize(() => (this.isLoading = false))
+            )
+            .subscribe({
+              next: (response) => {
+                this.report = response;
+                this.notificationService.success(
+                  'Report generated successfully'
+                );
+              },
+              error: (error) => {
+                this.notificationService.error(
+                  'Failed to generate report. Please try again.'
+                );
+                console.error('Error generating report:', error);
+              },
+            });
+        }
+      });
   }
 
   viewFullReport(): void {
@@ -230,7 +243,7 @@ export class ReportDetailPage implements OnInit, OnDestroy {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
       }).format(date);
     } catch (e) {
       return 'Invalid date';

@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/reports/report-detail/report-detail.page.html -->
 <div class="report-detail-container">
   <!-- Header Section -->
   <div class="header-section">
@@ -12,7 +11,10 @@
       <div class="title-section">
         <h1 class="page-title" *ngIf="report">{{ report.name }}</h1>
         <div class="status-badge-container" *ngIf="report">
-          <span class="status-badge" [ngClass]="getStatusBadgeClass(report.status)">
+          <span
+            class="status-badge"
+            [ngClass]="getStatusBadgeClass(report.status)"
+          >
             {{ report.status }}
           </span>
         </div>
@@ -22,11 +24,20 @@
         <button class="action-button edit-button" (click)="editReport()">
           Edit
         </button>
-        <button *ngIf="canDownloadReport()" class="action-button download-button" (click)="downloadReport()" [disabled]="isDownloading">
+        <button
+          *ngIf="canDownloadReport()"
+          class="action-button download-button"
+          (click)="downloadReport()"
+          [disabled]="isDownloading"
+        >
           <span *ngIf="isDownloading" class="spinner-sm"></span>
           Download
         </button>
-        <button *ngIf="canGenerateReport()" class="action-button generate-button" (click)="generateReport()">
+        <button
+          *ngIf="canGenerateReport()"
+          class="action-button generate-button"
+          (click)="generateReport()"
+        >
           Generate
         </button>
         <button class="action-button delete-button" (click)="deleteReport()">
@@ -46,7 +57,9 @@
   <div *ngIf="error" class="error-container">
     <div class="error-icon">❌</div>
     <p>{{ error }}</p>
-    <button class="retry-button" (click)="loadReport(reportId)">Try Again</button>
+    <button class="retry-button" (click)="loadReport(reportId)">
+      Try Again
+    </button>
   </div>
 
   <!-- Report Content -->
@@ -75,7 +88,9 @@
           </div>
           <div class="info-row" *ngIf="report.last_sent_at">
             <span class="info-label">Last Sent:</span>
-            <span class="info-value">{{ formatDate(report.last_sent_at) }}</span>
+            <span class="info-value"
+              >{{ formatDate(report.last_sent_at) }}</span
+            >
           </div>
         </div>
       </div>
@@ -86,7 +101,9 @@
         <div class="card-content">
           <div class="info-row clickable" (click)="viewEvaluation()">
             <span class="info-label">Evaluation:</span>
-            <span class="info-value link-value">{{ evaluation?.name || 'Loading...' }}</span>
+            <span class="info-value link-value"
+              >{{ evaluation?.name || 'Loading...' }}</span
+            >
           </div>
           <div class="info-row" *ngIf="evaluation">
             <span class="info-label">Status:</span>
@@ -126,41 +143,76 @@
       <div class="card-content">
         <div class="config-grid">
           <!-- Display checkboxes for boolean configs -->
-          <div class="config-item" *ngIf="report.config && report.config['include_executive_summary'] !== undefined">
-            <div class="checkbox-item" [class.checked]="report.config['include_executive_summary']">
+          <div
+            class="config-item"
+            *ngIf="report.config && report.config['include_executive_summary'] !== undefined"
+          >
+            <div
+              class="checkbox-item"
+              [class.checked]="report.config['include_executive_summary']"
+            >
               <div class="checkbox"></div>
               <span class="checkbox-label">Include Executive Summary</span>
             </div>
           </div>
-          <div class="config-item" *ngIf="report.config && report.config['include_evaluation_details'] !== undefined">
-            <div class="checkbox-item" [class.checked]="report.config['include_evaluation_details']">
+          <div
+            class="config-item"
+            *ngIf="report.config && report.config['include_evaluation_details'] !== undefined"
+          >
+            <div
+              class="checkbox-item"
+              [class.checked]="report.config['include_evaluation_details']"
+            >
               <div class="checkbox"></div>
               <span class="checkbox-label">Include Evaluation Details</span>
             </div>
           </div>
-          <div class="config-item" *ngIf="report.config && report.config['include_metrics_overview'] !== undefined">
-            <div class="checkbox-item" [class.checked]="report.config['include_metrics_overview']">
+          <div
+            class="config-item"
+            *ngIf="report.config && report.config['include_metrics_overview'] !== undefined"
+          >
+            <div
+              class="checkbox-item"
+              [class.checked]="report.config['include_metrics_overview']"
+            >
               <div class="checkbox"></div>
               <span class="checkbox-label">Include Metrics Overview</span>
             </div>
           </div>
-          <div class="config-item" *ngIf="report.config && report.config['include_detailed_results'] !== undefined">
-            <div class="checkbox-item" [class.checked]="report.config['include_detailed_results']">
+          <div
+            class="config-item"
+            *ngIf="report.config && report.config['include_detailed_results'] !== undefined"
+          >
+            <div
+              class="checkbox-item"
+              [class.checked]="report.config['include_detailed_results']"
+            >
               <div class="checkbox"></div>
               <span class="checkbox-label">Include Detailed Results</span>
             </div>
           </div>
-          <div class="config-item" *ngIf="report.config && report.config['include_agent_responses'] !== undefined">
-            <div class="checkbox-item" [class.checked]="report.config['include_agent_responses']">
+          <div
+            class="config-item"
+            *ngIf="report.config && report.config['include_agent_responses'] !== undefined"
+          >
+            <div
+              class="checkbox-item"
+              [class.checked]="report.config['include_agent_responses']"
+            >
               <div class="checkbox"></div>
               <span class="checkbox-label">Include Agent Responses</span>
             </div>
           </div>
 
           <!-- Other configs as text -->
-          <div class="config-item" *ngIf="report.config && report.config['max_examples'] !== undefined">
+          <div
+            class="config-item"
+            *ngIf="report.config && report.config['max_examples'] !== undefined"
+          >
             <span class="config-name">Max Examples:</span>
-            <span class="config-value">{{ report.config['max_examples'] }}</span>
+            <span class="config-value"
+              >{{ report.config['max_examples'] }}</span
+            >
           </div>
         </div>
       </div>
@@ -180,13 +232,19 @@
               <div class="document-line"></div>
               <div class="document-line short"></div>
             </div>
-            <button class="view-full-button" (click)="viewFullReport()">View Full Report</button>
+            <button class="view-full-button" (click)="viewFullReport()">
+              View Full Report
+            </button>
           </div>
         </ng-container>
         <ng-container *ngIf="report.status === ReportStatus.DRAFT">
           <div class="preview-placeholder">
             <p>Preview will be available after the report is generated</p>
-            <button *ngIf="canGenerateReport()" class="generate-button" (click)="generateReport()">
+            <button
+              *ngIf="canGenerateReport()"
+              class="generate-button"
+              (click)="generateReport()"
+            >
               Generate Report
             </button>
           </div>

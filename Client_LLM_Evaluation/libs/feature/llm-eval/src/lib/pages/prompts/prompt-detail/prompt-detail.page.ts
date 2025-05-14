@@ -1,4 +1,10 @@
-import { Component, OnDestroy, OnInit, inject, NO_ERRORS_SCHEMA } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  NO_ERRORS_SCHEMA,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -10,13 +16,10 @@ import { AlertService } from '@ngtx-apps/utils/services';
 @Component({
   selector: 'app-prompt-detail',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule
-  ],
+  imports: [CommonModule, RouterModule],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './prompt-detail.page.html',
-  styleUrls: ['./prompt-detail.page.scss']
+  styleUrls: ['./prompt-detail.page.scss'],
 })
 export class PromptDetailPage implements OnInit, OnDestroy {
   promptId: string | null = null;
@@ -50,7 +53,8 @@ export class PromptDetailPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.promptService.getPromptById(this.promptId)
+    this.promptService
+      .getPromptById(this.promptId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (prompt: PromptResponse) => {
@@ -63,25 +67,30 @@ export class PromptDetailPage implements OnInit, OnDestroy {
           this.alertService.showAlert({
             show: true,
             message: 'Failed to load prompt details. Please try again.',
-            title: 'Error'
+            title: 'Error',
           });
           console.error('Error loading prompt:', err);
-        }
+        },
       });
   }
 
   deletePrompt(): void {
     if (!this.promptId) return;
 
-    if (confirm('Are you sure you want to delete this prompt? This action cannot be undone.')) {
-      this.promptService.deletePrompt(this.promptId)
+    if (
+      confirm(
+        'Are you sure you want to delete this prompt? This action cannot be undone.'
+      )
+    ) {
+      this.promptService
+        .deletePrompt(this.promptId)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: () => {
             this.alertService.showAlert({
               show: true,
               message: 'Prompt deleted successfully',
-              title: 'Success'
+              title: 'Success',
             });
             this.router.navigate(['app/prompts']);
           },
@@ -89,10 +98,10 @@ export class PromptDetailPage implements OnInit, OnDestroy {
             this.alertService.showAlert({
               show: true,
               message: 'Failed to delete prompt. Please try again.',
-              title: 'Error'
+              title: 'Error',
             });
             console.error('Error deleting prompt:', err);
-          }
+          },
         });
     }
   }
@@ -112,7 +121,9 @@ export class PromptDetailPage implements OnInit, OnDestroy {
     return Object.keys(parameters).length > 0;
   }
 
-  getParameterEntries(parameters: Record<string, any> | undefined): Array<{key: string, value: any}> {
+  getParameterEntries(
+    parameters: Record<string, any> | undefined
+  ): Array<{ key: string; value: any }> {
     if (!parameters) return [];
     return Object.entries(parameters).map(([key, value]) => ({ key, value }));
   }
@@ -125,7 +136,7 @@ export class PromptDetailPage implements OnInit, OnDestroy {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   }
 }

@@ -10,30 +10,30 @@ export const agentsRoutes: Routes = [
     path: '',
     component: AgentsPage,
     title: 'Agents',
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard],
   },
   {
     path: 'create',
     component: AgentCreateEditPage,
     title: 'Create Agent',
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard],
   },
   {
     path: ':id',
     component: AgentDetailPage,
     title: 'Agent Details',
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard],
   },
   {
     path: ':id/edit',
     component: AgentCreateEditPage,
     title: 'Edit Agent',
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard],
   },
   {
     path: ':id/test',
     component: AgentTestPage,
     title: 'Test Agent',
-    canActivate: [AuthGuard]
-  }
+    canActivate: [AuthGuard],
+  },
 ];

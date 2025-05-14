@@ -2,16 +2,20 @@
   <!-- Back Navigation -->
   <div class="back-navigation">
     <button class="back-button" (click)="onCancel()">
-      <span class="back-icon">←</span> {{ isEditMode ? 'Back to Agent Details' : 'Back to Agents' }}
+      <span class="back-icon">←</span> {{ isEditMode ? 'Back to Agent Details' :
+      'Back to Agents' }}
     </button>
   </div>
 
   <div class="agent-card">
     <!-- Header -->
     <div class="agent-header">
-      <h1 class="agent-title">{{ isEditMode ? 'Edit Agent' : 'Create New Agent' }}</h1>
+      <h1 class="agent-title">
+        {{ isEditMode ? 'Edit Agent' : 'Create New Agent' }}
+      </h1>
       <p class="agent-description">
-        {{ isEditMode ? 'Update the details of this agent' : 'Configure a new LLM agent for evaluation' }}
+        {{ isEditMode ? 'Update the details of this agent' : 'Configure a new
+        LLM agent for evaluation' }}
       </p>
     </div>
 
@@ -31,25 +35,33 @@
     </div>
 
     <!-- Form -->
-    <form *ngIf="!isLoading && !error" [formGroup]="agentForm" (ngSubmit)="onSubmit()" class="agent-form">
+    <form
+      *ngIf="!isLoading && !error"
+      [formGroup]="agentForm"
+      (ngSubmit)="onSubmit()"
+      class="agent-form"
+    >
       <!-- Tabs Navigation -->
       <div class="tabs-container">
         <div
           class="tab"
           [class.active]="selectedTabIndex === 0"
-          (click)="selectTab(0)">
+          (click)="selectTab(0)"
+        >
           Basic Information
         </div>
         <div
           class="tab"
           [class.active]="selectedTabIndex === 1"
-          (click)="selectTab(1)">
+          (click)="selectTab(1)"
+        >
           API Configuration
         </div>
         <div
           class="tab"
           [class.active]="selectedTabIndex === 2"
-          (click)="selectTab(2)">
+          (click)="selectTab(2)"
+        >
           Advanced Settings
         </div>
       </div>
@@ -66,7 +78,8 @@
                 class="form-control"
                 formControlName="name"
                 placeholder="Enter agent name"
-                [ngClass]="{'is-invalid': isFieldInvalid('name')}">
+                [ngClass]="{'is-invalid': isFieldInvalid('name')}"
+              />
               <div *ngIf="isFieldInvalid('name')" class="invalid-feedback">
                 {{ getErrorMessage('name') }}
               </div>
@@ -79,7 +92,8 @@
                 class="form-control textarea"
                 formControlName="description"
                 placeholder="Enter agent description"
-                rows="4"></textarea>
+                rows="4"
+              ></textarea>
             </div>
           </div>
 
@@ -90,8 +104,14 @@
                 id="domain"
                 class="form-control"
                 formControlName="domain"
-                [ngClass]="{'is-invalid': isFieldInvalid('domain')}">
-                <option *ngFor="let option of domainOptions" [value]="option.value">{{ option.label }}</option>
+                [ngClass]="{'is-invalid': isFieldInvalid('domain')}"
+              >
+                <option
+                  *ngFor="let option of domainOptions"
+                  [value]="option.value"
+                >
+                  {{ option.label }}
+                </option>
               </select>
               <div *ngIf="isFieldInvalid('domain')" class="invalid-feedback">
                 {{ getErrorMessage('domain') }}
@@ -103,8 +123,14 @@
               <select
                 id="is_active"
                 class="form-control"
-                formControlName="is_active">
-                <option *ngFor="let option of statusOptions" [value]="option.value">{{ option.label }}</option>
+                formControlName="is_active"
+              >
+                <option
+                  *ngFor="let option of statusOptions"
+                  [value]="option.value"
+                >
+                  {{ option.label }}
+                </option>
               </select>
             </div>
 
@@ -115,7 +141,8 @@
                 id="model_type"
                 class="form-control"
                 formControlName="model_type"
-                placeholder="e.g., gpt-4, claude-3, llama-70b">
+                placeholder="e.g., gpt-4, claude-3, llama-70b"
+              />
             </div>
 
             <div class="form-group">
@@ -126,7 +153,8 @@
                 class="form-control"
                 formControlName="version"
                 placeholder="e.g., 1.0.0"
-                [ngClass]="{'is-invalid': isFieldInvalid('version')}">
+                [ngClass]="{'is-invalid': isFieldInvalid('version')}"
+              />
               <div *ngIf="isFieldInvalid('version')" class="invalid-feedback">
                 {{ getErrorMessage('version') }}
               </div>
@@ -139,7 +167,8 @@
                 id="tags"
                 class="form-control"
                 formControlName="tags"
-                placeholder="Comma-separated tags (e.g., production, beta, test)">
+                placeholder="Comma-separated tags (e.g., production, beta, test)"
+              />
               <div class="field-hint">
                 Enter comma-separated tags to help organize and filter agents
               </div>
@@ -149,7 +178,10 @@
       </div>
 
       <!-- API Configuration Tab - Lazy Load -->
-      <div class="tab-content" *ngIf="selectedTabIndex === 1 && tabsData[1].isLoaded">
+      <div
+        class="tab-content"
+        *ngIf="selectedTabIndex === 1 && tabsData[1].isLoaded"
+      >
         <div class="two-column-layout">
           <div class="column">
             <div class="form-group">
@@ -160,11 +192,17 @@
                 class="form-control"
                 formControlName="api_endpoint"
                 placeholder="Enter API endpoint URL"
-                [ngClass]="{'is-invalid': isFieldInvalid('api_endpoint')}">
-              <div *ngIf="isFieldInvalid('api_endpoint')" class="invalid-feedback">
+                [ngClass]="{'is-invalid': isFieldInvalid('api_endpoint')}"
+              />
+              <div
+                *ngIf="isFieldInvalid('api_endpoint')"
+                class="invalid-feedback"
+              >
                 {{ getErrorMessage('api_endpoint') }}
               </div>
-              <p class="field-hint">The URL endpoint where this agent can be accessed for evaluation</p>
+              <p class="field-hint">
+                The URL endpoint where this agent can be accessed for evaluation
+              </p>
             </div>
 
             <div class="form-group">
@@ -172,8 +210,14 @@
               <select
                 id="integration_type"
                 class="form-control"
-                formControlName="integration_type">
-                <option *ngFor="let option of integrationTypeOptions" [value]="option.value">{{ option.label }}</option>
+                formControlName="integration_type"
+              >
+                <option
+                  *ngFor="let option of integrationTypeOptions"
+                  [value]="option.value"
+                >
+                  {{ option.label }}
+                </option>
               </select>
               <p class="field-hint">Type of integration for this agent</p>
             </div>
@@ -185,8 +229,14 @@
               <select
                 id="auth_type"
                 class="form-control"
-                formControlName="auth_type">
-                <option *ngFor="let option of authTypeOptions" [value]="option.value">{{ option.label }}</option>
+                formControlName="auth_type"
+              >
+                <option
+                  *ngFor="let option of authTypeOptions"
+                  [value]="option.value"
+                >
+                  {{ option.label }}
+                </option>
               </select>
               <p class="field-hint">Authentication method for this agent</p>
             </div>
@@ -197,12 +247,18 @@
                 [value]="getFormattedJson('auth_credentials')"
                 [label]="'Authentication Credentials'"
                 (valueChange)="updateJsonField('auth_credentials', $event)"
-                (validChange)="isJsonFieldValid('auth_credentials', $event)">
+                (validChange)="isJsonFieldValid('auth_credentials', $event)"
+              >
               </app-simple-json-editor>
-              <div *ngIf="jsonErrors['auth_credentials']" class="invalid-feedback">
+              <div
+                *ngIf="jsonErrors['auth_credentials']"
+                class="invalid-feedback"
+              >
                 {{ jsonErrors['auth_credentials'] }}
               </div>
-              <p class="field-hint">Authentication credentials in JSON format (stored securely)</p>
+              <p class="field-hint">
+                Authentication credentials in JSON format (stored securely)
+              </p>
             </div>
 
             <div class="form-group">
@@ -212,15 +268,21 @@
                 id="response_format"
                 class="form-control"
                 formControlName="response_format"
-                placeholder="e.g., json, text, markdown">
-              <p class="field-hint">Expected format of response from this agent (optional)</p>
+                placeholder="e.g., json, text, markdown"
+              />
+              <p class="field-hint">
+                Expected format of response from this agent (optional)
+              </p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Advanced Settings Tab - Lazy Load -->
-      <div class="tab-content" *ngIf="selectedTabIndex === 2 && tabsData[2].isLoaded">
+      <div
+        class="tab-content"
+        *ngIf="selectedTabIndex === 2 && tabsData[2].isLoaded"
+      >
         <div class="two-column-layout">
           <div class="column">
             <div class="form-group">
@@ -229,13 +291,15 @@
                 [value]="getFormattedJson('config')"
                 [label]="'Configuration'"
                 (valueChange)="updateJsonField('config', $event)"
-                (validChange)="isJsonFieldValid('config', $event)">
+                (validChange)="isJsonFieldValid('config', $event)"
+              >
               </app-simple-json-editor>
               <div *ngIf="jsonErrors['config']" class="invalid-feedback">
                 {{ jsonErrors['config'] }}
               </div>
               <p class="field-hint">
-                Configuration parameters as JSON object (e.g., {{ "{" }}"temperature": 0.7, "max_tokens": 1000{{ "}" }})
+                Configuration parameters as JSON object (e.g., {{ "{"
+                }}"temperature": 0.7, "max_tokens": 1000{{ "}" }})
               </p>
             </div>
 
@@ -245,12 +309,18 @@
                 [value]="getFormattedJson('request_template')"
                 [label]="'Request Template'"
                 (valueChange)="updateJsonField('request_template', $event)"
-                (validChange)="isJsonFieldValid('request_template', $event)">
+                (validChange)="isJsonFieldValid('request_template', $event)"
+              >
               </app-simple-json-editor>
-              <div *ngIf="jsonErrors['request_template']" class="invalid-feedback">
+              <div
+                *ngIf="jsonErrors['request_template']"
+                class="invalid-feedback"
+              >
                 {{ jsonErrors['request_template'] }}
               </div>
-              <p class="field-hint">Template structure for requests to this agent (optional)</p>
+              <p class="field-hint">
+                Template structure for requests to this agent (optional)
+              </p>
             </div>
           </div>
 
@@ -261,12 +331,15 @@
                 [value]="getFormattedJson('retry_config')"
                 [label]="'Retry Configuration'"
                 (valueChange)="updateJsonField('retry_config', $event)"
-                (validChange)="isJsonFieldValid('retry_config', $event)">
+                (validChange)="isJsonFieldValid('retry_config', $event)"
+              >
               </app-simple-json-editor>
               <div *ngIf="jsonErrors['retry_config']" class="invalid-feedback">
                 {{ jsonErrors['retry_config'] }}
               </div>
-              <p class="field-hint">Configuration for retry behavior (optional)</p>
+              <p class="field-hint">
+                Configuration for retry behavior (optional)
+              </p>
             </div>
 
             <div class="form-group">
@@ -275,12 +348,18 @@
                 [value]="getFormattedJson('content_filter_config')"
                 [label]="'Content Filter Configuration'"
                 (valueChange)="updateJsonField('content_filter_config', $event)"
-                (validChange)="isJsonFieldValid('content_filter_config', $event)">
+                (validChange)="isJsonFieldValid('content_filter_config', $event)"
+              >
               </app-simple-json-editor>
-              <div *ngIf="jsonErrors['content_filter_config']" class="invalid-feedback">
+              <div
+                *ngIf="jsonErrors['content_filter_config']"
+                class="invalid-feedback"
+              >
                 {{ jsonErrors['content_filter_config'] }}
               </div>
-              <p class="field-hint">Configuration for content filtering (optional)</p>
+              <p class="field-hint">
+                Configuration for content filtering (optional)
+              </p>
             </div>
           </div>
         </div>
@@ -293,7 +372,8 @@
           *ngIf="selectedTabIndex > 0"
           type="button"
           class="outline-button"
-          (click)="selectedTabIndex = selectedTabIndex - 1">
+          (click)="selectedTabIndex = selectedTabIndex - 1"
+        >
           Back
         </button>
 
@@ -308,7 +388,8 @@
           type="button"
           class="primary-button"
           (click)="selectedTabIndex = selectedTabIndex + 1"
-          [disabled]="isTabInvalid(selectedTabIndex)">
+          [disabled]="isTabInvalid(selectedTabIndex)"
+        >
           Next
         </button>
 
@@ -317,7 +398,8 @@
           *ngIf="selectedTabIndex === 2"
           type="submit"
           class="primary-button"
-          [disabled]="isSubmitting || agentForm.invalid || hasJsonErrors()">
+          [disabled]="isSubmitting || agentForm.invalid || hasJsonErrors()"
+        >
           <span *ngIf="isSubmitting" class="spinner-sm"></span>
           {{ isEditMode ? 'Update Agent' : 'Create Agent' }}
         </button>

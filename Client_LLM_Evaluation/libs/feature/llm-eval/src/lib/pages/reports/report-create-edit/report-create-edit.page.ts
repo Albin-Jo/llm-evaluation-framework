@@ -1,6 +1,11 @@
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 
@@ -11,27 +16,21 @@ import {
   ReportFormat,
   ReportStatus,
   Evaluation,
-  EvaluationStatus
+  EvaluationStatus,
 } from '@ngtx-apps/data-access/models';
 import {
   ReportService,
-  EvaluationService
+  EvaluationService,
 } from '@ngtx-apps/data-access/services';
-import {
-  NotificationService
-} from '@ngtx-apps/utils/services';
+import { NotificationService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-report-create-edit',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './report-create-edit.page.html',
-  styleUrls: ['./report-create-edit.page.scss']
+  styleUrls: ['./report-create-edit.page.scss'],
 })
 export class ReportCreateEditPage implements OnInit, OnDestroy {
   selectedTabIndex = 0;
@@ -47,7 +46,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
   reportFormats = [
     { value: ReportFormat.PDF, label: 'PDF' },
     { value: ReportFormat.HTML, label: 'HTML' },
-    { value: ReportFormat.JSON, label: 'JSON' }
+    { value: ReportFormat.JSON, label: 'JSON' },
   ];
 
   // Evaluation options for dropdown
@@ -100,8 +99,8 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
         include_metrics_overview: [true],
         include_detailed_results: [true],
         include_agent_responses: [true],
-        max_examples: [10, [Validators.min(1), Validators.max(100)]]
-      })
+        max_examples: [10, [Validators.min(1), Validators.max(100)]],
+      }),
     });
   }
 
@@ -110,10 +109,11 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
    */
   loadEvaluations(): void {
     this.isLoading = true;
-    this.evaluationService.getEvaluations({
-      status: EvaluationStatus.COMPLETED, // Only show completed evaluations
-      limit: 100 // Get more evaluations to have a good selection
-    })
+    this.evaluationService
+      .getEvaluations({
+        status: EvaluationStatus.COMPLETED, // Only show completed evaluations
+        limit: 100, // Get more evaluations to have a good selection
+      })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -124,7 +124,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
           this.error = 'Failed to load evaluations. Please try again.';
           this.isLoading = false;
           console.error('Error loading evaluations:', err);
-        }
+        },
       });
   }
 
@@ -137,7 +137,8 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.reportService.getReport(this.reportId)
+    this.reportService
+      .getReport(this.reportId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (report) => {
@@ -149,7 +150,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
           this.isLoading = false;
           console.error('Error loading report data:', err);
           this.notificationService.error(this.error);
-        }
+        },
       });
   }
 
@@ -160,12 +161,22 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
     // Build config form group if needed
     if (report.config) {
       const configGroup = this.fb.group({
-        include_executive_summary: [report.config['include_executive_summary'] ?? true],
-        include_evaluation_details: [report.config['include_evaluation_details'] ?? true],
-        include_metrics_overview: [report.config['include_metrics_overview'] ?? true],
-        include_detailed_results: [report.config['include_detailed_results'] ?? true],
-        include_agent_responses: [report.config['include_agent_responses'] ?? true],
-        max_examples: [report.config['max_examples'] ?? 10]
+        include_executive_summary: [
+          report.config['include_executive_summary'] ?? true,
+        ],
+        include_evaluation_details: [
+          report.config['include_evaluation_details'] ?? true,
+        ],
+        include_metrics_overview: [
+          report.config['include_metrics_overview'] ?? true,
+        ],
+        include_detailed_results: [
+          report.config['include_detailed_results'] ?? true,
+        ],
+        include_agent_responses: [
+          report.config['include_agent_responses'] ?? true,
+        ],
+        max_examples: [report.config['max_examples'] ?? 10],
       });
 
       // Replace the config group in the form
@@ -177,7 +188,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
       name: report.name,
       description: report.description || '',
       evaluation_id: report.evaluation_id,
-      format: report.format
+      format: report.format,
     });
   }
 
@@ -200,7 +211,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
       evaluation_id: formValue.evaluation_id,
       format: formValue.format,
       config: formValue.config,
-      ...formValue.config // Spread config values at root level for creation
+      ...formValue.config, // Spread config values at root level for creation
     };
 
     if (this.isEditMode) {
@@ -209,7 +220,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
         name: formValue.name,
         description: formValue.description,
         format: formValue.format,
-        config: formValue.config
+        config: formValue.config,
       };
       this.updateReport(updateData);
     } else {
@@ -221,7 +232,8 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
    * Create a new report
    */
   createReport(formData: ReportCreate): void {
-    this.reportService.createReport(formData)
+    this.reportService
+      .createReport(formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -231,9 +243,11 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.isSaving = false;
-          this.notificationService.error('Failed to create report. Please try again.');
+          this.notificationService.error(
+            'Failed to create report. Please try again.'
+          );
           console.error('Error creating report:', err);
-        }
+        },
       });
   }
 
@@ -243,7 +257,8 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
   updateReport(formData: ReportUpdate): void {
     if (!this.reportId) return;
 
-    this.reportService.updateReport(this.reportId, formData)
+    this.reportService
+      .updateReport(this.reportId, formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -253,9 +268,11 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.isSaving = false;
-          this.notificationService.error('Failed to update report. Please try again.');
+          this.notificationService.error(
+            'Failed to update report. Please try again.'
+          );
           console.error('Error updating report:', err);
-        }
+        },
       });
   }
 
@@ -275,10 +292,14 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
     if (!control || !control.errors) return '';
 
     if (control.errors['required']) {
-      return `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace('_', ' ')} is required`;
+      return `${
+        fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace('_', ' ')
+      } is required`;
     }
     if (control.errors['maxlength']) {
-      return `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} cannot exceed ${control.errors['maxlength'].requiredLength} characters`;
+      return `${
+        fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+      } cannot exceed ${control.errors['maxlength'].requiredLength} characters`;
     }
     if (control.errors['min']) {
       return `Value must be at least ${control.errors['min'].min}`;
@@ -294,7 +315,7 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
    * Helper method to mark all controls in a form group as touched
    */
   markFormGroupTouched(formGroup: FormGroup): void {
-    Object.values(formGroup.controls).forEach(control => {
+    Object.values(formGroup.controls).forEach((control) => {
       control.markAsTouched();
 
       if ((control as FormGroup).controls) {
@@ -333,7 +354,8 @@ export class ReportCreateEditPage implements OnInit, OnDestroy {
    */
   isBasicInfoValid(): boolean {
     const nameValid = this.reportForm.get('name')?.valid === true;
-    const evaluationValid = this.reportForm.get('evaluation_id')?.valid === true;
+    const evaluationValid =
+      this.reportForm.get('evaluation_id')?.valid === true;
 
     return nameValid && evaluationValid;
   }

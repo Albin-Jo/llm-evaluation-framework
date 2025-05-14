@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pipes/map.pipe.ts */
 import { Pipe, PipeTransform } from '@angular/core';
 
 /**
@@ -14,20 +13,17 @@ import { Pipe, PipeTransform } from '@angular/core';
  */
 @Pipe({
   name: 'map',
-  standalone: true
+  standalone: true,
 })
 export class MapPipe implements PipeTransform {
-  transform<T, R>(
-    items: T[],
-    mappingLogic: string | ((item: T) => R)
-  ): R[] {
+  transform<T, R>(items: T[], mappingLogic: string | ((item: T) => R)): R[] {
     if (!items || !Array.isArray(items)) {
       return [];
     }
 
     // If mappingLogic is a string, extract that property from each item
     if (typeof mappingLogic === 'string') {
-      return items.map(item => item[mappingLogic as keyof T] as unknown as R);
+      return items.map((item) => item[mappingLogic as keyof T] as unknown as R);
     }
 
     // If mappingLogic is a function, apply it to each item

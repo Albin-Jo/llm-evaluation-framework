@@ -1,9 +1,20 @@
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  NO_ERRORS_SCHEMA,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, Observable, of, throwError } from 'rxjs';
 import { takeUntil, catchError, finalize } from 'rxjs/operators';
-import { Agent, AgentResponse, AgentToolsResponse } from '@ngtx-apps/data-access/models';
+import {
+  Agent,
+  AgentResponse,
+  AgentToolsResponse,
+} from '@ngtx-apps/data-access/models';
 import { AgentService } from '@ngtx-apps/data-access/services';
 import { NotificationService } from '@ngtx-apps/utils/services';
 import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
@@ -24,12 +35,12 @@ interface ConfigTab {
     FormsModule,
     ReactiveFormsModule,
     QracButtonComponent,
-    SimpleJsonViewerComponent
+    SimpleJsonViewerComponent,
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './agents-detail.page.html',
   styleUrls: ['./agents-detail.page.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AgentDetailPage implements OnInit, OnDestroy {
   // Main agent data
@@ -50,7 +61,7 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     basicInfo: true,
     apiConfig: true,
     configuration: false,
-    tools: false
+    tools: false,
   };
 
   // Configuration tabs
@@ -58,7 +69,7 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     { label: 'Configuration', field: 'config' },
     { label: 'Auth Credentials', field: 'auth_credentials' },
     { label: 'Retry Config', field: 'retry_config' },
-    { label: 'Content Filter', field: 'content_filter_config' }
+    { label: 'Content Filter', field: 'content_filter_config' },
   ];
   selectedConfigTab = 0;
 
@@ -83,7 +94,7 @@ export class AgentDetailPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       this.agentId = params.get('id');
       if (this.agentId) {
         // Try to get from cache first
@@ -113,11 +124,12 @@ export class AgentDetailPage implements OnInit, OnDestroy {
    * Copy text to clipboard
    */
   copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text)
+    navigator.clipboard
+      .writeText(text)
       .then(() => {
         this.notificationService.success('Copied to clipboard');
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Could not copy text: ', err);
         this.notificationService.error('Failed to copy to clipboard');
       });
@@ -133,10 +145,11 @@ export class AgentDetailPage implements OnInit, OnDestroy {
       this.cdr.markForCheck();
     }
 
-    this.agentService.getAgent(id)
+    this.agentService
+      .getAgent(id)
       .pipe(
         takeUntil(this.destroy$),
-        catchError(error => {
+        catchError((error) => {
           if (!silent) {
             this.error = 'Failed to load agent details. Please try again.';
             this.notificationService.error(this.error);
@@ -168,7 +181,7 @@ export class AgentDetailPage implements OnInit, OnDestroy {
           }
 
           this.cdr.markForCheck();
-        }
+        },
       });
   }
 
@@ -182,10 +195,11 @@ export class AgentDetailPage implements OnInit, OnDestroy {
 
     // Check if the API method exists, otherwise fall back to mock data
     if (typeof this.agentService.getAgentTools === 'function') {
-      this.agentService.getAgentTools(id)
+      this.agentService
+        .getAgentTools(id)
         .pipe(
           takeUntil(this.destroy$),
-          catchError(error => {
+          catchError((error) => {
             this.toolsError = 'Failed to load agent tools. Please try again.';
             this.isLoadingTools = false;
             this.cdr.markForCheck();
@@ -205,11 +219,11 @@ export class AgentDetailPage implements OnInit, OnDestroy {
               this.agentTools = response;
             } else {
               // If structure doesn't match expectations, normalize it
-              this.agentTools = { 
-                tools: Array.isArray(response) ? response : [response] 
+              this.agentTools = {
+                tools: Array.isArray(response) ? response : [response],
               };
             }
-            console.log('Loaded agent tools:', this.agentTools);
+
             this.cdr.markForCheck();
           }
         });
@@ -242,16 +256,16 @@ export class AgentDetailPage implements OnInit, OnDestroy {
           parameters: {
             param1: {
               type: 'string',
-              description: 'A string parameter'
+              description: 'A string parameter',
             },
             param2: {
               type: 'number',
-              description: 'A numeric parameter'
-            }
+              description: 'A numeric parameter',
+            },
           },
-          required_parameters: ['param1']
-        }
-      ]
+          required_parameters: ['param1'],
+        },
+      ],
     });
   }
 
@@ -274,10 +288,11 @@ export class AgentDetailPage implements OnInit, OnDestroy {
     this.cdr.markForCheck();
 
     const testInput = {
-      query: this.quickTestQuery
+      query: this.quickTestQuery,
     };
 
-    this.agentService.testAgent(this.agentId, testInput)
+    this.agentService
+      .testAgent(this.agentId, testInput)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -295,11 +310,11 @@ export class AgentDetailPage implements OnInit, OnDestroy {
           this.quickTestResult = {
             error: true,
             message: error.message || 'Test failed',
-            details: error.error
+            details: error.error,
           };
           this.testSuccess = false;
           this.cdr.markForCheck();
-        }
+        },
       });
   }
 
@@ -312,7 +327,10 @@ export class AgentDetailPage implements OnInit, OnDestroy {
         !this.expandedSections[section as keyof typeof this.expandedSections];
 
       // If expanding tools section, load data if needed
-      if (this.expandedSections[section as keyof typeof this.expandedSections] && this.agentId) {
+      if (
+        this.expandedSections[section as keyof typeof this.expandedSections] &&
+        this.agentId
+      ) {
         if (section === 'tools' && !this.agentTools) {
           this.loadAgentTools(this.agentId);
         }
@@ -356,8 +374,9 @@ export class AgentDetailPage implements OnInit, OnDestroy {
   onDeleteClick(): void {
     if (!this.agentId || !this.agent) return;
 
-    this.confirmationDialogService.confirmDelete(`agent "${this.agent.name}"`)
-      .subscribe(confirmed => {
+    this.confirmationDialogService
+      .confirmDelete(`agent "${this.agent.name}"`)
+      .subscribe((confirmed) => {
         if (confirmed) {
           this.deleteAgent(this.agentId!);
         }
@@ -368,7 +387,8 @@ export class AgentDetailPage implements OnInit, OnDestroy {
    * Delete agent from the API
    */
   private deleteAgent(id: string): void {
-    this.agentService.deleteAgent(id)
+    this.agentService
+      .deleteAgent(id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
@@ -380,9 +400,11 @@ export class AgentDetailPage implements OnInit, OnDestroy {
           this.router.navigate(['app/agents']);
         },
         error: (error) => {
-          this.notificationService.error('Failed to delete agent. Please try again.');
+          this.notificationService.error(
+            'Failed to delete agent. Please try again.'
+          );
           console.error('Error deleting agent:', error);
-        }
+        },
       });
   }
 
@@ -406,7 +428,7 @@ export class AgentDetailPage implements OnInit, OnDestroy {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
       }).format(date);
     } catch (e) {
       return 'Invalid date';

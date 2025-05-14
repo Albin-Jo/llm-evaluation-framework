@@ -1,9 +1,12 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/datasets.page.html -->
 <div class="datasets-container">
   <div class="header-section">
     <div class="title-section">
       <h1 class="page-title">Datasets</h1>
-      <p class="page-description">Manage RAG evaluation datasets. Upload and organize your documents to create comprehensive test sets for evaluating retrieval quality and accuracy.</p>
+      <p class="page-description">
+        Manage RAG evaluation datasets. Upload and organize your documents to
+        create comprehensive test sets for evaluating retrieval quality and
+        accuracy.
+      </p>
     </div>
     <div class="action-section">
       <button class="create-button" (click)="createNewDataset($event)">
@@ -21,7 +24,8 @@
             [controlName]="'search'"
             formControlName="search"
             [placeholder]="'Search datasets by name'"
-            [size]="'small'">
+            [size]="'small'"
+          >
           </qrac-textbox>
         </div>
 
@@ -30,7 +34,8 @@
             <qrac-select
               [controlName]="'status'"
               formControlName="status"
-              [options]="statusOptions">
+              [options]="statusOptions"
+            >
             </qrac-select>
           </div>
 
@@ -38,7 +43,8 @@
             <qrac-select
               [controlName]="'type'"
               formControlName="type"
-              [options]="formatOptions">
+              [options]="formatOptions"
+            >
             </qrac-select>
           </div>
 
@@ -46,7 +52,8 @@
             <qrac-select
               [controlName]="'dateRange'"
               formControlName="dateRange"
-              [options]="dateRangeOptions">
+              [options]="dateRangeOptions"
+            >
             </qrac-select>
           </div>
 
@@ -54,7 +61,8 @@
             <qrac-select
               [controlName]="'sizeRange'"
               formControlName="sizeRange"
-              [options]="sizeRangeOptions">
+              [options]="sizeRangeOptions"
+            >
             </qrac-select>
           </div>
 
@@ -62,7 +70,8 @@
             <qrac-select
               [controlName]="'isPublic'"
               formControlName="isPublic"
-              [options]="visibilityOptions">
+              [options]="visibilityOptions"
+            >
             </qrac-select>
           </div>
         </div>
@@ -89,7 +98,10 @@
     </div>
 
     <!-- No Results State -->
-    <div *ngIf="!isLoading && datasets.length === 0 && !error" class="no-results-container">
+    <div
+      *ngIf="!isLoading && datasets.length === 0 && !error"
+      class="no-results-container"
+    >
       <div class="no-results-icon">📊</div>
       <h3>No datasets found</h3>
       <p>Create a new dataset or adjust your filters</p>
@@ -106,16 +118,25 @@
             <th class="name-col sortable" (click)="onSortChange('name')">
               <span class="th-content">
                 Name
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'name'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
             </th>
             <th class="type-col">Type</th>
-            <th class="count-col sortable" (click)="onSortChange('documentCount')">
+            <th
+              class="count-col sortable"
+              (click)="onSortChange('documentCount')"
+            >
               <span class="th-content">
                 Documents
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'documentCount'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'documentCount'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -123,7 +144,10 @@
             <th class="date-col sortable" (click)="onSortChange('createdAt')">
               <span class="th-content">
                 Created
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'createdAt'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'createdAt'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -134,27 +158,38 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let dataset of datasets" class="dataset-row" (click)="onDatasetClick(dataset)">
+          <tr
+            *ngFor="let dataset of datasets"
+            class="dataset-row"
+            (click)="onDatasetClick(dataset)"
+          >
             <td class="name-col">{{ dataset.name }}</td>
             <td class="type-col">{{ dataset.type || 'N/A' }}</td>
             <td class="count-col">{{ dataset.documentCount || 0 }}</td>
             <td class="date-col">{{ formatDate(dataset.createdAt) }}</td>
             <td class="size-col">{{ formatFileSize(dataset.size) }}</td>
             <td class="status-col">
-              <span class="status-badge" [ngClass]="getStatusClass(dataset.status)">
+              <span
+                class="status-badge"
+                [ngClass]="getStatusClass(dataset.status)"
+              >
                 {{ dataset.status }}
               </span>
             </td>
             <td class="actions-col">
               <div class="action-buttons">
-                <button class="action-button edit-button"
+                <button
+                  class="action-button edit-button"
                   title="Edit dataset"
-                  (click)="onEditDataset($event, dataset.id)">
+                  (click)="onEditDataset($event, dataset.id)"
+                >
                   Edit
                 </button>
-                <button class="action-button delete-button"
+                <button
+                  class="action-button delete-button"
                   title="Delete dataset"
-                  (click)="confirmDeleteDataset($event, dataset.id)">
+                  (click)="confirmDeleteDataset($event, dataset.id)"
+                >
                   Del
                 </button>
               </div>
@@ -165,16 +200,21 @@
     </div>
 
     <!-- Pagination -->
-    <div *ngIf="datasets.length > 0 && totalCount > itemsPerPage" class="pagination-container">
+    <div
+      *ngIf="datasets.length > 0 && totalCount > itemsPerPage"
+      class="pagination-container"
+    >
       <div class="pagination-info">
-        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
-        {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} datasets
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to {{
+        Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{
+        totalCount }} datasets
       </div>
       <div class="pagination-controls">
         <button
           class="pagination-button"
           [disabled]="filterParams.page === 1"
-          (click)="onPageChange(filterParams.page! - 1, $event)">
+          (click)="onPageChange(filterParams.page! - 1, $event)"
+        >
           Previous
         </button>
 
@@ -185,7 +225,8 @@
               *ngIf="page > 0"
               class="page-button"
               [class.active]="page === filterParams.page"
-              (click)="onPageChange(page, $event)">
+              (click)="onPageChange(page, $event)"
+            >
               {{ page }}
             </button>
           </ng-container>
@@ -194,7 +235,8 @@
         <button
           class="pagination-button"
           [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
-          (click)="onPageChange(filterParams.page! + 1, $event)">
+          (click)="onPageChange(filterParams.page! + 1, $event)"
+        >
           Next
         </button>
       </div>

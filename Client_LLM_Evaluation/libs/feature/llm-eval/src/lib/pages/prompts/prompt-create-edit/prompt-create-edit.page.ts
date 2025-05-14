@@ -1,24 +1,29 @@
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 
 import { PromptService } from '@ngtx-apps/data-access/services';
-import { PromptCreate, PromptResponse, PromptUpdate } from '@ngtx-apps/data-access/models';
+import {
+  PromptCreate,
+  PromptResponse,
+  PromptUpdate,
+} from '@ngtx-apps/data-access/models';
 import { AlertService } from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-prompt-create-edit',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './prompt-create-edit.page.html',
-  styleUrls: ['./prompt-create-edit.page.scss']
+  styleUrls: ['./prompt-create-edit.page.scss'],
 })
 export class PromptCreateEditPage implements OnInit, OnDestroy {
   promptForm!: FormGroup;
@@ -67,7 +72,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
       parameters: this.fb.group({}),
       version: ['1.0.0'],
       is_public: [false],
-      template_id: [null]
+      template_id: [null],
     });
 
     // Clear parameter keys for a fresh form
@@ -83,7 +88,8 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.promptService.getPromptById(this.promptId)
+    this.promptService
+      .getPromptById(this.promptId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (prompt: PromptResponse) => {
@@ -94,7 +100,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
           this.error = 'Failed to load prompt data. Please try again.';
           this.isLoading = false;
           console.error('Error loading prompt data:', err);
-        }
+        },
       });
   }
 
@@ -108,7 +114,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
       content: prompt.content,
       version: prompt.version,
       is_public: prompt.is_public,
-      template_id: prompt.template_id
+      template_id: prompt.template_id,
     });
 
     // Handle parameters if they exist
@@ -124,7 +130,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
         // Create a form group for the parameter with name and value fields
         const paramGroup = this.fb.group({
           name: [key, Validators.required],
-          value: [value]
+          value: [value],
         });
 
         paramControls.addControl(paramKey, paramGroup);
@@ -162,7 +168,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
     // Create the final form data with transformed parameters
     const formValue = {
       ...rawFormValue,
-      parameters
+      parameters,
     };
 
     if (this.isEditMode) {
@@ -176,7 +182,8 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
    * Create a new prompt
    */
   createPrompt(formData: PromptCreate): void {
-    this.promptService.createPrompt(formData)
+    this.promptService
+      .createPrompt(formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: PromptResponse) => {
@@ -184,7 +191,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
           this.alertService.showAlert({
             show: true,
             message: 'Prompt created successfully',
-            title: 'Success'
+            title: 'Success',
           });
           this.router.navigate(['app/prompts']);
         },
@@ -193,10 +200,10 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
           this.alertService.showAlert({
             show: true,
             message: 'Failed to create prompt. Please try again.',
-            title: 'Error'
+            title: 'Error',
           });
           console.error('Error creating prompt:', err);
-        }
+        },
       });
   }
 
@@ -206,7 +213,8 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
   updatePrompt(formData: PromptUpdate): void {
     if (!this.promptId) return;
 
-    this.promptService.updatePrompt(this.promptId, formData)
+    this.promptService
+      .updatePrompt(this.promptId, formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: PromptResponse) => {
@@ -214,7 +222,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
           this.alertService.showAlert({
             show: true,
             message: 'Prompt updated successfully',
-            title: 'Success'
+            title: 'Success',
           });
           this.router.navigate(['app/prompts']);
         },
@@ -223,10 +231,10 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
           this.alertService.showAlert({
             show: true,
             message: 'Failed to update prompt. Please try again.',
-            title: 'Error'
+            title: 'Error',
           });
           console.error('Error updating prompt:', err);
-        }
+        },
       });
   }
 
@@ -242,7 +250,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
    * Helper method to mark all controls in a form group as touched
    */
   markFormGroupTouched(formGroup: FormGroup): void {
-    Object.values(formGroup.controls).forEach(control => {
+    Object.values(formGroup.controls).forEach((control) => {
       control.markAsTouched();
 
       if ((control as FormGroup).controls) {
@@ -261,7 +269,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
     // Create a form group for the parameter with name and value fields
     const paramGroup = this.fb.group({
       name: ['', Validators.required],
-      value: ['']
+      value: [''],
     });
 
     parametersGroup.addControl(paramKey, paramGroup);
@@ -274,7 +282,7 @@ export class PromptCreateEditPage implements OnInit, OnDestroy {
   removeParameter(paramName: string): void {
     const parametersGroup = this.promptForm.get('parameters') as FormGroup;
     parametersGroup.removeControl(paramName);
-    this.parameterKeys = this.parameterKeys.filter(key => key !== paramName);
+    this.parameterKeys = this.parameterKeys.filter((key) => key !== paramName);
   }
 
   /**

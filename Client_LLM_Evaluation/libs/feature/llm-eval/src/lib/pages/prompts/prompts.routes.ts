@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/prompts/prompts.routes.ts */
 import { Routes } from '@angular/router';
 import { PromptsPage } from './prompts.page';
 import { PromptDetailPage } from './prompt-detail/prompt-detail.page';

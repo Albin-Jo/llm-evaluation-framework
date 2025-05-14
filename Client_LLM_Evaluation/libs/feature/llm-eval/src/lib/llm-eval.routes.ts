@@ -7,22 +7,23 @@ export const llmEvalRoutes: Routes = [
   {
     path: '',
     redirectTo: 'datasets',
-    pathMatch: 'full'
+    pathMatch: 'full',
   },
   // Load dataset routes directly, not as children
   {
     path: 'datasets',
     loadChildren: () => {
-      console.log('Loading dataset routes');
-      return import('./pages/datasets/datasets.routes').then(m => {
-        console.log('Dataset routes loaded:', m);
+      return import('./pages/datasets/datasets.routes').then((m) => {
         return m.datasetsRoutes;
       });
-    }
+    },
   },
   {
     path: 'comparisons',
-    loadChildren: () => import('./pages/comparisons/comparisons.routes').then(m => m.comparisonsRoutes),
-    canActivate: [AuthGuard]
-  }
+    loadChildren: () =>
+      import('./pages/comparisons/comparisons.routes').then(
+        (m) => m.comparisonsRoutes
+      ),
+    canActivate: [AuthGuard],
+  },
 ];

@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.scss (Unified Document Card) */
 @import '../../../../../../../styles/variables';
 @import '../../../../../../../styles/mixins';
 
@@ -374,7 +373,8 @@
             color: $text-primary;
           }
 
-          .document-specs, .document-format {
+          .document-specs,
+          .document-format {
             font-size: $font-size-sm;
             color: $text-secondary;
             margin-bottom: $spacing-1;
@@ -612,7 +612,8 @@
         }
       }
 
-      .form-input, .form-textarea {
+      .form-input,
+      .form-textarea {
         width: 100%;
         padding: $spacing-3;
         border: 1px solid $border-color;

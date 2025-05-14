@@ -1,6 +1,19 @@
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  NO_ERRORS_SCHEMA,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil, finalize } from 'rxjs';
 import { Agent, AgentResponse } from '@ngtx-apps/data-access/models';
@@ -15,12 +28,12 @@ import { QracButtonComponent } from '@ngtx-apps/ui/components';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    QracButtonComponent
+    QracButtonComponent,
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './agents-test.page.html',
   styleUrls: ['./agents-test.page.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AgentTestPage implements OnInit, OnDestroy {
   agent: Agent | null = null;
@@ -29,7 +42,7 @@ export class AgentTestPage implements OnInit, OnDestroy {
   agentId: string | null = null;
   testResult: Record<string, any> | null = null;
   testSuccess = false;
-  
+
   // Chat interface properties
   testQuery = '';
   isRunningTest = false;
@@ -46,18 +59,16 @@ export class AgentTestPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.route.paramMap
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(params => {
-        this.agentId = params.get('id');
-        if (this.agentId) {
-          this.loadAgent(this.agentId);
-        } else {
-          this.error = 'Agent ID not provided';
-          this.notificationService.error(this.error);
-          this.cdr.markForCheck();
-        }
-      });
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      this.agentId = params.get('id');
+      if (this.agentId) {
+        this.loadAgent(this.agentId);
+      } else {
+        this.error = 'Agent ID not provided';
+        this.notificationService.error(this.error);
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -73,7 +84,8 @@ export class AgentTestPage implements OnInit, OnDestroy {
     this.error = null;
     this.cdr.markForCheck();
 
-    this.agentService.getAgent(id)
+    this.agentService
+      .getAgent(id)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -95,7 +107,7 @@ export class AgentTestPage implements OnInit, OnDestroy {
           this.notificationService.error(this.error);
           console.error('Error loading agent:', error);
           this.cdr.markForCheck();
-        }
+        },
       });
   }
 
@@ -104,13 +116,14 @@ export class AgentTestPage implements OnInit, OnDestroy {
    */
   setDomainSpecificExample(domain: string): void {
     let exampleQuery = '';
-    
+
     switch (domain.toLowerCase()) {
       case 'customer_service':
         exampleQuery = 'How do I reset my password?';
         break;
       case 'technical':
-        exampleQuery = 'What are the system requirements for the latest release?';
+        exampleQuery =
+          'What are the system requirements for the latest release?';
         break;
       case 'medical':
         exampleQuery = 'What are the common side effects of this medication?';
@@ -119,7 +132,8 @@ export class AgentTestPage implements OnInit, OnDestroy {
         exampleQuery = 'What documents do I need for trademark registration?';
         break;
       case 'finance':
-        exampleQuery = 'What are the current interest rates for savings accounts?';
+        exampleQuery =
+          'What are the current interest rates for savings accounts?';
         break;
       case 'education':
         exampleQuery = 'What prerequisites are required for this course?';
@@ -127,7 +141,7 @@ export class AgentTestPage implements OnInit, OnDestroy {
       default:
         exampleQuery = 'Are you a bot?';
     }
-    
+
     this.testQuery = exampleQuery;
     this.cdr.markForCheck();
   }
@@ -142,12 +156,13 @@ export class AgentTestPage implements OnInit, OnDestroy {
     this.testResult = null;
     this.testSuccess = false;
     this.cdr.markForCheck();
-    
+
     const testInput = {
-      query: this.testQuery
+      query: this.testQuery,
     };
 
-    this.agentService.testAgent(this.agentId, testInput)
+    this.agentService
+      .testAgent(this.agentId, testInput)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -162,7 +177,9 @@ export class AgentTestPage implements OnInit, OnDestroy {
           this.cdr.markForCheck();
         },
         error: (error) => {
-          this.notificationService.error('Failed to test agent. Please check the response for details.');
+          this.notificationService.error(
+            'Failed to test agent. Please check the response for details.'
+          );
 
           // Still show the error response if available
           if (error.error) {
@@ -170,13 +187,13 @@ export class AgentTestPage implements OnInit, OnDestroy {
               error: true,
               status: error.status,
               message: error.message || 'Test failed',
-              details: error.error
+              details: error.error,
             };
           }
 
           console.error('Error testing agent:', error);
           this.cdr.markForCheck();
-        }
+        },
       });
   }
 
@@ -185,30 +202,38 @@ export class AgentTestPage implements OnInit, OnDestroy {
    */
   getResponseText(): string {
     if (!this.testResult) return '';
-    
+
     // Handle different response formats
     if (this.testResult['answer']) return this.testResult['answer'];
     if (this.testResult['response']) return this.testResult['response'];
     if (this.testResult['message']) return this.testResult['message'];
     if (this.testResult['text']) return this.testResult['text'];
     if (this.testResult['content']) return this.testResult['content'];
-    
+
     // If the result is a direct string
     if (typeof this.testResult === 'string') return this.testResult;
-    
+
     // Try to stringify the result if it's an object without known properties
     if (typeof this.testResult === 'object') {
       try {
         // Exclude error details and metadata for cleaner display
-        const { error, status, details, processing_time_ms, time, tokens, ...contentProps } = this.testResult;
-        
+        const {
+          error,
+          status,
+          details,
+          processing_time_ms,
+          time,
+          tokens,
+          ...contentProps
+        } = this.testResult;
+
         // If we still have properties to show
         if (Object.keys(contentProps).length > 0) {
           return JSON.stringify(contentProps, null, 2);
         }
       } catch (e) {}
     }
-    
+
     return 'No response content available';
   }
 

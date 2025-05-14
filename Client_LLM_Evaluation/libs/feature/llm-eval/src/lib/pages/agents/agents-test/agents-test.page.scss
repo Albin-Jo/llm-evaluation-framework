@@ -123,7 +123,8 @@
     flex: 1;
   }
 
-  .user-message, .agent-message {
+  .user-message,
+  .agent-message {
     display: flex;
     flex-direction: column;
     gap: $spacing-1;

@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/prompts/components/prompt-card/prompt-card.component.ts */
 import { Component, EventEmitter, Input, Output, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';

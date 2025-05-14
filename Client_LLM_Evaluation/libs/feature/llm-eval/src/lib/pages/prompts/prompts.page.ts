@@ -1,17 +1,27 @@
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder } from '@angular/forms';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormGroup,
+  FormBuilder,
+} from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { PromptService } from '@ngtx-apps/data-access/services';
-import { PromptResponse, PromptFilterParams } from '@ngtx-apps/data-access/models';
-import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/services';
 import {
-  
+  PromptResponse,
+  PromptFilterParams,
+} from '@ngtx-apps/data-access/models';
+import {
+  AlertService,
+  ConfirmationDialogService,
+} from '@ngtx-apps/utils/services';
+import {
   QracTextBoxComponent,
-  QracSelectComponent
+  QracSelectComponent,
 } from '@ngtx-apps/ui/components';
 
 @Component({
@@ -22,13 +32,13 @@ import {
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
-    
+
     QracTextBoxComponent,
-    QracSelectComponent
+    QracSelectComponent,
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './prompts.page.html',
-  styleUrls: ['./prompts.page.scss']
+  styleUrls: ['./prompts.page.scss'],
 })
 export class PromptsPage implements OnInit, OnDestroy {
   prompts: PromptResponse[] = [];
@@ -45,7 +55,7 @@ export class PromptsPage implements OnInit, OnDestroy {
     page: 1,
     limit: 5, // Updated from 5 to match standard
     sortBy: 'created_at',
-    sortDirection: 'desc'
+    sortDirection: 'desc',
   };
 
   // Define category options
@@ -55,14 +65,14 @@ export class PromptsPage implements OnInit, OnDestroy {
     { value: 'CHAT', label: 'Chat' },
     { value: 'SUMMARIZATION', label: 'Summarization' },
     { value: 'CLASSIFICATION', label: 'Classification' },
-    { value: 'GENERAL', label: 'General' }
+    { value: 'GENERAL', label: 'General' },
   ];
 
   // Define template status options
   templateOptions = [
     { value: '', label: 'All Visibility' },
     { value: 'true', label: 'Public Only' },
-    { value: 'false', label: 'Private Only' }
+    { value: 'false', label: 'Private Only' },
   ];
 
   private destroy$ = new Subject<void>();
@@ -77,7 +87,7 @@ export class PromptsPage implements OnInit, OnDestroy {
     this.filterForm = this.fb.group({
       search: [''],
       category: [''],
-      isTemplate: ['']
+      isTemplate: [''],
     });
   }
 
@@ -93,8 +103,9 @@ export class PromptsPage implements OnInit, OnDestroy {
 
   setupFilterListeners(): void {
     // Set up search debounce
-    this.filterForm.get('search')?.valueChanges
-      .pipe(
+    this.filterForm
+      .get('search')
+      ?.valueChanges.pipe(
         debounceTime(400),
         distinctUntilChanged(),
         takeUntil(this.destroy$)
@@ -106,8 +117,9 @@ export class PromptsPage implements OnInit, OnDestroy {
       });
 
     // Listen to category changes
-    this.filterForm.get('category')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('category')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         this.filterParams.category = value || undefined;
         this.filterParams.page = 1;
@@ -115,8 +127,9 @@ export class PromptsPage implements OnInit, OnDestroy {
       });
 
     // Listen to template status changes
-    this.filterForm.get('isTemplate')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('isTemplate')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         if (value === 'true') {
           this.filterParams.isPublic = true;
@@ -134,7 +147,8 @@ export class PromptsPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.promptService.getPrompts(this.filterParams)
+    this.promptService
+      .getPrompts(this.filterParams)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: any) => {
@@ -165,10 +179,10 @@ export class PromptsPage implements OnInit, OnDestroy {
           this.alertService.showAlert({
             show: true,
             message: this.error,
-            title: 'Error'
+            title: 'Error',
           });
           console.error('Error loading prompts:', err);
-        }
+        },
       });
   }
 
@@ -225,7 +239,7 @@ export class PromptsPage implements OnInit, OnDestroy {
     this.filterForm.reset({
       search: '',
       category: '',
-      isTemplate: ''
+      isTemplate: '',
     });
 
     this.filterParams.name = undefined;
@@ -237,7 +251,7 @@ export class PromptsPage implements OnInit, OnDestroy {
   }
 
   onSortChange(sortBy: string): void {
-    const validSortFields = ["created_at", "updated_at", "name", "category"];
+    const validSortFields = ['created_at', 'updated_at', 'name', 'category'];
 
     if (validSortFields.includes(sortBy)) {
       if (this.filterParams.sortBy === sortBy) {
@@ -262,8 +276,9 @@ export class PromptsPage implements OnInit, OnDestroy {
   onDeletePromptClick(event: Event, promptId: string): void {
     event.stopPropagation();
 
-    this.confirmationDialogService.confirmDelete('Prompt')
-      .subscribe(confirmed => {
+    this.confirmationDialogService
+      .confirmDelete('Prompt')
+      .subscribe((confirmed) => {
         if (confirmed) {
           this.deletePrompt(promptId);
         }
@@ -271,14 +286,15 @@ export class PromptsPage implements OnInit, OnDestroy {
   }
 
   deletePrompt(promptId: string): void {
-    this.promptService.deletePrompt(promptId)
+    this.promptService
+      .deletePrompt(promptId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
           this.alertService.showAlert({
             show: true,
             message: 'Prompt deleted successfully',
-            title: 'Success'
+            title: 'Success',
           });
           this.loadPrompts();
         },
@@ -286,10 +302,10 @@ export class PromptsPage implements OnInit, OnDestroy {
           this.alertService.showAlert({
             show: true,
             message: 'Failed to delete prompt. Please try again.',
-            title: 'Error'
+            title: 'Error',
           });
           console.error('Error deleting prompt:', err);
-        }
+        },
       });
   }
 
@@ -310,7 +326,7 @@ export class PromptsPage implements OnInit, OnDestroy {
       return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       }).format(date);
     } catch (e) {
       return 'Invalid date';

@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-detail/dataset-detail.page.html (Unified Document Card) -->
 <div class="dataset-detail-container">
   <!-- Loading State -->
   <div *ngIf="isLoading" class="loading-container">
@@ -25,7 +24,10 @@
   <div *ngIf="!isLoading && !error && !dataset" class="error-container">
     <div class="error-icon">⚠️</div>
     <h2>No Dataset Found</h2>
-    <p>Could not find dataset information. Please try again or select a different dataset.</p>
+    <p>
+      Could not find dataset information. Please try again or select a different
+      dataset.
+    </p>
     <div class="error-actions">
       <button class="primary-button" (click)="goBack($event)">
         Back to Datasets
@@ -41,7 +43,11 @@
     <!-- Header Section -->
     <div class="header-section">
       <div class="back-navigation">
-        <button class="back-button" (click)="goBack($event)" aria-label="Go back to datasets">
+        <button
+          class="back-button"
+          (click)="goBack($event)"
+          aria-label="Go back to datasets"
+        >
           <span class="back-icon">←</span>
           <span>Back to Datasets</span>
         </button>
@@ -51,7 +57,10 @@
         <div class="title-section">
           <h1 class="page-title">{{ dataset.name }}</h1>
           <div class="status-badges">
-            <span class="status-badge" [ngClass]="getStatusBadgeClass(dataset.status)">
+            <span
+              class="status-badge"
+              [ngClass]="getStatusBadgeClass(dataset.status)"
+            >
               {{ dataset.status }}
             </span>
             <span class="type-badge">{{ dataset.type || 'User Query' }}</span>
@@ -59,10 +68,18 @@
         </div>
 
         <div class="action-buttons">
-          <button class="action-button edit-button" (click)="startEditing()" aria-label="Edit dataset">
+          <button
+            class="action-button edit-button"
+            (click)="startEditing()"
+            aria-label="Edit dataset"
+          >
             Edit
           </button>
-          <button class="action-button delete-button" (click)="deleteDataset($event)" aria-label="Delete dataset">
+          <button
+            class="action-button delete-button"
+            (click)="deleteDataset($event)"
+            aria-label="Delete dataset"
+          >
             Delete
           </button>
         </div>
@@ -98,22 +115,30 @@
           </div>
           <div class="info-item">
             <div class="info-label">Version</div>
-            <div class="info-value">{{ dataset.metadata?.['version'] || '1.0' }}</div>
+            <div class="info-value">
+              {{ dataset.metadata?.['version'] || '1.0' }}
+            </div>
           </div>
         </div>
 
         <!-- Description -->
         <div class="info-group">
           <div class="info-label">Description</div>
-          <div class="info-value description-value">{{ dataset.description || 'No description provided' }}</div>
+          <div class="info-value description-value">
+            {{ dataset.description || 'No description provided' }}
+          </div>
         </div>
 
         <!-- Tags Section -->
         <div class="info-group">
           <div class="info-label">Tags</div>
           <div class="tags-container">
-            <span *ngFor="let tag of dataset.tags || []" class="tag-pill">{{ tag }}</span>
-            <span *ngIf="!dataset.tags?.length" class="no-tags">No tags added</span>
+            <span *ngFor="let tag of dataset.tags || []" class="tag-pill"
+              >{{ tag }}</span
+            >
+            <span *ngIf="!dataset.tags?.length" class="no-tags"
+              >No tags added</span
+            >
           </div>
         </div>
       </div>
@@ -128,7 +153,8 @@
               (click)="uploadDocuments($event)"
               [disabled]="hasDocument()"
               [attr.aria-label]="hasDocument() ? 'Dataset already has a document' : 'Upload a new document'"
-              [title]="hasDocument() ? 'Dataset already has a document' : 'Upload a new document'">
+              [title]="hasDocument() ? 'Dataset already has a document' : 'Upload a new document'"
+            >
               {{ hasDocument() ? 'Document Exists' : 'Upload Document' }}
             </button>
           </div>
@@ -137,7 +163,10 @@
         <!-- Upload in Progress -->
         <div *ngIf="isUploading" class="upload-progress-container">
           <div class="progress-bar">
-            <div class="progress-bar-inner" [style.width.%]="uploadProgress"></div>
+            <div
+              class="progress-bar-inner"
+              [style.width.%]="uploadProgress"
+            ></div>
           </div>
           <p class="progress-text">Uploading document: {{ uploadProgress }}%</p>
         </div>
@@ -146,27 +175,44 @@
         <div *ngIf="!isUploading && !hasDocument()" class="empty-document">
           <div class="empty-icon">📄</div>
           <p>No document found in this dataset</p>
-          <button class="primary-button" (click)="uploadDocuments($event)">Upload Document</button>
+          <button class="primary-button" (click)="uploadDocuments($event)">
+            Upload Document
+          </button>
         </div>
 
         <!-- Document with Preview -->
-        <div *ngIf="!isUploading && hasDocument()" class="document-with-preview">
+        <div
+          *ngIf="!isUploading && hasDocument()"
+          class="document-with-preview"
+        >
           <!-- Document Details Section -->
           <div class="document-details">
             <div class="document-info">
               <div class="document-icon">📄</div>
               <div class="document-meta">
                 <h3 class="document-name">
-                  {{ documents[0]?.name || dataset.metadata?.['meta_info']?.['filename'] || 'Document' }}
+                  {{ documents[0].name ||
+                  dataset.metadata?.['meta_info']?.['filename'] || 'Document' }}
                 </h3>
                 <div class="document-specs">
                   <span>{{ formattedSize }}</span>
-                  <span *ngIf="dataset.documentCount">• {{ dataset.documentCount }} rows</span>
-                  <span>• Uploaded {{ formatDate(documents[0]?.createdAt || dataset.createdAt) }}</span>
+                  <span *ngIf="dataset.documentCount"
+                    >• {{ dataset.documentCount }} rows</span
+                  >
+                  <span
+                    >• Uploaded {{ formatDate(documents[0].createdAt ||
+                    dataset.createdAt) }}</span
+                  >
                 </div>
                 <div class="document-format">
-                  <span>{{ getDocumentFormat(documents[0] || null) }} Format</span>
-                  <span *ngIf="dataset.metadata?.['meta_info']?.['content_type']">• {{ dataset.metadata?.['meta_info']?.['content_type'] }}</span>
+                  <span
+                    >{{ getDocumentFormat(documents[0] || null) }} Format</span
+                  >
+                  <span
+                    *ngIf="dataset.metadata?.['meta_info']?.['content_type']"
+                    >• {{ dataset.metadata?.['meta_info']?.['content_type']
+                    }}</span
+                  >
                 </div>
               </div>
             </div>
@@ -174,7 +220,8 @@
               *ngIf="!isPreviewActive"
               class="preview-button"
               (click)="previewDocument(documents[0] || { id: dataset.id, name: dataset.metadata?.['meta_info']?.['filename'] })"
-              aria-label="Preview document content">
+              aria-label="Preview document content"
+            >
               Preview Content
             </button>
           </div>
@@ -183,7 +230,13 @@
           <div *ngIf="isPreviewActive" class="preview-section">
             <div class="preview-header">
               <h4 class="preview-title">PREVIEW</h4>
-              <button class="close-preview-button" (click)="closeDocumentPreview()" aria-label="Close preview">×</button>
+              <button
+                class="close-preview-button"
+                (click)="closeDocumentPreview()"
+                aria-label="Close preview"
+              >
+                ×
+              </button>
             </div>
 
             <!-- Loading Preview State -->
@@ -193,35 +246,63 @@
             </div>
 
             <!-- Preview Error -->
-            <div *ngIf="!isLoadingPreview && documentPreviewError" class="preview-error">
+            <div
+              *ngIf="!isLoadingPreview && documentPreviewError"
+              class="preview-error"
+            >
               <div class="error-icon">❌</div>
               <p>{{ documentPreviewError }}</p>
             </div>
 
-            <!-- CSV Preview -->
-            <div *ngIf="!isLoadingPreview && !documentPreviewError && documentPreviewHeaders.length > 0" class="csv-preview">
+            <!-- Tabular Data Preview - When headers are available -->
+            <div
+              *ngIf="!isLoadingPreview && !documentPreviewError && documentPreviewHeaders.length > 0 && documentPreviewData && documentPreviewData.length > 0"
+              class="csv-preview"
+            >
               <div class="csv-table">
                 <div class="csv-header">
-                  <div *ngFor="let header of documentPreviewHeaders" class="csv-cell">
+                  <div
+                    *ngFor="let header of documentPreviewHeaders"
+                    class="csv-cell"
+                  >
                     {{ header }}
                   </div>
                 </div>
                 <div *ngFor="let row of documentPreviewData" class="csv-row">
-                  <div *ngFor="let header of documentPreviewHeaders" class="csv-cell">
-                    {{ row[header] }}
+                  <div
+                    *ngFor="let header of documentPreviewHeaders"
+                    class="csv-cell"
+                  >
+                    {{ row[header] || '' }}
                   </div>
                 </div>
               </div>
-              <div class="preview-footer" *ngIf="documentPreviewData.length < (dataset.documentCount || 0)">
+              <div
+                class="preview-footer"
+                *ngIf="dataset && documentPreviewData.length < (dataset.documentCount || 0)"
+              >
                 <p class="more-rows-indicator">
-                  Showing {{ documentPreviewData.length }} of {{ dataset.documentCount || 0 }} rows
+                  Showing {{ documentPreviewData.length }} of {{
+                  dataset.documentCount || 0 }} rows
                 </p>
               </div>
             </div>
 
-            <!-- Text/JSON Preview -->
-            <div *ngIf="!isLoadingPreview && !documentPreviewError && documentPreviewContent && documentPreviewHeaders.length === 0" class="text-preview">
+            <!-- Text/JSON Preview (when no tabular data available) -->
+            <div
+              *ngIf="!isLoadingPreview && !documentPreviewError && documentPreviewContent && (documentPreviewHeaders.length === 0 || !documentPreviewData || documentPreviewData.length === 0)"
+              class="text-preview"
+            >
               <pre class="content-pre">{{ documentPreviewContent }}</pre>
+            </div>
+
+            <!-- No Content Available -->
+            <div
+              *ngIf="!isLoadingPreview && !documentPreviewError && !documentPreviewContent && (!documentPreviewData || documentPreviewData.length === 0)"
+              class="preview-error"
+            >
+              <div class="info-icon">ℹ️</div>
+              <p>No preview content available for this document.</p>
             </div>
           </div>
         </div>
@@ -233,7 +314,11 @@
   <div *ngIf="!isLoading && dataset && isEditing" class="edit-form-container">
     <div class="header-section">
       <div class="back-navigation">
-        <button class="back-button" (click)="cancelEditing()" aria-label="Cancel editing">
+        <button
+          class="back-button"
+          (click)="cancelEditing()"
+          aria-label="Cancel editing"
+        >
           <span class="back-icon">←</span>
           <span>Cancel Editing</span>
         </button>
@@ -257,7 +342,8 @@
             placeholder="Enter dataset name"
             [(ngModel)]="editingDataset.name"
             [class.is-invalid]="!editingDataset.name"
-            aria-required="true">
+            aria-required="true"
+          />
           <div *ngIf="!editingDataset.name" class="error-message">
             Name is required
           </div>
@@ -271,7 +357,8 @@
             placeholder="Enter dataset description (optional)"
             [(ngModel)]="editingDataset.description"
             rows="4"
-            aria-label="Dataset description"></textarea>
+            aria-label="Dataset description"
+          ></textarea>
         </div>
 
         <div class="form-group">
@@ -283,20 +370,29 @@
               class="tag-button"
               [class.active]="editingDataset.tags?.includes(tag)"
               (click)="toggleTag(tag)"
-              aria-pressed="{{ editingDataset.tags?.includes(tag) }}">
+              aria-pressed="{{ editingDataset.tags?.includes(tag) }}"
+            >
               {{ tag }}
             </button>
           </div>
         </div>
 
         <div class="form-actions">
-          <button type="button" class="outline-button" (click)="cancelEditing()" aria-label="Cancel">Cancel</button>
+          <button
+            type="button"
+            class="outline-button"
+            (click)="cancelEditing()"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
           <button
             type="button"
             class="primary-button"
             [disabled]="!canSave()"
             (click)="saveChanges()"
-            aria-label="Save changes">
+            aria-label="Save changes"
+          >
             Save Changes
           </button>
         </div>

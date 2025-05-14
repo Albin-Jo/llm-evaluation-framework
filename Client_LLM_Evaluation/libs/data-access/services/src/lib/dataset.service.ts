@@ -9,13 +9,13 @@ import {
   DatasetUploadRequest,
   DatasetUpdateRequest,
   DatasetDetailResponse,
-  Document
+  Document,
 } from '@ngtx-apps/data-access/models';
 import { environment } from '@ngtx-apps/utils/shared';
 import { HttpClientService } from './common/http-client.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class DatasetService {
   private baseUrl = '__fastapi__/datasets';
@@ -25,7 +25,9 @@ export class DatasetService {
   /**
    * Get a list of datasets with optional filtering
    */
-  getDatasets(filters: DatasetFilterParams = {}): Observable<DatasetListResponse> {
+  getDatasets(
+    filters: DatasetFilterParams = {}
+  ): Observable<DatasetListResponse> {
     let params = new HttpParams();
 
     // Handle pagination parameters
@@ -91,72 +93,72 @@ export class DatasetService {
       params = params.set('tags', filters.tags.join(','));
     }
 
-    return this.httpClient.get<any>(this.baseUrl, params)
-      .pipe(
-        map(response => {
-          // The API returns a paginated response structure
-          if (response.items && Array.isArray(response.items)) {
-            return {
-              datasets: response.items.map((item: any) => this.transformDataset(item)),
-              totalCount: response.total || response.items.length
-            } as DatasetListResponse;
-          }
-
-          // Fallback for unexpected response format
-          if (Array.isArray(response)) {
-            return {
-              datasets: response.map(item => this.transformDataset(item)),
-              totalCount: response.length
-            } as DatasetListResponse;
-          }
-
+    return this.httpClient.get<any>(this.baseUrl, params).pipe(
+      map((response) => {
+        // The API returns a paginated response structure
+        if (response.items && Array.isArray(response.items)) {
           return {
-            datasets: [],
-            totalCount: 0
+            datasets: response.items.map((item: any) =>
+              this.transformDataset(item)
+            ),
+            totalCount: response.total || response.items.length,
           } as DatasetListResponse;
-        }),
-        catchError(error => this.handleError('Failed to fetch datasets', error))
-      );
+        }
+
+        // Fallback for unexpected response format
+        if (Array.isArray(response)) {
+          return {
+            datasets: response.map((item) => this.transformDataset(item)),
+            totalCount: response.length,
+          } as DatasetListResponse;
+        }
+
+        return {
+          datasets: [],
+          totalCount: 0,
+        } as DatasetListResponse;
+      }),
+      catchError((error) => this.handleError('Failed to fetch datasets', error))
+    );
   }
 
   /**
    * Get a single dataset by ID
    */
   getDataset(id: string): Observable<DatasetDetailResponse> {
-    return this.httpClient.get<any>(`${this.baseUrl}/${id}`)
-      .pipe(
-        map(response => {
-          // Create a DatasetDetailResponse
-          const detailResponse: DatasetDetailResponse = {
-            dataset: this.transformDataset(response),
-            documents: []
+    return this.httpClient.get<any>(`${this.baseUrl}/${id}`).pipe(
+      map((response) => {
+        // Create a DatasetDetailResponse
+        const detailResponse: DatasetDetailResponse = {
+          dataset: this.transformDataset(response),
+          documents: [],
+        };
+
+        // If the dataset has rows and file information, create a document entry
+        if (response.row_count > 0 && response.meta_info?.filename) {
+          const document: Document = {
+            id: response.id,
+            datasetId: response.id,
+            name: response.meta_info.filename,
+            content: '',
+            contentType: response.meta_info.content_type,
+            metadata: {
+              size: response.meta_info.size,
+              format: response.meta_info.content_type?.split('/')[1] || 'json',
+              row_count: response.meta_info.row_count,
+            },
+            createdAt: response.created_at,
+            updatedAt: response.updated_at,
           };
+          detailResponse.documents = [document];
+        }
 
-          // If the dataset has rows and file information, create a document entry
-          if (response.row_count > 0 && response.meta_info?.filename) {
-            const document: Document = {
-              id: response.id,
-              datasetId: response.id,
-              name: response.meta_info.filename,
-              content: '',
-              contentType: response.meta_info.content_type,
-              metadata: {
-                size: response.meta_info.size,
-                format: response.meta_info.content_type?.split('/')[1] || 'json',
-                row_count: response.meta_info.row_count
-              },
-              createdAt: response.created_at,
-              updatedAt: response.updated_at
-            };
-            detailResponse.documents = [document];
-          }
-
-          return detailResponse;
-        }),
-        catchError(error => {
-          return this.handleError(`Failed to fetch dataset with ID ${id}`, error);
-        })
-      );
+        return detailResponse;
+      }),
+      catchError((error) => {
+        return this.handleError(`Failed to fetch dataset with ID ${id}`, error);
+      })
+    );
   }
 
   /**
@@ -179,8 +181,8 @@ export class DatasetService {
         version: data.version,
         is_public: data.is_public,
         schema_definition: data.schema_definition,
-        meta_info: data.meta_info
-      }
+        meta_info: data.meta_info,
+      },
     };
 
     return transformed;
@@ -211,19 +213,21 @@ export class DatasetService {
       formData.append('file', request.files[0]);
     }
 
-    return this.httpClient.post<any>(this.baseUrl, formData)
-      .pipe(
-        map(response => this.transformDataset(response)),
-        catchError(error => {
-          return this.handleError('Failed to upload dataset', error);
-        })
-      );
+    return this.httpClient.post<any>(this.baseUrl, formData).pipe(
+      map((response) => this.transformDataset(response)),
+      catchError((error) => {
+        return this.handleError('Failed to upload dataset', error);
+      })
+    );
   }
 
   /**
    * Upload documents to an existing dataset
    */
-  uploadDocumentsToDataset(datasetId: string, files: File[]): Observable<Dataset> {
+  uploadDocumentsToDataset(
+    datasetId: string,
+    files: File[]
+  ): Observable<Dataset> {
     const formData = new FormData();
 
     // Append each file to the form data
@@ -233,11 +237,15 @@ export class DatasetService {
       });
     }
 
-    return this.httpClient.post<any>(`${this.baseUrl}/${datasetId}/documents`, formData)
+    return this.httpClient
+      .post<any>(`${this.baseUrl}/${datasetId}/documents`, formData)
       .pipe(
-        map(response => this.transformDataset(response)),
-        catchError(error => {
-          return this.handleError(`Failed to upload documents to dataset ${datasetId}`, error);
+        map((response) => this.transformDataset(response)),
+        catchError((error) => {
+          return this.handleError(
+            `Failed to upload documents to dataset ${datasetId}`,
+            error
+          );
         })
       );
   }
@@ -245,52 +253,67 @@ export class DatasetService {
   /**
    * Update an existing dataset
    */
-  updateDataset(id: string, request: DatasetUpdateRequest): Observable<Dataset> {
+  updateDataset(
+    id: string,
+    request: DatasetUpdateRequest
+  ): Observable<Dataset> {
     // Transform our request to match the FastAPI expected structure
     const apiRequest = {
       name: request.name,
       description: request.description,
-      type: request.type || "user_query",
+      type: request.type || 'user_query',
       schema_definition: {},
       meta_info: {},
-      version: "1.0",
+      version: '1.0',
       row_count: 0,
-      is_public: true
+      is_public: true,
     };
 
-    return this.httpClient.put<any>(`${this.baseUrl}/${id}`, apiRequest)
-      .pipe(
-        map(response => this.transformDataset(response)),
-        catchError(error => {
-          return this.handleError(`Failed to update dataset with ID ${id}`, error);
-        })
-      );
+    return this.httpClient.put<any>(`${this.baseUrl}/${id}`, apiRequest).pipe(
+      map((response) => this.transformDataset(response)),
+      catchError((error) => {
+        return this.handleError(
+          `Failed to update dataset with ID ${id}`,
+          error
+        );
+      })
+    );
   }
 
   /**
    * Delete a dataset
    */
   deleteDataset(id: string): Observable<void> {
-    return this.httpClient.delete<void>(`${this.baseUrl}/${id}`)
-      .pipe(
-        catchError(error => {
-          return this.handleError(`Failed to delete dataset with ID ${id}`, error);
-        })
-      );
+    return this.httpClient.delete<void>(`${this.baseUrl}/${id}`).pipe(
+      catchError((error) => {
+        return this.handleError(
+          `Failed to delete dataset with ID ${id}`,
+          error
+        );
+      })
+    );
   }
 
   /**
    * Get documents for a dataset
    */
-  getDocuments(datasetId: string, page = 1, limit = 20): Observable<Document[]> {
+  getDocuments(
+    datasetId: string,
+    page = 1,
+    limit = 20
+  ): Observable<Document[]> {
     const params = new HttpParams()
       .set('page', page.toString())
       .set('limit', limit.toString());
 
-    return this.httpClient.get<Document[]>(`${this.baseUrl}/${datasetId}/documents`, params)
+    return this.httpClient
+      .get<Document[]>(`${this.baseUrl}/${datasetId}/documents`, params)
       .pipe(
-        catchError(error => {
-          return this.handleError(`Failed to fetch documents for dataset with ID ${datasetId}`, error);
+        catchError((error) => {
+          return this.handleError(
+            `Failed to fetch documents for dataset with ID ${datasetId}`,
+            error
+          );
         })
       );
   }

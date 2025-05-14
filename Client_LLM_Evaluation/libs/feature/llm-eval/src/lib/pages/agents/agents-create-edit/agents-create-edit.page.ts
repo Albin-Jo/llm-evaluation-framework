@@ -1,6 +1,20 @@
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  NO_ERRORS_SCHEMA,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule, AbstractControl } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  FormsModule,
+  ReactiveFormsModule,
+  AbstractControl,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, finalize, of, takeUntil } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged } from 'rxjs/operators';
@@ -11,16 +25,11 @@ import {
   AgentDomain,
   AgentResponse,
   IntegrationType,
-  AuthType
+  AuthType,
 } from '@ngtx-apps/data-access/models';
 import { AgentService } from '@ngtx-apps/data-access/services';
 import { NotificationService } from '@ngtx-apps/utils/services';
-import {
-  QracButtonComponent,
-  QracTextBoxComponent,
-  QracSelectComponent,
-  QracTextAreaComponent
-} from '@ngtx-apps/ui/components';
+import { QracTextAreaComponent } from '@ngtx-apps/ui/components';
 import { SimpleJsonEditorComponent } from '../../../components/json-editor/json-editor.component';
 
 interface TabData {
@@ -35,16 +44,12 @@ interface TabData {
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    QracButtonComponent,
-    QracTextBoxComponent,
-    QracSelectComponent,
-    QracTextAreaComponent,
-    SimpleJsonEditorComponent
+    SimpleJsonEditorComponent,
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './agents-create-edit.page.html',
   styleUrls: ['./agents-create-edit.page.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AgentCreateEditPage implements OnInit, OnDestroy {
   // Form and state management
@@ -59,13 +64,13 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
   selectedTabIndex = 0;
   tabsVisited = new Set<number>([0]);
   tabsData: TabData[] = [
-    { isLoaded: true, isValid: true },   // Tab 0 (Basic Info) is always loaded initially
-    { isLoaded: false, isValid: true },  // Tab 1 (API Config)
-    { isLoaded: false, isValid: true }   // Tab 2 (Advanced Settings)
+    { isLoaded: true, isValid: true }, // Tab 0 (Basic Info) is always loaded initially
+    { isLoaded: false, isValid: true }, // Tab 1 (API Config)
+    { isLoaded: false, isValid: true }, // Tab 2 (Advanced Settings)
   ];
 
   // Input validation
-  private validationTrigger = new Subject<{field: string, value: any}>();
+  private validationTrigger = new Subject<{ field: string; value: any }>();
   validationErrors: { [key: string]: string } = {};
 
   // JSON validation tracking
@@ -81,13 +86,13 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
     { value: AgentDomain.LEGAL, label: 'Legal' },
     { value: AgentDomain.FINANCE, label: 'Finance' },
     { value: AgentDomain.EDUCATION, label: 'Education' },
-    { value: AgentDomain.OTHER, label: 'Other' }
+    { value: AgentDomain.OTHER, label: 'Other' },
   ];
 
   // Status options for select dropdown
   statusOptions = [
     { value: 'true', label: 'Active' },
-    { value: 'false', label: 'Inactive' }
+    { value: 'false', label: 'Inactive' },
   ];
 
   // Integration type options
@@ -95,18 +100,24 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
     { value: IntegrationType.AZURE_OPENAI, label: 'Azure OpenAI' },
     { value: IntegrationType.MCP, label: 'Model Context Protocol (MCP)' },
     { value: IntegrationType.DIRECT_API, label: 'Direct API' },
-    { value: IntegrationType.CUSTOM, label: 'Custom' }
+    { value: IntegrationType.CUSTOM, label: 'Custom' },
   ];
 
   // Auth type options
   authTypeOptions = [
     { value: AuthType.API_KEY, label: 'API Key' },
     { value: AuthType.BEARER_TOKEN, label: 'Bearer Token' },
-    { value: AuthType.NONE, label: 'None' }
+    { value: AuthType.NONE, label: 'None' },
   ];
 
   // List of JSON field names for validation
-  private jsonFields = ['config', 'auth_credentials', 'request_template', 'retry_config', 'content_filter_config'];
+  private jsonFields = [
+    'config',
+    'auth_credentials',
+    'request_template',
+    'retry_config',
+    'content_filter_config',
+  ];
 
   // Caching for better performance
   private cachedAgent: Partial<Agent> = {};
@@ -131,16 +142,14 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
     this.setupValidation();
 
     // Check route params for edit mode
-    this.route.paramMap
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(params => {
-        this.agentId = params.get('id');
-        if (this.agentId) {
-          this.isEditMode = true;
-          this.loadAgent(this.agentId);
-        }
-        this.cdr.markForCheck();
-      });
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      this.agentId = params.get('id');
+      if (this.agentId) {
+        this.isEditMode = true;
+        this.loadAgent(this.agentId);
+      }
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
@@ -177,7 +186,7 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
       // Advanced Configuration Tab
       config: ['{}'],
       retry_config: ['{}'],
-      content_filter_config: ['{}']
+      content_filter_config: ['{}'],
     });
 
     this.formInitialized = true;
@@ -187,15 +196,19 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
    * Setup validation with debounce to prevent excessive validation
    */
   private setupValidation(): void {
-    this.validationTrigger.pipe(
-      debounceTime(300),
-      distinctUntilChanged((prev, curr) =>
-        prev.field === curr.field && JSON.stringify(prev.value) === JSON.stringify(curr.value)
-      ),
-      takeUntil(this.destroy$)
-    ).subscribe(({field, value}) => {
-      this.validateField(field, value);
-    });
+    this.validationTrigger
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(
+          (prev, curr) =>
+            prev.field === curr.field &&
+            JSON.stringify(prev.value) === JSON.stringify(curr.value)
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(({ field, value }) => {
+        this.validateField(field, value);
+      });
   }
 
   /**
@@ -207,8 +220,14 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
 
     // Skip validation for empty optional fields
     if (value === null || value === undefined || value === '') {
-      if (fieldName === 'name' || fieldName === 'api_endpoint' || fieldName === 'domain') {
-        this.validationErrors[fieldName] = `${this.formatFieldName(fieldName)} is required`;
+      if (
+        fieldName === 'name' ||
+        fieldName === 'api_endpoint' ||
+        fieldName === 'domain'
+      ) {
+        this.validationErrors[fieldName] = `${this.formatFieldName(
+          fieldName
+        )} is required`;
       }
       this.cdr.markForCheck();
       return;
@@ -218,17 +237,20 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
     switch (fieldName) {
       case 'name':
         if (value.length > 255) {
-          this.validationErrors[fieldName] = 'Name must be 255 characters or less';
+          this.validationErrors[fieldName] =
+            'Name must be 255 characters or less';
         }
         break;
       case 'version':
         if (value && !/^\d+\.\d+\.\d+$/.test(value)) {
-          this.validationErrors[fieldName] = 'Version must be in format x.y.z (e.g. 1.0.0)';
+          this.validationErrors[fieldName] =
+            'Version must be in format x.y.z (e.g. 1.0.0)';
         }
         break;
       case 'api_endpoint':
         if (!/^https?:\/\//.test(value)) {
-          this.validationErrors[fieldName] = 'API Endpoint must start with http:// or https://';
+          this.validationErrors[fieldName] =
+            'API Endpoint must start with http:// or https://';
         }
         break;
     }
@@ -255,7 +277,9 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
 
       this.cdr.markForCheck();
     } catch (error) {
-      this.jsonErrors[fieldName] = `Invalid JSON format in ${this.formatFieldName(fieldName)}`;
+      this.jsonErrors[
+        fieldName
+      ] = `Invalid JSON format in ${this.formatFieldName(fieldName)}`;
       console.warn(`JSON validation error in ${fieldName}:`, error);
       this.cdr.markForCheck();
     }
@@ -301,7 +325,9 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
    */
   isJsonFieldValid(fieldName: string, isValid: boolean): void {
     if (!isValid) {
-      this.jsonErrors[fieldName] = `Invalid JSON format in ${this.formatFieldName(fieldName)}`;
+      this.jsonErrors[
+        fieldName
+      ] = `Invalid JSON format in ${this.formatFieldName(fieldName)}`;
     } else {
       this.jsonErrors[fieldName] = '';
     }
@@ -322,10 +348,11 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
     this.error = null;
     this.cdr.markForCheck();
 
-    this.agentService.getAgent(id)
+    this.agentService
+      .getAgent(id)
       .pipe(
         takeUntil(this.destroy$),
-        catchError(err => {
+        catchError((err) => {
           this.error = 'Failed to load agent details. Please try again.';
           this.notificationService.error(this.error);
           this.isLoading = false;
@@ -353,16 +380,18 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
   populateForm(agent: Agent): void {
     try {
       // Pre-parse JSON fields to avoid multiple parsing operations
-      const parsedData: {[key: string]: any} = {};
+      const parsedData: { [key: string]: any } = {};
 
       // Process JSON fields and cache them
-      this.jsonFields.forEach(field => {
+      this.jsonFields.forEach((field) => {
         // Only attempt to parse if the field exists on the agent object
         if (agent[field as keyof Agent]) {
           try {
             // For string values that need parsing
             if (typeof agent[field as keyof Agent] === 'string') {
-              parsedData[field] = JSON.parse(agent[field as keyof Agent] as string);
+              parsedData[field] = JSON.parse(
+                agent[field as keyof Agent] as string
+              );
             } else {
               // For objects that are already parsed
               parsedData[field] = agent[field as keyof Agent];
@@ -383,41 +412,61 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
 
       // Format JSON fields for display with proper formatting
       const configStr = JSON.stringify(parsedData['config'] || {}, null, 2);
-      const authCredentialsStr = JSON.stringify(parsedData['auth_credentials'] || {}, null, 2);
-      const requestTemplateStr = JSON.stringify(parsedData['request_template'] || {}, null, 2);
-      const retryConfigStr = JSON.stringify(parsedData['retry_config'] || {}, null, 2);
-      const contentFilterConfigStr = JSON.stringify(parsedData['content_filter_config'] || {}, null, 2);
+      const authCredentialsStr = JSON.stringify(
+        parsedData['auth_credentials'] || {},
+        null,
+        2
+      );
+      const requestTemplateStr = JSON.stringify(
+        parsedData['request_template'] || {},
+        null,
+        2
+      );
+      const retryConfigStr = JSON.stringify(
+        parsedData['retry_config'] || {},
+        null,
+        2
+      );
+      const contentFilterConfigStr = JSON.stringify(
+        parsedData['content_filter_config'] || {},
+        null,
+        2
+      );
 
       // Format tags as comma-separated string (do this only once)
       const tagsStr = agent.tags ? agent.tags.join(', ') : '';
 
       // Use patchValue with emitEvent: false for better performance
-      this.agentForm.patchValue({
-        // Basic Information Tab
-        name: agent.name,
-        description: agent.description || '',
-        domain: agent.domain,
-        is_active: agent.is_active.toString(),
-        model_type: agent.model_type || '',
-        version: agent.version || '1.0.0',
-        tags: tagsStr,
+      this.agentForm.patchValue(
+        {
+          // Basic Information Tab
+          name: agent.name,
+          description: agent.description || '',
+          domain: agent.domain,
+          is_active: agent.is_active.toString(),
+          model_type: agent.model_type || '',
+          version: agent.version || '1.0.0',
+          tags: tagsStr,
 
-        // API Configuration Tab
-        api_endpoint: agent.api_endpoint,
-        integration_type: agent.integration_type || IntegrationType.AZURE_OPENAI,
-        auth_type: agent.auth_type || AuthType.API_KEY,
-        auth_credentials: authCredentialsStr,
-        request_template: requestTemplateStr,
-        response_format: agent.response_format || '',
+          // API Configuration Tab
+          api_endpoint: agent.api_endpoint,
+          integration_type:
+            agent.integration_type || IntegrationType.AZURE_OPENAI,
+          auth_type: agent.auth_type || AuthType.API_KEY,
+          auth_credentials: authCredentialsStr,
+          request_template: requestTemplateStr,
+          response_format: agent.response_format || '',
 
-        // Advanced Configuration Tab
-        config: configStr,
-        retry_config: retryConfigStr,
-        content_filter_config: contentFilterConfigStr
-      }, { emitEvent: false }); // Avoid triggering change events for performance
+          // Advanced Configuration Tab
+          config: configStr,
+          retry_config: retryConfigStr,
+          content_filter_config: contentFilterConfigStr,
+        },
+        { emitEvent: false }
+      ); // Avoid triggering change events for performance
 
       // Clear any JSON errors
-      this.jsonFields.forEach(field => {
+      this.jsonFields.forEach((field) => {
         this.jsonErrors[field] = '';
       });
 
@@ -445,7 +494,9 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
 
     // Validate all JSON fields
     if (this.hasJsonErrors()) {
-      this.notificationService.error('Please correct the JSON errors before submitting');
+      this.notificationService.error(
+        'Please correct the JSON errors before submitting'
+      );
       return;
     }
 
@@ -456,7 +507,10 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
 
     // Parse the tags string into an array
     const tags = formValues.tags
-      ? formValues.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag)
+      ? formValues.tags
+          .split(',')
+          .map((tag: string) => tag.trim())
+          .filter((tag: string) => tag)
       : [];
 
     // Build agent data using cached JSON objects where possible
@@ -478,7 +532,7 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
       auth_credentials: this.getJsonValue('auth_credentials'),
       request_template: this.getJsonValue('request_template'),
       retry_config: this.getJsonValue('retry_config'),
-      content_filter_config: this.getJsonValue('content_filter_config')
+      content_filter_config: this.getJsonValue('content_filter_config'),
     };
 
     if (this.isEditMode && this.agentId) {
@@ -511,7 +565,8 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
    * Create a new agent with optimized request handling
    */
   createAgent(agentData: AgentCreate): void {
-    this.agentService.createAgent(agentData)
+    this.agentService
+      .createAgent(agentData)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -525,9 +580,11 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
           this.router.navigate(['app/agents', agent.id]);
         },
         error: (error) => {
-          this.notificationService.error('Failed to create agent. Please try again.');
+          this.notificationService.error(
+            'Failed to create agent. Please try again.'
+          );
           console.error('Error creating agent:', error);
-        }
+        },
       });
   }
 
@@ -535,7 +592,8 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
    * Update an existing agent with optimized request handling
    */
   updateAgent(id: string, agentData: AgentUpdate): void {
-    this.agentService.updateAgent(id, agentData)
+    this.agentService
+      .updateAgent(id, agentData)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -549,9 +607,11 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
           this.router.navigate(['app/agents', agent.id]);
         },
         error: (error) => {
-          this.notificationService.error('Failed to update agent. Please try again.');
+          this.notificationService.error(
+            'Failed to update agent. Please try again.'
+          );
           console.error('Error updating agent:', error);
-        }
+        },
       });
   }
 
@@ -601,7 +661,7 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
    * Recursively mark all form controls as touched
    */
   markFormGroupTouched(formGroup: FormGroup): void {
-    Object.keys(formGroup.controls).forEach(key => {
+    Object.keys(formGroup.controls).forEach((key) => {
       const control = formGroup.get(key);
       control?.markAsTouched();
 
@@ -612,7 +672,7 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
       // Trigger validation
       this.validationTrigger.next({
         field: key,
-        value: control?.value
+        value: control?.value,
       });
     });
 
@@ -677,7 +737,7 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
    * Check if there are any JSON validation errors
    */
   hasJsonErrors(): boolean {
-    return Object.values(this.jsonErrors).some(error => error !== '');
+    return Object.values(this.jsonErrors).some((error) => error !== '');
   }
 
   /**
@@ -687,7 +747,7 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
     return name
       .replace(/_/g, ' ')
       .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   }
 }

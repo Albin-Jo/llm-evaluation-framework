@@ -74,6 +74,6 @@ export class HomePageService {
   }
 
   public async getUser(): Promise<any> {
-    return 'User'
+    return 'User';
   }
 }

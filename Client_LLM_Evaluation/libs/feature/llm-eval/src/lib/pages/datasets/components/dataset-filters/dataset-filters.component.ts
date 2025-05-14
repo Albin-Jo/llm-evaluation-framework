@@ -1,12 +1,27 @@
-import { Component, EventEmitter, Input, OnInit, Output, NO_ERRORS_SCHEMA } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  NO_ERRORS_SCHEMA,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import { DatasetFilterParams, DatasetStatus } from '@ngtx-apps/data-access/models';
+import {
+  DatasetFilterParams,
+  DatasetStatus,
+} from '@ngtx-apps/data-access/models';
 import {
   QracButtonComponent,
   QracTextBoxComponent,
-  QracSelectComponent
+  QracSelectComponent,
 } from '@ngtx-apps/ui/components';
 
 @Component({
@@ -18,18 +33,17 @@ import {
     ReactiveFormsModule,
     QracTextBoxComponent,
     QracSelectComponent,
-    QracButtonComponent
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './dataset-filters.component.html',
-  styleUrls: ['./dataset-filters.component.scss']
+  styleUrls: ['./dataset-filters.component.scss'],
 })
 export class DatasetFiltersComponent implements OnInit {
   @Input() statusOptions: { value: string; label: string }[] = [
     { value: '', label: 'All Statuses' },
     { value: DatasetStatus.READY, label: 'Ready' },
     { value: DatasetStatus.PROCESSING, label: 'Processing' },
-    { value: DatasetStatus.ERROR, label: 'Error' }
+    { value: DatasetStatus.ERROR, label: 'Error' },
   ];
 
   @Input() typeOptions: { value: string; label: string }[] = [
@@ -38,13 +52,13 @@ export class DatasetFiltersComponent implements OnInit {
     { value: 'user_query', label: 'User Query' },
     { value: 'reference', label: 'Reference' },
     { value: 'evaluation', label: 'Evaluation' },
-    { value: 'custom', label: 'Custom' }
+    { value: 'custom', label: 'Custom' },
   ];
 
   @Input() visibilityOptions: { value: string; label: string }[] = [
     { value: 'true', label: 'Public' },
     { value: 'false', label: 'Private' },
-    { value: '', label: 'All' }
+    { value: '', label: 'All' },
   ];
 
   @Input() dateRangeOptions: { value: string; label: string }[] = [
@@ -52,14 +66,14 @@ export class DatasetFiltersComponent implements OnInit {
     { value: 'today', label: 'Today' },
     { value: 'yesterday', label: 'Yesterday' },
     { value: 'week', label: 'This Week' },
-    { value: 'month', label: 'This Month' }
+    { value: 'month', label: 'This Month' },
   ];
 
   @Input() sizeRangeOptions: { value: string; label: string }[] = [
     { value: '', label: 'Any Size' },
     { value: 'small', label: 'Small (<1MB)' },
     { value: 'medium', label: 'Medium (1-10MB)' },
-    { value: 'large', label: 'Large (>10MB)' }
+    { value: 'large', label: 'Large (>10MB)' },
   ];
 
   @Output() filterChange = new EventEmitter<Partial<DatasetFilterParams>>();
@@ -75,51 +89,48 @@ export class DatasetFiltersComponent implements OnInit {
       type: [''],
       isPublic: ['true'],
       dateRange: [''],
-      sizeRange: ['']
+      sizeRange: [''],
     });
   }
 
   ngOnInit(): void {
     // Set up search debounce
-    this.filterForm.get('search')?.valueChanges
-      .pipe(
-        debounceTime(400),
-        distinctUntilChanged()
-      )
+    this.filterForm
+      .get('search')
+      ?.valueChanges.pipe(debounceTime(400), distinctUntilChanged())
       .subscribe((value: string) => {
         this.searchChange.emit(value);
       });
 
     // Listen to status changes
-    this.filterForm.get('status')?.valueChanges
-      .subscribe((value: string) => {
-        const status = value ? value as DatasetStatus : undefined;
-        this.filterChange.emit({ status });
-      });
+    this.filterForm.get('status')?.valueChanges.subscribe((value: string) => {
+      const status = value ? (value as DatasetStatus) : undefined;
+      this.filterChange.emit({ status });
+    });
 
     // Listen to type changes
-    this.filterForm.get('type')?.valueChanges
-      .subscribe((value: string) => {
-        this.filterChange.emit({ type: value || undefined });
-      });
+    this.filterForm.get('type')?.valueChanges.subscribe((value: string) => {
+      this.filterChange.emit({ type: value || undefined });
+    });
 
     // Listen to visibility changes
-    this.filterForm.get('isPublic')?.valueChanges
-      .subscribe((value: string) => {
-        const isPublic = value === 'true' ? true :
-                        value === 'false' ? false : undefined;
-        this.filterChange.emit({ is_public: isPublic });
-      });
+    this.filterForm.get('isPublic')?.valueChanges.subscribe((value: string) => {
+      const isPublic =
+        value === 'true' ? true : value === 'false' ? false : undefined;
+      this.filterChange.emit({ is_public: isPublic });
+    });
 
     // Listen to date range changes
-    this.filterForm.get('dateRange')?.valueChanges
-      .subscribe((value: string) => {
+    this.filterForm
+      .get('dateRange')
+      ?.valueChanges.subscribe((value: string) => {
         this.updateDateRangeFilter(value);
       });
 
     // Listen to size range changes
-    this.filterForm.get('sizeRange')?.valueChanges
-      .subscribe((value: string) => {
+    this.filterForm
+      .get('sizeRange')
+      ?.valueChanges.subscribe((value: string) => {
         this.updateSizeRangeFilter(value);
       });
   }
@@ -190,7 +201,7 @@ export class DatasetFiltersComponent implements OnInit {
       type: '',
       isPublic: 'true',
       dateRange: '',
-      sizeRange: ''
+      sizeRange: '',
     });
 
     // Emit base filter values to reset everything
@@ -202,7 +213,7 @@ export class DatasetFiltersComponent implements OnInit {
       dateFrom: undefined,
       dateTo: undefined,
       sizeMin: undefined,
-      sizeMax: undefined
+      sizeMax: undefined,
     });
 
     // Emit a separate event for parent component to handle complete reset if needed

@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/prompts/components/prompt-filters/prompt-filters.component.ts */
 import { Component, EventEmitter, Input, OnInit, Output, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';

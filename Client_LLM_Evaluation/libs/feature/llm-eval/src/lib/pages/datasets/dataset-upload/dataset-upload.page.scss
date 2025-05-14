@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-upload/dataset-upload.page.scss */
 @import '../../../../../../../styles/variables';
 @import '../../../../../../../styles/mixins';
 
@@ -87,29 +86,26 @@
       button {
         width: 100%;
       }
-
     }
-  .outline-button {
-    @include button-outline;
+    .outline-button {
+      @include button-outline;
 
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     }
-  }
 
-  .primary-button {
-    @include button-primary;
+    .primary-button {
+      @include button-primary;
 
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     }
-  }
   }
 }
-
-
 
 // Upload Progress Indicator
 .upload-progress-indicator {
@@ -215,7 +211,9 @@
     }
   }
 
-  .form-input, .form-select, .form-textarea {
+  .form-input,
+  .form-select,
+  .form-textarea {
     width: 100%;
     padding: $spacing-3;
     border: 1px solid $border-color;
@@ -294,7 +292,8 @@
   align-items: center;
   justify-content: center;
 
-  &:hover, &.drag-over {
+  &:hover,
+  &.drag-over {
     border-color: $primary;
     background-color: rgba($primary, 0.05);
   }
@@ -447,7 +446,7 @@
             align-items: center;
 
             &::before {
-              content: "✓";
+              content: '✓';
               margin-right: $spacing-1;
             }
           }
@@ -458,7 +457,7 @@
             align-items: center;
 
             &::before {
-              content: "✗";
+              content: '✗';
               margin-right: $spacing-1;
             }
           }
@@ -598,8 +597,12 @@
 
 // Animations
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {

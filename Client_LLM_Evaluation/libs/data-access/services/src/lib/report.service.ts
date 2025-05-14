@@ -1,6 +1,10 @@
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
-import { HttpParams, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import {
+  HttpParams,
+  HttpErrorResponse,
+  HttpHeaders,
+} from '@angular/common/http';
 import { catchError, map, tap } from 'rxjs/operators';
 import {
   Report,
@@ -8,14 +12,14 @@ import {
   ReportUpdate,
   ReportFilterParams,
   ReportListResponse,
-  ReportStatus
+  ReportStatus,
 } from '@ngtx-apps/data-access/models';
 import { AppConstant } from '@ngtx-apps/utils/shared';
 import { HttpClientService } from './common/http-client.service';
 import { HttpClient } from '@angular/common/http';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ReportService {
   private baseUrl = '__fastapi__/reports';
@@ -23,8 +27,7 @@ export class ReportService {
   constructor(
     private httpClient: HttpClientService,
     private http: HttpClient // For blob downloads
-  ) {
-  }
+  ) {}
 
   /**
    * Get a list of reports with optional filtering
@@ -37,7 +40,10 @@ export class ReportService {
 
     // Add each parameter if it exists
     if (filters.page !== undefined) {
-      params = params.set('skip', ((filters.page - 1) * (filters.limit || 10)).toString());
+      params = params.set(
+        'skip',
+        ((filters.page - 1) * (filters.limit || 10)).toString()
+      );
     }
 
     if (filters.limit !== undefined) {
@@ -60,35 +66,38 @@ export class ReportService {
       params = params.set('name', filters.name);
     }
 
-    return this.httpClient.get<any>(this.baseUrl, params)
-      .pipe(
-        map(response => {
-          // Transform the API response to match the expected structure
-          if (Array.isArray(response)) {
-            return {
-              reports: response,
-              totalCount: response.length
-            } as ReportListResponse;
-          }
-          // If response has the expected structure
-          else if (response && response.reports && response.totalCount !== undefined) {
-            return response as ReportListResponse;
-          }
-          // If response has items/total structure (like paginated response)
-          else if (response && response.items && response.total !== undefined) {
-            return {
-              reports: response.items,
-              totalCount: response.total
-            } as ReportListResponse;
-          }
-          // Fallback: return empty list
+    return this.httpClient.get<any>(this.baseUrl, params).pipe(
+      map((response) => {
+        // Transform the API response to match the expected structure
+        if (Array.isArray(response)) {
           return {
-            reports: [],
-            totalCount: 0
+            reports: response,
+            totalCount: response.length,
           } as ReportListResponse;
-        }),
-        catchError(error => this.handleError('Failed to fetch reports', error))
-      );
+        }
+        // If response has the expected structure
+        else if (
+          response &&
+          response.reports &&
+          response.totalCount !== undefined
+        ) {
+          return response as ReportListResponse;
+        }
+        // If response has items/total structure (like paginated response)
+        else if (response && response.items && response.total !== undefined) {
+          return {
+            reports: response.items,
+            totalCount: response.total,
+          } as ReportListResponse;
+        }
+        // Fallback: return empty list
+        return {
+          reports: [],
+          totalCount: 0,
+        } as ReportListResponse;
+      }),
+      catchError((error) => this.handleError('Failed to fetch reports', error))
+    );
   }
 
   /**
@@ -97,12 +106,11 @@ export class ReportService {
    * @returns Observable of Report
    */
   getReport(id: string): Observable<Report> {
-    return this.httpClient.get<Report>(`${this.baseUrl}/${id}`)
-      .pipe(
-        catchError(error => {
-          return this.handleError(`Failed to fetch report with ID ${id}`, error);
-        })
-      );
+    return this.httpClient.get<Report>(`${this.baseUrl}/${id}`).pipe(
+      catchError((error) => {
+        return this.handleError(`Failed to fetch report with ID ${id}`, error);
+      })
+    );
   }
 
   /**
@@ -111,12 +119,11 @@ export class ReportService {
    * @returns Observable of Report
    */
   createReport(report: ReportCreate): Observable<Report> {
-    return this.httpClient.post<Report>(this.baseUrl, report)
-      .pipe(
-        catchError(error => {
-          return this.handleError('Failed to create report', error);
-        })
-      );
+    return this.httpClient.post<Report>(this.baseUrl, report).pipe(
+      catchError((error) => {
+        return this.handleError('Failed to create report', error);
+      })
+    );
   }
 
   /**
@@ -126,12 +133,11 @@ export class ReportService {
    * @returns Observable of Report
    */
   updateReport(id: string, report: ReportUpdate): Observable<Report> {
-    return this.httpClient.put<Report>(`${this.baseUrl}/${id}`, report)
-      .pipe(
-        catchError(error => {
-          return this.handleError(`Failed to update report with ID ${id}`, error);
-        })
-      );
+    return this.httpClient.put<Report>(`${this.baseUrl}/${id}`, report).pipe(
+      catchError((error) => {
+        return this.handleError(`Failed to update report with ID ${id}`, error);
+      })
+    );
   }
 
   /**
@@ -140,12 +146,11 @@ export class ReportService {
    * @returns Observable of void
    */
   deleteReport(id: string): Observable<void> {
-    return this.httpClient.delete<void>(`${this.baseUrl}/${id}`)
-      .pipe(
-        catchError(error => {
-          return this.handleError(`Failed to delete report with ID ${id}`, error);
-        })
-      );
+    return this.httpClient.delete<void>(`${this.baseUrl}/${id}`).pipe(
+      catchError((error) => {
+        return this.handleError(`Failed to delete report with ID ${id}`, error);
+      })
+    );
   }
 
   /**
@@ -154,10 +159,14 @@ export class ReportService {
    * @returns Observable of Report
    */
   generateReport(id: string): Observable<Report> {
-    return this.httpClient.post<Report>(`${this.baseUrl}/${id}/generate`, {})
+    return this.httpClient
+      .post<Report>(`${this.baseUrl}/${id}/generate`, {})
       .pipe(
-        catchError(error => {
-          return this.handleError(`Failed to generate report with ID ${id}`, error);
+        catchError((error) => {
+          return this.handleError(
+            `Failed to generate report with ID ${id}`,
+            error
+          );
         })
       );
   }
@@ -178,14 +187,19 @@ export class ReportService {
       headers = headers.set('Authorization', `Bearer ${token}`);
     }
 
-    return this.http.get(url, {
-      headers: headers,
-      responseType: 'blob'
-    }).pipe(
-      catchError(error => {
-        return this.handleError(`Failed to download report with ID ${id}`, error);
+    return this.http
+      .get(url, {
+        headers: headers,
+        responseType: 'blob',
       })
-    );
+      .pipe(
+        catchError((error) => {
+          return this.handleError(
+            `Failed to download report with ID ${id}`,
+            error
+          );
+        })
+      );
   }
 
   /**
@@ -198,54 +212,65 @@ export class ReportService {
     return throwError(() => error);
   }
 
-/**
- * Preview a report in HTML format
- * @param id The ID of the report to preview
- * @returns Observable of HTML string
- */
-previewReport(id: string): Observable<string> {
-  // Use the direct HttpClient for this request since we want the raw HTML
-  // Construct the URL with the same pattern used in the interceptor
-  const url = `${AppConstant.API_URL}/reports/${id}/preview`;
+  /**
+   * Preview a report in HTML format
+   * @param id The ID of the report to preview
+   * @returns Observable of HTML string
+   */
+  previewReport(id: string): Observable<string> {
+    // Use the direct HttpClient for this request since we want the raw HTML
+    // Construct the URL with the same pattern used in the interceptor
+    const url = `${AppConstant.API_URL}/reports/${id}/preview`;
 
-  // Handle authentication manually for this special case
-  let headers = new HttpHeaders();
-  const token = localStorage.getItem('token');
-  if (token) {
-    headers = headers.set('Authorization', `Bearer ${token}`);
+    // Handle authentication manually for this special case
+    let headers = new HttpHeaders();
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    return this.http
+      .get(url, {
+        headers: headers,
+        responseType: 'text',
+      })
+      .pipe(
+        catchError((error) => {
+          return this.handleError(
+            `Failed to preview report with ID ${id}`,
+            error
+          );
+        })
+      );
   }
 
-  return this.http.get(url, {
-    headers: headers,
-    responseType: 'text'
-  }).pipe(
-    catchError(error => {
-      return this.handleError(`Failed to preview report with ID ${id}`, error);
-    })
-  );
-}
+  /**
+   * Send a report via email
+   * @param id The ID of the report to send
+   * @param recipients Array of email recipients
+   * @param subject Optional email subject
+   * @param message Optional email message
+   * @returns Observable of success response
+   */
+  sendReport(
+    id: string,
+    recipients: { email: string; name?: string }[],
+    subject?: string,
+    message?: string
+  ): Observable<any> {
+    const requestData = {
+      recipients: recipients,
+      subject: subject,
+      message: message,
+      include_pdf: true,
+    };
 
-/**
- * Send a report via email
- * @param id The ID of the report to send
- * @param recipients Array of email recipients
- * @param subject Optional email subject
- * @param message Optional email message
- * @returns Observable of success response
- */
-sendReport(id: string, recipients: { email: string, name?: string }[], subject?: string, message?: string): Observable<any> {
-  const requestData = {
-    recipients: recipients,
-    subject: subject,
-    message: message,
-    include_pdf: true
-  };
-
-  return this.httpClient.post<any>(`${this.baseUrl}/${id}/send`, requestData)
-    .pipe(
-      catchError(error => {
-        return this.handleError(`Failed to send report with ID ${id}`, error);
-      })
-    );
-}
+    return this.httpClient
+      .post<any>(`${this.baseUrl}/${id}/send`, requestData)
+      .pipe(
+        catchError((error) => {
+          return this.handleError(`Failed to send report with ID ${id}`, error);
+        })
+      );
+  }
 }

@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, finalize, Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Subscription, finalize, Observable, of, throwError } from 'rxjs';
+import { catchError, tap, switchMap } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -9,21 +9,31 @@ import {
   DatasetUpdateRequest,
   Document,
   DatasetDetailResponse,
-  DatasetStatus
+  DatasetStatus,
 } from '@ngtx-apps/data-access/models';
-import { DatasetService } from '@ngtx-apps/data-access/services';
-import { ConfirmationDialogService, AlertService } from '@ngtx-apps/utils/services';
+import {
+  DatasetService,
+  DatasetContentService,
+} from '@ngtx-apps/data-access/services';
+import {
+  ConfirmationDialogService,
+  AlertService,
+} from '@ngtx-apps/utils/services';
+
+// Define an enum for section types to fix the TypeScript error
+enum ExpandedSection {
+  INPUT = 'input',
+  OUTPUT = 'output',
+  RAW = 'raw',
+}
 
 @Component({
   selector: 'app-dataset-detail',
   templateUrl: './dataset-detail.page.html',
   styleUrls: ['./dataset-detail.page.scss'],
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule
-  ],
-  schemas: [NO_ERRORS_SCHEMA]
+  imports: [CommonModule, FormsModule],
+  schemas: [NO_ERRORS_SCHEMA],
 })
 export class DatasetDetailPage implements OnInit, OnDestroy {
   // Dataset information
@@ -35,6 +45,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   isLoading: boolean = true;
   isEditing: boolean = false;
   error: string | null = null;
+  isDeleting: boolean = false;
 
   // Document preview state
   isPreviewActive: boolean = false;
@@ -54,23 +65,34 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   editingDataset: DatasetUpdateRequest = {
     name: '',
     description: '',
-    tags: []
+    tags: [],
   };
 
   // Available tags for selection
   availableTags: string[] = [
-    'support', 'sales', 'marketing', 'technical', 'feedback',
-    'queries', 'internal', 'external', 'training', 'evaluation'
+    'support',
+    'sales',
+    'marketing',
+    'technical',
+    'feedback',
+    'queries',
+    'internal',
+    'external',
+    'training',
+    'evaluation',
   ];
 
   // Status enums for template
   DatasetStatus = DatasetStatus;
 
-  // Expanded sections in preview
-  expandedSections = {
-    input: false,
-    output: false,
-    raw: false
+  // Expanded sections enum for the template
+  ExpandedSection = ExpandedSection;
+
+  // Expanded sections in preview - using the enum now
+  expandedSections: { [key in ExpandedSection]: boolean } = {
+    [ExpandedSection.INPUT]: false,
+    [ExpandedSection.OUTPUT]: false,
+    [ExpandedSection.RAW]: false,
   };
 
   // Subscriptions
@@ -80,6 +102,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private datasetService: DatasetService,
+    private datasetContentService: DatasetContentService,
     private confirmationDialogService: ConfirmationDialogService,
     private alertService: AlertService
   ) {}
@@ -87,7 +110,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Get dataset ID from route
     this.subscriptions.add(
-      this.route.paramMap.subscribe(params => {
+      this.route.paramMap.subscribe((params) => {
         const id = params.get('id');
 
         if (id) {
@@ -122,7 +145,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
           console.error('Error loading dataset:', err);
           this.error = 'Failed to load dataset details. Please try again.';
           this.isLoading = false;
-        }
+        },
       })
     );
   }
@@ -144,7 +167,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     this.editingDataset = {
       name: this.dataset.name || '',
       description: this.dataset.description || '',
-      tags: [...(this.dataset.tags || [])]
+      tags: [...(this.dataset.tags || [])],
     };
 
     this.isEditing = true;
@@ -190,25 +213,28 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     const updateRequest: DatasetUpdateRequest = {
       name: this.editingDataset.name?.trim() || '',
       description: this.editingDataset.description?.trim() || '',
-      tags: this.editingDataset.tags || []
+      tags: this.editingDataset.tags || [],
     };
 
     // Update dataset
     this.isLoading = true;
 
     this.subscriptions.add(
-      this.datasetService.updateDataset(this.datasetId, updateRequest)
-        .pipe(finalize(() => {
-          this.isLoading = false;
-          this.isEditing = false;
-        }))
+      this.datasetService
+        .updateDataset(this.datasetId, updateRequest)
+        .pipe(
+          finalize(() => {
+            this.isLoading = false;
+            this.isEditing = false;
+          })
+        )
         .subscribe({
           next: (updatedDataset) => {
             this.dataset = updatedDataset;
             this.alertService.showAlert({
               show: true,
               message: 'Dataset updated successfully',
-              title: 'Success'
+              title: 'Success',
             });
           },
           error: (err: any) => {
@@ -216,9 +242,9 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
             this.alertService.showAlert({
               show: true,
               message: 'Failed to update dataset. Please try again.',
-              title: 'Error'
+              title: 'Error',
             });
-          }
+          },
         })
     );
   }
@@ -229,40 +255,56 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   deleteDataset(event: Event): void {
     event.preventDefault();
 
-    this.confirmationDialogService.confirm({
-      title: 'Delete Dataset',
-      message: 'Are you sure you want to delete this dataset? This action cannot be undone.',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
-      type: 'danger'
-    }).subscribe((confirmed: boolean) => {
-      if (confirmed) {
-        this.isLoading = true;
+    // Prevent multiple deletion requests
+    if (this.isDeleting) return;
 
-        this.subscriptions.add(
-          this.datasetService.deleteDataset(this.datasetId)
-            .pipe(finalize(() => this.isLoading = false))
-            .subscribe({
-              next: () => {
-                this.alertService.showAlert({
-                  show: true,
-                  message: 'Dataset deleted successfully',
-                  title: 'Success'
-                });
-                this.router.navigate(['/app/datasets/datasets']);
-              },
-              error: (err: any) => {
-                console.error('Error deleting dataset:', err);
-                this.alertService.showAlert({
-                  show: true,
-                  message: 'Failed to delete dataset. Please try again.',
-                  title: 'Error'
-                });
-              }
-            })
-        );
-      }
-    });
+    this.confirmationDialogService
+      .confirm({
+        title: 'Delete Dataset',
+        message:
+          'Are you sure you want to delete this dataset? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        type: 'danger',
+      })
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) {
+          this.isDeleting = true;
+          this.isLoading = true;
+
+          this.subscriptions.add(
+            this.datasetService
+              .deleteDataset(this.datasetId)
+              .pipe(
+                finalize(() => {
+                  this.isLoading = false;
+                  this.isDeleting = false;
+                })
+              )
+              .subscribe({
+                next: () => {
+                  this.alertService.showAlert({
+                    show: true,
+                    message: 'Dataset deleted successfully',
+                    title: 'Success',
+                  });
+                  // Ensure navigation happens after alert is shown
+                  setTimeout(() => {
+                    this.router.navigate(['/app/datasets/datasets']);
+                  }, 100);
+                },
+                error: (err: any) => {
+                  console.error('Error deleting dataset:', err);
+                  this.alertService.showAlert({
+                    show: true,
+                    message: 'Failed to delete dataset. Please try again.',
+                    title: 'Error',
+                  });
+                },
+              })
+          );
+        }
+      });
   }
 
   /**
@@ -275,7 +317,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     });
   }
 
@@ -318,8 +360,10 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
    * Check if dataset has a document
    */
   hasDocument(): boolean {
-    return (this.documents && this.documents.length > 0) ||
-           (this.dataset?.metadata?.['meta_info']?.['filename'] != null);
+    return (
+      (this.documents && this.documents.length > 0) ||
+      this.dataset?.metadata?.['meta_info']?.['filename'] != null
+    );
   }
 
   /**
@@ -330,7 +374,7 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
 
     // Navigate to upload page with existing dataset ID
     this.router.navigate(['/app/datasets/datasets/upload'], {
-      queryParams: { datasetId: this.datasetId }
+      queryParams: { datasetId: this.datasetId },
     });
   }
 
@@ -354,136 +398,245 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Preview document content
+   * Preview document content - Updated to use dataset content service
    */
-  previewDocument(document: Document | { id: string; name: string } | null): void {
+  previewDocument(
+    document: Document | { id: string; name: string } | null
+  ): void {
     if (!document || !document.id) {
       return;
     }
 
     // Create a Document-like object for files that aren't in the documents array
-    const documentToPreview: Document = 'datasetId' in document
-      ? document
-      : {
-          id: document.id,
-          datasetId: this.datasetId,
-          name: document.name,
-          content: '',
-          createdAt: new Date().toISOString()
-        };
+    const documentToPreview: Document =
+      'datasetId' in document
+        ? document
+        : {
+            id: document.id,
+            datasetId: this.datasetId,
+            name: document.name,
+            content: '',
+            createdAt: new Date().toISOString(),
+          };
 
     this.isPreviewActive = true;
     this.currentPreviewDocument = documentToPreview;
     this.isLoadingPreview = true;
     this.documentPreviewError = null;
+    this.documentPreviewContent = '';
+    this.documentPreviewHeaders = [];
+    this.documentPreviewData = [];
 
-    // In a real implementation, we would call an API to fetch the document content
-    this.getDocumentContent(documentToPreview.id)
-      .subscribe({
-        next: (content) => {
-          this.isLoadingPreview = false;
-          // Process the document content based on format
-          this.processDocumentContent(content, this.getDocumentFormat(documentToPreview));
-        },
-        error: (error) => {
-          this.isLoadingPreview = false;
-          this.documentPreviewError = 'Failed to load document content. Please try again.';
-          console.error('Error loading document content:', error);
-        }
-      });
-  }
+    // Call the document content API with the dataset content service
+    this.subscriptions.add(
+      this.datasetContentService
+        .getDocumentContent(this.datasetId, documentToPreview.id)
+        .subscribe({
+          next: (response) => {
+            this.isLoadingPreview = false;
 
-  /**
-   * Get document content from API
-   * Note: This is a placeholder that should be replaced with actual API call
-   */
-  private getDocumentContent(documentId: string): Observable<any> {
-    // Simulate API call with a delay
-    return of(this.getMockContent(documentId)).pipe(
-      catchError(error => {
-        console.error('Error fetching document content:', error);
-        return of(null);
-      })
+            // SPECIAL CASE: Check if response is a direct array (not wrapped in response object)
+            if (Array.isArray(response)) {
+              this.handleDirectArrayResponse(response);
+              return;
+            }
+
+            // Handle error from API
+            if (response && response.error) {
+              console.error('Error in API response:', response.error);
+              this.documentPreviewError = response.error;
+              return;
+            }
+
+            // Direct approach for tabular data from the API
+            if (
+              response &&
+              response.headers &&
+              response.headers.length > 0 &&
+              response.rows &&
+              response.rows.length > 0
+            ) {
+              this.documentPreviewHeaders = response.headers;
+              this.documentPreviewData = response.rows;
+
+              // Still set content for raw view option
+              if (response.content) {
+                this.documentPreviewContent =
+                  typeof response.content === 'string'
+                    ? response.content
+                    : JSON.stringify(response.content, null, 2);
+              }
+              return;
+            }
+
+            // If no structured data but content exists
+            if (response && response.content) {
+              // Handle string or object content
+              const contentToProcess =
+                typeof response.content === 'string'
+                  ? response.content
+                  : JSON.stringify(response.content, null, 2);
+
+              this.documentPreviewContent = contentToProcess;
+
+              // Try to parse as JSON if content exists but no headers/rows
+              try {
+                // Parse if string, otherwise use directly
+                const parsedContent =
+                  typeof response.content === 'string'
+                    ? JSON.parse(response.content)
+                    : response.content;
+
+                // Handle array data
+                if (Array.isArray(parsedContent)) {
+                  this.processArrayContent(parsedContent);
+                }
+              } catch (e) {
+                console.warn('Content is not JSON or failed to parse:', e);
+                // Keep as text content - already set above
+              }
+            } else if (
+              typeof response === 'object' &&
+              Object.keys(response).length > 0
+            ) {
+              // If response is an object but doesn't have the expected structure
+
+              // Treat entire response as content
+              this.documentPreviewContent = JSON.stringify(response, null, 2);
+
+              // Check if any properties are arrays that could be displayed as tabular data
+              for (const key in response) {
+                if (
+                  Array.isArray(response['key']) &&
+                  response['key'].length > 0
+                ) {
+                  this.processArrayContent(response['key']);
+                  break;
+                }
+              }
+            } else {
+              console.warn(
+                'No content received from API or unrecognized format'
+              );
+              this.documentPreviewError =
+                'No content available for this document';
+            }
+
+            // If we still don't have headers/content, show error
+            if (
+              !this.documentPreviewContent &&
+              this.documentPreviewHeaders.length === 0
+            ) {
+              this.documentPreviewError =
+                'No viewable content available for this document';
+            }
+          },
+          error: (error) => {
+            console.error('Error loading document content:', error);
+            this.isLoadingPreview = false;
+            this.documentPreviewError =
+              'Failed to load document content. Please try again.';
+          },
+        })
     );
   }
 
   /**
-   * Process document content based on format
+   * Handle API response that is a direct array
    */
-  private processDocumentContent(content: any, format: string): void {
-    if (!content) {
-      this.documentPreviewError = 'No content available for this document';
-      return;
-    }
+  private handleDirectArrayResponse(arrayData: any[]): void {
+    // Set the raw content for text view
+    this.documentPreviewContent = JSON.stringify(arrayData, null, 2);
 
-    if (format === 'CSV') {
-      try {
-        // For CSV, parse the content and extract headers and rows
-        const rows = content.split('\n');
-        if (rows.length > 0) {
-          this.documentPreviewHeaders = rows[0].split(',').map((h: string) => h.trim());
-
-          this.documentPreviewData = [];
-          for (let i = 1; i < rows.length && i < 10; i++) { // Limit to 10 rows for preview
-            if (rows[i].trim()) {
-              const values = rows[i].split(',');
-              const rowData: Record<string, string> = {};
-
-              this.documentPreviewHeaders.forEach((header, index) => {
-                rowData[header] = values[index]?.trim() || '';
-              });
-
-              this.documentPreviewData.push(rowData);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error parsing CSV:', e);
-        this.documentPreviewError = 'Error parsing CSV content';
-      }
-    } else if (format === 'JSON') {
-      try {
-        // For JSON, format the content for display
-        this.documentPreviewContent = typeof content === 'string'
-          ? content
-          : JSON.stringify(content, null, 2);
-      } catch (e) {
-        console.error('Error parsing JSON:', e);
-        this.documentPreviewError = 'Error parsing JSON content';
-      }
-    } else {
-      // For other formats, display as plain text
-      this.documentPreviewContent = content;
+    // Process for tabular view if it's an array of objects
+    if (
+      arrayData.length > 0 &&
+      typeof arrayData[0] === 'object' &&
+      arrayData[0] !== null
+    ) {
+      this.processArrayContent(arrayData);
     }
   }
 
   /**
-   * Get mock content for document preview (simulated API response)
+   * Process array content into tabular format
    */
-  private getMockContent(documentId: string): any {
-    const format = this.currentPreviewDocument
-      ? this.getDocumentFormat(this.currentPreviewDocument).toLowerCase()
-      : '';
+  private processArrayContent(arrayData: any[]): void {
+    if (
+      arrayData.length === 0 ||
+      typeof arrayData[0] !== 'object' ||
+      arrayData[0] === null
+    ) {
+      return;
+    }
+
+    // Extract all unique keys across all objects to ensure we have all possible columns
+    const allKeys = new Set<string>();
+
+    arrayData.forEach((item) => {
+      if (item && typeof item === 'object') {
+        Object.keys(item).forEach((key) => allKeys.add(key));
+      }
+    });
+
+    if (allKeys.size > 0) {
+      this.documentPreviewHeaders = Array.from(allKeys);
+      this.documentPreviewData = arrayData;
+    }
+  }
+
+  /**
+   * For development/testing only - can be removed in production
+   */
+  private fallbackToMockData = false; // Set to true only during development if API is not ready
+
+  /**
+   * Load mock data as fallback during development - can be removed in production
+   */
+  private loadMockDataForPreview(documentToPreview: Document): void {
+    const format = this.getDocumentFormat(documentToPreview).toLowerCase();
 
     if (format === 'csv') {
-      return 'query,ground_truth,context\nHow do I reset my password?,Go to login page and click "Forgot Password",Account management\nWhere is my order?,Check order status in your account,Order tracking\nHow to cancel subscription?,Go to account settings, select subscriptions,Subscription management';
+      const mockCsvContent =
+        'query,ground_truth,context\nHow do I reset my password?,Go to login page and click "Forgot Password",Account management\nWhere is my order?,Check order status in your account,Order tracking\nHow to cancel subscription?,Go to account settings, select subscriptions,Subscription management';
+      this.documentPreviewContent = mockCsvContent;
+
+      // Parse CSV for tabular display
+      const parsedCsv =
+        this.datasetContentService.parseCSVContent(mockCsvContent);
+      this.documentPreviewHeaders = parsedCsv.headers;
+      this.documentPreviewData = parsedCsv.data;
     } else if (format === 'json') {
-      return JSON.stringify({
-        "items": [
+      const mockJsonContent = {
+        items: [
           {
-            "query": "How do I reset my password?",
-            "ground_truth": "Go to login page and click \"Forgot Password\"",
-            "context": "Account management"
+            query: 'How do I reset my password?',
+            ground_truth: 'Go to login page and click "Forgot Password"',
+            context: 'Account management',
           },
           {
-            "query": "Where is my order?",
-            "ground_truth": "Check order status in your account",
-            "context": "Order tracking"
-          }
-        ]
-      }, null, 2);
+            query: 'Where is my order?',
+            ground_truth: 'Check order status in your account',
+            context: 'Order tracking',
+          },
+        ],
+      };
+
+      this.documentPreviewContent = JSON.stringify(mockJsonContent, null, 2);
+
+      // Try to extract tabular data
+      if (mockJsonContent.items && Array.isArray(mockJsonContent.items)) {
+        const headers = new Set<string>();
+        mockJsonContent.items.forEach((item) => {
+          Object.keys(item).forEach((key) => headers.add(key));
+        });
+
+        this.documentPreviewHeaders = Array.from(headers);
+        this.documentPreviewData = mockJsonContent.items;
+      }
     } else {
-      return "Sample text content for document preview.\nThis would contain the actual document content in a real implementation.";
+      this.documentPreviewContent =
+        'Sample text content for document preview.\nThis would contain the actual document content in a real implementation.';
     }
   }
 
@@ -513,8 +666,9 @@ export class DatasetDetailPage implements OnInit, OnDestroy {
 
   /**
    * Toggle expanded section in preview
+   * Fixed to use enum instead of 'this' reference in parameter type
    */
-  toggleSection(section: keyof typeof this.expandedSections): void {
+  toggleSection(section: ExpandedSection): void {
     this.expandedSections[section] = !this.expandedSections[section];
   }
 }

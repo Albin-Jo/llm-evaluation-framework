@@ -1,6 +1,17 @@
-import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  NO_ERRORS_SCHEMA,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { Router, NavigationEnd } from '@angular/router';
 import { Subject, takeUntil, filter } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
@@ -9,15 +20,19 @@ import {
   Agent,
   AgentFilterParams,
   AgentDomain,
-  IntegrationType
+  IntegrationType,
 } from '@ngtx-apps/data-access/models';
 import { AgentService } from '@ngtx-apps/data-access/services';
 import {
   QracButtonComponent,
   QracTextBoxComponent,
-  QracSelectComponent
+  QracSelectComponent,
 } from '@ngtx-apps/ui/components';
-import { AlertService, ConfirmationDialogService, NotificationService } from '@ngtx-apps/utils/services';
+import {
+  AlertService,
+  ConfirmationDialogService,
+  NotificationService,
+} from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-agents',
@@ -26,13 +41,12 @@ import { AlertService, ConfirmationDialogService, NotificationService } from '@n
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    QracButtonComponent,
     QracTextBoxComponent,
-    QracSelectComponent
+    QracSelectComponent,
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './agents.page.html',
-  styleUrls: ['./agents.page.scss']
+  styleUrls: ['./agents.page.scss'],
 })
 export class AgentsPage implements OnInit, OnDestroy {
   agents: Agent[] = [];
@@ -54,14 +68,14 @@ export class AgentsPage implements OnInit, OnDestroy {
     page: 1,
     limit: 5, // Updated to match standard
     sortBy: 'created_at',
-    sortDirection: 'desc'
+    sortDirection: 'desc',
   };
 
   // For filtering by status
   statusOptions = [
     { value: '', label: 'All Statuses' },
     { value: 'true', label: 'Active' },
-    { value: 'false', label: 'Inactive' }
+    { value: 'false', label: 'Inactive' },
   ];
 
   // Domain options
@@ -74,7 +88,7 @@ export class AgentsPage implements OnInit, OnDestroy {
     { value: AgentDomain.LEGAL, label: 'Legal' },
     { value: AgentDomain.FINANCE, label: 'Finance' },
     { value: AgentDomain.EDUCATION, label: 'Education' },
-    { value: AgentDomain.OTHER, label: 'Other' }
+    { value: AgentDomain.OTHER, label: 'Other' },
   ];
 
   // Integration type options
@@ -83,7 +97,7 @@ export class AgentsPage implements OnInit, OnDestroy {
     { value: IntegrationType.AZURE_OPENAI, label: 'Azure OpenAI' },
     { value: IntegrationType.MCP, label: 'Model Control Plane (MCP)' },
     { value: IntegrationType.DIRECT_API, label: 'Direct API' },
-    { value: IntegrationType.CUSTOM, label: 'Custom' }
+    { value: IntegrationType.CUSTOM, label: 'Custom' },
   ];
 
   private destroy$ = new Subject<void>();
@@ -105,18 +119,23 @@ export class AgentsPage implements OnInit, OnDestroy {
     this.loadAgents();
 
     // Add router event subscription to detect navigation back to this page
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd),
-      takeUntil(this.destroy$)
-    ).subscribe((event: any) => {
-      // Check if we're navigating to the agents list page
-      if (event.url === '/app/agents' || event.url.startsWith('/app/agents?')) {
-        // Restore filters from session storage
-        this.restoreFiltersFromStorage();
-        // Reload data when navigating back to this page
-        this.loadAgents();
-      }
-    });
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((event: any) => {
+        // Check if we're navigating to the agents list page
+        if (
+          event.url === '/app/agents' ||
+          event.url.startsWith('/app/agents?')
+        ) {
+          // Restore filters from session storage
+          this.restoreFiltersFromStorage();
+          // Reload data when navigating back to this page
+          this.loadAgents();
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -146,9 +165,13 @@ export class AgentsPage implements OnInit, OnDestroy {
     // Initialize the filter form with potentially restored values
     this.filterForm = this.fb.group({
       search: [this.filterParams.name || ''],
-      status: [this.filterParams.is_active !== undefined ? this.filterParams.is_active.toString() : ''],
+      status: [
+        this.filterParams.is_active !== undefined
+          ? this.filterParams.is_active.toString()
+          : '',
+      ],
       domain: [this.filterParams.domain || ''],
-      integration_type: [this.filterParams.integration_type || '']
+      integration_type: [this.filterParams.integration_type || ''],
     });
   }
 
@@ -157,7 +180,10 @@ export class AgentsPage implements OnInit, OnDestroy {
    */
   private saveFiltersToStorage(): void {
     try {
-      sessionStorage.setItem(this.FILTER_STORAGE_KEY, JSON.stringify(this.filterParams));
+      sessionStorage.setItem(
+        this.FILTER_STORAGE_KEY,
+        JSON.stringify(this.filterParams)
+      );
     } catch (e) {
       console.warn('Failed to save filters to session storage:', e);
     }
@@ -175,12 +201,18 @@ export class AgentsPage implements OnInit, OnDestroy {
         this.filterParams = { ...this.filterParams, ...parsedFilters };
 
         // Update form values to match restored filters without triggering change events
-        this.filterForm.setValue({
-          search: this.filterParams.name || '',
-          status: this.filterParams.is_active !== undefined ? this.filterParams.is_active.toString() : '',
-          domain: this.filterParams.domain || '',
-          integration_type: this.filterParams.integration_type || ''
-        }, { emitEvent: false });
+        this.filterForm.setValue(
+          {
+            search: this.filterParams.name || '',
+            status:
+              this.filterParams.is_active !== undefined
+                ? this.filterParams.is_active.toString()
+                : '',
+            domain: this.filterParams.domain || '',
+            integration_type: this.filterParams.integration_type || '',
+          },
+          { emitEvent: false }
+        );
 
         this.cdr.markForCheck();
       } catch (e) {
@@ -191,8 +223,9 @@ export class AgentsPage implements OnInit, OnDestroy {
 
   setupFilterListeners(): void {
     // Set up search debounce
-    this.filterForm.get('search')?.valueChanges
-      .pipe(
+    this.filterForm
+      .get('search')
+      ?.valueChanges.pipe(
         debounceTime(400),
         distinctUntilChanged(),
         takeUntil(this.destroy$)
@@ -205,8 +238,9 @@ export class AgentsPage implements OnInit, OnDestroy {
       });
 
     // Listen to status changes
-    this.filterForm.get('status')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('status')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         if (value === 'true') {
           this.filterParams.is_active = true;
@@ -221,8 +255,9 @@ export class AgentsPage implements OnInit, OnDestroy {
       });
 
     // Listen to domain changes
-    this.filterForm.get('domain')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('domain')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         this.filterParams.domain = value || undefined;
         this.filterParams.page = 1;
@@ -231,10 +266,12 @@ export class AgentsPage implements OnInit, OnDestroy {
       });
 
     // Listen to integration type changes
-    this.filterForm.get('integration_type')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('integration_type')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
-        this.filterParams.integration_type = value as IntegrationType || undefined;
+        this.filterParams.integration_type =
+          (value as IntegrationType) || undefined;
         this.filterParams.page = 1;
         this.loadAgents();
         this.saveFiltersToStorage(); // Save filters after change
@@ -246,7 +283,8 @@ export class AgentsPage implements OnInit, OnDestroy {
     this.error = null;
     this.cdr.markForCheck(); // Ensure loading state is reflected in the UI
 
-    this.agentService.getAgents(this.filterParams)
+    this.agentService
+      .getAgents(this.filterParams)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -262,7 +300,7 @@ export class AgentsPage implements OnInit, OnDestroy {
           this.isLoading = false;
           console.error('Error loading agents:', error);
           this.cdr.markForCheck(); // Ensure error state is reflected
-        }
+        },
       });
   }
 
@@ -321,7 +359,7 @@ export class AgentsPage implements OnInit, OnDestroy {
       search: '',
       status: '',
       domain: '',
-      integration_type: ''
+      integration_type: '',
     });
 
     this.filterParams.name = undefined;
@@ -341,7 +379,11 @@ export class AgentsPage implements OnInit, OnDestroy {
       this.filterParams.sortDirection =
         this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
     } else {
-      this.filterParams.sortBy = sortBy as "created_at" | "name" | "domain" | "updated_at";
+      this.filterParams.sortBy = sortBy as
+        | 'created_at'
+        | 'name'
+        | 'domain'
+        | 'updated_at';
       this.filterParams.sortDirection = 'desc';
     }
 
@@ -371,8 +413,9 @@ export class AgentsPage implements OnInit, OnDestroy {
   confirmDeleteAgent(event: Event, agentId: string): void {
     event.stopPropagation();
 
-    this.confirmationDialogService.confirmDelete('Agent')
-      .subscribe(confirmed => {
+    this.confirmationDialogService
+      .confirmDelete('Agent')
+      .subscribe((confirmed) => {
         if (confirmed) {
           this.deleteAgent(agentId);
         }
@@ -380,7 +423,8 @@ export class AgentsPage implements OnInit, OnDestroy {
   }
 
   private deleteAgent(agentId: string): void {
-    this.agentService.deleteAgent(agentId)
+    this.agentService
+      .deleteAgent(agentId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
@@ -388,9 +432,11 @@ export class AgentsPage implements OnInit, OnDestroy {
           this.loadAgents();
         },
         error: (error) => {
-          this.notificationService.error('Failed to delete agent. Please try again.');
+          this.notificationService.error(
+            'Failed to delete agent. Please try again.'
+          );
           console.error('Error deleting agent:', error);
-        }
+        },
       });
   }
 
@@ -401,7 +447,7 @@ export class AgentsPage implements OnInit, OnDestroy {
       return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       }).format(date);
     } catch (e) {
       return 'Invalid date';

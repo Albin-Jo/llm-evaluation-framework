@@ -1,22 +1,29 @@
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import {
+  FormBuilder,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
+import { Router, NavigationEnd } from '@angular/router';
+import { Subject, takeUntil, filter } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import {
   Dataset,
   DatasetFilterParams,
-  DatasetStatus
+  DatasetStatus,
 } from '@ngtx-apps/data-access/models';
 import { DatasetService } from '@ngtx-apps/data-access/services';
 import {
-  
   QracTextBoxComponent,
-  QracSelectComponent
+  QracSelectComponent,
 } from '@ngtx-apps/ui/components';
-import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/services';
+import {
+  AlertService,
+  ConfirmationDialogService,
+} from '@ngtx-apps/utils/services';
 
 @Component({
   selector: 'app-datasets',
@@ -25,13 +32,12 @@ import { AlertService, ConfirmationDialogService } from '@ngtx-apps/utils/servic
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    
     QracTextBoxComponent,
-    QracSelectComponent
+    QracSelectComponent,
   ],
   schemas: [NO_ERRORS_SCHEMA],
   templateUrl: './datasets.page.html',
-  styleUrls: ['./datasets.page.scss']
+  styleUrls: ['./datasets.page.scss'],
 })
 export class DatasetsPage implements OnInit, OnDestroy {
   datasets: Dataset[] = [];
@@ -43,13 +49,14 @@ export class DatasetsPage implements OnInit, OnDestroy {
   Math = Math;
   visiblePages: number[] = [];
   filterForm: FormGroup;
+  isDeleting = false; // Track deletion state
 
   filterParams: DatasetFilterParams = {
     page: 1,
     limit: 10,
     sortBy: 'createdAt',
     sortDirection: 'desc',
-    is_public: true
+    is_public: true,
   };
 
   // Options for filters
@@ -57,7 +64,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
     { value: '', label: 'All Statuses' },
     { value: DatasetStatus.READY, label: 'Ready' },
     { value: DatasetStatus.PROCESSING, label: 'Processing' },
-    { value: DatasetStatus.ERROR, label: 'Error' }
+    { value: DatasetStatus.ERROR, label: 'Error' },
   ];
 
   // Updated format options to match API
@@ -67,13 +74,13 @@ export class DatasetsPage implements OnInit, OnDestroy {
     { value: 'user_query', label: 'User Query' },
     { value: 'reference', label: 'Reference' },
     { value: 'evaluation', label: 'Evaluation' },
-    { value: 'custom', label: 'Custom' }
+    { value: 'custom', label: 'Custom' },
   ];
 
   visibilityOptions = [
     { value: 'true', label: 'Public' },
     { value: 'false', label: 'Private' },
-    { value: '', label: 'All' }
+    { value: '', label: 'All' },
   ];
 
   dateRangeOptions = [
@@ -82,14 +89,14 @@ export class DatasetsPage implements OnInit, OnDestroy {
     { value: 'yesterday', label: 'Yesterday' },
     { value: 'week', label: 'This Week' },
     { value: 'month', label: 'This Month' },
-    { value: 'custom', label: 'Custom Range' }
+    { value: 'custom', label: 'Custom Range' },
   ];
 
   sizeRangeOptions = [
     { value: '', label: 'Any Size' },
     { value: 'small', label: 'Small (<1MB)' },
     { value: 'medium', label: 'Medium (1-10MB)' },
-    { value: 'large', label: 'Large (>10MB)' }
+    { value: 'large', label: 'Large (>10MB)' },
   ];
 
   private destroy$ = new Subject<void>();
@@ -107,13 +114,31 @@ export class DatasetsPage implements OnInit, OnDestroy {
       type: [''],
       isPublic: ['true'],
       dateRange: [''],
-      sizeRange: ['']
+      sizeRange: [''],
     });
   }
 
   ngOnInit(): void {
     this.setupFilterListeners();
     this.loadDatasets();
+
+    // Add router event listener to refresh data when navigating back to this page
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((event: NavigationEnd) => {
+        // Check if this is a navigation back to the datasets page
+        if (
+          event.url.includes('/app/datasets/datasets') &&
+          !event.url.includes('upload') &&
+          event.url.split('/').length <= 4
+        ) {
+          // Reload datasets when navigating back
+          this.loadDatasets();
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -123,8 +148,9 @@ export class DatasetsPage implements OnInit, OnDestroy {
 
   setupFilterListeners(): void {
     // Search with debounce
-    this.filterForm.get('search')?.valueChanges
-      .pipe(
+    this.filterForm
+      .get('search')
+      ?.valueChanges.pipe(
         debounceTime(400),
         distinctUntilChanged(),
         takeUntil(this.destroy$)
@@ -136,8 +162,9 @@ export class DatasetsPage implements OnInit, OnDestroy {
       });
 
     // Status filter
-    this.filterForm.get('status')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('status')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         this.filterParams.status = value || undefined;
         this.filterParams.page = 1;
@@ -145,8 +172,9 @@ export class DatasetsPage implements OnInit, OnDestroy {
       });
 
     // Type filter
-    this.filterForm.get('type')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('type')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         this.filterParams.type = value || undefined;
         this.filterParams.page = 1;
@@ -154,8 +182,9 @@ export class DatasetsPage implements OnInit, OnDestroy {
       });
 
     // Visibility filter
-    this.filterForm.get('isPublic')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('isPublic')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         let isPublic: boolean | undefined;
 
@@ -173,15 +202,17 @@ export class DatasetsPage implements OnInit, OnDestroy {
       });
 
     // Date range filter
-    this.filterForm.get('dateRange')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('dateRange')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         this.updateDateRangeFilter(value);
       });
 
     // Size range filter
-    this.filterForm.get('sizeRange')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
+    this.filterForm
+      .get('sizeRange')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((value: string) => {
         this.updateSizeRangeFilter(value);
       });
@@ -249,10 +280,14 @@ export class DatasetsPage implements OnInit, OnDestroy {
   }
 
   loadDatasets(): void {
+    // Skip loading if already in a loading state or deleting
+    if (this.isLoading || this.isDeleting) return;
+
     this.isLoading = true;
     this.error = null;
 
-    this.datasetService.getDatasets(this.filterParams)
+    this.datasetService
+      .getDatasets(this.filterParams)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -262,14 +297,15 @@ export class DatasetsPage implements OnInit, OnDestroy {
           this.updateVisiblePages();
         },
         error: (error) => {
+          console.error('Error loading datasets:', error);
           this.error = 'Failed to load datasets. Please try again.';
           this.alertService.showAlert({
             show: true,
             message: this.error,
-            title: 'Error'
+            title: 'Error',
           });
           this.isLoading = false;
-        }
+        },
       });
   }
 
@@ -329,7 +365,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
       type: '',
       isPublic: 'true',
       dateRange: '',
-      sizeRange: ''
+      sizeRange: '',
     });
 
     this.filterParams = {
@@ -344,13 +380,15 @@ export class DatasetsPage implements OnInit, OnDestroy {
       dateFrom: undefined,
       dateTo: undefined,
       sizeMin: undefined,
-      sizeMax: undefined
+      sizeMax: undefined,
     };
 
     this.loadDatasets();
   }
 
-  onSortChange(sortBy: 'name' | 'createdAt' | 'updatedAt' | 'documentCount'): void {
+  onSortChange(
+    sortBy: 'name' | 'createdAt' | 'updatedAt' | 'documentCount'
+  ): void {
     if (this.filterParams.sortBy === sortBy) {
       this.filterParams.sortDirection =
         this.filterParams.sortDirection === 'asc' ? 'desc' : 'asc';
@@ -377,10 +415,15 @@ export class DatasetsPage implements OnInit, OnDestroy {
   }
 
   confirmDeleteDataset(event: Event, datasetId: string): void {
+    // Stop event propagation to prevent row click
     event.stopPropagation();
 
-    this.confirmationDialogService.confirmDelete('Dataset')
-      .subscribe(confirmed => {
+    // Don't allow deletion when another delete is in progress
+    if (this.isDeleting) return;
+
+    this.confirmationDialogService
+      .confirmDelete('Dataset')
+      .subscribe((confirmed) => {
         if (confirmed) {
           this.deleteDataset(datasetId);
         }
@@ -388,24 +431,61 @@ export class DatasetsPage implements OnInit, OnDestroy {
   }
 
   private deleteDataset(datasetId: string): void {
-    this.datasetService.deleteDataset(datasetId)
+    // Set deleting state
+    this.isDeleting = true;
+
+    // Find index of dataset to be deleted for optimistic UI update
+    const datasetIndex = this.datasets.findIndex((d) => d.id === datasetId);
+
+    // Create a backup copy in case of failure
+    const deletedDataset = this.datasets[datasetIndex];
+
+    // Optimistically remove from UI
+    if (datasetIndex !== -1) {
+      this.datasets = [
+        ...this.datasets.slice(0, datasetIndex),
+        ...this.datasets.slice(datasetIndex + 1),
+      ];
+      this.totalCount = Math.max(0, this.totalCount - 1);
+      this.updateVisiblePages();
+    }
+
+    this.datasetService
+      .deleteDataset(datasetId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
+          this.isDeleting = false;
           this.alertService.showAlert({
             show: true,
             message: 'Dataset deleted successfully',
-            title: 'Success'
+            title: 'Success',
           });
+
+          // Reload datasets to ensure everything is in sync
           this.loadDatasets();
         },
         error: (error) => {
+          console.error('Error deleting dataset:', error);
+          this.isDeleting = false;
+
+          // Restore the deleted dataset in the UI
+          if (datasetIndex !== -1) {
+            this.datasets = [
+              ...this.datasets.slice(0, datasetIndex),
+              deletedDataset,
+              ...this.datasets.slice(datasetIndex),
+            ];
+            this.totalCount = this.totalCount + 1;
+            this.updateVisiblePages();
+          }
+
           this.alertService.showAlert({
             show: true,
             message: 'Failed to delete dataset. Please try again.',
-            title: 'Error'
+            title: 'Error',
           });
-        }
+        },
       });
   }
 
@@ -416,7 +496,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
       return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       }).format(date);
     } catch (e) {
       return 'Invalid date';

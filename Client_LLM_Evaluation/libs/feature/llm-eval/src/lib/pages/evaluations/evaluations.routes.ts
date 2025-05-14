@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluations.routes.ts */
 import { Routes } from '@angular/router';
 import { AuthGuard } from '@ngtx-apps/utils/services';
 
@@ -6,7 +5,7 @@ export const EVALUATIONS_ROUTES: Routes = [
   {
     path: '',
     canActivate: [AuthGuard],
-    loadComponent: () => 
+    loadComponent: () =>
       import('./evaluations.page').then((m) => m.EvaluationsPage),
   },
   {
@@ -16,7 +15,7 @@ export const EVALUATIONS_ROUTES: Routes = [
       import('./evaluation-create-edit/evaluation-create-edit.page').then(
         (m) => m.EvaluationCreateEditPage
       ),
-    data: { title: 'Create Evaluation' }
+    data: { title: 'Create Evaluation' },
   },
   {
     path: ':id',
@@ -25,7 +24,7 @@ export const EVALUATIONS_ROUTES: Routes = [
       import('./evaluation-detail/evaluation-detail.page').then(
         (m) => m.EvaluationDetailPage
       ),
-    data: { title: 'Evaluation Details' }
+    data: { title: 'Evaluation Details' },
   },
   {
     path: ':id/edit',
@@ -34,6 +33,6 @@ export const EVALUATIONS_ROUTES: Routes = [
       import('./evaluation-create-edit/evaluation-create-edit.page').then(
         (m) => m.EvaluationCreateEditPage
       ),
-    data: { title: 'Edit Evaluation' }
-  }
+    data: { title: 'Edit Evaluation' },
+  },
 ];

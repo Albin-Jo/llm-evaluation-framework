@@ -6,14 +6,14 @@ import { DatasetUploadPage } from './dataset-upload/dataset-upload.page';
 export const datasetsRoutes: Routes = [
   {
     path: '',
-    component: DatasetsPage
+    component: DatasetsPage,
   },
   {
     path: 'upload',
-    component: DatasetUploadPage
+    component: DatasetUploadPage,
   },
   {
     path: ':id',
-    component: DatasetDetailPage
-  }
+    component: DatasetDetailPage,
+  },
 ];

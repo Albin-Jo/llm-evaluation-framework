@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/prompt-detail/prompt-detail.page.html -->
 <div class="prompt-detail-container">
   <!-- Back Navigation -->
   <div class="back-navigation">
@@ -22,12 +21,10 @@
       <app-qracbutton
         label="Try Again"
         btnType="secondary"
-        (click)="loadPrompt()">
+        (click)="loadPrompt()"
+      >
       </app-qracbutton>
-      <app-qracbutton
-        label="Go Back"
-        btnType="outline"
-        (click)="goBack()">
+      <app-qracbutton label="Go Back" btnType="outline" (click)="goBack()">
       </app-qracbutton>
     </div>
   </div>
@@ -39,10 +36,15 @@
         <h1 class="detail-title">{{ prompt.name }}</h1>
         <div class="detail-badges">
           <span class="detail-badge version-badge">v{{ prompt.version }}</span>
-          <span class="detail-badge" [ngClass]="prompt.is_public ? 'public-badge' : 'private-badge'">
+          <span
+            class="detail-badge"
+            [ngClass]="prompt.is_public ? 'public-badge' : 'private-badge'"
+          >
             {{ prompt.is_public ? 'Public' : 'Private' }}
           </span>
-          <span *ngIf="prompt.template_id" class="detail-badge template-badge">Template</span>
+          <span *ngIf="prompt.template_id" class="detail-badge template-badge"
+            >Template</span
+          >
         </div>
       </div>
       <div class="header-actions">
@@ -50,13 +52,15 @@
           label="Edit"
           btnType="primary"
           [iconLeft]="'edit'"
-          (click)="editPrompt()">
+          (click)="editPrompt()"
+        >
         </app-qracbutton>
         <app-qracbutton
           label="Delete"
           btnType="danger"
           [iconLeft]="'delete'"
-          (click)="deletePrompt()">
+          (click)="deletePrompt()"
+        >
         </app-qracbutton>
       </div>
     </div>
@@ -84,10 +88,16 @@
       </div>
     </div>
 
-    <div *ngIf="prompt && prompt.parameters && hasParameters(prompt.parameters)" class="detail-section parameters-section">
+    <div
+      *ngIf="prompt && prompt.parameters && hasParameters(prompt.parameters)"
+      class="detail-section parameters-section"
+    >
       <h2 class="section-title">Parameters</h2>
       <div class="parameters-grid">
-        <div *ngFor="let param of getParameterEntries(prompt.parameters)" class="parameter-item">
+        <div
+          *ngFor="let param of getParameterEntries(prompt.parameters)"
+          class="parameter-item"
+        >
           <div class="parameter-name">{{ param.key }}</div>
           <div class="parameter-value">{{ param.value }}</div>
         </div>
@@ -97,7 +107,9 @@
     <div class="detail-section evaluations-section">
       <h2 class="section-title">Evaluations</h2>
       <div class="section-content">
-        <p *ngIf="true" class="no-evaluations">No evaluations have used this prompt yet.</p>
+        <p *ngIf="true" class="no-evaluations">
+          No evaluations have used this prompt yet.
+        </p>
         <!-- Evaluations will be listed here when available -->
       </div>
     </div>

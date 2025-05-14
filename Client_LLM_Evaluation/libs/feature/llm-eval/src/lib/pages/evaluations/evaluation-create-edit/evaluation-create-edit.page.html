@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluation-create-edit/evaluation-create-edit.page.html -->
 <div class="evaluation-create-edit-container">
   <div class="evaluation-card">
     <!-- Header -->
@@ -18,25 +17,32 @@
     </div>
 
     <!-- Form Content -->
-    <form [formGroup]="evaluationForm" (ngSubmit)="saveEvaluation()" *ngIf="!isLoading && !error">
+    <form
+      [formGroup]="evaluationForm"
+      (ngSubmit)="saveEvaluation()"
+      *ngIf="!isLoading && !error"
+    >
       <!-- Tabs Navigation -->
       <div class="tabs-container">
         <div
           class="tab"
           [class.active]="selectedTabIndex === 0"
-          (click)="selectedTabIndex = 0">
+          (click)="selectedTabIndex = 0"
+        >
           Basic Setup
         </div>
         <div
           class="tab"
           [class.active]="selectedTabIndex === 1"
-          (click)="selectedTabIndex = 1">
+          (click)="selectedTabIndex = 1"
+        >
           Advanced Settings
         </div>
         <div
           class="tab"
           [class.active]="selectedTabIndex === 2"
-          (click)="selectedTabIndex = 2">
+          (click)="selectedTabIndex = 2"
+        >
           Metrics Selection
         </div>
       </div>
@@ -53,7 +59,8 @@
                 class="form-control"
                 formControlName="name"
                 placeholder="Enter evaluation name"
-                [ngClass]="{'is-invalid': isFieldInvalid('name')}">
+                [ngClass]="{'is-invalid': isFieldInvalid('name')}"
+              />
               <div *ngIf="isFieldInvalid('name')" class="invalid-feedback">
                 {{getErrorMessage('name')}}
               </div>
@@ -66,7 +73,8 @@
                 class="form-control"
                 formControlName="description"
                 placeholder="Enter evaluation description (optional)"
-                rows="4"></textarea>
+                rows="4"
+              ></textarea>
             </div>
           </div>
 
@@ -77,9 +85,15 @@
                 id="method"
                 class="form-control"
                 formControlName="method"
-                [ngClass]="{'is-invalid': isFieldInvalid('method')}">
+                [ngClass]="{'is-invalid': isFieldInvalid('method')}"
+              >
                 <option value="">Select evaluation method</option>
-                <option *ngFor="let option of methodOptions" [value]="option.value">{{option.label}}</option>
+                <option
+                  *ngFor="let option of methodOptions"
+                  [value]="option.value"
+                >
+                  {{option.label}}
+                </option>
               </select>
               <div *ngIf="isFieldInvalid('method')" class="invalid-feedback">
                 {{getErrorMessage('method')}}
@@ -92,9 +106,15 @@
                 id="agent_id"
                 class="form-control"
                 formControlName="agent_id"
-                [ngClass]="{'is-invalid': isFieldInvalid('agent_id')}">
+                [ngClass]="{'is-invalid': isFieldInvalid('agent_id')}"
+              >
                 <option value="">Select agent</option>
-                <option *ngFor="let option of agentOptions" [value]="option.value">{{option.label}}</option>
+                <option
+                  *ngFor="let option of agentOptions"
+                  [value]="option.value"
+                >
+                  {{option.label}}
+                </option>
               </select>
               <div *ngIf="isFieldInvalid('agent_id')" class="invalid-feedback">
                 {{getErrorMessage('agent_id')}}
@@ -107,11 +127,20 @@
                 id="dataset_id"
                 class="form-control"
                 formControlName="dataset_id"
-                [ngClass]="{'is-invalid': isFieldInvalid('dataset_id')}">
+                [ngClass]="{'is-invalid': isFieldInvalid('dataset_id')}"
+              >
                 <option value="">Select dataset</option>
-                <option *ngFor="let option of datasetOptions" [value]="option.value">{{option.label}}</option>
+                <option
+                  *ngFor="let option of datasetOptions"
+                  [value]="option.value"
+                >
+                  {{option.label}}
+                </option>
               </select>
-              <div *ngIf="isFieldInvalid('dataset_id')" class="invalid-feedback">
+              <div
+                *ngIf="isFieldInvalid('dataset_id')"
+                class="invalid-feedback"
+              >
                 {{getErrorMessage('dataset_id')}}
               </div>
             </div>
@@ -122,9 +151,15 @@
                 id="prompt_id"
                 class="form-control"
                 formControlName="prompt_id"
-                [ngClass]="{'is-invalid': isFieldInvalid('prompt_id')}">
+                [ngClass]="{'is-invalid': isFieldInvalid('prompt_id')}"
+              >
                 <option value="">Select prompt template</option>
-                <option *ngFor="let option of promptOptions" [value]="option.value">{{option.label}}</option>
+                <option
+                  *ngFor="let option of promptOptions"
+                  [value]="option.value"
+                >
+                  {{option.label}}
+                </option>
               </select>
               <div *ngIf="isFieldInvalid('prompt_id')" class="invalid-feedback">
                 {{getErrorMessage('prompt_id')}}
@@ -147,8 +182,12 @@
                 formControlName="temperature"
                 min="0"
                 max="1"
-                step="0.1">
-              <p class="helper-text">Controls randomness (0-1). Lower values produce more predictable outputs.</p>
+                step="0.1"
+              />
+              <p class="helper-text">
+                Controls randomness (0-1). Lower values produce more predictable
+                outputs.
+              </p>
             </div>
 
             <div class="form-group">
@@ -160,8 +199,11 @@
                 formControlName="max_tokens"
                 min="100"
                 max="4000"
-                step="100">
-              <p class="helper-text">Maximum number of tokens to generate in the response.</p>
+                step="100"
+              />
+              <p class="helper-text">
+                Maximum number of tokens to generate in the response.
+              </p>
             </div>
           </div>
 
@@ -173,10 +215,13 @@
                   type="checkbox"
                   id="include_references"
                   formControlName="include_references"
-                  class="toggle-input">
+                  class="toggle-input"
+                />
                 <label for="include_references" class="toggle-label"></label>
               </div>
-              <p class="helper-text">Include document references with generated responses.</p>
+              <p class="helper-text">
+                Include document references with generated responses.
+              </p>
             </div>
 
             <div class="form-group toggle-group">
@@ -186,10 +231,13 @@
                   type="checkbox"
                   id="include_context"
                   formControlName="include_context"
-                  class="toggle-input">
+                  class="toggle-input"
+                />
                 <label for="include_context" class="toggle-label"></label>
               </div>
-              <p class="helper-text">Include retrieval context with generated responses.</p>
+              <p class="helper-text">
+                Include retrieval context with generated responses.
+              </p>
             </div>
 
             <!-- Additional configuration options can be added here -->
@@ -207,7 +255,9 @@
 
         <div class="section-heading">
           <h2>Evaluation Metrics</h2>
-          <p class="section-subheading">Select metrics to include in the evaluation</p>
+          <p class="section-subheading">
+            Select metrics to include in the evaluation
+          </p>
         </div>
 
         <div class="metrics-container">
@@ -217,14 +267,16 @@
               <input
                 type="checkbox"
                 [checked]="isMetricSelected(metric)"
-                (change)="toggleMetric(metric)">
+                (change)="toggleMetric(metric)"
+              />
               <span class="metric-label">{{metric}}</span>
             </label>
           </div>
 
           <!-- Show message if no metrics available -->
           <p class="empty-message" *ngIf="flatMetricsList.length === 0">
-            No metrics available for the selected dataset. Please select a dataset in the Basic Setup tab.
+            No metrics available for the selected dataset. Please select a
+            dataset in the Basic Setup tab.
           </p>
         </div>
       </div>
@@ -236,15 +288,13 @@
           *ngIf="selectedTabIndex > 0"
           type="button"
           class="outline-button"
-          (click)="selectedTabIndex = selectedTabIndex - 1">
+          (click)="selectedTabIndex = selectedTabIndex - 1"
+        >
           Back
         </button>
 
         <!-- Cancel button always visible -->
-        <button
-          type="button"
-          class="outline-button"
-          (click)="cancel()">
+        <button type="button" class="outline-button" (click)="cancel()">
           Cancel
         </button>
 
@@ -254,7 +304,8 @@
           type="button"
           class="primary-button"
           (click)="selectedTabIndex = selectedTabIndex + 1"
-          [disabled]="isNextButtonDisabled()">
+          [disabled]="isNextButtonDisabled()"
+        >
           Next
         </button>
 
@@ -263,7 +314,8 @@
           *ngIf="selectedTabIndex === 2"
           type="submit"
           class="primary-button"
-          [disabled]="isSaveButtonDisabled()">
+          [disabled]="isSaveButtonDisabled()"
+        >
           <span *ngIf="isSaving" class="spinner-sm"></span>
           {{ isEditMode ? 'Update' : 'Create' }}
         </button>

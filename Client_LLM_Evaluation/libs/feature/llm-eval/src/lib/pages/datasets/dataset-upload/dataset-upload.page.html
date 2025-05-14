@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/dataset-upload/dataset-upload.page.html -->
 <div class="upload-page-container">
   <!-- Back Navigation -->
   <div class="back-navigation">
@@ -10,12 +9,16 @@
 
   <!-- Page Header -->
   <div class="page-header">
-    <h1 class="page-title">{{ existingDatasetId ? 'Add Document to Dataset' : 'Create New Dataset' }}</h1>
+    <h1 class="page-title">
+      {{ existingDatasetId ? 'Add Document to Dataset' : 'Create New Dataset' }}
+    </h1>
 
     <div class="page-header-actions">
       <p class="page-description">
-        {{ existingDatasetId ? 'Upload additional document to your existing dataset.' : 'Upload a document file to create a new dataset for RAG evaluation.' }}
-        Supported file formats: PDF, TXT, DOCX, CSV, JSON, JSONL.
+        {{ existingDatasetId ? 'Upload additional document to your existing
+        dataset.' : 'Upload a document file to create a new dataset for RAG
+        evaluation.' }} Supported file formats: PDF, TXT, DOCX, CSV, JSON,
+        JSONL.
       </p>
 
       <div class="header-buttons">
@@ -23,14 +26,16 @@
           type="button"
           class="outline-button"
           (click)="cancel($event)"
-          [disabled]="isUploading">
+          [disabled]="isUploading"
+        >
           Cancel
         </button>
         <button
           type="submit"
           class="primary-button"
           [disabled]="(uploadForm.invalid && !existingDatasetId) || isUploading || selectedFiles.length === 0 || !hasValidFiles()"
-          (click)="onSubmit()">
+          (click)="onSubmit()"
+        >
           {{ existingDatasetId ? 'Add Document' : 'Create Dataset' }}
         </button>
       </div>
@@ -60,19 +65,24 @@
             formControlName="name"
             class="form-input"
             placeholder="Enter dataset name"
-            [class.is-invalid]="nameControl?.invalid && nameControl?.touched">
-          <div *ngIf="nameControl?.invalid && nameControl?.touched" class="error-message">
-            <span *ngIf="nameControl?.errors?.['required']">Name is required</span>
-            <span *ngIf="nameControl?.errors?.['maxlength']">Name cannot exceed 100 characters</span>
+            [class.is-invalid]="nameControl?.invalid && nameControl?.touched"
+          />
+          <div
+            *ngIf="nameControl?.invalid && nameControl?.touched"
+            class="error-message"
+          >
+            <span *ngIf="nameControl?.errors?.['required']"
+              >Name is required</span
+            >
+            <span *ngIf="nameControl?.errors?.['maxlength']"
+              >Name cannot exceed 100 characters</span
+            >
           </div>
         </div>
 
         <div class="form-group">
           <label for="type" class="form-label required">Dataset Type</label>
-          <select
-            id="type"
-            formControlName="type"
-            class="form-select">
+          <select id="type" formControlName="type" class="form-select">
             <option value="question_answer">Question Answer</option>
             <option value="user_query">User Query</option>
             <option value="reference">Reference</option>
@@ -88,8 +98,12 @@
             formControlName="description"
             class="form-textarea"
             placeholder="Enter dataset description (optional)"
-            rows="3"></textarea>
-          <div *ngIf="descriptionControl?.invalid && descriptionControl?.touched" class="error-message">
+            rows="3"
+          ></textarea>
+          <div
+            *ngIf="descriptionControl?.invalid && descriptionControl?.touched"
+            class="error-message"
+          >
             <span *ngIf="descriptionControl?.errors?.['maxlength']">
               Description cannot exceed 500 characters
             </span>
@@ -103,29 +117,39 @@
 
         <div class="form-group">
           <!-- File Upload Area -->
-          <div class="file-upload-area"
-               [class.drag-over]="isDragging"
-               (dragover)="onDragOver($event)"
-               (dragleave)="onDragLeave($event)"
-               (drop)="onFileDrop($event)">
+          <div
+            class="file-upload-area"
+            [class.drag-over]="isDragging"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onFileDrop($event)"
+          >
             <input
               type="file"
               id="file-upload"
               class="file-input"
               (change)="onFileSelected($event)"
               #fileInput
-              accept=".pdf,.txt,.csv,.docx,.json,.jsonl">
+              accept=".pdf,.txt,.csv,.docx,.json,.jsonl"
+            />
             <div class="upload-content">
               <div class="upload-icon">📄</div>
               <p class="upload-text">Drag and drop a file here or</p>
-              <button type="button" class="browse-button" (click)="openFileSelector()">
+              <button
+                type="button"
+                class="browse-button"
+                (click)="openFileSelector()"
+              >
                 Browse Files
               </button>
               <p class="upload-hint">Maximum file size: 50MB</p>
             </div>
           </div>
 
-          <div *ngIf="filesControl?.invalid && filesControl?.touched" class="error-message">
+          <div
+            *ngIf="filesControl?.invalid && filesControl?.touched"
+            class="error-message"
+          >
             <span *ngIf="filesControl?.errors?.['required']">
               A file is required
             </span>
@@ -135,22 +159,35 @@
           <div class="selected-files" *ngIf="selectedFiles.length > 0">
             <h3 class="selected-files-title">Selected File</h3>
             <ul class="file-list">
-              <li *ngFor="let file of selectedFiles; let i = index" class="file-item">
+              <li
+                *ngFor="let file of selectedFiles; let i = index"
+                class="file-item"
+              >
                 <div class="file-info">
                   <div class="file-icon" [ngClass]="getFileIconClass(file)">
                     {{ getFileIconText(file) }}
                   </div>
                   <div class="file-details">
                     <span class="file-name">{{ file.name }}</span>
-                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                    <span class="file-size"
+                      >{{ formatFileSize(file.size) }}</span
+                    >
                   </div>
                 </div>
                 <div class="file-actions">
                   <div class="file-validation">
-                    <span *ngIf="isValidFile(file)" class="valid-file">Valid</span>
-                    <span *ngIf="!isValidFile(file)" class="invalid-file">Invalid file type</span>
+                    <span *ngIf="isValidFile(file)" class="valid-file"
+                      >Valid</span
+                    >
+                    <span *ngIf="!isValidFile(file)" class="invalid-file"
+                      >Invalid file type</span
+                    >
                   </div>
-                  <button class="remove-file-button" (click)="removeFile(i)" type="button">
+                  <button
+                    class="remove-file-button"
+                    (click)="removeFile(i)"
+                    type="button"
+                  >
                     Remove
                   </button>
                 </div>
@@ -166,7 +203,8 @@
               type="button"
               class="tag-button"
               [class.active]="selectedTags.includes(tag)"
-              (click)="toggleTag(tag)">
+              (click)="toggleTag(tag)"
+            >
               {{ tag }}
             </button>
           </div>
@@ -181,7 +219,8 @@
       <div class="result-icon success-icon">✓</div>
       <h2 class="result-title">Upload Completed!</h2>
       <p class="result-message">
-        {{ existingDatasetId ? 'Document has been added to your dataset.' : 'Your new dataset has been created.' }}
+        {{ existingDatasetId ? 'Document has been added to your dataset.' :
+        'Your new dataset has been created.' }}
       </p>
       <div class="result-actions">
         <button class="primary-button" (click)="viewDataset()">
@@ -197,12 +236,11 @@
       <div class="result-icon error-icon">!</div>
       <h2 class="result-title">Upload Failed</h2>
       <p class="result-message">
-        {{ errorMessage || 'There was an error uploading your file. Please try again.' }}
+        {{ errorMessage || 'There was an error uploading your file. Please try
+        again.' }}
       </p>
       <div class="result-actions">
-        <button class="outline-button" (click)="dismissError()">
-          Dismiss
-        </button>
+        <button class="outline-button" (click)="dismissError()">Dismiss</button>
         <button class="primary-button" (click)="retryUpload()">
           Try Again
         </button>

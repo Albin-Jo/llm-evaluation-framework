@@ -2,7 +2,10 @@
   <div class="header-section">
     <div class="title-section">
       <h1 class="page-title">Agents</h1>
-      <p class="page-description">Manage LLM agents for RAG evaluation. Configure different AI models and settings to test your retrieval-augmented generation system.</p>
+      <p class="page-description">
+        Manage LLM agents for RAG evaluation. Configure different AI models and
+        settings to test your retrieval-augmented generation system.
+      </p>
     </div>
     <div class="action-section">
       <button class="create-button" (click)="createNewAgent($event)">
@@ -20,7 +23,8 @@
             [controlName]="'search'"
             formControlName="search"
             [placeholder]="'Search agents by name'"
-            [size]="'small'">
+            [size]="'small'"
+          >
           </qrac-textbox>
         </div>
 
@@ -29,7 +33,8 @@
             <qrac-select
               [controlName]="'status'"
               formControlName="status"
-              [options]="statusOptions">
+              [options]="statusOptions"
+            >
             </qrac-select>
           </div>
 
@@ -37,7 +42,8 @@
             <qrac-select
               [controlName]="'domain'"
               formControlName="domain"
-              [options]="domainOptions">
+              [options]="domainOptions"
+            >
             </qrac-select>
           </div>
 
@@ -45,7 +51,8 @@
             <qrac-select
               [controlName]="'integration_type'"
               formControlName="integration_type"
-              [options]="integrationOptions">
+              [options]="integrationOptions"
+            >
             </qrac-select>
           </div>
         </div>
@@ -72,7 +79,10 @@
     </div>
 
     <!-- No Results State -->
-    <div *ngIf="!isLoading && agents.length === 0 && !error" class="no-results-container">
+    <div
+      *ngIf="!isLoading && agents.length === 0 && !error"
+      class="no-results-container"
+    >
       <div class="no-results-icon">🤖</div>
       <h3>No agents found</h3>
       <p>Create a new agent or adjust your filters</p>
@@ -89,7 +99,10 @@
             <th class="name-col sortable" (click)="onSortChange('name')">
               <span class="th-content">
                 Name
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'name'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'name'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -98,7 +111,10 @@
             <th class="domain-col sortable" (click)="onSortChange('domain')">
               <span class="th-content">
                 Domain
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'domain'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'domain'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -107,7 +123,10 @@
             <th class="date-col sortable" (click)="onSortChange('created_at')">
               <span class="th-content">
                 Created
-                <span class="sort-indicator" *ngIf="filterParams.sortBy === 'created_at'">
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'created_at'"
+                >
                   {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
                 </span>
               </span>
@@ -117,34 +136,49 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let agent of agents" class="agent-row" (click)="onAgentClick(agent)">
+          <tr
+            *ngFor="let agent of agents"
+            class="agent-row"
+            (click)="onAgentClick(agent)"
+          >
             <td class="name-col">{{ agent.name }}</td>
-            <td class="description-col">{{ truncateText(agent.description, 80) }}</td>
+            <td class="description-col">
+              {{ truncateText(agent.description, 80) }}
+            </td>
             <td class="domain-col">
               <span class="domain-badge">{{ agent.domain }}</span>
             </td>
             <td class="model-col">{{ agent.integration_type || 'N/A' }}</td>
             <td class="date-col">{{ formatDate(agent.created_at) }}</td>
             <td class="status-col">
-              <span class="status-badge" [ngClass]="agent.is_active ? 'active' : 'inactive'">
+              <span
+                class="status-badge"
+                [ngClass]="agent.is_active ? 'active' : 'inactive'"
+              >
                 {{ getStatusLabel(agent.is_active) }}
               </span>
             </td>
             <td class="actions-col">
               <div class="action-buttons">
-                <button class="action-button test-button"
+                <button
+                  class="action-button test-button"
                   title="Test agent"
-                  (click)="onTestAgent($event, agent.id)">
+                  (click)="onTestAgent($event, agent.id)"
+                >
                   Test
                 </button>
-                <button class="action-button edit-button"
+                <button
+                  class="action-button edit-button"
                   title="Edit agent"
-                  (click)="onEditAgent($event, agent.id)">
+                  (click)="onEditAgent($event, agent.id)"
+                >
                   Edit
                 </button>
-                <button class="action-button delete-button"
+                <button
+                  class="action-button delete-button"
                   title="Delete agent"
-                  (click)="confirmDeleteAgent($event, agent.id)">
+                  (click)="confirmDeleteAgent($event, agent.id)"
+                >
                   Del
                 </button>
               </div>
@@ -155,16 +189,21 @@
     </div>
 
     <!-- Pagination -->
-    <div *ngIf="agents.length > 0 && totalCount > itemsPerPage" class="pagination-container">
+    <div
+      *ngIf="agents.length > 0 && totalCount > itemsPerPage"
+      class="pagination-container"
+    >
       <div class="pagination-info">
-        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to
-        {{ Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{ totalCount }} agents
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to {{
+        Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{
+        totalCount }} agents
       </div>
       <div class="pagination-controls">
         <button
           class="pagination-button"
           [disabled]="filterParams.page === 1"
-          (click)="onPageChange(filterParams.page! - 1, $event)">
+          (click)="onPageChange(filterParams.page! - 1, $event)"
+        >
           Previous
         </button>
 
@@ -175,7 +214,8 @@
               *ngIf="page > 0"
               class="page-button"
               [class.active]="page === filterParams.page"
-              (click)="onPageChange(page, $event)">
+              (click)="onPageChange(page, $event)"
+            >
               {{ page }}
             </button>
           </ng-container>
@@ -184,7 +224,8 @@
         <button
           class="pagination-button"
           [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
-          (click)="onPageChange(filterParams.page! + 1, $event)">
+          (click)="onPageChange(filterParams.page! + 1, $event)"
+        >
           Next
         </button>
       </div>

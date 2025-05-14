@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/prompts/prompt-create-edit/prompt-create-edit.page.html -->
 <div class="prompt-form-container">
   <div class="page-header">
     <div class="back-navigation">
@@ -9,7 +8,8 @@
     </div>
     <h1 class="page-title">{{ pageTitle }}</h1>
     <p class="page-description">
-      {{ isEditMode ? 'Edit your existing prompt template' : 'Create a new prompt template for your LLM evaluations' }}
+      {{ isEditMode ? 'Edit your existing prompt template' : 'Create a new
+      prompt template for your LLM evaluations' }}
     </p>
   </div>
 
@@ -24,17 +24,24 @@
     <div class="error-icon">❌</div>
     <p>{{ error }}</p>
     <div class="error-actions">
-      <button *ngIf="isEditMode" class="secondary-button" (click)="loadPromptData()">
+      <button
+        *ngIf="isEditMode"
+        class="secondary-button"
+        (click)="loadPromptData()"
+      >
         Try Again
       </button>
-      <button class="outline-button" (click)="cancel()">
-        Cancel
-      </button>
+      <button class="outline-button" (click)="cancel()">Cancel</button>
     </div>
   </div>
 
   <!-- Form Content -->
-  <form *ngIf="!isLoading && !error" [formGroup]="promptForm" (ngSubmit)="savePrompt()" class="prompt-form">
+  <form
+    *ngIf="!isLoading && !error"
+    [formGroup]="promptForm"
+    (ngSubmit)="savePrompt()"
+    class="prompt-form"
+  >
     <div class="form-card">
       <h2 class="card-title">Basic Information</h2>
 
@@ -46,10 +53,15 @@
           class="form-control"
           formControlName="name"
           [class.is-invalid]="isFieldInvalid('name')"
-          placeholder="Enter prompt name">
+          placeholder="Enter prompt name"
+        />
         <div *ngIf="isFieldInvalid('name')" class="error-message">
-          <span *ngIf="promptForm.get('name')?.hasError('required')">Prompt name is required</span>
-          <span *ngIf="promptForm.get('name')?.hasError('maxlength')">Name cannot exceed 255 characters</span>
+          <span *ngIf="promptForm.get('name')?.hasError('required')"
+            >Prompt name is required</span
+          >
+          <span *ngIf="promptForm.get('name')?.hasError('maxlength')"
+            >Name cannot exceed 255 characters</span
+          >
         </div>
       </div>
 
@@ -60,7 +72,8 @@
           class="form-control textarea"
           formControlName="description"
           placeholder="Add a description for this prompt..."
-          rows="3"></textarea>
+          rows="3"
+        ></textarea>
       </div>
 
       <div class="form-row">
@@ -71,18 +84,21 @@
             type="text"
             class="form-control"
             formControlName="version"
-            placeholder="1.0.0">
+            placeholder="1.0.0"
+          />
           <div class="help-text">Semantic versioning (e.g., 1.0.0)</div>
         </div>
 
         <div class="form-group half-width checkbox-group">
           <div class="toggle-container">
             <label class="toggle-label">
-              <input type="checkbox" formControlName="is_public">
+              <input type="checkbox" formControlName="is_public" />
               <span class="toggle-text">Make Public</span>
             </label>
           </div>
-          <div class="help-text">Public prompts can be used by other users in their evaluations</div>
+          <div class="help-text">
+            Public prompts can be used by other users in their evaluations
+          </div>
         </div>
       </div>
     </div>
@@ -90,7 +106,8 @@
     <div class="form-card">
       <h2 class="card-title">Prompt Content</h2>
       <p class="card-description">
-        Write your prompt template. Use variables like <code>{{ "{variable_name}" }}</code> for dynamic content.
+        Write your prompt template. Use variables like
+        <code>{{ "{variable_name}" }}</code> for dynamic content.
       </p>
 
       <div class="form-group">
@@ -101,7 +118,8 @@
           formControlName="content"
           [class.is-invalid]="isFieldInvalid('content')"
           placeholder="Enter your prompt template here..."
-          rows="8"></textarea>
+          rows="8"
+        ></textarea>
         <div *ngIf="isFieldInvalid('content')" class="error-message">
           Prompt content is required
         </div>
@@ -124,7 +142,11 @@
           No parameters defined. Click "Add Parameter" to add one.
         </div>
 
-        <div *ngFor="let key of parameterKeys; let i = index" class="parameter-item" [formGroupName]="key">
+        <div
+          *ngFor="let key of parameterKeys; let i = index"
+          class="parameter-item"
+          [formGroupName]="key"
+        >
           <div class="parameter-fields">
             <div class="param-key-field">
               <label class="parameter-label">Parameter Name</label>
@@ -133,8 +155,12 @@
                 class="form-control"
                 formControlName="name"
                 placeholder="Enter parameter name"
-                [class.is-invalid]="isParameterFieldInvalid(key, 'name')">
-              <div *ngIf="isParameterFieldInvalid(key, 'name')" class="error-message">
+                [class.is-invalid]="isParameterFieldInvalid(key, 'name')"
+              />
+              <div
+                *ngIf="isParameterFieldInvalid(key, 'name')"
+                class="error-message"
+              >
                 Parameter name is required
               </div>
             </div>
@@ -144,13 +170,15 @@
                 type="text"
                 class="form-control"
                 formControlName="value"
-                placeholder="Enter default value">
+                placeholder="Enter default value"
+              />
             </div>
           </div>
           <button
             type="button"
             class="remove-param-button"
-            (click)="removeParameter(key)">
+            (click)="removeParameter(key)"
+          >
             ✕
           </button>
         </div>
@@ -158,16 +186,14 @@
     </div>
 
     <div class="form-actions">
-      <button
-        type="button"
-        class="outline-button"
-        (click)="cancel()">
+      <button type="button" class="outline-button" (click)="cancel()">
         Cancel
       </button>
       <button
         type="submit"
         class="primary-button"
-        [disabled]="promptForm.invalid || isSaving">
+        [disabled]="promptForm.invalid || isSaving"
+      >
         <span *ngIf="isSaving" class="spinner-sm"></span>
         {{ isEditMode ? 'Save Changes' : 'Create Prompt' }}
       </button>
