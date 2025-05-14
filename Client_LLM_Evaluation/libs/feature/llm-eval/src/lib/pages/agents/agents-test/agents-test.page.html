@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-test/agents-test.page.html -->
 <div class="agent-test-container">
   <!-- Header Section -->
   <div class="test-header">
@@ -44,10 +43,10 @@
         <h3>Agent Test Conversation</h3>
       </div>
 
-      <div class="chat-messages" *ngIf="quickTestQuery && testResult">
+      <div class="chat-messages" *ngIf="testQuery && testResult">
         <!-- User Message -->
         <div class="user-message">
-          <div class="message-content">{{ quickTestQuery }}</div>
+          <div class="message-content">{{ testQuery }}</div>
           <div class="message-meta">User Query</div>
         </div>
 
@@ -55,7 +54,7 @@
         <div class="agent-message">
           <div class="message-content">{{ getResponseText() }}</div>
           <div class="message-meta" *ngIf="testSuccess">
-            Response time: {{ testResult?.processing_time_ms || testResult?.time || 'N/A' }}ms
+            Response time: {{ testResult['processing_time_ms'] || testResult['time'] || 'N/A' }}ms
           </div>
         </div>
 
@@ -63,15 +62,15 @@
         <div class="response-details">
           <h4>Response Details:</h4>
           <p>Status: {{ testSuccess ? 'Success' : 'Error' }}
-            <span *ngIf="testResult?.tool">| Source: {{ testResult?.tool }}</span>
-            <span *ngIf="testResult?.tokens">| Tokens: {{ testResult?.tokens }}</span>
-            <span *ngIf="testResult?.processing_time_ms">| Processing Time: {{ testResult?.processing_time_ms }}ms</span>
+            <span *ngIf="testResult['tool']">| Source: {{ testResult['tool'] }}</span>
+            <span *ngIf="testResult['tokens']">| Tokens: {{ testResult['tokens'] }}</span>
+            <span *ngIf="testResult['processing_time_ms']">| Processing Time: {{ testResult['processing_time_ms'] }}ms</span>
           </p>
         </div>
       </div>
 
       <!-- Empty State -->
-      <div class="empty-state" *ngIf="!quickTestQuery || !testResult">
+      <div class="empty-state" *ngIf="!testQuery || !testResult">
         <div class="empty-icon">💬</div>
         <h3>No conversation yet</h3>
         <p>Enter a query below to test the agent</p>
@@ -83,14 +82,14 @@
       <input
         type="text"
         class="query-input"
-        [(ngModel)]="quickTestQuery"
+        [(ngModel)]="testQuery"
         placeholder="Type a test query..."
-        (keyup.enter)="runQuickTest()"
+        (keyup.enter)="runTest()"
       />
       <button
         class="send-button"
-        [disabled]="!quickTestQuery || isRunningTest"
-        (click)="runQuickTest()">
+        [disabled]="!testQuery || isRunningTest"
+        (click)="runTest()">
         <span *ngIf="isRunningTest" class="spinner-sm"></span>
         {{ isRunningTest ? 'Sending...' : 'Send' }}
       </button>

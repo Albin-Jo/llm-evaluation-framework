@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-test/agents-test.page.scss */
 @import '../../../../../../../styles/variables';
 @import '../../../../../../../styles/mixins';
 
@@ -90,7 +89,7 @@
   flex-direction: column;
   gap: $spacing-4;
   height: calc(100vh - 220px);
-  min-height: 500px;
+  min-height: 200px;
 }
 
 .chat-container {
@@ -99,6 +98,7 @@
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  max-height: 400px;
 
   .chat-header {
     padding: $spacing-3 $spacing-6;

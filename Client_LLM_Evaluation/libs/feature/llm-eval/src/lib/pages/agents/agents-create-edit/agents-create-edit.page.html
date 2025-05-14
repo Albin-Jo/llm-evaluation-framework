@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-create-edit/agents-create-edit.page.html -->
 <div class="agent-create-edit-container">
   <!-- Back Navigation -->
   <div class="back-navigation">
@@ -35,21 +34,21 @@
     <form *ngIf="!isLoading && !error" [formGroup]="agentForm" (ngSubmit)="onSubmit()" class="agent-form">
       <!-- Tabs Navigation -->
       <div class="tabs-container">
-        <div 
-          class="tab" 
-          [class.active]="selectedTabIndex === 0" 
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 0"
           (click)="selectTab(0)">
           Basic Information
         </div>
-        <div 
-          class="tab" 
-          [class.active]="selectedTabIndex === 1" 
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 1"
           (click)="selectTab(1)">
           API Configuration
         </div>
-        <div 
-          class="tab" 
-          [class.active]="selectedTabIndex === 2" 
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 2"
           (click)="selectTab(2)">
           Advanced Settings
         </div>
@@ -290,10 +289,10 @@
       <!-- Form Actions -->
       <div class="form-actions">
         <!-- Show Back button on API Configuration and Advanced Settings tabs -->
-        <button 
-          *ngIf="selectedTabIndex > 0" 
-          type="button" 
-          class="outline-button" 
+        <button
+          *ngIf="selectedTabIndex > 0"
+          type="button"
+          class="outline-button"
           (click)="selectedTabIndex = selectedTabIndex - 1">
           Back
         </button>
@@ -304,20 +303,20 @@
         </button>
 
         <!-- Next button on tabs 0 and 1 -->
-        <button 
-          *ngIf="selectedTabIndex < 2" 
-          type="button" 
-          class="primary-button" 
+        <button
+          *ngIf="selectedTabIndex < 2"
+          type="button"
+          class="primary-button"
           (click)="selectedTabIndex = selectedTabIndex + 1"
           [disabled]="isTabInvalid(selectedTabIndex)">
           Next
         </button>
 
         <!-- Save button on the final tab -->
-        <button 
-          *ngIf="selectedTabIndex === 2" 
-          type="submit" 
-          class="primary-button" 
+        <button
+          *ngIf="selectedTabIndex === 2"
+          type="submit"
+          class="primary-button"
           [disabled]="isSubmitting || agentForm.invalid || hasJsonErrors()">
           <span *ngIf="isSubmitting" class="spinner-sm"></span>
           {{ isEditMode ? 'Update Agent' : 'Create Agent' }}

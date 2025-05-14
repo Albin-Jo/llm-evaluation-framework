@@ -1,3 +1,4 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/datasets/datasets.page.html -->
 <div class="datasets-container">
   <div class="header-section">
     <div class="title-section">
@@ -5,7 +6,7 @@
       <p class="page-description">Manage RAG evaluation datasets. Upload and organize your documents to create comprehensive test sets for evaluating retrieval quality and accuracy.</p>
     </div>
     <div class="action-section">
-      <button class="create-button" (click)="createNewDataset($event)" aria-label="Create new dataset">
+      <button class="create-button" (click)="createNewDataset($event)">
         <span class="button-icon">+</span> Create New Dataset
       </button>
     </div>
@@ -14,94 +15,64 @@
   <div class="datasets-content">
     <!-- Filters Section -->
     <div class="filters-section">
-      <div class="filters-wrapper">
-        <!-- Main filters using the filter component -->
-        <app-dataset-filters
-          [statusOptions]="statusOptions"
-          (filterChange)="onFilterChange($event)"
-          (searchChange)="onSearchChange($event)">
-        </app-dataset-filters>
-
-        <!-- View toggles -->
-        <div class="view-toggle">
-          <button
-            class="toggle-button"
-            [class.active]="viewMode === 'table'"
-            (click)="viewMode = 'table'"
-            aria-label="Table view"
-            title="Table view">
-            <span class="toggle-icon">☰</span>
-          </button>
-          <button
-            class="toggle-button"
-            [class.active]="viewMode === 'grid'"
-            (click)="viewMode = 'grid'"
-            aria-label="Grid view"
-            title="Grid view">
-            <span class="toggle-icon">▦</span>
-          </button>
+      <form [formGroup]="filterForm" class="filters-form">
+        <div class="search-field">
+          <qrac-textbox
+            [controlName]="'search'"
+            formControlName="search"
+            [placeholder]="'Search datasets by name'"
+            [size]="'small'">
+          </qrac-textbox>
         </div>
 
-        <!-- Legacy form filters as fallback -->
-        <form *ngIf="false" [formGroup]="filterForm" class="filters-form">
-          <div class="search-field">
-            <qrac-textbox
-              [controlName]="'search'"
-              formControlName="search"
-              [placeholder]="'Search datasets by name'"
-              [size]="'small'">
-            </qrac-textbox>
+        <div class="filter-fields">
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'status'"
+              formControlName="status"
+              [options]="statusOptions">
+            </qrac-select>
           </div>
 
-          <div class="filter-fields">
-            <div class="filter-field">
-              <qrac-select
-                [controlName]="'status'"
-                formControlName="status"
-                [options]="statusOptions">
-              </qrac-select>
-            </div>
-
-            <div class="filter-field">
-              <qrac-select
-                [controlName]="'type'"
-                formControlName="type"
-                [options]="formatOptions">
-              </qrac-select>
-            </div>
-
-            <div class="filter-field">
-              <qrac-select
-                [controlName]="'dateRange'"
-                formControlName="dateRange"
-                [options]="dateRangeOptions">
-              </qrac-select>
-            </div>
-
-            <div class="filter-field">
-              <qrac-select
-                [controlName]="'sizeRange'"
-                formControlName="sizeRange"
-                [options]="sizeRangeOptions">
-              </qrac-select>
-            </div>
-
-            <div class="filter-field">
-              <qrac-select
-                [controlName]="'isPublic'"
-                formControlName="isPublic"
-                [options]="visibilityOptions">
-              </qrac-select>
-            </div>
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'type'"
+              formControlName="type"
+              [options]="formatOptions">
+            </qrac-select>
           </div>
 
-          <div class="filter-actions">
-            <button class="clear-button" type="button" (click)="clearFilters()">
-              Clear Filters
-            </button>
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'dateRange'"
+              formControlName="dateRange"
+              [options]="dateRangeOptions">
+            </qrac-select>
           </div>
-        </form>
-      </div>
+
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'sizeRange'"
+              formControlName="sizeRange"
+              [options]="sizeRangeOptions">
+            </qrac-select>
+          </div>
+
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'isPublic'"
+              formControlName="isPublic"
+              [options]="visibilityOptions">
+            </qrac-select>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button class="clear-button" type="button" (click)="clearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </form>
     </div>
 
     <!-- Loading State -->
@@ -127,8 +98,8 @@
       </button>
     </div>
 
-    <!-- Table View -->
-    <div *ngIf="datasets.length > 0 && !isLoading && viewMode === 'table'" class="datasets-list">
+    <!-- Datasets List View -->
+    <div *ngIf="datasets.length > 0 && !isLoading" class="datasets-list">
       <table class="datasets-table">
         <thead>
           <tr>
@@ -178,31 +149,19 @@
               <div class="action-buttons">
                 <button class="action-button edit-button"
                   title="Edit dataset"
-                  (click)="onEditDataset($event, dataset.id)"
-                  aria-label="Edit dataset">
+                  (click)="onEditDataset($event, dataset.id)">
                   Edit
                 </button>
                 <button class="action-button delete-button"
                   title="Delete dataset"
-                  (click)="confirmDeleteDataset($event, dataset.id)"
-                  aria-label="Delete dataset">
-                  Delete
+                  (click)="confirmDeleteDataset($event, dataset.id)">
+                  Del
                 </button>
               </div>
             </td>
           </tr>
         </tbody>
       </table>
-    </div>
-
-    <!-- Grid View -->
-    <div *ngIf="datasets.length > 0 && !isLoading && viewMode === 'grid'" class="datasets-grid">
-      <app-dataset-card
-        *ngFor="let dataset of datasets"
-        [dataset]="dataset"
-        (delete)="confirmDeleteDataset($event, dataset.id)"
-        (click)="onDatasetClick(dataset)">
-      </app-dataset-card>
     </div>
 
     <!-- Pagination -->
@@ -215,8 +174,7 @@
         <button
           class="pagination-button"
           [disabled]="filterParams.page === 1"
-          (click)="onPageChange(filterParams.page! - 1, $event)"
-          aria-label="Previous page">
+          (click)="onPageChange(filterParams.page! - 1, $event)">
           Previous
         </button>
 
@@ -227,8 +185,7 @@
               *ngIf="page > 0"
               class="page-button"
               [class.active]="page === filterParams.page"
-              (click)="onPageChange(page, $event)"
-              aria-label="Page {{ page }}">
+              (click)="onPageChange(page, $event)">
               {{ page }}
             </button>
           </ng-container>
@@ -237,8 +194,7 @@
         <button
           class="pagination-button"
           [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
-          (click)="onPageChange(filterParams.page! + 1, $event)"
-          aria-label="Next page">
+          (click)="onPageChange(filterParams.page! + 1, $event)">
           Next
         </button>
       </div>

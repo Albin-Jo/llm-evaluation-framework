@@ -1,4 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/agents/agents-detail/agents-detail.page.html -->
 <div class="agent-detail-container">
    <!-- Header Section -->
    <div class="header-section">
@@ -26,7 +25,7 @@
             Edit Agent
             </button>
             <button class="action-button test-button" (click)="onTestClick()">
-            Test Agent
+            Chat
             </button>
             <button class="action-button delete-button" (click)="onDeleteClick()">
             Delete Agent
@@ -44,12 +43,12 @@
       <div class="error-icon">❌</div>
       <p>{{ error }}</p>
       <qrac-button
-      *ngIf="agentId"
-      label="Try Again"
-      type="secondary"
-      (buttonClick)="loadAgent(agentId)">
+        *ngIf="agentId"
+        label="Try Again"
+        type="secondary"
+        (buttonClick)="fetchAgent(agentId)">
       </qrac-button>
-   </div>
+    </div>
    <!-- Agent Details -->
    <div *ngIf="agent && !isLoading" class="agent-details">
       <!-- Basic Information Card -->
@@ -205,37 +204,36 @@
             <!-- Tools List -->
             <div *ngIf="agentTools && !isLoadingTools && !toolsError" class="tools-container">
                <div *ngIf="agentTools.tools && agentTools.tools.length > 0" class="tools-list">
-                  <div *ngFor="let tool of agentTools.tools" class="tool-item">
-                     <div class="tool-header">
-                        <h3 class="tool-name">{{ tool.name }}</h3>
-                     </div>
-                     <p class="tool-description">{{ tool.description || 'No description available' }}</p>
-                     <div *ngIf="tool.parameters && !isEmptyObject(tool.parameters)" class="tool-parameters">
-                        <h4 class="parameters-title">Parameters:</h4>
-                        <app-simple-json-viewer [json]="tool.parameters"></app-simple-json-viewer>
-                     </div>
-                     <div *ngIf="tool.returns && !isEmptyObject(tool.returns)" class="tool-returns">
-                        <h4 class="returns-title">Returns:</h4>
-                        <app-simple-json-viewer [json]="tool.returns"></app-simple-json-viewer>
-                     </div>
-                     <div *ngIf="tool.required_parameters && tool.required_parameters.length > 0" class="required-parameters">
-                        <h4 class="parameters-title">Required Parameters:</h4>
-                        <ul class="parameters-list">
-                           <li *ngFor="let param of tool.required_parameters">{{ param }}</li>
-                        </ul>
-                     </div>
-                  </div>
+                 <div *ngFor="let tool of agentTools.tools" class="tool-item">
+                   <div class="tool-header">
+                     <h3 class="tool-name">{{ tool.name }}</h3>
+                   </div>
+                   <p class="tool-description">{{ tool.description || 'No description available' }}</p>
+
+                   <div *ngIf="tool.parameters && !isEmptyObject(tool.parameters)" class="tool-parameters">
+                     <h4 class="parameters-title">Parameters:</h4>
+                     <app-simple-json-viewer [json]="tool.parameters"></app-simple-json-viewer>
+                   </div>
+
+                   <div *ngIf="tool.required_parameters && tool.required_parameters.length > 0" class="required-parameters">
+                     <h4 class="parameters-title">Required Parameters:</h4>
+                     <ul class="parameters-list">
+                       <li *ngFor="let param of tool.required_parameters">{{ param }}</li>
+                     </ul>
+                   </div>
+                 </div>
                </div>
+
                <div *ngIf="!agentTools.tools || agentTools.tools.length === 0" class="empty-tools">
-                  <p>No tools available for this agent.</p>
+                 <p>No tools available for this agent.</p>
                </div>
-            </div>
+             </div>
          </div>
       </div>
       <!-- Quick Test Card -->
       <div class="detail-card quick-test-card">
          <div class="card-header">
-            <h2 class="card-title">Quick Test</h2>
+            <h2 class="card-title">Quick Chat</h2>
          </div>
          <div class="card-content expanded">
             <div class="quick-test-form">
@@ -253,12 +251,12 @@
                [disabled]="!quickTestQuery || isRunningTest"
                (click)="runQuickTest()">
                <span *ngIf="isRunningTest" class="spinner-sm"></span>
-               {{ isRunningTest ? 'Running...' : 'Run Test' }}
+               {{ isRunningTest ? 'Sending...' : 'Send' }}
                </button>
             </div>
             <div *ngIf="quickTestResult" class="quick-test-result">
                <div class="result-header">
-                  <h3 class="result-title">Test Result</h3>
+                  <h3 class="result-title">Response</h3>
                   <span class="result-status" [ngClass]="testSuccess ? 'success' : 'error'">
                   {{ testSuccess ? 'Success' : 'Error' }}
                   </span>

@@ -35,6 +35,7 @@ export interface EvaluationCreate {
   agent_id: string;
   dataset_id: string;
   prompt_id: string;
+  pass_threshold: number;
 }
 
 /**
@@ -49,6 +50,7 @@ export interface EvaluationUpdate {
   experiment_id?: string;
   start_time?: string;
   end_time?: string;
+  pass_threshold: number;
 }
 
 /**
@@ -134,6 +136,7 @@ export interface EvaluationDetail extends Evaluation {
   start_time?: string; // Added for template compatibility
   end_time?: string; // Added for template compatibility
   experiment_id?: string; // Added for template compatibility
+  pass_threshold?: string;
 }
 
 /**

@@ -1,3 +1,4 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/datasets/datasets.page.scss */
 @import '../../../../../../styles/variables';
 @import '../../../../../../styles/mixins';
 
@@ -75,55 +76,6 @@
   padding: $spacing-2;
   border-bottom: 1px solid $border-color;
 
-  .filters-wrapper {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: $spacing-3;
-
-    @include media-breakpoint-down(md) {
-      flex-direction: column;
-      align-items: stretch;
-    }
-  }
-
-  .view-toggle {
-    display: flex;
-    align-items: center;
-    gap: $spacing-1;
-    margin-left: auto;
-
-    @include media-breakpoint-down(md) {
-      margin-left: 0;
-      margin-top: $spacing-2;
-    }
-
-    .toggle-button {
-      padding: $spacing-2;
-      border: 1px solid $border-color;
-      background-color: white;
-      color: $text-secondary;
-      border-radius: $radius-sm;
-      cursor: pointer;
-      transition: $transition-normal;
-
-      .toggle-icon {
-        font-size: $font-size-md;
-      }
-
-      &:hover {
-        background-color: $background-light;
-      }
-
-      &.active {
-        background-color: $primary-light;
-        color: $primary;
-        border-color: $primary;
-      }
-    }
-  }
-
   .filters-form {
     display: flex;
     flex-wrap: wrap;
@@ -192,7 +144,6 @@
   }
 }
 
-/* Table View Styles */
 .datasets-list {
   overflow-x: auto;
   width: 100%;
@@ -325,29 +276,6 @@
       &:hover {
         background-color: rgba($primary, 0.05);
       }
-    }
-  }
-}
-
-/* Grid View Styles */
-.datasets-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: $spacing-4;
-  padding: $spacing-4;
-
-  @include media-breakpoint-down(sm) {
-    grid-template-columns: 1fr;
-  }
-
-  /* Dataset Card Styles - Will be partly overridden by the component's own styles */
-  app-dataset-card {
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: $shadow-md;
     }
   }
 }

@@ -130,9 +130,9 @@
                         <span class="info-label">Prompt:</span>
                         <span class="info-value link-value">{{ evaluation.prompt?.name || evaluation.prompt_id }}</span>
                     </div>
-                    <div class="info-row" *ngIf="evaluation.experiment_id">
-                        <span class="info-label">Experiment ID:</span>
-                        <span class="info-value">{{ evaluation.experiment_id }}</span>
+                    <div class="info-row" *ngIf="evaluation.pass_threshold">
+                        <span class="info-label">Pass Threshold:</span>
+                        <span class="info-value">{{ evaluation.pass_threshold }}</span>
                     </div>
                 </div>
             </div>
@@ -236,25 +236,24 @@
                     <div class="result-metrics-section" *ngIf="selectedResult.metric_scores && selectedResult.metric_scores.length > 0">
                         <h4>Metric Scores</h4>
                         <table class="metrics-table">
-                            <thead>
-                                <tr>
-                                    <th>Metric</th>
-                                    <th>Score</th>
-                                    <th>Weight</th>
-                                    <th>Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr *ngFor="let metric of selectedResult.metric_scores">
-                                    <td>{{ metric.name }}</td>
-                                    <td>{{ metric.value | number:'1.2-2' }}</td>
-                                    <td>{{ metric.weight | number:'1.2-2' }}</td>
-                                    <td>{{ metric.meta_info?.description || 'N/A' }}</td>
-                                </tr>
-                            </tbody>
+                          <thead>
+                            <tr>
+                              <th>Metric</th>
+                              <th>Score</th>
+                              <th>Weight</th>
+                              <th>Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr *ngFor="let metric of selectedResult.metric_scores">
+                              <td>{{ metric.name }}</td>
+                              <td>{{ metric.value | number:'1.2-2' }}</td>
+                              <td>{{ metric.weight | number:'1.2-2' }}</td>
+                              <td>{{ metric.meta_info && metric.meta_info['description'] ? metric.meta_info['description'] : 'N/A' }}</td>
+                            </tr>
+                          </tbody>
                         </table>
-                    </div>
-
+                      </div>
                     <!-- Raw Results -->
                     <div class="result-raw-section" *ngIf="selectedResult.raw_results">
                         <h4>Raw Results</h4>

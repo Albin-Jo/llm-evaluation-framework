@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subject, takeUntil, finalize, Observable } from 'rxjs';
-import { HttpEventType, HttpResponse } from '@angular/common/http';
 import { DatasetUploadRequest } from '@ngtx-apps/data-access/models';
 import { DatasetService } from '@ngtx-apps/data-access/services';
 import { AlertService } from '@ngtx-apps/utils/services';
@@ -287,12 +286,15 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Upload document to existing dataset with progress tracking
+   * Upload document to existing dataset with simulated progress
    */
   private uploadDocumentToExistingDataset(): void {
     // Create the form data with just the file
     const formData = new FormData();
     formData.append('file', this.selectedFiles[0]);
+
+    // Simulate upload progress
+    this.simulateProgress();
 
     this.datasetService.uploadDocumentsToDataset(this.existingDatasetId!, this.selectedFiles)
       .pipe(
@@ -306,15 +308,9 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (response) => {
-          // For progress events (if supported by the API)
-          if (response.type === HttpEventType.UploadProgress && response.total) {
-            this.uploadProgress = Math.round((response.loaded / response.total) * 100);
-          }
-          // For complete responses
-          else if (response instanceof HttpResponse) {
-            this.uploadProgress = 100;
-            this.handleUploadSuccess();
-          }
+          // Set progress to complete
+          this.uploadProgress = 100;
+          this.handleUploadSuccess();
         },
         error: (error) => {
           this.handleUploadError(error);
@@ -323,7 +319,7 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Create new dataset with file and progress tracking
+   * Create new dataset with file and simulated progress
    */
   private createNewDatasetWithFile(): void {
     // Create the upload request
@@ -338,6 +334,9 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
 
     this.pendingUploadRequest = uploadRequest;
 
+    // Simulate upload progress
+    this.simulateProgress();
+
     this.datasetService.uploadDataset(uploadRequest)
       .pipe(
         takeUntil(this.destroy$),
@@ -350,21 +349,43 @@ export class DatasetUploadPage implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (response) => {
-          // For progress events (if supported by the API)
-          if (response.type === HttpEventType.UploadProgress && response.total) {
-            this.uploadProgress = Math.round((response.loaded / response.total) * 100);
-          }
-          // For complete responses
-          else if (response instanceof HttpResponse) {
-            this.uploadProgress = 100;
-            this.createdDatasetId = response.body.id;
-            this.handleUploadSuccess();
-          }
+          // Set progress to complete
+          this.uploadProgress = 100;
+          this.createdDatasetId = response.id;
+          this.handleUploadSuccess();
         },
         error: (error) => {
           this.handleUploadError(error);
         }
       });
+  }
+
+  /**
+   * Simulate upload progress for better UX
+   */
+  private simulateProgress(): void {
+    // Reset progress
+    this.uploadProgress = 0;
+    
+    // Create progress simulation intervals
+    const progressInterval = setInterval(() => {
+      // Increment by random amount, but slow down as we approach 90%
+      if (this.uploadProgress < 90) {
+        const increment = this.uploadProgress < 50 
+          ? Math.floor(Math.random() * 10) + 1  // Faster at the beginning
+          : Math.floor(Math.random() * 5) + 1;  // Slower as we approach 90%
+        
+        this.uploadProgress = Math.min(90, this.uploadProgress + increment);
+      }
+      
+      // Clear interval when complete or on error
+      if (this.uploadProgress >= 90 || !this.isUploading) {
+        clearInterval(progressInterval);
+      }
+    }, 300);
+    
+    // Auto-clear the interval after 30 seconds as a safeguard
+    setTimeout(() => clearInterval(progressInterval), 30000);
   }
 
   /**

@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-create-edit/agents-create-edit.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule, AbstractControl } from '@angular/forms';
@@ -94,7 +93,7 @@ export class AgentCreateEditPage implements OnInit, OnDestroy {
   // Integration type options
   integrationTypeOptions = [
     { value: IntegrationType.AZURE_OPENAI, label: 'Azure OpenAI' },
-    { value: IntegrationType.MCP, label: 'Model Control Plane (MCP)' },
+    { value: IntegrationType.MCP, label: 'Model Context Protocol (MCP)' },
     { value: IntegrationType.DIRECT_API, label: 'Direct API' },
     { value: IntegrationType.CUSTOM, label: 'Custom' }
   ];

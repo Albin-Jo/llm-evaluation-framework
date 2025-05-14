@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents-detail/agents-detail.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -8,7 +7,7 @@ import { Agent, AgentResponse, AgentToolsResponse } from '@ngtx-apps/data-access
 import { AgentService } from '@ngtx-apps/data-access/services';
 import { NotificationService } from '@ngtx-apps/utils/services';
 import { ConfirmationDialogService } from '@ngtx-apps/utils/services';
-import { QracButtonComponent, QracTextBoxComponent, QracSelectComponent } from '@ngtx-apps/ui/components';
+import { QracButtonComponent } from '@ngtx-apps/ui/components';
 import { SimpleJsonViewerComponent } from '../../../components/json-viewer/json-viewer.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
@@ -25,8 +24,6 @@ interface ConfigTab {
     FormsModule,
     ReactiveFormsModule,
     QracButtonComponent,
-    QracTextBoxComponent,
-    QracSelectComponent,
     SimpleJsonViewerComponent
   ],
   schemas: [NO_ERRORS_SCHEMA],
@@ -96,9 +93,9 @@ export class AgentDetailPage implements OnInit, OnDestroy {
           this.cdr.markForCheck();
 
           // Still load fresh data in background
-          this.loadAgent(this.agentId, true);
+          this.fetchAgent(this.agentId, true);
         } else {
-          this.loadAgent(this.agentId);
+          this.fetchAgent(this.agentId);
         }
       } else {
         this.error = 'Agent ID not provided';
@@ -129,60 +126,51 @@ export class AgentDetailPage implements OnInit, OnDestroy {
   /**
    * Load agent details from the API with caching
    */
-loadAgentTools(id: string): void {
-  this.isLoadingTools = true;
-  this.toolsError = null;
-  this.cdr.markForCheck();
+  fetchAgent(id: string, silent: boolean = false): void {
+    if (!silent) {
+      this.isLoading = true;
+      this.error = null;
+      this.cdr.markForCheck();
+    }
 
-  // Check if the API method exists, otherwise fall back to mock data
-  if (typeof this.agentService.getAgentTools === 'function') {
-    this.agentService.getAgentTools(id)
+    this.agentService.getAgent(id)
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          this.toolsError = 'Failed to load agent tools. Please try again.';
-          this.isLoadingTools = false;
-          this.cdr.markForCheck();
-          return this.getMockAgentTools(id);
+          if (!silent) {
+            this.error = 'Failed to load agent details. Please try again.';
+            this.notificationService.error(this.error);
+            this.isLoading = false;
+            console.error('Error loading agent:', error);
+            this.cdr.markForCheck();
+          }
+          return throwError(() => error);
         }),
         finalize(() => {
-          this.isLoadingTools = false;
-          this.cdr.markForCheck();
+          if (!silent) {
+            this.isLoading = false;
+            this.cdr.markForCheck();
+          }
         })
       )
-      .subscribe((response: any) => {
-        if (response) {
-          // Handle both API response formats: direct array or object with tools property
-          if (Array.isArray(response)) {
-            this.agentTools = { tools: response };
-          } else if (response.tools && Array.isArray(response.tools)) {
-            this.agentTools = response;
-          } else {
-            // If structure doesn't match expectations, normalize it
-            this.agentTools = {
-              tools: Array.isArray(response) ? response : [response]
-            };
+      .subscribe({
+        next: (agent: AgentResponse) => {
+          this.agent = agent;
+
+          // Update cache
+          AgentDetailPage.agentCache.set(id, agent);
+
+          if (!silent) {
+            // Load tools if this section is expanded
+            if (this.expandedSections.tools) {
+              this.loadAgentTools(id);
+            }
           }
-          console.log('Loaded agent tools:', this.agentTools);
+
           this.cdr.markForCheck();
         }
       });
-  } else {
-    // If the API method doesn't exist, use mock data
-    this.getMockAgentTools(id)
-      .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => {
-          this.isLoadingTools = false;
-          this.cdr.markForCheck();
-        })
-      )
-      .subscribe((tools: AgentToolsResponse) => {
-        this.agentTools = tools;
-        this.cdr.markForCheck();
-      });
   }
-}
 
   /**
    * Load agent tools using the API
@@ -208,9 +196,20 @@ loadAgentTools(id: string): void {
             this.cdr.markForCheck();
           })
         )
-        .subscribe((tools: AgentToolsResponse) => {
-          if (tools) {
-            this.agentTools = tools;
+        .subscribe((response: any) => {
+          if (response) {
+            // Handle both API response formats: direct array or object with tools property
+            if (Array.isArray(response)) {
+              this.agentTools = { tools: response };
+            } else if (response.tools && Array.isArray(response.tools)) {
+              this.agentTools = response;
+            } else {
+              // If structure doesn't match expectations, normalize it
+              this.agentTools = { 
+                tools: Array.isArray(response) ? response : [response] 
+              };
+            }
+            console.log('Loaded agent tools:', this.agentTools);
             this.cdr.markForCheck();
           }
         });
@@ -254,6 +253,14 @@ loadAgentTools(id: string): void {
         }
       ]
     });
+  }
+
+  /**
+   * Helper method to check if an object is empty (for conditional rendering)
+   */
+  isEmptyObject(obj: any): boolean {
+    if (!obj) return true;
+    return Object.keys(obj).length === 0;
   }
 
   /**
@@ -418,11 +425,4 @@ loadAgentTools(id: string): void {
       return JSON.stringify({});
     }
   }
-/**
- * Helper method to check if an object is empty (for conditional rendering)
- */
-isEmptyObject(obj: any): boolean {
-  if (!obj) return true;
-  return Object.keys(obj).length === 0;
-}
 }

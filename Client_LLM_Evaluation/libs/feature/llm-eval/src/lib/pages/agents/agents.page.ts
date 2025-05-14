@@ -1,4 +1,3 @@
-/* Path: libs/feature/llm-eval/src/lib/pages/agents/agents.page.ts */
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -44,7 +43,7 @@ export class AgentsPage implements OnInit, OnDestroy {
   itemsPerPage = 5; // Updated from 10 to match standard
   Math = Math;
   visiblePages: number[] = [];
-  
+
   // Initialize filterForm - moved to constructor for proper initialization
   filterForm!: FormGroup;
 
@@ -104,7 +103,7 @@ export class AgentsPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.setupFilterListeners();
     this.loadAgents();
-    
+
     // Add router event subscription to detect navigation back to this page
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
@@ -123,7 +122,7 @@ export class AgentsPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    
+
     // Save filters to storage when leaving the page
     this.saveFiltersToStorage();
   }
@@ -134,7 +133,7 @@ export class AgentsPage implements OnInit, OnDestroy {
   private initializeFilters(): void {
     // Try to restore filters from session storage
     const savedFilters = sessionStorage.getItem(this.FILTER_STORAGE_KEY);
-    
+
     if (savedFilters) {
       try {
         const parsedFilters = JSON.parse(savedFilters);
@@ -143,7 +142,7 @@ export class AgentsPage implements OnInit, OnDestroy {
         console.warn('Failed to parse saved filters:', e);
       }
     }
-    
+
     // Initialize the filter form with potentially restored values
     this.filterForm = this.fb.group({
       search: [this.filterParams.name || ''],
@@ -152,7 +151,7 @@ export class AgentsPage implements OnInit, OnDestroy {
       integration_type: [this.filterParams.integration_type || '']
     });
   }
-  
+
   /**
    * Save current filters to session storage
    */
@@ -163,18 +162,18 @@ export class AgentsPage implements OnInit, OnDestroy {
       console.warn('Failed to save filters to session storage:', e);
     }
   }
-  
+
   /**
    * Restore filters from session storage
    */
   private restoreFiltersFromStorage(): void {
     const savedFilters = sessionStorage.getItem(this.FILTER_STORAGE_KEY);
-    
+
     if (savedFilters) {
       try {
         const parsedFilters = JSON.parse(savedFilters);
         this.filterParams = { ...this.filterParams, ...parsedFilters };
-        
+
         // Update form values to match restored filters without triggering change events
         this.filterForm.setValue({
           search: this.filterParams.name || '',
@@ -182,7 +181,7 @@ export class AgentsPage implements OnInit, OnDestroy {
           domain: this.filterParams.domain || '',
           integration_type: this.filterParams.integration_type || ''
         }, { emitEvent: false });
-        
+
         this.cdr.markForCheck();
       } catch (e) {
         console.warn('Failed to restore filters from session storage:', e);
@@ -332,7 +331,7 @@ export class AgentsPage implements OnInit, OnDestroy {
     this.filterParams.page = 1;
 
     this.loadAgents();
-    
+
     // Clear saved filters from storage
     sessionStorage.removeItem(this.FILTER_STORAGE_KEY);
   }
