@@ -37,7 +37,6 @@ async def create_evaluation(
     Create a new evaluation.
 
     This endpoint creates a new evaluation configuration with the specified parameters.
-    After creation, you'll need to call the `/start` endpoint to begin the evaluation process.
 
     - **evaluation_data**: Required evaluation configuration data
 
@@ -316,7 +315,7 @@ async def get_evaluation(
             "prompt_id": evaluation.prompt_id,
             "created_at": evaluation.created_at,
             "updated_at": evaluation.updated_at,
-            "pass_threshold": evaluation.pass_threshold,  # Include pass threshold
+            "pass_threshold": evaluation.pass_threshold,
             "results": result_responses
         }
 
@@ -357,6 +356,7 @@ async def get_evaluation(
                 "pass_rate": pass_rate,
                 "pass_count": pass_count,
                 "total_count": total_count,
+                "pass_threshold": evaluation.pass_threshold,
                 "metrics": metric_summary
             }
 

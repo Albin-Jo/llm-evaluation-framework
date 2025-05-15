@@ -673,3 +673,124 @@ class DatasetService:
         # Create path in format: {environment}/uploads/datasets/{type}/{sanitized_name}_{file_id}.{ext}
         environment = settings.APP_ENV
         return f"{environment}/uploads/datasets/{dataset_type.value}/{sanitized_name}_{file_id}.{ext}"
+
+    async def get_dataset_content_preview(
+            self, dataset: Dataset, limit_rows: Optional[int] = 50
+    ) -> Dict[str, Any]:
+        """
+        Get dataset content preview with limited rows for UI display.
+
+        Args:
+            dataset: Dataset model
+            limit_rows: Maximum number of rows to return
+
+        Returns:
+            Dict with content and metadata
+
+        Raises:
+            HTTPException: If content can't be retrieved or processed
+        """
+        try:
+            # Get the file content using the storage service
+            file_content = await self.storage_service.get_file_content(dataset.file_path)
+
+            # Process content based on file type/format
+            content_type = dataset.meta_info.get('content_type') if dataset.meta_info else None
+
+            # Default response structure
+            preview_response = {
+                "dataset_id": str(dataset.id),
+                "name": dataset.name,
+                "type": dataset.type.value,
+                "format": dataset.meta_info.get('format', 'unknown') if dataset.meta_info else 'unknown',
+                "content_type": content_type,
+                "total_rows": dataset.row_count or 0,
+                "preview_rows": 0,
+                "content": None,
+                "headers": [],
+                "rows": []
+            }
+
+            # Process based on content type
+            if content_type == "application/json" or dataset.file_path.endswith('.json'):
+                # Parse JSON
+                try:
+                    json_data = json.loads(file_content)
+                    preview_response["content"] = json.dumps(json_data, indent=2)  # Pretty format
+
+                    # If data is an array, limit rows and extract schema
+                    if isinstance(json_data, list):
+                        preview_response["total_rows"] = len(json_data)
+                        limited_data = json_data[:limit_rows]
+                        preview_response["preview_rows"] = len(limited_data)
+
+                        # If we have array of objects, extract headers and rows for tabular display
+                        if limited_data and isinstance(limited_data[0], dict):
+                            # Get all possible keys from data
+                            all_keys = set()
+                            for item in limited_data:
+                                all_keys.update(item.keys())
+
+                            preview_response["headers"] = list(all_keys)
+                            preview_response["rows"] = limited_data
+                    else:
+                        # Single object
+                        preview_response["total_rows"] = 1
+                        preview_response["preview_rows"] = 1
+                        preview_response["content"] = json.dumps(json_data, indent=2)
+                except JSONDecodeError:
+                    preview_response["content"] = file_content[:10000]  # Limit content size
+                    preview_response["error"] = "Failed to parse JSON content"
+
+            elif content_type == "text/csv" or dataset.file_path.endswith('.csv'):
+                # Process CSV data
+                import io
+                import csv
+
+                # Use CSV reader with StringIO
+                f = io.StringIO(file_content)
+                reader = csv.reader(f)
+
+                # Read header row
+                try:
+                    headers = next(reader)
+                    preview_response["headers"] = headers
+
+                    # Read data rows (limited)
+                    rows = []
+                    for i, row in enumerate(reader):
+                        if i >= limit_rows:
+                            break
+
+                        # Convert row to dict with header keys
+                        row_dict = {}
+                        for j, header in enumerate(headers):
+                            row_dict[header] = row[j] if j < len(row) else ""
+
+                        rows.append(row_dict)
+
+                    preview_response["rows"] = rows
+                    preview_response["preview_rows"] = len(rows)
+
+                    # Include raw content up to a limit for text display
+                    csv_content_lines = file_content.split('\n')
+                    preview_response["content"] = '\n'.join(
+                        csv_content_lines[:min(limit_rows + 1, len(csv_content_lines))])
+
+                except StopIteration:
+                    # Handle empty CSV
+                    preview_response["content"] = file_content
+                    preview_response["error"] = "CSV file appears to be empty"
+
+            else:
+                # For other text formats, return the content directly with size limit
+                preview_response["content"] = file_content[:50000]  # Limit content size for preview
+
+            return preview_response
+
+        except Exception as e:
+            logger.exception(f"Error getting dataset preview content: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error retrieving dataset content: {str(e)}"
+            )

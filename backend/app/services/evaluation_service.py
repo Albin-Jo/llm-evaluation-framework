@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import asc, desc, select, func
+from sqlalchemy import asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.exceptions import NotFoundException, AuthorizationException
@@ -19,12 +19,11 @@ from backend.app.db.schema.evaluation_schema import (
 )
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
+from backend.app.evaluation.utils.progress import get_evaluation_result_count
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
-# File: backend/app/services/evaluation_service.py
 
 async def _run_evaluation_as_separate_task(evaluation_id_str: str, jwt_token: Optional[str] = None) -> None:
     """
@@ -263,23 +262,18 @@ class EvaluationService:
                 detail=f"Failed to complete evaluation: {str(e)}"
             )
 
+    # File: backend/app/services/evaluation_service.py
+
+    # Update the get_evaluation_progress method to rely more on database counts
+    # when the cache is empty or unreliable
+
     async def get_evaluation_progress(self, evaluation_id: UUID, user_id: Optional[UUID] = None) -> Dict[str, Any]:
         """
         Get the progress of an evaluation with optional user verification.
-
-        Args:
-            evaluation_id: Evaluation ID
-            user_id: Optional user ID for ownership verification
-
-        Returns:
-            Dict[str, Any]: Evaluation progress information
-
-        Raises:
-            HTTPException: If an error occurs
-            AuthorizationException: If user doesn't have permission
+        Uses database for tracking progress.
         """
         try:
-            # Get evaluation
+            # Get evaluation with all necessary data
             evaluation = await self.evaluation_repo.get(evaluation_id)
             if not evaluation:
                 raise NotFoundException(
@@ -299,12 +293,14 @@ class EvaluationService:
             dataset = await self.dataset_repo.get(evaluation.dataset_id)
             total_items = dataset.row_count if dataset and dataset.row_count else 0
 
-            # Get completed results count (instead of loading full objects)
-            query = select(func.count()).select_from(EvaluationResult).where(
-                EvaluationResult.evaluation_id == evaluation_id
-            )
-            result = await self.db_session.execute(query)
-            completed_items = result.scalar_one_or_none() or 0
+            # Get current progress from the evaluation object
+            processed_items = evaluation.processed_items or 0
+
+            # Also check the actual results count in case processed_items is stale
+            result_count = await get_evaluation_result_count(self.db_session, evaluation_id)
+
+            # Use the max value between the two sources
+            completed_items = max(processed_items, result_count)
 
             # Calculate progress percentage
             progress_pct = (completed_items / total_items * 100) if total_items > 0 else 0
@@ -314,7 +310,6 @@ class EvaluationService:
             if evaluation.start_time:
                 if evaluation.end_time:
                     # Both start and end time exist
-                    # Convert to UTC if they have tzinfo, or assume they're in the same timezone
                     start = evaluation.start_time.replace(
                         tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
                     end = evaluation.end_time.replace(
@@ -322,7 +317,6 @@ class EvaluationService:
                     running_time_seconds = (end - start).total_seconds()
                 else:
                     # Only start time exists, use current time for comparison
-                    # Convert start_time to naive if it has tzinfo
                     start = evaluation.start_time.replace(
                         tzinfo=None) if evaluation.start_time.tzinfo else evaluation.start_time
                     now = datetime.datetime.now()
@@ -330,7 +324,7 @@ class EvaluationService:
 
             # Get estimated time to completion
             estimated_time_remaining = None
-            if evaluation.status == EvaluationStatus.RUNNING and completed_items > 0 and total_items > completed_items:
+            if evaluation.status == EvaluationStatus.RUNNING and 0 < completed_items < total_items:
                 if running_time_seconds > 0:
                     time_per_item = running_time_seconds / completed_items
                     estimated_time_remaining = time_per_item * (total_items - completed_items)
@@ -345,7 +339,8 @@ class EvaluationService:
                 "end_time": evaluation.end_time,
                 "running_time_seconds": round(running_time_seconds, 2),
                 "estimated_time_remaining_seconds": round(estimated_time_remaining,
-                                                          2) if estimated_time_remaining else None
+                                                          2) if estimated_time_remaining else None,
+                "last_updated": datetime.datetime.now().isoformat()
             }
 
         except (NotFoundException, AuthorizationException):
@@ -1041,3 +1036,6 @@ class EvaluationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to queue evaluation job: {str(e)}"
             )
+
+
+_progress_cache = {}

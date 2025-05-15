@@ -133,7 +133,7 @@ async def list_datasets(
     )
 
     datasets = await dataset_service.list_accessible_datasets(
-        user_id=current_user.db_user.id,  # Pass user ID to filter by ownership or public
+        user_id=current_user.db_user.id,
         skip=skip,
         limit=limit,
         dataset_type=type,
@@ -319,4 +319,51 @@ async def get_supported_metrics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting supported metrics: {str(e)}"
+        )
+
+
+@router.get("/{dataset_id}/content", response_model=Dict[str, Any])
+async def get_dataset_content(
+        dataset_id: UUID,
+        limit_rows: Optional[int] = 50,
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Get the content of a dataset file with optional row limiting for preview.
+
+    Args:
+        dataset_id: Dataset ID
+        limit_rows: Maximum number of rows to return (for preview)
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        Dict with content and metadata
+
+    Raises:
+        HTTPException: If dataset not found or user doesn't have access
+    """
+    dataset_service = DatasetService(db)
+
+    try:
+        # Get dataset first to check permissions
+        dataset = await dataset_service.get_accessible_dataset(
+            dataset_id=dataset_id,
+            user_id=current_user.db_user.id
+        )
+
+        # Get content preview
+        content_preview = await dataset_service.get_dataset_content_preview(
+            dataset=dataset,
+            limit_rows=limit_rows
+        )
+
+        return content_preview
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching dataset content: {str(e)}"
         )

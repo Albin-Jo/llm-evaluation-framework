@@ -405,6 +405,37 @@ class LocalStorageService(BaseStorageService):
         full_path = self._get_full_path(file_path)
         return os.path.exists(full_path) and os.path.isfile(full_path)
 
+    async def get_file_content(self, file_path: str) -> str:
+        """
+        Get the content of a file as a string.
+
+        Args:
+            file_path: Path to the file in storage
+
+        Returns:
+            str: File content as string
+
+        Raises:
+            Exception: If file can't be retrieved
+        """
+        try:
+            # If using local filesystem storage
+            full_path = os.path.join(self.base_path, file_path)
+
+            # Check if file exists
+            if not os.path.exists(full_path):
+                raise FileNotFoundError(f"File not found: {file_path}")
+
+            # Read file content
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            return content
+
+        except Exception as e:
+            logger.error(f"Error retrieving file content from storage: {str(e)}")
+            raise
+
 
 @lru_cache()
 def get_storage_service() -> BaseStorageService:

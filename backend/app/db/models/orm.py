@@ -283,6 +283,8 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     reports: Mapped[List["Report"]] = relationship(back_populates="evaluation")
     created_by: Mapped[Optional["User"]] = relationship(back_populates="evaluations")
 
+    processed_items: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
+
 
 class MetricScore(Base, TimestampMixin, ModelMixin):
     """
@@ -315,7 +317,7 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     __table_args__ = (
         Index('idx_evaluationresult_evaluation_id', 'evaluation_id'),
         Index('idx_evaluationresult_overall_score', 'overall_score'),
-        Index('idx_evaluationresult_passed', 'passed'),  # Add index for the passed field
+        Index('idx_evaluationresult_passed', 'passed'),  # Index for the passed field
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -327,7 +329,7 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     input_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     output_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     processing_time_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    # Add pass/fail fields
+    # Pass/fail fields:
     passed: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     pass_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 

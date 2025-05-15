@@ -19,6 +19,7 @@ from backend.app.evaluation.utils.dataset_utils import (
     process_qa_dataset, process_conversation_dataset,
     process_custom_dataset
 )
+from backend.app.evaluation.utils.progress import update_evaluation_progress
 from backend.app.services.agent_clients.base import AgentClient
 from backend.app.services.storage import get_storage_service
 
@@ -460,7 +461,7 @@ class BaseEvaluationMethod(ABC):
                         all_results.append(error_result)
                     else:
                         all_results.append(result)
-
+                await update_evaluation_progress(evaluation.id, batch_end, len(dataset_items))
                 # Log progress
                 await self.log_progress(
                     evaluation.id,
@@ -963,10 +964,11 @@ class BaseEvaluationMethod(ABC):
             overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
 
             # Determine pass/fail status
-            pass_threshold = evaluation.pass_threshold or 0.5  # Default to 0.7 if not specified
+            pass_threshold = evaluation.pass_threshold or 0.7  # Default to 0.7 if not specified
             passed = overall_score >= pass_threshold
 
-            logger.info(f"passed value ****: {passed}")
+            logger.info(f"Item {item_index} evaluation result - score: {overall_score:.4f}, "
+                        f"threshold: {pass_threshold:.4f}, passed: {passed}")
 
             # Create metric scores
             metric_scores = [

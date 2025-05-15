@@ -162,7 +162,8 @@ class MCPAgentClient(AgentClient):
         # Build user message
         user_message = query
         if context:
-            user_message = f"{user_message}\n\nContext: {context}"
+            # user_message = f"{user_message}\n\nContext: {context}"
+            user_message = f"{user_message}"
 
         # Get tool name from config or use default
         tool_name = self.agent.config.get("tool_name", "McpAskPolicyBot") if self.agent.config else "McpAskPolicyBot"
@@ -187,6 +188,8 @@ class MCPAgentClient(AgentClient):
                 "role": "system",
                 "content": system_message
             })
+
+        logger.info(f"\n\n\narguments: {arguments}\n\n\n")
 
         try:
             # Process using MCP connection
