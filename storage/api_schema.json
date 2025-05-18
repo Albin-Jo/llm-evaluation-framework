@@ -9,32 +9,31 @@
     }
   },
   "paths": {
-
-    "/api/agents/": {
+    "/api/comparisons/": {
       "post": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "Create Agent",
-        "description": "Create a new Agent. Admin only.\n\nArgs:\n    agent_data: The agent data to create\n    db: Database session\n\nReturns:\n    The created agent\n\nRaises:\n    HTTPException: If validation fails",
-        "operationId": "create_agent_api_agents__post",
+        "summary": "Create Comparison",
+        "description": "Create a new evaluation comparison.\n\nThis endpoint creates a new comparison between two evaluations with the specified parameters.\n\n- **comparison_data**: Required comparison configuration data\n\nReturns the created comparison object with an ID that can be used for future operations.",
+        "operationId": "create_comparison_api_comparisons__post",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AgentCreate"
+                "$ref": "#/components/schemas/ComparisonCreate"
               }
             }
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentResponse"
+                  "$ref": "#/components/schemas/ComparisonResponse"
                 }
               }
             }
@@ -53,11 +52,11 @@
       },
       "get": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "List Agents",
-        "description": "List Agents with optional filtering and pagination.\n\nArgs:\n    skip: Number of records to skip\n    limit: Maximum number of records to return\n    domain: Optional domain filter\n    is_active: Optional active status filter\n    name: Optional name filter (partial match)\n    integration_type: Optional integration type filter\n    db: Database session\n\nReturns:\n    Dict containing list of agents and pagination info",
-        "operationId": "list_agents_api_agents__get",
+        "summary": "List Comparisons",
+        "description": "List comparisons with optional filtering, sorting and pagination.\n\nThis endpoint returns both the comparisons array and pagination information.\n\n- **skip**: Number of records to skip (for pagination)\n- **limit**: Maximum number of records to return\n- **name**: Optional filter by comparison name (case-insensitive, supports partial matching)\n- **sort_by**: Field to sort results by (default: created_at)\n- **sort_dir**: Sort direction, either \"asc\" or \"desc\" (default: desc)\n\nReturns a dictionary containing the list of comparisons and pagination information.",
+        "operationId": "list_comparisons_api_comparisons__get",
         "parameters": [
           {
             "name": "skip",
@@ -65,9 +64,12 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
+              "description": "Number of records to skip",
               "default": 0,
               "title": "Skip"
-            }
+            },
+            "description": "Number of records to skip"
           },
           {
             "name": "limit",
@@ -75,45 +77,13 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Maximum number of records to return",
+              "default": 10,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "domain",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter agents by domain",
-              "title": "Domain"
             },
-            "description": "Filter agents by domain"
-          },
-          {
-            "name": "is_active",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter agents by active status",
-              "title": "Is Active"
-            },
-            "description": "Filter agents by active status"
+            "description": "Maximum number of records to return"
           },
           {
             "name": "name",
@@ -128,28 +98,48 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter agents by name (partial match)",
+              "description": "Filter by comparison name (case-insensitive, partial match)",
               "title": "Name"
             },
-            "description": "Filter agents by name (partial match)"
+            "description": "Filter by comparison name (case-insensitive, partial match)"
           },
           {
-            "name": "integration_type",
+            "name": "sort_by",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/IntegrationType"
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Filter agents by integration type",
-              "title": "Integration Type"
+              "description": "Field to sort by",
+              "default": "created_at",
+              "title": "Sort By"
             },
-            "description": "Filter agents by integration type"
+            "description": "Field to sort by"
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort direction (asc or desc)",
+              "default": "desc",
+              "title": "Sort Dir"
+            },
+            "description": "Sort direction (asc or desc)"
           }
         ],
         "responses": {
@@ -160,7 +150,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response List Agents Api Agents  Get"
+                  "title": "Response List Comparisons Api Comparisons  Get"
                 }
               }
             }
@@ -178,24 +168,69 @@
         }
       }
     },
-    "/api/agents/{agent_id}": {
+    "/api/comparisons/search": {
+      "post": {
+        "tags": [
+          "Comparisons"
+        ],
+        "summary": "Search Comparisons",
+        "description": "Advanced search for comparisons across multiple fields.\n\nSupports text search across name and description fields,\nas well as additional filters for exact matches.\n\nArgs:\n    query: Search query text for name and description\n    filters: Additional filters (exact match)\n    skip: Number of records to skip\n    limit: Maximum number of records to return\n    sort_by: Field to sort by\n    sort_dir: Sort direction\n    db: Database session\n    current_user: The authenticated user\n\nReturns:\n    Dict containing search results and pagination info",
+        "operationId": "search_comparisons_api_comparisons_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_search_comparisons_api_comparisons_search_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Search Comparisons Api Comparisons Search Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/comparisons/{comparison_id}": {
       "get": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "Get Agent",
-        "description": "Get Agent by ID.\n\nArgs:\n    agent_id: The ID of the agent to retrieve\n    db: Database session\n\nReturns:\n    The requested agent\n\nRaises:\n    HTTPException: If agent not found",
-        "operationId": "get_agent_api_agents__agent_id__get",
+        "summary": "Get Comparison",
+        "description": "Get comparison by ID with all related details.\n\nThis endpoint retrieves comprehensive information about a comparison, including:\n- Basic comparison metadata\n- Configuration details\n- Results with metric differences\n- Summary statistics\n\n- **comparison_id**: The unique identifier of the comparison\n\nReturns the complete comparison object with all details.",
+        "operationId": "get_comparison_api_comparisons__comparison_id__get",
         "parameters": [
           {
-            "name": "agent_id",
+            "name": "comparison_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Agent Id"
-            }
+              "description": "The ID of the comparison to retrieve",
+              "title": "Comparison Id"
+            },
+            "description": "The ID of the comparison to retrieve"
           }
         ],
         "responses": {
@@ -204,7 +239,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentResponse"
+                  "$ref": "#/components/schemas/ComparisonDetailResponse"
                 }
               }
             }
@@ -223,21 +258,23 @@
       },
       "put": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "Update Agent",
-        "description": "Update Agent by ID. Admin only.\n\nArgs:\n    agent_id: The ID of the agent to update\n    agent_data: The updated agent data\n    db: Database session\n\nReturns:\n    The updated agent\n\nRaises:\n    HTTPException: If agent not found or validation fails",
-        "operationId": "update_agent_api_agents__agent_id__put",
+        "summary": "Update Comparison",
+        "description": "Update comparison by ID.\n\nThis endpoint allows updating various properties of an existing comparison.\n\n- **comparison_id**: The unique identifier of the comparison to update\n- **comparison_data**: The comparison properties to update\n\nReturns the updated comparison object.",
+        "operationId": "update_comparison_api_comparisons__comparison_id__put",
         "parameters": [
           {
-            "name": "agent_id",
+            "name": "comparison_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Agent Id"
-            }
+              "description": "The ID of the comparison to update",
+              "title": "Comparison Id"
+            },
+            "description": "The ID of the comparison to update"
           }
         ],
         "requestBody": {
@@ -245,7 +282,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AgentUpdate"
+                "$ref": "#/components/schemas/ComparisonUpdate"
               }
             }
           }
@@ -256,7 +293,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentResponse"
+                  "$ref": "#/components/schemas/ComparisonResponse"
                 }
               }
             }
@@ -275,21 +312,23 @@
       },
       "delete": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "Delete Agent",
-        "description": "Delete Agent by ID. Admin only.\n\nArgs:\n    agent_id: The ID of the agent to delete\n    db: Database session\n\nRaises:\n    HTTPException: If agent not found or deletion fails",
-        "operationId": "delete_agent_api_agents__agent_id__delete",
+        "summary": "Delete Comparison",
+        "description": "Delete comparison by ID.\n\nThis endpoint completely removes a comparison and all its associated data.\nThis operation cannot be undone.\n\n- **comparison_id**: The unique identifier of the comparison to delete\n\nReturns no content on success (HTTP 204).",
+        "operationId": "delete_comparison_api_comparisons__comparison_id__delete",
         "parameters": [
           {
-            "name": "agent_id",
+            "name": "comparison_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Agent Id"
-            }
+              "description": "The ID of the comparison to delete",
+              "title": "Comparison Id"
+            },
+            "description": "The ID of the comparison to delete"
           }
         ],
         "responses": {
@@ -309,47 +348,35 @@
         }
       }
     },
-    "/api/agents/{agent_id}/test": {
+    "/api/comparisons/{comparison_id}/run": {
       "post": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "Test Agent",
-        "description": "Test an Agent with sample input.\n\nArgs:\n    agent_id: The ID of the agent to test\n    test_input: The input data to test with\n    db: Database session\n\nReturns:\n    The response from the agent\n\nRaises:\n    HTTPException: If agent not found, is inactive, or the test fails",
-        "operationId": "test_agent_api_agents__agent_id__test_post",
+        "summary": "Run Comparison Calculation",
+        "description": "Run comparison calculation.\n\nThis endpoint runs or re-runs the comparison calculation, analyzing the differences\nbetween the two evaluations and storing the results.\n\n- **comparison_id**: The unique identifier of the comparison to run\n\nReturns the updated comparison object with calculation results.",
+        "operationId": "run_comparison_calculation_api_comparisons__comparison_id__run_post",
         "parameters": [
           {
-            "name": "agent_id",
+            "name": "comparison_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Agent Id"
-            }
+              "description": "The ID of the comparison to run",
+              "title": "Comparison Id"
+            },
+            "description": "The ID of the comparison to run"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "title": "Test Input"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Test Agent Api Agents  Agent Id  Test Post"
+                  "$ref": "#/components/schemas/ComparisonResponse"
                 }
               }
             }
@@ -367,80 +394,26 @@
         }
       }
     },
-    "/api/agents/{agent_id}/test-mcp": {
-      "post": {
-        "tags": [
-          "Agents"
-        ],
-        "summary": "Test Mcp Agent",
-        "description": "Test an MCP agent with a simple message.\n\nArgs:\n    agent_id: The ID of the agent to test\n    test_message: Message to test with\n    db: Database session\n\nReturns:\n    The response from the agent\n\nRaises:\n    HTTPException: If agent not found, is inactive, or the test fails",
-        "operationId": "test_mcp_agent_api_agents__agent_id__test_mcp_post",
-        "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Agent Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_test_mcp_agent_api_agents__agent_id__test_mcp_post"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Test Mcp Agent Api Agents  Agent Id  Test Mcp Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agents/{agent_id}/tools": {
+    "/api/comparisons/{comparison_id}/metrics": {
       "get": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "List Agent Tools",
-        "description": "List available tools for an MCP agent.\n\nArgs:\n    agent_id: The ID of the agent\n    db: Database session\n\nReturns:\n    List of available tools\n\nRaises:\n    HTTPException: If agent not found, is inactive, or is not an MCP agent",
-        "operationId": "list_agent_tools_api_agents__agent_id__tools_get",
+        "summary": "Get Comparison Metrics",
+        "description": "Get detailed metrics breakdown for a comparison.\n\nThis endpoint retrieves the detailed metric differences between the two evaluations,\nincluding absolute and percentage changes.\n\n- **comparison_id**: The unique identifier of the comparison\n\nReturns a list of metric differences.",
+        "operationId": "get_comparison_metrics_api_comparisons__comparison_id__metrics_get",
         "parameters": [
           {
-            "name": "agent_id",
+            "name": "comparison_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Agent Id"
-            }
+              "description": "The ID of the comparison to retrieve metrics for",
+              "title": "Comparison Id"
+            },
+            "description": "The ID of the comparison to retrieve metrics for"
           }
         ],
         "responses": {
@@ -451,10 +424,9 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "$ref": "#/components/schemas/MetricDifferenceResponse"
                   },
-                  "title": "Response List Agent Tools Api Agents  Agent Id  Tools Get"
+                  "title": "Response Get Comparison Metrics Api Comparisons  Comparison Id  Metrics Get"
                 }
               }
             }
@@ -472,24 +444,38 @@
         }
       }
     },
-    "/api/agents/{agent_id}/health": {
-      "post": {
+    "/api/comparisons/{comparison_id}/report": {
+      "get": {
         "tags": [
-          "Agents"
+          "Comparisons"
         ],
-        "summary": "Check Agent Health",
-        "description": "Check if an agent is healthy and available.\n\nArgs:\n    agent_id: The ID of the agent to check\n    db: Database session\n\nReturns:\n    Dict with health status\n\nRaises:\n    HTTPException: If agent not found or is inactive",
-        "operationId": "check_agent_health_api_agents__agent_id__health_post",
+        "summary": "Get Comparison Report",
+        "description": "Generate a downloadable report for a comparison.\n\nThis endpoint generates a detailed report of the comparison in the specified format.\n\n- **comparison_id**: The unique identifier of the comparison\n- **format**: Report format (json, html, pdf)\n\nReturns the comparison report in the requested format.",
+        "operationId": "get_comparison_report_api_comparisons__comparison_id__report_get",
         "parameters": [
           {
-            "name": "agent_id",
+            "name": "comparison_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Agent Id"
-            }
+              "description": "The ID of the comparison to generate a report for",
+              "title": "Comparison Id"
+            },
+            "description": "The ID of the comparison to generate a report for"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Report format (json, html, pdf)",
+              "default": "json",
+              "title": "Format"
+            },
+            "description": "Report format (json, html, pdf)"
           }
         ],
         "responses": {
@@ -500,7 +486,66 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Check Agent Health Api Agents  Agent Id  Health Post"
+                  "title": "Response Get Comparison Report Api Comparisons  Comparison Id  Report Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/comparisons/{comparison_id}/visualizations/{visualization_type}": {
+      "get": {
+        "tags": [
+          "Comparisons"
+        ],
+        "summary": "Get Comparison Visualizations",
+        "description": "Get visualization data for charts.\n\nThis endpoint generates data for different types of visualizations to display comparison results.\n\n- **comparison_id**: The unique identifier of the comparison\n- **visualization_type**: Type of visualization (radar, bar, line)\n\nReturns data for the requested visualization type.",
+        "operationId": "get_comparison_visualizations_api_comparisons__comparison_id__visualizations__visualization_type__get",
+        "parameters": [
+          {
+            "name": "comparison_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the comparison to visualize",
+              "title": "Comparison Id"
+            },
+            "description": "The ID of the comparison to visualize"
+          },
+          {
+            "name": "visualization_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Visualization type (radar, bar, line)",
+              "title": "Visualization Type"
+            },
+            "description": "Visualization type (radar, bar, line)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Comparison Visualizations Api Comparisons  Comparison Id  Visualizations  Visualization Type  Get"
                 }
               }
             }
@@ -530,9 +575,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           }
@@ -542,611 +585,6 @@
   },
   "components": {
     "schemas": {
-      "AgentCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Name",
-            "description": "Name of the agent"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Description of the agent's purpose and capabilities"
-          },
-          "api_endpoint": {
-            "type": "string",
-            "title": "Api Endpoint",
-            "description": "API endpoint URL for the agent"
-          },
-          "domain": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Domain",
-            "description": "Domain/category the agent specializes in"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config",
-            "description": "Configuration options for the agent"
-          },
-          "is_active": {
-            "type": "boolean",
-            "title": "Is Active",
-            "description": "Whether the agent is currently active",
-            "default": true
-          },
-          "model_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model Type",
-            "description": "Type of model used by the agent"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^\\d+\\.\\d+\\.\\d+$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version",
-            "description": "Version of the agent",
-            "default": "1.0.0"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags",
-            "description": "Tags for categorizing the agent"
-          },
-          "integration_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/IntegrationType"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Type of integration for this agent",
-            "default": "azure_openai"
-          },
-          "auth_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AuthType"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Authentication method for this agent",
-            "default": "api_key"
-          },
-          "auth_credentials": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Auth Credentials",
-            "description": "Credentials for authentication (stored securely)"
-          },
-          "request_template": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Request Template",
-            "description": "Template for request payload"
-          },
-          "response_format": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Response Format",
-            "description": "Expected response format"
-          },
-          "retry_config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retry Config",
-            "description": "Configuration for retry behavior"
-          },
-          "content_filter_config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content Filter Config",
-            "description": "Configuration for content filtering"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "api_endpoint",
-          "domain"
-        ],
-        "title": "AgentCreate",
-        "description": "Schema for creating a new Agent."
-      },
-      "AgentResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "api_endpoint": {
-            "type": "string",
-            "title": "Api Endpoint"
-          },
-          "domain": {
-            "type": "string",
-            "title": "Domain"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config"
-          },
-          "is_active": {
-            "type": "boolean",
-            "title": "Is Active",
-            "default": true
-          },
-          "model_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model Type"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version",
-            "default": "1.0.0"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
-          },
-          "integration_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/IntegrationType"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": "azure_openai"
-          },
-          "auth_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AuthType"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": "api_key"
-          },
-          "auth_credentials": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Auth Credentials"
-          },
-          "request_template": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Request Template"
-          },
-          "response_format": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Response Format"
-          },
-          "retry_config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retry Config"
-          },
-          "content_filter_config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content Filter Config"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "api_endpoint",
-          "domain",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "AgentResponse",
-        "description": "Schema for Agent response."
-      },
-      "AgentUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 255,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "api_endpoint": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Api Endpoint"
-          },
-          "domain": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Domain"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Config"
-          },
-          "is_active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Active"
-          },
-          "model_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model Type"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^\\d+\\.\\d+\\.\\d+$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
-          },
-          "integration_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/IntegrationType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "auth_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AuthType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "auth_credentials": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Auth Credentials"
-          },
-          "request_template": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Request Template"
-          },
-          "response_format": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Response Format"
-          },
-          "retry_config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retry Config"
-          },
-          "content_filter_config": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content Filter Config"
-          }
-        },
-        "type": "object",
-        "title": "AgentUpdate",
-        "description": "Schema for updating an Agent."
-      },
-      "AuthStatusResponse": {
-        "properties": {
-          "authenticated": {
-            "type": "boolean",
-            "title": "Authenticated"
-          },
-          "user": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "User"
-          }
-        },
-        "type": "object",
-        "required": [
-          "authenticated"
-        ],
-        "title": "AuthStatusResponse",
-        "description": "Schema for authentication status response."
-      },
-      "AuthType": {
-        "type": "string",
-        "enum": [
-          "api_key",
-          "bearer_token",
-          "none"
-        ],
-        "title": "AuthType",
-        "description": "Authentication types for agents."
-      },
       "Body_create_dataset_api_datasets__post": {
         "properties": {
           "name": {
@@ -1197,6 +635,64 @@
         "type": "object",
         "title": "Body_generate_report_api_reports__report_id__generate_post"
       },
+      "Body_search_comparisons_api_comparisons_search_post": {
+        "properties": {
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query",
+            "description": "Search query for name or description"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters",
+            "description": "Additional filters"
+          },
+          "skip": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Skip",
+            "description": "Number of records to skip",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Maximum number of records to return",
+            "default": 100
+          },
+          "sort_by": {
+            "type": "string",
+            "title": "Sort By",
+            "description": "Field to sort by",
+            "default": "created_at"
+          },
+          "sort_dir": {
+            "type": "string",
+            "title": "Sort Dir",
+            "description": "Sort direction (asc or desc)",
+            "default": "desc"
+          }
+        },
+        "type": "object",
+        "title": "Body_search_comparisons_api_comparisons_search_post"
+      },
       "Body_search_evaluations_api_evaluations_search_post": {
         "properties": {
           "query": {
@@ -1226,15 +722,15 @@
           },
           "skip": {
             "type": "integer",
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Skip",
             "description": "Number of records to skip",
             "default": 0
           },
           "limit": {
             "type": "integer",
-            "maximum": 1000,
-            "minimum": 1,
+            "maximum": 1000.0,
+            "minimum": 1.0,
             "title": "Limit",
             "description": "Maximum number of records to return",
             "default": 100
@@ -1269,66 +765,381 @@
         ],
         "title": "Body_test_mcp_agent_api_agents__agent_id__test_mcp_post"
       },
-      "HTTPValidationError": {
+      "ComparisonCreate": {
         "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
-      },
-      "IntegrationType": {
-        "type": "string",
-        "enum": [
-          "azure_openai",
-          "mcp",
-          "direct_api",
-          "custom"
-        ],
-        "title": "IntegrationType",
-        "description": "Integration types for agents."
-      },
-      "UserResponse": {
-        "properties": {
-          "sub": {
-            "type": "string",
-            "title": "Sub"
-          },
-          "username": {
-            "type": "string",
-            "title": "Username"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
           "name": {
             "type": "string",
-            "title": "Name"
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "description": "Name of the comparison"
           },
-          "roles": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Roles"
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the comparison"
+          },
+          "evaluation_a_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evaluation A Id",
+            "description": "ID of the first evaluation to compare"
+          },
+          "evaluation_b_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evaluation B Id",
+            "description": "ID of the second evaluation to compare"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Configuration options for the comparison"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id",
+            "description": "ID of the user who created this comparison"
           }
         },
         "type": "object",
         "required": [
-          "sub",
-          "username",
-          "email",
           "name",
-          "roles"
+          "evaluation_a_id",
+          "evaluation_b_id"
         ],
-        "title": "UserResponse",
-        "description": "Schema for user response."
+        "title": "ComparisonCreate",
+        "description": "Schema for creating a new Comparison."
+      },
+      "ComparisonDetailResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "description": "Name of the comparison"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the comparison"
+          },
+          "evaluation_a_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evaluation A Id",
+            "description": "ID of the first evaluation to compare"
+          },
+          "evaluation_b_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evaluation B Id",
+            "description": "ID of the second evaluation to compare"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Configuration options for the comparison"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id",
+            "description": "ID of the user who created this comparison"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "comparison_results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Results"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "evaluation_a": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evaluation A"
+          },
+          "evaluation_b": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evaluation B"
+          },
+          "metric_differences": {
+            "items": {
+              "$ref": "#/components/schemas/MetricDifferenceResponse"
+            },
+            "type": "array",
+            "title": "Metric Differences",
+            "default": []
+          },
+          "result_differences": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result Differences",
+            "default": {}
+          },
+          "summary_stats": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Summary Stats",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "evaluation_a_id",
+          "evaluation_b_id",
+          "id",
+          "status",
+          "created_at",
+          "updated_at",
+          "evaluation_a",
+          "evaluation_b"
+        ],
+        "title": "ComparisonDetailResponse",
+        "description": "Schema for detailed Comparison response with full details."
+      },
+      "ComparisonResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "description": "Name of the comparison"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the comparison"
+          },
+          "evaluation_a_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evaluation A Id",
+            "description": "ID of the first evaluation to compare"
+          },
+          "evaluation_b_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evaluation B Id",
+            "description": "ID of the second evaluation to compare"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Configuration options for the comparison"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id",
+            "description": "ID of the user who created this comparison"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "comparison_results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Results"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "evaluation_a_id",
+          "evaluation_b_id",
+          "id",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ComparisonResponse",
+        "description": "Schema for Comparison response."
+      },
+      "ComparisonUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          }
+        },
+        "type": "object",
+        "title": "ComparisonUpdate",
+        "description": "Schema for updating a Comparison."
       },
       "ValidationError": {
         "properties": {
