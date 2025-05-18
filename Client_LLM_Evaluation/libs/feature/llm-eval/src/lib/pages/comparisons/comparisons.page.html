@@ -1,0 +1,257 @@
+<div class="comparisons-container">
+  <div class="header-section">
+    <div class="title-section">
+      <h1 class="page-title">Comparisons</h1>
+      <p class="page-description">
+        Compare multiple evaluations to track improvements and identify areas for optimization
+      </p>
+    </div>
+    <div class="action-section">
+      <button class="create-button" (click)="createNewComparison($event)">
+        <span class="button-icon">+</span> Create Comparison
+      </button>
+    </div>
+  </div>
+  <div class="comparisons-content">
+    <!-- Filters Section -->
+    <div class="filters-section">
+      <form [formGroup]="filterForm" class="filters-form">
+        <div class="search-field">
+          <qrac-textbox
+            [controlName]="'search'"
+            formControlName="search"
+            [placeholder]="'Search comparisons by name'"
+            [size]="'small'"
+          >
+          </qrac-textbox>
+        </div>
+        <div class="filter-fields">
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'status'"
+              formControlName="status"
+              [options]="statusOptions"
+            >
+            </qrac-select>
+          </div>
+          <div class="filter-field">
+            <qrac-select
+              [controlName]="'evaluation'"
+              formControlName="evaluation"
+              [options]="evaluationOptions"
+            >
+            </qrac-select>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button class="clear-button" type="button" (click)="clearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading comparisons...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="error-container">
+      <div class="error-icon">❌</div>
+      <p>{{ error }}</p>
+      <qrac-button
+        label="Try Again"
+        type="secondary"
+        (buttonClick)="loadComparisons()"
+      >
+      </qrac-button>
+    </div>
+
+    <!-- No Results State -->
+    <div
+      *ngIf="!isLoading && comparisons.length === 0"
+      class="no-results-container"
+    >
+      <div class="no-results-icon">📊</div>
+      <h3>No comparisons found</h3>
+      <p>Create a new comparison or adjust your filters</p>
+      <qrac-button
+        label="Create Comparison"
+        type="primary"
+        (buttonClick)="createNewComparison($event)"
+      >
+      </qrac-button>
+    </div>
+
+    <!-- Comparisons List View -->
+    <div *ngIf="comparisons.length > 0 && !isLoading" class="comparisons-list">
+      <table class="comparisons-table">
+        <thead>
+          <tr>
+            <th class="name-col">
+              <span class="th-content sortable" (click)="onSortChange('name')">
+                Name
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'name'"
+                >
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="description-col">Description</th>
+            <th class="evaluations-col">Evaluations</th>
+            <th class="status-col">
+              <span
+                class="th-content sortable"
+                (click)="onSortChange('status')"
+              >
+                Status
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'status'"
+                >
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="date-col">
+              <span
+                class="th-content sortable"
+                (click)="onSortChange('created_at')"
+              >
+                Created
+                <span
+                  class="sort-indicator"
+                  *ngIf="filterParams.sortBy === 'created_at'"
+                >
+                  {{ filterParams.sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </span>
+            </th>
+            <th class="result-col">Result</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let comparison of comparisons; trackBy: trackByComparisonId"
+            class="comparison-row"
+            (click)="onComparisonClick(comparison)"
+          >
+            <td class="name-col">{{ comparison.name }}</td>
+            <td class="description-col">
+              {{ truncateText(comparison.description, 80) }}
+            </td>
+            <td class="evaluations-col">
+              <div class="evaluations-info">
+                <span class="evaluation-a-name" [title]="getEvaluationName(comparison.evaluation_a_id)">
+                  {{ truncateText(getEvaluationName(comparison.evaluation_a_id), 15) }}
+                </span>
+                <span class="vs-text">vs</span>
+                <span class="evaluation-b-name" [title]="getEvaluationName(comparison.evaluation_b_id)">
+                  {{ truncateText(getEvaluationName(comparison.evaluation_b_id), 15) }}
+                </span>
+              </div>
+            </td>
+            <td class="status-col">
+              <span
+                class="status-badge"
+                [ngClass]="getStatusBadgeClass(comparison.status)"
+              >
+                {{ comparison.status }}
+              </span>
+            </td>
+            <td class="date-col">{{ formatDate(comparison.created_at) }}</td>
+            <td class="result-col">
+              <span *ngIf="hasResults(comparison)"
+                    [ngClass]="getResultClass(comparison)"
+                    class="result-text">
+                {{ getFormattedResult(comparison) }}
+              </span>
+              <span *ngIf="!hasResults(comparison)" class="pending-result">
+                Pending
+              </span>
+            </td>
+            <td class="actions-col">
+              <div class="action-buttons">
+                <button
+                  *ngIf="canRunComparison(comparison.status)"
+                  class="action-button run-button"
+                  title="Run comparison"
+                  (click)="runComparison($event, comparison.id)"
+                >
+                  Run
+                </button>
+                <button
+                  class="action-button view-button"
+                  title="View comparison"
+                  (click)="onViewComparison($event, comparison.id)"
+                >
+                  View
+                </button>
+                <button
+                  class="action-button edit-button"
+                  title="Edit comparison"
+                  (click)="onEditComparison($event, comparison.id)"
+                >
+                  Edit
+                </button>
+                <button
+                  class="action-button delete-button"
+                  title="Delete comparison"
+                  (click)="confirmDeleteComparison($event, comparison.id)"
+                >
+                  Del
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div
+      *ngIf="comparisons.length > 0 && totalCount > itemsPerPage"
+      class="pagination-container"
+    >
+      <div class="pagination-info">
+        Showing {{ (filterParams.page! - 1) * itemsPerPage + 1 }} to {{
+        Math.min(filterParams.page! * itemsPerPage, totalCount) }} of {{
+        totalCount }} comparisons
+      </div>
+      <div class="pagination-controls">
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page === 1"
+          (click)="onPageChange(filterParams.page! - 1, $event)"
+        >
+          Previous
+        </button>
+        <div class="pagination-pages">
+          <ng-container *ngFor="let page of visiblePages">
+            <span *ngIf="page < 0" class="pagination-ellipsis">...</span>
+            <button
+              *ngIf="page > 0"
+              class="page-button"
+              [class.active]="page === filterParams.page"
+              (click)="onPageChange(page, $event)"
+            >
+              {{ page }}
+            </button>
+          </ng-container>
+        </div>
+        <button
+          class="pagination-button"
+          [disabled]="filterParams.page! >= Math.ceil(totalCount / itemsPerPage)"
+          (click)="onPageChange(filterParams.page! + 1, $event)"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,8 +1,7 @@
-
 //Common PATHS
 const COMMON_PATHS = {
   EMPTY: '',
-}
+};
 
 /**
  * Define all the Route Paths here
@@ -15,11 +14,10 @@ export const PATHS = {
   UNATHORIZED: 'unauthorized',
   CALLBACK: 'callback',
   LOGOUT: 'logout',
-  NOT_FOUND: '**'
+  NOT_FOUND: '**',
 };
 
-
-  //Project specific Routes
+//Project specific Routes
 export const FEATURE_PATHS = {
   ...COMMON_PATHS,
   PROJECTS: 'projects',
@@ -34,7 +32,6 @@ export const FEATURE_PATHS = {
   LLM_EVAL: 'llm-eval',
   AGENTS: 'agents',
   EVALUATIONS: 'evaluations',
-  REPORTS: 'reports'
-}
-
-
+  REPORTS: 'reports',
+  COMPARISONS: 'comparisons',
+};

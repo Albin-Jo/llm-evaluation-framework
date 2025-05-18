@@ -1,6 +1,5 @@
 export * from './lib/llm-eval/llm-eval.component';
 
-
 /* Path: libs/feature/llm-eval/src/index.ts */
 export * from './lib/llm-eval.routes';
 
@@ -36,7 +35,10 @@ export * from './lib/pages/evaluations/evaluation-create-edit/evaluation-create-
 export * from './lib/pages/reports/reports.page';
 export * from './lib/pages/reports/reports.routes';
 
-
 // Shared components
 export * from './lib/components/feature-placeholder/feature-placeholder.component';
 export * from './lib/components/json-editor/json-editor.component';
+
+// Comparisons
+export * from './lib/pages/comparisons/comparisons.page';
+export * from './lib/pages/comparisons/comparisons.routes';

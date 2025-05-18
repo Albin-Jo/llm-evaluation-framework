@@ -1,0 +1,302 @@
+<div class="comparison-create-edit-container">
+  <div class="comparison-card">
+    <!-- Header -->
+    <div class="comparison-header">
+      <div class="back-navigation">
+        <a routerLink="/app/comparisons" class="back-link">
+          <span class="back-icon">←</span> Back to Comparisons
+        </a>
+      </div>
+      <h1 class="comparison-title">{{ pageTitle }}</h1>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-container" *ngIf="isLoading">
+      <div class="loading-spinner"></div>
+      <p>Loading comparison data...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div class="error-container" *ngIf="error">
+      <p class="error-message">{{ error }}</p>
+    </div>
+
+    <!-- Form Content -->
+    <form
+      [formGroup]="comparisonForm"
+      (ngSubmit)="saveComparison()"
+      *ngIf="!isLoading && !error"
+    >
+      <!-- Tabs Navigation -->
+      <div class="tabs-container">
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 0"
+          (click)="selectedTabIndex = 0"
+        >
+          Basic Information
+        </div>
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 1"
+          (click)="selectedTabIndex = 1"
+        >
+          Configuration
+        </div>
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 2"
+          (click)="selectedTabIndex = 2"
+        >
+          Preview
+        </div>
+      </div>
+
+      <!-- Tab Content - Basic Information -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 0">
+        <div class="form-group">
+          <label for="name" class="required">Comparison Name</label>
+          <input
+            type="text"
+            id="name"
+            class="form-control"
+            formControlName="name"
+            placeholder="Enter comparison name"
+            [ngClass]="{'is-invalid': isFieldInvalid('name')}"
+          />
+          <div *ngIf="isFieldInvalid('name')" class="invalid-feedback">
+            {{getErrorMessage('name')}}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea
+            id="description"
+            class="form-control textarea"
+            formControlName="description"
+            placeholder="Enter comparison description (optional)"
+            rows="4"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="evaluation_a_id" class="required">Evaluation A</label>
+          <select
+            id="evaluation_a_id"
+            class="form-control"
+            formControlName="evaluation_a_id"
+            [ngClass]="{'is-invalid': isFieldInvalid('evaluation_a_id')}"
+          >
+            <option value="">Select first evaluation</option>
+            <option
+              *ngFor="let evaluation of evaluations"
+              [value]="evaluation.id"
+              [disabled]="evaluation.id === comparisonForm.get('evaluation_b_id')?.value"
+            >
+              {{evaluation.name}}
+            </option>
+          </select>
+          <div *ngIf="isFieldInvalid('evaluation_a_id')" class="invalid-feedback">
+            {{getErrorMessage('evaluation_a_id')}}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="evaluation_b_id" class="required">Evaluation B</label>
+          <select
+            id="evaluation_b_id"
+            class="form-control"
+            formControlName="evaluation_b_id"
+            [ngClass]="{'is-invalid': isFieldInvalid('evaluation_b_id')}"
+          >
+            <option value="">Select second evaluation</option>
+            <option
+              *ngFor="let evaluation of evaluations"
+              [value]="evaluation.id"
+              [disabled]="evaluation.id === comparisonForm.get('evaluation_a_id')?.value"
+            >
+              {{evaluation.name}}
+            </option>
+          </select>
+          <div *ngIf="isFieldInvalid('evaluation_b_id')" class="invalid-feedback">
+            {{getErrorMessage('evaluation_b_id')}}
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content - Configuration -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 1">
+        <div class="config-section" formGroupName="config">
+          <h3 class="section-heading">Comparison Configuration</h3>
+          <p class="section-description">
+            Customize settings for how evaluations are compared
+          </p>
+
+          <div class="form-group slider-group">
+            <label for="threshold">Significance Threshold</label>
+            <div class="slider-container">
+              <input
+                type="range"
+                id="threshold"
+                formControlName="threshold"
+                min="0.01"
+                max="0.25"
+                step="0.01"
+                class="slider-input"
+              />
+              <div class="slider-value">{{ comparisonForm.get('config.threshold')?.value }}</div>
+            </div>
+            <p class="helper-text">
+              Threshold for determining if a difference between metrics is significant.
+              Lower values make the system more sensitive to small differences.
+            </p>
+          </div>
+
+          <div class="form-group toggle-group">
+            <div class="toggle-wrapper">
+              <input
+                type="checkbox"
+                id="normalize_scores"
+                formControlName="normalize_scores"
+                class="toggle-input"
+              />
+              <label
+                for="normalize_scores"
+                class="toggle-label"
+              ></label>
+            </div>
+            <div class="option-details">
+              <label for="normalize_scores" class="option-label">
+                Normalize Scores
+              </label>
+              <p class="option-description">
+                Normalize scores to account for different ranges between metrics
+              </p>
+            </div>
+          </div>
+
+          <div class="form-group toggle-group">
+            <div class="toggle-wrapper">
+              <input
+                type="checkbox"
+                id="detailed_analysis"
+                formControlName="detailed_analysis"
+                class="toggle-input"
+              />
+              <label
+                for="detailed_analysis"
+                class="toggle-label"
+              ></label>
+            </div>
+            <div class="option-details">
+              <label for="detailed_analysis" class="option-label">
+                Detailed Analysis
+              </label>
+              <p class="option-description">
+                Perform in-depth analysis of sample-level differences (may take longer)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content - Preview -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 2">
+        <div class="preview-section">
+          <h3 class="section-heading">Comparison Preview</h3>
+          <p class="section-description">
+            Preview of the comparison to be created
+          </p>
+
+          <div class="preview-card">
+            <div class="preview-row">
+              <div class="preview-label">Name:</div>
+              <div class="preview-value">{{ comparisonForm.get('name')?.value || 'Not specified' }}</div>
+            </div>
+            <div class="preview-row">
+              <div class="preview-label">Description:</div>
+              <div class="preview-value description-value">
+                {{ comparisonForm.get('description')?.value || 'No description provided' }}
+              </div>
+            </div>
+            <div class="preview-row">
+              <div class="preview-label">Evaluation A:</div>
+              <div class="preview-value">
+                {{ getEvaluationName(comparisonForm.get('evaluation_a_id')?.value) || 'Not selected' }}
+              </div>
+            </div>
+            <div class="preview-row">
+              <div class="preview-label">Evaluation B:</div>
+              <div class="preview-value">
+                {{ getEvaluationName(comparisonForm.get('evaluation_b_id')?.value) || 'Not selected' }}
+              </div>
+            </div>
+            <div class="preview-row">
+              <div class="preview-label">Threshold:</div>
+              <div class="preview-value">
+                {{ comparisonForm.get('config.threshold')?.value || '0.05' }}
+              </div>
+            </div>
+            <div class="preview-row">
+              <div class="preview-label">Options:</div>
+              <div class="preview-value options-value">
+                <span *ngIf="comparisonForm.get('config.normalize_scores')?.value" class="option-item">
+                  Normalize Scores
+                </span>
+                <span *ngIf="comparisonForm.get('config.detailed_analysis')?.value" class="option-item">
+                  Detailed Analysis
+                </span>
+                <span *ngIf="!comparisonForm.get('config.normalize_scores')?.value && !comparisonForm.get('config.detailed_analysis')?.value" class="option-item no-options">
+                  No additional options selected
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <!-- Cancel button -->
+        <button type="button" class="outline-button" (click)="cancel()">
+          Cancel
+        </button>
+
+        <div class="action-buttons">
+          <!-- Previous button on tabs 1 and 2 -->
+          <button
+            *ngIf="selectedTabIndex > 0"
+            type="button"
+            class="outline-button"
+            (click)="previousTab()"
+          >
+            Previous
+          </button>
+
+          <!-- Next button on tabs 0 and 1 -->
+          <button
+            *ngIf="selectedTabIndex < 2"
+            type="button"
+            class="primary-button"
+            (click)="nextTab()"
+            [disabled]="selectedTabIndex === 0 && !isBasicInfoValid()"
+          >
+            Next
+          </button>
+
+          <!-- Save button on the final tab -->
+          <button
+            *ngIf="selectedTabIndex === 2"
+            type="submit"
+            class="primary-button"
+            [disabled]="comparisonForm.invalid || isSaving"
+          >
+            <span *ngIf="isSaving" class="spinner-sm"></span>
+            {{ isEditMode ? 'Update Comparison' : 'Create Comparison' }}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

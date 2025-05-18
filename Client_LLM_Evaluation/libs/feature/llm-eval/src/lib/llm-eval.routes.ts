@@ -22,7 +22,7 @@ export const llmEvalRoutes: Routes = [
     path: 'comparisons',
     loadChildren: () =>
       import('./pages/comparisons/comparisons.routes').then(
-        (m) => m.comparisonsRoutes
+        (m) => m.COMPARISONS_ROUTES
       ),
     canActivate: [AuthGuard],
   },
