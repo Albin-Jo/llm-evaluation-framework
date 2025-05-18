@@ -4,8 +4,8 @@ from typing import List, Optional, Dict
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Enum as SQLEnum, Float, ForeignKey,
-    Integer, JSON, String, Table, Text, func, Index
+    Boolean, DateTime, Enum as SQLEnum, Float, ForeignKey,
+    Integer, JSON, String, Text, Index
 )
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -339,20 +339,6 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     metric_scores: Mapped[List["MetricScore"]] = relationship(back_populates="result")
 
 
-# Many-to-many association table for comparing evaluations
-evaluation_comparison = Table(
-    "evaluation_comparison",
-    Base.metadata,  # This is SQLAlchemy's metadata, not our column
-    Column("id", PostgresUUID(as_uuid=True), primary_key=True, default=uuid4),
-    Column("name", String(255), nullable=False),
-    Column("description", Text, nullable=True),
-    Column("created_at", DateTime(timezone=True), server_default=func.now()),
-    Column("evaluation_a_id", ForeignKey("evaluation.id"), nullable=False),
-    Column("evaluation_b_id", ForeignKey("evaluation.id"), nullable=False),
-    Column("comparison_results", JSON, nullable=True)
-)
-
-
 class ReportStatus(str, Enum):
     DRAFT = "draft"
     GENERATED = "generated"
@@ -401,3 +387,39 @@ class Report(Base, TimestampMixin, ModelMixin):
     evaluation_id: Mapped[UUID] = mapped_column(ForeignKey("evaluation.id"), nullable=False)
     evaluation: Mapped["Evaluation"] = relationship(back_populates="reports")
     created_by: Mapped[Optional["User"]] = relationship(back_populates="reports")
+
+
+class EvaluationComparison(Base, TimestampMixin, ModelMixin):
+    """Model for comparing two evaluations."""
+    __tablename__ = "evaluation_comparison"
+    __table_args__ = (
+        Index('idx_comparison_created_by', 'created_by_id'),
+        Index('idx_comparison_evaluations', 'evaluation_a_id', 'evaluation_b_id'),
+        Index('idx_comparison_status', 'status'),
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Reference evaluations
+    evaluation_a_id: Mapped[UUID] = mapped_column(ForeignKey("evaluation.id"), nullable=False)
+    evaluation_b_id: Mapped[UUID] = mapped_column(ForeignKey("evaluation.id"), nullable=False)
+
+    # Comparison configuration
+    config: Mapped[Dict] = mapped_column(JSON, nullable=True)
+
+    # Comparison results
+    comparison_results: Mapped[Dict] = mapped_column(JSON, nullable=True)
+    summary: Mapped[Dict] = mapped_column(JSON, nullable=True)
+
+    # Status tracking
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
+
+    # Ownership
+    created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)
+
+    # Relationships
+    evaluation_a: Mapped["Evaluation"] = relationship("Evaluation", foreign_keys=[evaluation_a_id])
+    evaluation_b: Mapped["Evaluation"] = relationship("Evaluation", foreign_keys=[evaluation_b_id])
+    created_by: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by_id])

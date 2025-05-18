@@ -1,316 +1,575 @@
-# # File: app/api/v1/comparisons.py
-# from typing import Dict, List
-# from uuid import UUID
-#
-from fastapi import APIRouter, Depends, HTTPException, status
-# from sqlalchemy import select
-# from sqlalchemy.ext.asyncio import AsyncSession
-#
-# from backend.app.db.session import get_db
-# from backend.app.db.models.orm import Evaluation, EvaluationResult, MetricScore, User, evaluation_comparison
-# from backend.app.db.schema.evaluation_schema import (
-#     EvaluationComparisonCreate, EvaluationComparisonResponse
-# )
-# from backend.app.services.auth import get_current_active_user
-#
-router = APIRouter()
-#
-#
-# @router.post("/", response_model=EvaluationComparisonResponse)
-# async def create_comparison(
-#         comparison_data: EvaluationComparisonCreate,
-#         current_user: User = Depends(get_current_active_user),
-#         db: AsyncSession = Depends(get_db)
-# ):
-#     """
-#     Create a comparison between two evaluations.
-#     """
-#     # Check if evaluations exist
-#     query = select(Evaluation).where(
-#         Evaluation.id.in_([comparison_data.evaluation_a_id, comparison_data.evaluation_b_id])
-#     )
-#     result = await db.execute(query)
-#     evaluations = result.scalars().all()
-#
-#     if len(evaluations) != 2:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="One or both evaluations not found"
-#         )
-#
-#     # Check if user has permission to view these evaluations
-#     for evaluation in evaluations:
-#         if (
-#                 evaluation.created_by_id != current_user.id
-#                 and current_user.role.value != "admin"
-#         ):
-#             raise HTTPException(
-#                 status_code=status.HTTP_403_FORBIDDEN,
-#                 detail=f"Not enough permissions to access evaluation {evaluation.id}"
-#             )
-#
-#     # Check if evaluations are completed
-#     for evaluation in evaluations:
-#         if evaluation.status != "completed":
-#             raise HTTPException(
-#                 status_code=status.HTTP_400_BAD_REQUEST,
-#                 detail=f"Evaluation {evaluation.id} is not completed"
-#             )
-#
-#     # Generate comparison results
-#     comparison_results = await generate_comparison_results(
-#         db, comparison_data.evaluation_a_id, comparison_data.evaluation_b_id
-#     )
-#
-#     # Create comparison record
-#     stmt = evaluation_comparison.insert().values(
-#         name=comparison_data.name,
-#         description=comparison_data.description,
-#         created_by_id=current_user.id,
-#         evaluation_a_id=comparison_data.evaluation_a_id,
-#         evaluation_b_id=comparison_data.evaluation_b_id,
-#         comparison_results=comparison_results
-#     ).returning(evaluation_comparison)
-#
-#     result = await db.execute(stmt)
-#     db_comparison = result.one()
-#     await db.commit()
-#
-#     # Return comparison
-#     return db_comparison
-#
-#
-# @router.get("/{comparison_id}", response_model=EvaluationComparisonResponse)
-# async def get_comparison(
-#         comparison_id: UUID,
-#         current_user: User = Depends(get_current_active_user),
-#         db: AsyncSession = Depends(get_db)
-# ):
-#     """
-#     Get comparison by ID.
-#     """
-#     query = select(evaluation_comparison).where(evaluation_comparison.c.id == comparison_id)
-#     result = await db.execute(query)
-#     comparison = result.one_or_none()
-#
-#     if not comparison:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"Comparison with ID {comparison_id} not found"
-#         )
-#
-#     # Check if user has permission to view this comparison
-#     if comparison.created_by_id != current_user.id and current_user.role.value != "admin":
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="Not enough permissions"
-#         )
-#
-#     return comparison
-#
-#
-# @router.get("/", response_model=List[EvaluationComparisonResponse])
-# async def list_comparisons(
-#         skip: int = 0,
-#         limit: int = 100,
-#         current_user: User = Depends(get_current_active_user),
-#         db: AsyncSession = Depends(get_db)
-# ):
-#     """
-#     List comparisons created by the current user or visible to them.
-#     """
-#     if current_user.role.value == "admin":
-#         # Admins can see all comparisons
-#         query = select(evaluation_comparison).offset(skip).limit(limit)
-#     else:
-#         # Regular users can only see their own comparisons
-#         query = select(evaluation_comparison).where(
-#             evaluation_comparison.c.created_by_id == current_user.id
-#         ).offset(skip).limit(limit)
-#
-#     result = await db.execute(query)
-#     comparisons = result.all()
-#
-#     return comparisons
-#
-#
-# @router.delete("/{comparison_id}", status_code=status.HTTP_204_NO_CONTENT)
-# async def delete_comparison(
-#         comparison_id: UUID,
-#         current_user: User = Depends(get_current_active_user),
-#         db: AsyncSession = Depends(get_db)
-# ):
-#     """
-#     Delete comparison by ID.
-#     """
-#     query = select(evaluation_comparison).where(evaluation_comparison.c.id == comparison_id)
-#     result = await db.execute(query)
-#     comparison = result.one_or_none()
-#
-#     if not comparison:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"Comparison with ID {comparison_id} not found"
-#         )
-#
-#     # Check if user has permission to delete this comparison
-#     if comparison.created_by_id != current_user.id and current_user.role.value != "admin":
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="Not enough permissions"
-#         )
-#
-#     # Delete the comparison
-#     stmt = evaluation_comparison.delete().where(evaluation_comparison.c.id == comparison_id)
-#     await db.execute(stmt)
-#     await db.commit()
-#
-#
-# async def generate_comparison_results(
-#         db: AsyncSession, evaluation_a_id: UUID, evaluation_b_id: UUID
-# ) -> Dict:
-#     """
-#     Generate comparison results between two evaluations.
-#
-#     Args:
-#         db: Database session
-#         evaluation_a_id: First evaluation ID
-#         evaluation_b_id: Second evaluation ID
-#
-#     Returns:
-#         Dict: Comparison results
-#     """
-#     # Get evaluations with results
-#     query_a = select(Evaluation).where(Evaluation.id == evaluation_a_id)
-#     query_b = select(Evaluation).where(Evaluation.id == evaluation_b_id)
-#
-#     result_a = await db.execute(query_a)
-#     result_b = await db.execute(query_b)
-#
-#     evaluation_a = result_a.scalar_one_or_none()
-#     evaluation_b = result_b.scalar_one_or_none()
-#
-#     if not evaluation_a or not evaluation_b:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="One or both evaluations not found"
-#         )
-#
-#     # Get evaluation results
-#     query_results_a = select(EvaluationResult).where(
-#         EvaluationResult.evaluation_id == evaluation_a_id
-#     )
-#     query_results_b = select(EvaluationResult).where(
-#         EvaluationResult.evaluation_id == evaluation_b_id
-#     )
-#
-#     result_results_a = await db.execute(query_results_a)
-#     result_results_b = await db.execute(query_results_b)
-#
-#     results_a = result_results_a.scalars().all()
-#     results_b = result_results_b.scalars().all()
-#
-#     # Get metric scores for all results
-#     result_ids_a = [result.id for result in results_a]
-#     result_ids_b = [result.id for result in results_b]
-#
-#     query_metrics_a = select(MetricScore).where(MetricScore.result_id.in_(result_ids_a))
-#     query_metrics_b = select(MetricScore).where(MetricScore.result_id.in_(result_ids_b))
-#
-#     result_metrics_a = await db.execute(query_metrics_a)
-#     result_metrics_b = await db.execute(query_metrics_b)
-#
-#     metrics_a = result_metrics_a.scalars().all()
-#     metrics_b = result_metrics_b.scalars().all()
-#
-#     # Organize metrics by name
-#     metrics_by_name_a = {}
-#     metrics_by_name_b = {}
-#
-#     for metric in metrics_a:
-#         if metric.name not in metrics_by_name_a:
-#             metrics_by_name_a[metric.name] = []
-#         metrics_by_name_a[metric.name].append(metric.value)
-#
-#     for metric in metrics_b:
-#         if metric.name not in metrics_by_name_b:
-#             metrics_by_name_b[metric.name] = []
-#         metrics_by_name_b[metric.name].append(metric.value)
-#
-#     # Calculate average metrics
-#     avg_metrics_a = {
-#         name: sum(values) / len(values) for name, values in metrics_by_name_a.items()
-#     }
-#     avg_metrics_b = {
-#         name: sum(values) / len(values) for name, values in metrics_by_name_b.items()
-#     }
-#
-#     # Calculate overall scores
-#     overall_score_a = sum(result.overall_score or 0 for result in results_a) / len(results_a) if results_a else 0
-#     overall_score_b = sum(result.overall_score or 0 for result in results_b) / len(results_b) if results_b else 0
-#
-#     # Calculate differences
-#     metric_differences = {}
-#
-#     all_metric_names = set(avg_metrics_a.keys()) | set(avg_metrics_b.keys())
-#
-#     for name in all_metric_names:
-#         value_a = avg_metrics_a.get(name, 0)
-#         value_b = avg_metrics_b.get(name, 0)
-#
-#         metric_differences[name] = {
-#             "evaluation_a": value_a,
-#             "evaluation_b": value_b,
-#             "difference": value_b - value_a,
-#             "percent_change": ((value_b - value_a) / value_a * 100) if value_a else float('inf')
-#         }
-#
-#     # Determine winner for each metric
-#     for name, diff in metric_differences.items():
-#         if diff["difference"] > 0:
-#             diff["winner"] = "evaluation_b"
-#         elif diff["difference"] < 0:
-#             diff["winner"] = "evaluation_a"
-#         else:
-#             diff["winner"] = "tie"
-#
-#     # Count wins
-#     wins_a = sum(1 for diff in metric_differences.values() if diff["winner"] == "evaluation_a")
-#     wins_b = sum(1 for diff in metric_differences.values() if diff["winner"] == "evaluation_b")
-#     ties = sum(1 for diff in metric_differences.values() if diff["winner"] == "tie")
-#
-#     # Determine overall winner
-#     if overall_score_a > overall_score_b:
-#         overall_winner = "evaluation_a"
-#     elif overall_score_b > overall_score_a:
-#         overall_winner = "evaluation_b"
-#     else:
-#         overall_winner = "tie"
-#
-#     # Build comparison result
-#     comparison_result = {
-#         "evaluation_a": {
-#             "id": str(evaluation_a.id),
-#             "name": evaluation_a.name,
-#             "overall_score": overall_score_a,
-#             "metrics": avg_metrics_a
-#         },
-#         "evaluation_b": {
-#             "id": str(evaluation_b.id),
-#             "name": evaluation_b.name,
-#             "overall_score": overall_score_b,
-#             "metrics": avg_metrics_b
-#         },
-#         "metric_differences": metric_differences,
-#         "wins": {
-#             "evaluation_a": wins_a,
-#             "evaluation_b": wins_b,
-#             "ties": ties
-#         },
-#         "overall_winner": overall_winner,
-#         "overall_score_difference": overall_score_b - overall_score_a,
-#         "overall_score_percent_change": (
-#                     (overall_score_b - overall_score_a) / overall_score_a * 100) if overall_score_a else float('inf')
-#     }
-#
-#     return comparison_result
+import logging
+from typing import Dict, List, Optional, Any, Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Path
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.api.dependencies.auth import get_required_current_user
+from backend.app.api.dependencies.rate_limiter import rate_limit
+from backend.app.api.middleware.jwt_validator import UserContext
+from backend.app.core.exceptions import NotFoundException
+from backend.app.db.schema.comparison_schema import (
+    ComparisonCreate, ComparisonUpdate, ComparisonResponse, ComparisonDetailResponse,
+    MetricDifferenceResponse
+)
+from backend.app.db.session import get_db
+from backend.app.services.comparison_service import ComparisonService
+from backend.app.utils.response_utils import create_paginated_response
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
+comparisons_router = APIRouter()
+
+
+@comparisons_router.post("/", response_model=ComparisonResponse)
+async def create_comparison(
+        comparison_data: ComparisonCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        _: None = Depends(rate_limit(max_requests=10, period_seconds=60))
+):
+    """
+    Create a new evaluation comparison.
+
+    This endpoint creates a new comparison between two evaluations with the specified parameters.
+
+    - **comparison_data**: Required comparison configuration data
+
+    Returns the created comparison object with an ID that can be used for future operations.
+    """
+    logger.info(f"Creating new comparison between evaluation_a_id={comparison_data.evaluation_a_id}, "
+                f"evaluation_b_id={comparison_data.evaluation_b_id}")
+
+    # Add the user ID to the comparison data
+    if not comparison_data.created_by_id and current_user.db_user:
+        comparison_data.created_by_id = current_user.db_user.id
+
+    comparison_service = ComparisonService(db)
+    try:
+        comparison = await comparison_service.create_comparison(comparison_data)
+        logger.info(f"Successfully created comparison id={comparison.id}")
+        return comparison
+    except Exception as e:
+        logger.error(f"Failed to create comparison: {str(e)}", exc_info=True)
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create comparison: {str(e)}"
+        )
+
+
+@comparisons_router.get("/", response_model=Dict[str, Any])
+async def list_comparisons(
+        skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+        limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of records to return")] = 10,
+        name: Annotated[
+            Optional[str], Query(description="Filter by comparison name (case-insensitive, partial match)")] = None,
+        sort_by: Annotated[Optional[str], Query(description="Field to sort by")] = "created_at",
+        sort_dir: Annotated[Optional[str], Query(description="Sort direction (asc or desc)")] = "desc",
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        _: None = Depends(rate_limit(max_requests=50, period_seconds=60))
+):
+    """
+    List comparisons with optional filtering, sorting and pagination.
+
+    This endpoint returns both the comparisons array and pagination information.
+
+    - **skip**: Number of records to skip (for pagination)
+    - **limit**: Maximum number of records to return
+    - **name**: Optional filter by comparison name (case-insensitive, supports partial matching)
+    - **sort_by**: Field to sort results by (default: created_at)
+    - **sort_dir**: Sort direction, either "asc" or "desc" (default: desc)
+
+    Returns a dictionary containing the list of comparisons and pagination information.
+    """
+    filters = {}
+
+    # Add filters if provided
+    if name:
+        filters["name"] = name
+
+    # Add user ID to filter only user's comparisons
+    if current_user.db_user:
+        filters["created_by_id"] = current_user.db_user.id
+
+    # Validate sort_by parameter
+    valid_sort_fields = ["created_at", "updated_at", "name", "status"]
+    if sort_by not in valid_sort_fields:
+        logger.warning(f"Invalid sort field: {sort_by}, defaulting to created_at")
+        sort_by = "created_at"
+
+    # Validate sort_dir parameter
+    if sort_dir.lower() not in ["asc", "desc"]:
+        logger.warning(f"Invalid sort direction: {sort_dir}, defaulting to desc")
+        sort_dir = "desc"
+
+    # Add sorting instructions
+    sort_options = {
+        "sort_by": sort_by,
+        "sort_dir": sort_dir.lower()
+    }
+
+    logger.info(f"Listing comparisons with filters={filters}, skip={skip}, limit={limit}, sort={sort_options}")
+
+    comparison_service = ComparisonService(db)
+    try:
+        # Get total count first for pagination
+        total_count = await comparison_service.comparison_repo.count_search_comparisons(
+            query_text=name,
+            filters=filters,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        # Then get the actual page of results
+        comparisons = await comparison_service.comparison_repo.search_comparisons(
+            query_text=name,
+            filters=filters,
+            skip=skip,
+            limit=limit,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        logger.debug(f"Retrieved {len(comparisons)} comparisons from total of {total_count}")
+
+        # Convert to response format
+        comparison_items = [ComparisonResponse.from_orm(comp) for comp in comparisons]
+
+        # Return both results and total count using the utility function
+        return create_paginated_response(comparison_items, total_count, skip, limit)
+
+    except Exception as e:
+        logger.error(f"Error listing comparisons: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error listing comparisons: {str(e)}"
+        )
+
+
+@comparisons_router.post("/search", response_model=Dict[str, Any])
+async def search_comparisons(
+        query: Optional[str] = Body(None, description="Search query for name or description"),
+        filters: Optional[Dict[str, Any]] = Body(None, description="Additional filters"),
+        skip: int = Body(0, ge=0, description="Number of records to skip"),
+        limit: int = Body(100, ge=1, le=1000, description="Maximum number of records to return"),
+        sort_by: str = Body("created_at", description="Field to sort by"),
+        sort_dir: str = Body("desc", description="Sort direction (asc or desc)"),
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Advanced search for comparisons across multiple fields.
+
+    Supports text search across name and description fields,
+    as well as additional filters for exact matches.
+
+    Args:
+        query: Search query text for name and description
+        filters: Additional filters (exact match)
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        sort_by: Field to sort by
+        sort_dir: Sort direction
+        db: Database session
+        current_user: The authenticated user
+
+    Returns:
+        Dict containing search results and pagination info
+    """
+    logger.info(f"Advanced search for comparisons with query: '{query}' and filters: {filters}")
+
+    # Initialize filters if not provided
+    if filters is None:
+        filters = {}
+
+    # Add user ID to filter only user's comparisons
+    if current_user.db_user:
+        filters["created_by_id"] = current_user.db_user.id
+
+    comparison_service = ComparisonService(db)
+
+    # Get total count
+    total_count = await comparison_service.comparison_repo.count_search_comparisons(
+        query_text=query,
+        filters=filters,
+        user_id=current_user.db_user.id if current_user.db_user else None
+    )
+
+    # Get comparisons
+    comparisons = await comparison_service.comparison_repo.search_comparisons(
+        query_text=query,
+        filters=filters,
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        user_id=current_user.db_user.id if current_user.db_user else None
+    )
+
+    # Convert to response format
+    comparison_items = [ComparisonResponse.from_orm(comp) for comp in comparisons]
+
+    return create_paginated_response(comparison_items, total_count, skip, limit)
+
+
+@comparisons_router.get("/{comparison_id}", response_model=ComparisonDetailResponse)
+async def get_comparison(
+        comparison_id: Annotated[UUID, Path(description="The ID of the comparison to retrieve")],
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Get comparison by ID with all related details.
+
+    This endpoint retrieves comprehensive information about a comparison, including:
+    - Basic comparison metadata
+    - Configuration details
+    - Results with metric differences
+    - Summary statistics
+
+    - **comparison_id**: The unique identifier of the comparison
+
+    Returns the complete comparison object with all details.
+    """
+    try:
+        # Create comparison service
+        comparison_service = ComparisonService(db)
+
+        # Get the comparison with relationships
+        comparison = await comparison_service.get_comparison(comparison_id)
+
+        if not comparison:
+            raise NotFoundException(resource="Comparison", resource_id=str(comparison_id))
+
+        # Check if the user has permission to access this comparison
+        if comparison.created_by_id and comparison.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to access this comparison"
+            )
+
+        # Build the response
+        response = ComparisonDetailResponse(
+            id=comparison.id,
+            name=comparison.name,
+            description=comparison.description,
+            evaluation_a_id=comparison.evaluation_a_id,
+            evaluation_b_id=comparison.evaluation_b_id,
+            config=comparison.config,
+            comparison_results=comparison.comparison_results,
+            summary=comparison.summary,
+            status=comparison.status,
+            created_at=comparison.created_at,
+            updated_at=comparison.updated_at,
+            created_by_id=comparison.created_by_id,
+            evaluation_a=comparison.evaluation_a.to_dict() if comparison.evaluation_a else None,
+            evaluation_b=comparison.evaluation_b.to_dict() if comparison.evaluation_b else None,
+            metric_differences=[],
+            result_differences={},
+            summary_stats={}
+        )
+
+        # Add metric differences if available
+        if comparison.comparison_results and "metric_comparison" in comparison.comparison_results:
+            metric_diffs = []
+            for metric_name, data in comparison.comparison_results["metric_comparison"].items():
+                if "comparison" in data and data["comparison"].get("absolute_difference") is not None:
+                    metric_diff = MetricDifferenceResponse(
+                        metric_name=metric_name,
+                        evaluation_a_value=data["evaluation_a"]["average"],
+                        evaluation_b_value=data["evaluation_b"]["average"],
+                        absolute_difference=data["comparison"]["absolute_difference"],
+                        percentage_change=data["comparison"]["percentage_change"],
+                        is_improvement=data["comparison"]["is_improvement"]
+                    )
+                    metric_diffs.append(metric_diff)
+
+            # Sort by absolute difference
+            response.metric_differences = sorted(
+                metric_diffs,
+                key=lambda x: abs(x.absolute_difference),
+                reverse=True
+            )
+
+        # Add sample comparison data if available
+        if comparison.comparison_results and "sample_comparison" in comparison.comparison_results:
+            response.result_differences = comparison.comparison_results["sample_comparison"].get("matched_results", {})
+            response.summary_stats = comparison.comparison_results["sample_comparison"].get("stats", {})
+
+        return response
+
+    except NotFoundException:
+        raise
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error retrieving comparison details: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving comparison details: {str(e)}"
+        )
+
+
+@comparisons_router.put("/{comparison_id}", response_model=ComparisonResponse)
+async def update_comparison(
+        comparison_id: Annotated[UUID, Path(description="The ID of the comparison to update")],
+        comparison_data: ComparisonUpdate,
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Update comparison by ID.
+
+    This endpoint allows updating various properties of an existing comparison.
+
+    - **comparison_id**: The unique identifier of the comparison to update
+    - **comparison_data**: The comparison properties to update
+
+    Returns the updated comparison object.
+    """
+    logger.info(f"Updating comparison id={comparison_id}")
+
+    comparison_service = ComparisonService(db)
+
+    try:
+        # Update the comparison with user verification
+        updated_comparison = await comparison_service.update_comparison(
+            comparison_id,
+            comparison_data,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        if not updated_comparison:
+            raise NotFoundException(resource="Comparison", resource_id=str(comparison_id))
+
+        logger.info(f"Successfully updated comparison id={comparison_id}")
+        return updated_comparison
+
+    except NotFoundException:
+        raise
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating comparison id={comparison_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating comparison: {str(e)}"
+        )
+
+
+@comparisons_router.delete("/{comparison_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_comparison(
+        comparison_id: Annotated[UUID, Path(description="The ID of the comparison to delete")],
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Delete comparison by ID.
+
+    This endpoint completely removes a comparison and all its associated data.
+    This operation cannot be undone.
+
+    - **comparison_id**: The unique identifier of the comparison to delete
+
+    Returns no content on success (HTTP 204).
+    """
+    logger.info(f"Deleting comparison id={comparison_id}")
+
+    comparison_service = ComparisonService(db)
+
+    try:
+        # Delete with user verification
+        success = await comparison_service.delete_comparison(
+            comparison_id,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        if not success:
+            raise NotFoundException(resource="Comparison", resource_id=str(comparison_id))
+
+        logger.info(f"Successfully deleted comparison id={comparison_id}")
+    except NotFoundException:
+        raise
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting comparison id={comparison_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting comparison: {str(e)}"
+        )
+
+
+@comparisons_router.post("/{comparison_id}/run", response_model=ComparisonResponse)
+async def run_comparison_calculation(
+        comparison_id: Annotated[UUID, Path(description="The ID of the comparison to run")],
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        _: None = Depends(rate_limit(max_requests=5, period_seconds=60))
+):
+    """
+    Run comparison calculation.
+
+    This endpoint runs or re-runs the comparison calculation, analyzing the differences
+    between the two evaluations and storing the results.
+
+    - **comparison_id**: The unique identifier of the comparison to run
+
+    Returns the updated comparison object with calculation results.
+    """
+    logger.info(f"Running comparison calculation for id={comparison_id}")
+
+    comparison_service = ComparisonService(db)
+
+    try:
+        # Run calculation with user verification
+        updated_comparison = await comparison_service.run_comparison_calculation(
+            comparison_id,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        logger.info(f"Successfully ran comparison calculation for id={comparison_id}")
+        return updated_comparison
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error running comparison calculation id={comparison_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error running comparison calculation: {str(e)}"
+        )
+
+
+@comparisons_router.get("/{comparison_id}/metrics", response_model=List[MetricDifferenceResponse])
+async def get_comparison_metrics(
+        comparison_id: Annotated[UUID, Path(description="The ID of the comparison to retrieve metrics for")],
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Get detailed metrics breakdown for a comparison.
+
+    This endpoint retrieves the detailed metric differences between the two evaluations,
+    including absolute and percentage changes.
+
+    - **comparison_id**: The unique identifier of the comparison
+
+    Returns a list of metric differences.
+    """
+    logger.info(f"Getting metrics for comparison id={comparison_id}")
+
+    comparison_service = ComparisonService(db)
+
+    try:
+        # Get metrics with user verification
+        metrics = await comparison_service.get_comparison_metrics(
+            comparison_id,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        return metrics
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting comparison metrics id={comparison_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting comparison metrics: {str(e)}"
+        )
+
+
+@comparisons_router.get("/{comparison_id}/report", response_model=Dict[str, Any])
+async def get_comparison_report(
+        comparison_id: Annotated[UUID, Path(description="The ID of the comparison to generate a report for")],
+        format: Annotated[str, Query(description="Report format (json, html, pdf)")] = "json",
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Generate a downloadable report for a comparison.
+
+    This endpoint generates a detailed report of the comparison in the specified format.
+
+    - **comparison_id**: The unique identifier of the comparison
+    - **format**: Report format (json, html, pdf)
+
+    Returns the comparison report in the requested format.
+    """
+    logger.info(f"Generating report for comparison id={comparison_id} in {format} format")
+
+    comparison_service = ComparisonService(db)
+
+    try:
+        # Generate report with user verification
+        report = await comparison_service.generate_comparison_report(
+            comparison_id,
+            format=format,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        return report
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating comparison report id={comparison_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating comparison report: {str(e)}"
+        )
+
+
+@comparisons_router.get("/{comparison_id}/visualizations/{visualization_type}", response_model=Dict[str, Any])
+async def get_comparison_visualizations(
+        comparison_id: Annotated[UUID, Path(description="The ID of the comparison to visualize")],
+        visualization_type: Annotated[str, Path(description="Visualization type (radar, bar, line)")],
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Get visualization data for charts.
+
+    This endpoint generates data for different types of visualizations to display comparison results.
+
+    - **comparison_id**: The unique identifier of the comparison
+    - **visualization_type**: Type of visualization (radar, bar, line)
+
+    Returns data for the requested visualization type.
+    """
+    logger.info(f"Getting {visualization_type} visualization for comparison id={comparison_id}")
+
+    # Validate visualization type
+    valid_types = ["radar", "bar", "line"]
+    if visualization_type not in valid_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid visualization type. Supported types: {', '.join(valid_types)}"
+        )
+
+    comparison_service = ComparisonService(db)
+
+    try:
+        # Get visualization data with user verification
+        visualization_data = await comparison_service.get_comparison_visualizations(
+            comparison_id,
+            visualization_type=visualization_type,
+            user_id=current_user.db_user.id if current_user.db_user else None
+        )
+
+        return visualization_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting visualization for comparison id={comparison_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting visualization data: {str(e)}"
+        )
