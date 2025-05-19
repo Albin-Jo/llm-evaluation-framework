@@ -208,8 +208,9 @@ class ComparisonService:
             "summary": summary
         }
 
+    @staticmethod
     async def _calculate_metric_comparison(
-            self, evaluation_a: Evaluation, evaluation_b: Evaluation
+            evaluation_a: Evaluation, evaluation_b: Evaluation
     ) -> Dict[str, Any]:
         """
         Calculate detailed metric comparison between two evaluations.
@@ -299,8 +300,9 @@ class ComparisonService:
 
         return metric_comparison
 
+    @staticmethod
     async def _calculate_sample_comparison(
-            self, evaluation_a: Evaluation, evaluation_b: Evaluation
+            evaluation_a: Evaluation, evaluation_b: Evaluation
     ) -> Dict[str, Any]:
         """
         Calculate comparison for matching samples between two evaluations.
@@ -442,8 +444,9 @@ class ComparisonService:
             }
         }
 
+    @staticmethod
     def _calculate_overall_comparison(
-            self, evaluation_a: Evaluation, evaluation_b: Evaluation, metric_comparison: Dict[str, Any]
+            evaluation_a: Evaluation, evaluation_b: Evaluation, metric_comparison: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Calculate overall comparison statistics between two evaluations.
@@ -498,8 +501,8 @@ class ComparisonService:
             }
         }
 
+    @staticmethod
     def _generate_comparison_summary(
-            self,
             evaluation_a: Evaluation,
             evaluation_b: Evaluation,
             metric_comparison: Dict[str, Any],
@@ -908,8 +911,9 @@ class ComparisonService:
                 detail=f"Unsupported visualization type: {visualization_type}"
             )
 
+    @staticmethod
     def _generate_radar_chart_data(
-            self, metric_comparison: Dict[str, Any], eval_a_name: str, eval_b_name: str
+            metric_comparison: Dict[str, Any], eval_a_name: str, eval_b_name: str
     ) -> Dict[str, Any]:
         """
         Generate data for radar chart visualization.
@@ -950,8 +954,9 @@ class ComparisonService:
             "series": series
         }
 
+    @staticmethod
     def _generate_bar_chart_data(
-            self, metric_comparison: Dict[str, Any], eval_a_name: str, eval_b_name: str
+            metric_comparison: Dict[str, Any], eval_a_name: str, eval_b_name: str
     ) -> Dict[str, Any]:
         """
         Generate data for bar chart visualization.
@@ -965,23 +970,19 @@ class ComparisonService:
             Dict with bar chart data
         """
         categories = []
-        series = [
-            {
-                "name": eval_a_name,
-                "data": []
-            },
-            {
-                "name": eval_b_name,
-                "data": []
-            }
-        ]
-
-        # Add delta/improvement series
-        series.append({
+        series = [{
+            "name": eval_a_name,
+            "data": []
+        }, {
+            "name": eval_b_name,
+            "data": []
+        }, {
             "name": "Improvement",
             "data": [],
             "type": "line"
-        })
+        }]
+
+        # Add delta/improvement series
 
         for metric_name, data in metric_comparison.items():
             if "evaluation_a" in data and "evaluation_b" in data and "comparison" in data:
@@ -1003,8 +1004,9 @@ class ComparisonService:
             "series": series
         }
 
+    @staticmethod
     def _generate_line_chart_data(
-            self, metric_comparison: Dict[str, Any], eval_a_name: str, eval_b_name: str
+            metric_comparison: Dict[str, Any], eval_a_name: str, eval_b_name: str
     ) -> Dict[str, Any]:
         """
         Generate data for line chart visualization.
