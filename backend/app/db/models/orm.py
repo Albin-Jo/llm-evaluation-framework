@@ -408,13 +408,16 @@ class EvaluationComparison(Base, TimestampMixin, ModelMixin):
 
     # Comparison configuration
     config: Mapped[Dict] = mapped_column(JSON, nullable=True)
+    metric_configs: Mapped[Optional[Dict]] = mapped_column(JSON, nullable=True)
 
     # Comparison results
     comparison_results: Mapped[Dict] = mapped_column(JSON, nullable=True)
     summary: Mapped[Dict] = mapped_column(JSON, nullable=True)
+    narrative_insights: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Status tracking
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Ownership
     created_by_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("user.id"), nullable=True)

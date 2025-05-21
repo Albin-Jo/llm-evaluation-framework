@@ -35,7 +35,7 @@ async def create_comparison(
 
     This endpoint creates a new comparison between two evaluations with the specified parameters.
 
-    - **comparison_data**: Required comparison configuration data
+    - **comparison_data**: Required comparison configuration data including metric configs
 
     Returns the created comparison object with an ID that can be used for future operations.
     """
@@ -231,6 +231,7 @@ async def get_comparison(
     - Configuration details
     - Results with metric differences
     - Summary statistics
+    - Natural language insights
 
     - **comparison_id**: The unique identifier of the comparison
 
@@ -253,6 +254,11 @@ async def get_comparison(
                 detail="You don't have permission to access this comparison"
             )
 
+        # Get compatibility warnings if available
+        compatibility_warnings = []
+        if comparison.comparison_results and "compatibility_warnings" in comparison.comparison_results:
+            compatibility_warnings = comparison.comparison_results["compatibility_warnings"]
+
         # Build the response
         response = ComparisonDetailResponse(
             id=comparison.id,
@@ -261,17 +267,21 @@ async def get_comparison(
             evaluation_a_id=comparison.evaluation_a_id,
             evaluation_b_id=comparison.evaluation_b_id,
             config=comparison.config,
+            metric_configs=comparison.metric_configs,
             comparison_results=comparison.comparison_results,
             summary=comparison.summary,
             status=comparison.status,
+            error=comparison.error,
             created_at=comparison.created_at,
             updated_at=comparison.updated_at,
             created_by_id=comparison.created_by_id,
+            narrative_insights=comparison.narrative_insights,
             evaluation_a=comparison.evaluation_a.to_dict() if comparison.evaluation_a else None,
             evaluation_b=comparison.evaluation_b.to_dict() if comparison.evaluation_b else None,
             metric_differences=[],
             result_differences={},
-            summary_stats={}
+            summary_stats={},
+            compatibility_warnings=compatibility_warnings
         )
 
         # Add metric differences if available
@@ -285,7 +295,10 @@ async def get_comparison(
                         evaluation_b_value=data["evaluation_b"]["average"],
                         absolute_difference=data["comparison"]["absolute_difference"],
                         percentage_change=data["comparison"]["percentage_change"],
-                        is_improvement=data["comparison"]["is_improvement"]
+                        is_improvement=data["comparison"]["is_improvement"],
+                        p_value=data["comparison"].get("p_value"),
+                        is_significant=data["comparison"].get("is_significant"),
+                        weight=data["comparison"].get("weight", 1.0)
                     )
                     metric_diffs.append(metric_diff)
 
@@ -456,7 +469,7 @@ async def get_comparison_metrics(
     Get detailed metrics breakdown for a comparison.
 
     This endpoint retrieves the detailed metric differences between the two evaluations,
-    including absolute and percentage changes.
+    including absolute and percentage changes, statistical significance, and weights.
 
     - **comparison_id**: The unique identifier of the comparison
 
@@ -529,7 +542,7 @@ async def get_comparison_report(
 @comparisons_router.get("/{comparison_id}/visualizations/{visualization_type}", response_model=Dict[str, Any])
 async def get_comparison_visualizations(
         comparison_id: Annotated[UUID, Path(description="The ID of the comparison to visualize")],
-        visualization_type: Annotated[str, Path(description="Visualization type (radar, bar, line)")],
+        visualization_type: Annotated[str, Path(description="Visualization type (radar, bar, line, significance)")],
         db: AsyncSession = Depends(get_db),
         current_user: UserContext = Depends(get_required_current_user)
 ):
@@ -539,14 +552,14 @@ async def get_comparison_visualizations(
     This endpoint generates data for different types of visualizations to display comparison results.
 
     - **comparison_id**: The unique identifier of the comparison
-    - **visualization_type**: Type of visualization (radar, bar, line)
+    - **visualization_type**: Type of visualization (radar, bar, line, significance)
 
     Returns data for the requested visualization type.
     """
     logger.info(f"Getting {visualization_type} visualization for comparison id={comparison_id}")
 
     # Validate visualization type
-    valid_types = ["radar", "bar", "line"]
+    valid_types = ["radar", "bar", "line", "significance"]
     if visualization_type not in valid_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
