@@ -11,13 +11,14 @@ from backend.app.api.dependencies.auth import get_required_current_user, get_jwt
 from backend.app.api.dependencies.rate_limiter import rate_limit
 from backend.app.api.middleware.jwt_validator import UserContext
 from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
-from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod, EvaluationResult
+from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod, EvaluationResult, DatasetType
 from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationDetailResponse,
     EvaluationResponse, EvaluationUpdate
 )
 from backend.app.db.session import get_db
 from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
+from backend.app.services.dataset_service import DatasetService
 from backend.app.services.evaluation_service import EvaluationService, _run_evaluation_as_separate_task
 
 # Configure logger
@@ -947,4 +948,539 @@ async def test_evaluation(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error testing evaluation: {str(e)}"
+        )
+
+
+from backend.app.evaluation.metrics.deepeval_metrics import (
+    DEEPEVAL_DATASET_TYPE_METRICS, get_supported_metrics_for_dataset_type,
+    get_recommended_metrics
+)
+from backend.app.evaluation.adapters.dataset_adapter import DatasetAdapter
+
+
+# Add these new endpoints to your existing router
+
+@router.post("/{evaluation_id}/validate-deepeval")
+async def validate_dataset_for_deepeval(
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to validate")],
+        validation_request: Dict[str, Any] = Body(..., example={
+            "metrics": ["answer_relevancy", "faithfulness", "hallucination"]
+        }),
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Validate that dataset is compatible with selected DeepEval metrics.
+
+    This endpoint checks if the dataset associated with an evaluation
+    contains the necessary fields for the selected DeepEval metrics.
+
+    Args:
+        evaluation_id: The ID of the evaluation to validate
+        validation_request: Dictionary containing metrics to validate
+
+    Returns:
+        Dict containing validation results and recommendations
+        :param validation_request:
+        :param evaluation_id:
+        :param current_user:
+        :param db:
+    """
+    try:
+        evaluation_service = EvaluationService(db)
+
+        # Get evaluation and check permissions
+        evaluation = await evaluation_service.get_evaluation(evaluation_id)
+        if not evaluation:
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
+
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to access this evaluation"
+            )
+
+        # Get dataset
+        dataset_service = DatasetService(db)
+        dataset = await dataset_service.get_dataset(evaluation.dataset_id)
+
+        # Load dataset content for analysis
+        from backend.app.services.storage import get_storage_service
+        storage_service = get_storage_service()
+        file_content = await storage_service.read_file(dataset.file_path)
+
+        # Parse dataset content
+        import json
+        if dataset.file_path.endswith('.json'):
+            dataset_content = json.loads(file_content)
+        else:  # CSV
+            import pandas as pd
+            import io
+            df = pd.read_csv(io.StringIO(file_content))
+            dataset_content = df.to_dict('records')
+
+        # Validate using dataset adapter
+        dataset_adapter = DatasetAdapter()
+        validation_results = dataset_adapter.validate_dataset_for_deepeval(
+            dataset_content,
+            validation_request.get("metrics", [])
+        )
+
+        # Add dataset-specific recommendations
+        supported_metrics = get_supported_metrics_for_dataset_type(dataset.type)
+        recommended_metrics = get_recommended_metrics(dataset.type)
+
+        return {
+            "evaluation_id": str(evaluation_id),
+            "dataset_id": str(dataset.id),
+            "dataset_type": dataset.type.value,
+            "validation": validation_results,
+            "supported_metrics": supported_metrics,
+            "recommended_metrics": recommended_metrics,
+            "deepeval_compatibility": {
+                "available_metrics": list(DEEPEVAL_DATASET_TYPE_METRICS.get(dataset.type, [])),
+                "metric_categories": {
+                    "relevance": ["answer_relevancy"],
+                    "groundedness": ["faithfulness"],
+                    "safety": ["hallucination", "toxicity", "bias"],
+                    "quality": ["g_eval_coherence", "g_eval_correctness"]
+                }
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error validating dataset for DeepEval: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error validating dataset: {str(e)}"
+        )
+
+
+@router.get("/datasets/{dataset_id}/deepeval-preview")
+async def preview_dataset_for_deepeval(
+        dataset_id: Annotated[UUID, Path(description="The ID of the dataset to preview")],
+        limit: Annotated[int, Query(ge=1, le=20, description="Number of items to preview")] = 5,
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Preview how your dataset will be converted for DeepEval.
+
+    This endpoint shows how the first few items of your dataset
+    will be converted to DeepEval TestCase format.
+
+    Args:
+        dataset_id: The ID of the dataset to preview
+        limit: Maximum number of items to preview (1-20)
+
+    Returns:
+        Dict containing preview of dataset conversion
+        :param current_user:
+        :param limit:
+        :param dataset_id:
+        :param db:
+    """
+    try:
+        dataset_service = DatasetService(db)
+
+        # Get dataset with access control
+        dataset = await dataset_service.get_accessible_dataset(dataset_id, current_user.db_user.id)
+
+        # Load dataset content
+        from backend.app.services.storage import get_storage_service
+        storage_service = get_storage_service()
+        file_content = await storage_service.read_file(dataset.file_path)
+
+        # Parse dataset content
+        import json
+        if dataset.file_path.endswith('.json'):
+            dataset_content = json.loads(file_content)
+        else:  # CSV
+            import pandas as pd
+            import io
+            df = pd.read_csv(io.StringIO(file_content))
+            dataset_content = df.to_dict('records')
+
+        # Limit items for preview
+        preview_content = dataset_content[:limit]
+
+        # Convert using dataset adapter
+        dataset_adapter = DatasetAdapter()
+        deepeval_dataset = await dataset_adapter.convert_to_deepeval_dataset(dataset, preview_content)
+
+        # Create preview response
+        preview_cases = []
+        for i, test_case in enumerate(deepeval_dataset.test_cases):
+            preview_cases.append({
+                "index": i,
+                "input": test_case.input,
+                "expected_output": test_case.expected_output,
+                "context": test_case.context,
+                "has_context": bool(test_case.context),
+                "has_expected_output": bool(test_case.expected_output),
+                "additional_metadata": getattr(test_case, 'additional_metadata', {})
+            })
+
+        return {
+            "dataset_id": str(dataset_id),
+            "dataset_type": dataset.type.value,
+            "total_items_in_dataset": len(dataset_content),
+            "preview_items": len(preview_cases),
+            "preview": preview_cases,
+            "deepeval_compatibility": {
+                "supported_metrics": get_supported_metrics_for_dataset_type(dataset.type),
+                "recommended_metrics": get_recommended_metrics(dataset.type),
+                "conversion_summary": {
+                    "items_with_input": sum(1 for case in preview_cases if case["input"]),
+                    "items_with_expected_output": sum(1 for case in preview_cases if case["has_expected_output"]),
+                    "items_with_context": sum(1 for case in preview_cases if case["has_context"])
+                }
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error previewing dataset for DeepEval: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error previewing dataset: {str(e)}"
+        )
+
+
+@router.post("/prompts/{prompt_id}/test-with-deepeval")
+async def test_prompt_with_deepeval_metrics(
+        prompt_id: Annotated[UUID, Path(description="The ID of the prompt to test")],
+        test_request: Dict[str, Any] = Body(..., example={
+            "agent_id": "123e4567-e89b-12d3-a456-426614174000",
+            "sample_input": "What is the capital of France?",
+            "expected_output": "Paris",
+            "context": ["France is a country in Western Europe.", "Paris is the largest city in France."],
+            "metrics": [
+                {"name": "answer_relevancy", "threshold": 0.7},
+                {"name": "faithfulness", "threshold": 0.8}
+            ]
+        }),
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        _: None = Depends(rate_limit(max_requests=10, period_seconds=60))
+):
+    """
+    Test a prompt template with DeepEval metrics on sample data.
+
+    This endpoint allows you to test how a prompt performs with DeepEval
+    metrics before running a full evaluation.
+
+    Args:
+        prompt_id: The ID of the prompt to test
+        test_request: Test configuration with sample data and metrics
+
+    Returns:
+        Dict containing test results and metric scores
+    """
+    try:
+        # Get prompt
+        from backend.app.db.repositories.base import BaseRepository
+        from backend.app.db.models.orm import Prompt
+        prompt_repo = BaseRepository(Prompt, db)
+        prompt = await prompt_repo.get(prompt_id)
+
+        if not prompt:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Prompt with ID {prompt_id} not found"
+            )
+
+        # Get agent
+        from backend.app.db.repositories.agent_repository import AgentRepository
+        agent_repo = AgentRepository(db)
+        agent = await agent_repo.get_with_decrypted_credentials(test_request["agent_id"])
+
+        if not agent:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Agent with ID {test_request['agent_id']} not found"
+            )
+
+        # Create test case
+        from deepeval.test_case import TestCase
+        test_case = TestCase(
+            input=test_request["sample_input"],
+            expected_output=test_request.get("expected_output"),
+            context=test_request.get("context", [])
+        )
+
+        # Generate response using prompt
+        from backend.app.services.agent_clients.factory import AgentClientFactory
+        from backend.app.evaluation.adapters.prompt_adapter import PromptAdapter
+
+        agent_client = await AgentClientFactory.create_client(agent)
+        prompt_adapter = PromptAdapter()
+
+        actual_output = await prompt_adapter.apply_prompt_to_agent_client(
+            agent_client, prompt, test_request["sample_input"], test_request.get("context", [])
+        )
+
+        test_case.actual_output = actual_output
+
+        # Initialize DeepEval metrics
+        from backend.app.evaluation.methods.deepeval import DeepEvalMethod
+        deepeval_method = DeepEvalMethod(db)
+
+        # Run metrics
+        metric_configs = test_request.get("metrics", [{"name": "answer_relevancy", "threshold": 0.7}])
+        metrics = deepeval_method._initialize_deepeval_metrics(
+            [m["name"] for m in metric_configs],
+            {"deepeval_config": {m["name"]: m for m in metric_configs}}
+        )
+
+        # Evaluate single test case
+        from deepeval.dataset import EvaluationDataset
+        dataset = EvaluationDataset(test_cases=[test_case])
+        await deepeval_method._run_deepeval_async(dataset, metrics)
+
+        # Extract results
+        results = {}
+        for metric in metrics:
+            metric_name = metric.__name__ if hasattr(metric, '__name__') else str(metric)
+            results[metric_name] = {
+                "score": getattr(metric, 'score', 0.0),
+                "success": getattr(metric, 'success', False),
+                "reason": getattr(metric, 'reason', 'No reason provided'),
+                "threshold": getattr(metric, 'threshold', 0.7)
+            }
+
+        return {
+            "prompt_id": str(prompt_id),
+            "agent_id": test_request["agent_id"],
+            "test_input": test_request["sample_input"],
+            "actual_output": actual_output,
+            "expected_output": test_request.get("expected_output"),
+            "context": test_request.get("context", []),
+            "metric_results": results,
+            "overall_summary": {
+                "total_metrics": len(results),
+                "passed_metrics": sum(1 for r in results.values() if r["success"]),
+                "average_score": sum(r["score"] for r in results.values()) / len(results) if results else 0
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error testing prompt with DeepEval: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error testing prompt: {str(e)}"
+        )
+
+
+@router.get("/{evaluation_id}/deepeval-insights")
+async def get_deepeval_insights(
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to get insights for")],
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user)
+):
+    """
+    Get DeepEval-specific insights and reasoning for an evaluation.
+
+    This endpoint provides detailed insights that are specific to DeepEval
+    evaluations, including metric reasoning and failure analysis.
+
+    Args:
+        evaluation_id: The ID of the evaluation
+
+    Returns:
+        Dict containing DeepEval-specific insights
+        :param evaluation_id:
+        :param current_user:
+        :param db:
+    """
+    try:
+        evaluation_service = EvaluationService(db)
+
+        # Get evaluation and check permissions
+        evaluation = await evaluation_service.get_evaluation(evaluation_id)
+        if not evaluation:
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
+
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to access this evaluation"
+            )
+
+        if evaluation.method != EvaluationMethod.DEEPEVAL:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This endpoint is only for DeepEval evaluations"
+            )
+
+        # Get detailed results with reasoning
+        results = await evaluation_service.get_evaluation_results(evaluation_id)
+
+        # Analyze results for insights
+        insights = {
+            "evaluation_id": str(evaluation_id),
+            "method": "deepeval",
+            "total_test_cases": len(results),
+            "metric_insights": {},
+            "failure_analysis": {},
+            "recommendations": []
+        }
+
+        # Analyze metric performance
+        metric_stats = {}
+        failure_reasons = {}
+
+        for result in results:
+            for metric_score in result.metric_scores:
+                metric_name = metric_score.name
+
+                if metric_name not in metric_stats:
+                    metric_stats[metric_name] = {
+                        "scores": [],
+                        "successes": 0,
+                        "failures": 0,
+                        "reasons": []
+                    }
+
+                metric_stats[metric_name]["scores"].append(metric_score.value)
+
+                if metric_score.meta_info and metric_score.meta_info.get("success"):
+                    metric_stats[metric_name]["successes"] += 1
+                else:
+                    metric_stats[metric_name]["failures"] += 1
+
+                if metric_score.meta_info and metric_score.meta_info.get("reason"):
+                    metric_stats[metric_name]["reasons"].append(metric_score.meta_info["reason"])
+
+        # Generate insights for each metric
+        for metric_name, stats in metric_stats.items():
+            total_cases = len(stats["scores"])
+            avg_score = sum(stats["scores"]) / total_cases if total_cases > 0 else 0
+            success_rate = (stats["successes"] / total_cases) * 100 if total_cases > 0 else 0
+
+            insights["metric_insights"][metric_name] = {
+                "average_score": round(avg_score, 3),
+                "success_rate": round(success_rate, 1),
+                "total_cases": total_cases,
+                "min_score": min(stats["scores"]) if stats["scores"] else 0,
+                "max_score": max(stats["scores"]) if stats["scores"] else 0,
+                "common_failure_reasons": _analyze_failure_reasons(stats["reasons"])
+            }
+
+        # Generate recommendations
+        recommendations = []
+
+        for metric_name, insight in insights["metric_insights"].items():
+            if insight["success_rate"] < 70:
+                if metric_name == "faithfulness":
+                    recommendations.append(
+                        f"Low faithfulness score ({insight['success_rate']:.1f}%). "
+                        "Consider improving context quality or training the model to stick to provided information."
+                    )
+                elif metric_name == "answer_relevancy":
+                    recommendations.append(
+                        f"Low answer relevancy ({insight['success_rate']:.1f}%). "
+                        "Review prompt templates to ensure they guide the model to address questions directly."
+                    )
+                elif metric_name == "hallucination":
+                    recommendations.append(
+                        f"High hallucination rate. "
+                        "Consider adding stronger instructions to only use provided context."
+                    )
+
+        insights["recommendations"] = recommendations
+
+        return insights
+
+    except Exception as e:
+        logger.error(f"Error getting DeepEval insights: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting insights: {str(e)}"
+        )
+
+
+def _analyze_failure_reasons(reasons: List[str]) -> List[Dict[str, Any]]:
+    """Analyze failure reasons to find common patterns."""
+    if not reasons:
+        return []
+
+    # Count reason patterns
+    reason_counts = {}
+    for reason in reasons:
+        if reason and len(reason) > 10:  # Filter out very short reasons
+            # Simple pattern matching for common issues
+            if "context" in reason.lower():
+                key = "context_issues"
+            elif "relevant" in reason.lower():
+                key = "relevance_issues"
+            elif "accurate" in reason.lower() or "incorrect" in reason.lower():
+                key = "accuracy_issues"
+            elif "incomplete" in reason.lower():
+                key = "completeness_issues"
+            else:
+                key = "other_issues"
+
+            reason_counts[key] = reason_counts.get(key, 0) + 1
+
+    # Sort by frequency and return top patterns
+    sorted_patterns = sorted(reason_counts.items(), key=lambda x: x[1], reverse=True)
+
+    return [
+        {"pattern": pattern, "count": count, "percentage": round((count / len(reasons)) * 100, 1)}
+        for pattern, count in sorted_patterns[:5]  # Top 5 patterns
+    ]
+
+
+@router.get("/metrics/deepeval/{dataset_type}")
+async def get_deepeval_metrics_for_dataset_type(
+        dataset_type: Annotated[DatasetType, Path(description="The dataset type to get metrics for")]
+):
+    """
+    Get supported DeepEval metrics for a specific dataset type.
+
+    Args:
+        dataset_type: The type of dataset
+
+    Returns:
+        Dict containing supported DeepEval metrics and their configurations
+    """
+    try:
+        from backend.app.evaluation.metrics.deepeval_metrics import (
+            get_supported_metrics_for_dataset_type, get_recommended_metrics,
+            get_metric_requirements, get_default_config, get_metric_categories
+        )
+
+        supported_metrics = get_supported_metrics_for_dataset_type(dataset_type)
+        recommended_metrics = get_recommended_metrics(dataset_type)
+
+        # Get detailed info for each metric
+        metric_details = {}
+        for metric_name in supported_metrics:
+            requirements = get_metric_requirements(metric_name)
+            default_config = get_default_config(metric_name)
+
+            metric_details[metric_name] = {
+                "description": requirements.get("description", ""),
+                "required_fields": requirements.get("required_fields", []),
+                "optional_fields": requirements.get("optional_fields", []),
+                "threshold_range": requirements.get("threshold_range", (0.0, 1.0)),
+                "higher_is_better": requirements.get("higher_is_better", True),
+                "category": requirements.get("category", "quality"),
+                "default_config": default_config,
+                "recommended": metric_name in recommended_metrics
+            }
+
+        return {
+            "dataset_type": dataset_type.value,
+            "supported_metrics": supported_metrics,
+            "recommended_metrics": recommended_metrics,
+            "metric_categories": get_metric_categories(),
+            "metric_details": metric_details
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting DeepEval metrics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting metrics: {str(e)}"
         )
