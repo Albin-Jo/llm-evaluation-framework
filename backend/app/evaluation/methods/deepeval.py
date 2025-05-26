@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 if DEEPEVAL_AVAILABLE:
     try:
         from deepeval import evaluate
-        from deepeval.test_case import TestCase
+        from deepeval.test_case import LLMTestCase
         from deepeval.dataset import EvaluationDataset
         from deepeval.metrics import (
             AnswerRelevancyMetric, FaithfulnessMetric, ContextualPrecisionMetric,
@@ -273,7 +273,7 @@ class DeepEvalMethod(BaseEvaluationMethod):
 
         return metrics
 
-    async def _run_deepeval_async(self, dataset: EvaluationDataset, metrics: List) -> Dict:
+    async def _run_deepeval_async(self, dataset, metrics: List) -> Dict:
         """Run DeepEval in async context using thread pool."""
         loop = asyncio.get_event_loop()
 
@@ -289,7 +289,7 @@ class DeepEvalMethod(BaseEvaluationMethod):
     async def _convert_deepeval_results(
             self,
             evaluation: Evaluation,
-            test_cases: List[TestCase],
+            test_cases: List[LLMTestCase],
             deepeval_results: Dict
     ) -> List[EvaluationResultCreate]:
         """Convert DeepEval results to your EvaluationResult format."""
@@ -388,7 +388,7 @@ class DeepEvalMethod(BaseEvaluationMethod):
         logger.info("Individual metric calculation called - DeepEval works best with batch processing")
 
         # For individual calculation, create a single test case and evaluate
-        test_case = TestCase(
+        test_case = LLMTestCase(
             input=input_data.get('query', ''),
             actual_output=output_data.get('answer', ''),
             expected_output=input_data.get('ground_truth', ''),

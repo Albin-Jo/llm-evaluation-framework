@@ -1201,8 +1201,8 @@ async def test_prompt_with_deepeval_metrics(
             )
 
         # Create test case
-        from deepeval.test_case import TestCase
-        test_case = TestCase(
+        from deepeval.test_case import LLMTestCase
+        test_case = LLMTestCase(
             input=test_request["sample_input"],
             expected_output=test_request.get("expected_output"),
             context=test_request.get("context", [])

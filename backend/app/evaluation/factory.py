@@ -81,7 +81,7 @@ def register_evaluation_methods():
 
     # Register DeepEval method
     try:
-        from backend.app.evaluation.methods.deepeval_method import DeepEvalMethod
+        from backend.app.evaluation.methods.deepeval import DeepEvalMethod
         register_method("deepeval", DeepEvalMethod)
         logger.info("Successfully registered DeepEval evaluation method")
     except ImportError as e:

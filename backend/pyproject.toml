@@ -22,10 +22,13 @@ dependencies = [
     "celery (>=5.5.0,<6.0.0)",
     "pandas (>=2.2.3,<3.0.0)",
     "ragas (>=0.2.14,<0.3.0)",
-    "mcp (>=1.8.0,<2.0.0)"
+    "mcp (>=1.8.0,<2.0.0)",
+    "deepeval (>=2.9.7,<3.0.0)"
 ]
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+package-mode = false
