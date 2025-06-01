@@ -1,4 +1,3 @@
-# File: backend/app/db/repositories/agent_repository.py
 import logging
 from typing import Dict, List, Optional, Any
 from uuid import UUID

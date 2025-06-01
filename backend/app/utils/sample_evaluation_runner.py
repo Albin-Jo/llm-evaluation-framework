@@ -1,4 +1,3 @@
-# File: backend/app/utils/sample_evaluation_runner.py
 import asyncio
 import json
 import logging
