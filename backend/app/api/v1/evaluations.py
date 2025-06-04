@@ -11,7 +11,7 @@ from backend.app.api.dependencies.auth import get_required_current_user, get_jwt
 from backend.app.api.dependencies.rate_limiter import rate_limit
 from backend.app.api.middleware.jwt_validator import UserContext
 from backend.app.core.exceptions import NotFoundException, ValidationException, InvalidStateException
-from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod, EvaluationResult, DatasetType
+from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod, EvaluationResult, DatasetType, Evaluation
 from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationDetailResponse,
     EvaluationResponse, EvaluationUpdate
@@ -958,8 +958,6 @@ from backend.app.evaluation.metrics.deepeval_metrics import (
 from backend.app.evaluation.adapters.dataset_adapter import DatasetAdapter
 
 
-# Add these new endpoints to your existing router
-
 @router.post("/{evaluation_id}/validate-deepeval")
 async def validate_dataset_for_deepeval(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to validate")],
@@ -1484,3 +1482,444 @@ async def get_deepeval_metrics_for_dataset_type(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting metrics: {str(e)}"
         )
+
+
+# Add these improved endpoints to backend/app/api/v1/evaluations.py
+
+@router.post("/{evaluation_id}/run-deepeval")
+async def run_deepeval_evaluation(
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to run")],
+        config: Optional[Dict[str, Any]] = Body(None, example={
+            "metrics": ["answer_relevancy", "faithfulness", "contextual_precision"],
+            "batch_size": 5,
+            "include_reasoning": True,
+            "thresholds": {
+                "answer_relevancy": 0.7,
+                "faithfulness": 0.8
+            }
+        }),
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        jwt_token: Optional[str] = Depends(get_jwt_token),
+        _: None = Depends(rate_limit(max_requests=3, period_seconds=300))
+        # More restrictive for DeepEval
+        , background_tasks=None):
+    """
+    Run a DeepEval evaluation with enhanced configuration options.
+
+    This endpoint provides more control over DeepEval execution including:
+    - Custom metric selection and thresholds
+    - Batch size configuration for performance tuning
+    - Real-time progress tracking
+    - Enhanced error handling
+
+    Args:
+        evaluation_id: The ID of the evaluation to run
+        config: DeepEval-specific configuration options
+
+    Returns:
+        Dict containing evaluation status and job information
+        :param db:
+    """
+    logger.info(f"Starting DeepEval evaluation {evaluation_id}")
+
+    evaluation_service = EvaluationService(db)
+
+    try:
+        # Get the evaluation
+        evaluation = await evaluation_service.get_evaluation(evaluation_id)
+        if not evaluation:
+            raise NotFoundException(
+                resource="Evaluation",
+                resource_id=str(evaluation_id)
+            )
+
+        # Check permissions
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to run this evaluation"
+            )
+
+        # Validate evaluation method
+        if evaluation.method != EvaluationMethod.DEEPEVAL:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Evaluation method is {evaluation.method}, not DEEPEVAL"
+            )
+
+        # Check if evaluation can be started
+        if evaluation.status != EvaluationStatus.PENDING:
+            raise InvalidStateException(
+                resource="Evaluation",
+                current_state=evaluation.status.value,
+                operation="start",
+                detail=f"Cannot start evaluation in {evaluation.status} status"
+            )
+
+        # Merge configuration
+        deepeval_config = evaluation.config or {}
+        if config:
+            deepeval_config.update(config)
+
+        # Update evaluation with DeepEval config
+        await evaluation_service.update_evaluation(
+            evaluation_id,
+            EvaluationUpdate(config=deepeval_config)
+        )
+
+        # Start the evaluation
+        now = datetime.datetime.now()
+        await evaluation_service.evaluation_repo.update(evaluation_id, {
+            "status": EvaluationStatus.RUNNING,
+            "start_time": now
+        })
+
+        # Queue the evaluation with enhanced DeepEval support
+        try:
+            from backend.app.workers.tasks import run_deepeval_evaluation_task
+
+            # Use DeepEval-specific Celery task
+            task = run_deepeval_evaluation_task.delay(
+                str(evaluation_id),
+                jwt_token,
+                deepeval_config
+            )
+            logger.info(f"Queued DeepEval evaluation {evaluation_id} to Celery")
+
+            return {
+                "evaluation_id": str(evaluation_id),
+                "status": "running",
+                "message": "DeepEval evaluation started successfully",
+                "task_id": task.id,
+                "config": deepeval_config,
+                "estimated_time_minutes": _estimate_deepeval_time(evaluation, deepeval_config)
+            }
+
+        except Exception as e:
+            logger.warning(f"Failed to queue to Celery: {e}. Using background task.")
+
+            # Fallback to background task
+            background_tasks.add_task(
+                _run_deepeval_as_background_task,
+                str(evaluation_id),
+                jwt_token,
+                deepeval_config
+            )
+
+            return {
+                "evaluation_id": str(evaluation_id),
+                "status": "running",
+                "message": "DeepEval evaluation started as background task",
+                "config": deepeval_config
+            }
+
+    except (NotFoundException, InvalidStateException):
+        raise
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting DeepEval evaluation {evaluation_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error starting DeepEval evaluation: {str(e)}"
+        )
+
+
+@router.post("/{evaluation_id}/test-deepeval-metrics")
+async def test_deepeval_metrics(
+        evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to test")],
+        test_request: Dict[str, Any] = Body(..., example={
+            "sample_data": [
+                {
+                    "input": "What is machine learning?",
+                    "context": [
+                        "Machine learning is a subset of AI that enables computers to learn without explicit programming."],
+                    "expected_output": "Machine learning is a method of data analysis that automates analytical model building."
+                }
+            ],
+            "metrics": ["answer_relevancy", "faithfulness"],
+            "thresholds": {
+                "answer_relevancy": 0.7,
+                "faithfulness": 0.8
+            }
+        }),
+        db: AsyncSession = Depends(get_db),
+        current_user: UserContext = Depends(get_required_current_user),
+        jwt_token: Optional[str] = Depends(get_jwt_token),
+        _: None = Depends(rate_limit(max_requests=10, period_seconds=60))
+):
+    """
+    Test DeepEval metrics on sample data before running full evaluation.
+
+    This endpoint allows you to:
+    - Test specific metrics with sample data
+    - Validate agent responses
+    - Fine-tune thresholds
+    - Preview evaluation behavior
+
+    Args:
+        evaluation_id: The ID of the evaluation to test
+        test_request: Test configuration with sample data and metrics
+
+    Returns:
+        Dict containing test results and recommendations
+    """
+    logger.info(f"Testing DeepEval metrics for evaluation {evaluation_id}")
+
+    evaluation_service = EvaluationService(db)
+
+    try:
+        # Get evaluation and verify access
+        evaluation = await evaluation_service.get_evaluation(evaluation_id)
+        if not evaluation:
+            raise NotFoundException(resource="Evaluation", resource_id=str(evaluation_id))
+
+        if evaluation.created_by_id and evaluation.created_by_id != current_user.db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to test this evaluation"
+            )
+
+        # Get related entities
+        from backend.app.db.repositories.agent_repository import AgentRepository
+        from backend.app.services.agent_clients.factory import AgentClientFactory
+
+        agent_repo = AgentRepository(db)
+        agent = await agent_repo.get_with_decrypted_credentials(evaluation.agent_id)
+        prompt = await evaluation_service.get_prompt(evaluation.prompt_id)
+
+        if not agent or not prompt:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required agent or prompt for testing"
+            )
+
+        # Create agent client
+        from backend.app.db.models.orm import IntegrationType
+        if agent.integration_type == IntegrationType.MCP and jwt_token:
+            agent_client = await AgentClientFactory.create_client(agent, jwt_token)
+        else:
+            agent_client = await AgentClientFactory.create_client(agent)
+
+        # Process sample data
+        sample_data = test_request.get("sample_data", [])
+        metrics = test_request.get("metrics", ["answer_relevancy"])
+        thresholds = test_request.get("thresholds", {})
+
+        if not sample_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No sample data provided for testing"
+            )
+
+        # Import DeepEval components
+        from backend.app.evaluation.methods.deepeval import DeepEvalMethod, CustomDeepEvalLLM
+        from deepeval.test_case import LLMTestCase
+        from deepeval.dataset import EvaluationDataset
+
+        # Create test cases
+        test_cases = []
+        for i, item in enumerate(sample_data):
+            # Generate agent response
+            from backend.app.evaluation.adapters.prompt_adapter import PromptAdapter
+            prompt_adapter = PromptAdapter()
+
+            try:
+                actual_output = await prompt_adapter.apply_prompt_to_agent_client(
+                    agent_client, prompt, item.get("input", ""), item.get("context", [])
+                )
+            except Exception as e:
+                logger.error(f"Error generating response for test item {i}: {e}")
+                actual_output = f"Error: {str(e)}"
+
+            test_case = LLMTestCase(
+                input=item.get("input", ""),
+                actual_output=actual_output,
+                expected_output=item.get("expected_output", ""),
+                context=item.get("context", [])
+            )
+            test_cases.append(test_case)
+
+        # Initialize DeepEval metrics
+        deepeval_method = DeepEvalMethod(db)
+        custom_llm = CustomDeepEvalLLM(agent_client)
+
+        # Create config for metrics
+        config = {
+            "deepeval_config": {
+                metric: {"threshold": thresholds.get(metric, 0.7)}
+                for metric in metrics
+            }
+        }
+
+        deepeval_metrics = deepeval_method._initialize_deepeval_metrics(
+            metrics, config, custom_llm
+        )
+
+        # Run evaluation
+        test_dataset = EvaluationDataset(test_cases=test_cases)
+        await deepeval_method._run_deepeval_async(test_dataset, deepeval_metrics)
+
+        # Process results
+        test_results = []
+        metric_summaries = {}
+
+        for i, test_case in enumerate(test_cases):
+            case_result = {
+                "test_case_index": i,
+                "input": test_case.input,
+                "actual_output": test_case.actual_output,
+                "expected_output": test_case.expected_output,
+                "context": test_case.context,
+                "metrics": []
+            }
+
+            # Extract metric results
+            for attr_name, attr_value in test_case.__dict__.items():
+                if attr_name.endswith('_metric') and hasattr(attr_value, 'score'):
+                    metric = attr_value
+                    metric_name = attr_name.replace('_metric', '')
+
+                    metric_result = {
+                        "name": metric_name,
+                        "score": getattr(metric, 'score', 0),
+                        "success": getattr(metric, 'success', False),
+                        "threshold": getattr(metric, 'threshold', 0.7),
+                        "reason": getattr(metric, 'reason', '')
+                    }
+
+                    case_result["metrics"].append(metric_result)
+
+                    # Track for summary
+                    if metric_name not in metric_summaries:
+                        metric_summaries[metric_name] = {"scores": [], "successes": 0, "total": 0}
+
+                    metric_summaries[metric_name]["scores"].append(metric_result["score"])
+                    metric_summaries[metric_name]["total"] += 1
+                    if metric_result["success"]:
+                        metric_summaries[metric_name]["successes"] += 1
+
+            test_results.append(case_result)
+
+        # Calculate summary statistics
+        summary_stats = {}
+        for metric_name, data in metric_summaries.items():
+            if data["total"] > 0:
+                summary_stats[metric_name] = {
+                    "average_score": sum(data["scores"]) / len(data["scores"]),
+                    "success_rate": (data["successes"] / data["total"]) * 100,
+                    "total_tests": data["total"],
+                    "min_score": min(data["scores"]),
+                    "max_score": max(data["scores"])
+                }
+
+        # Generate recommendations
+        recommendations = []
+        for metric_name, stats in summary_stats.items():
+            if stats["success_rate"] < 50:
+                recommendations.append(
+                    f"Consider lowering the threshold for {metric_name} (current success rate: {stats['success_rate']:.1f}%)"
+                )
+            elif stats["success_rate"] > 90:
+                recommendations.append(
+                    f"Excellent performance on {metric_name} (success rate: {stats['success_rate']:.1f}%)"
+                )
+
+        return {
+            "evaluation_id": str(evaluation_id),
+            "test_summary": {
+                "total_test_cases": len(test_results),
+                "metrics_tested": list(summary_stats.keys()),
+                "overall_success": all(
+                    stats["success_rate"] > 50 for stats in summary_stats.values()
+                )
+            },
+            "metric_performance": summary_stats,
+            "detailed_results": test_results,
+            "recommendations": recommendations,
+            "next_steps": [
+                "Review metric performance and adjust thresholds if needed",
+                "Run full evaluation if test results are satisfactory",
+                "Consider adding more metrics based on your use case"
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Error testing DeepEval metrics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error testing metrics: {str(e)}"
+        )
+
+
+def _estimate_deepeval_time(evaluation: Evaluation, config: Dict[str, Any]) -> int:
+    """Estimate DeepEval evaluation time in minutes."""
+    try:
+        # Get dataset to estimate size
+        from backend.app.db.repositories.base import BaseRepository
+        from backend.app.db.models.orm import Dataset
+
+        dataset_repo = BaseRepository(Dataset, evaluation.db_session)
+        dataset = dataset_repo.get(evaluation.dataset_id)
+
+        if not dataset or not dataset.row_count:
+            return 10  # Default estimate
+
+        # Estimate based on dataset size and metrics
+        items = dataset.row_count
+        metrics_count = len(config.get("metrics", ["answer_relevancy"]))
+        batch_size = config.get("batch_size", 5)
+
+        # Rough estimate: 30 seconds per item per metric, plus batch overhead
+        time_per_item = 30 * metrics_count  # seconds
+        total_time = (items * time_per_item) / batch_size
+
+        # Convert to minutes and add buffer
+        return max(5, int(total_time / 60 * 1.2))  # 20% buffer
+
+    except Exception:
+        return 15  # Conservative default
+
+
+async def _run_deepeval_as_background_task(
+        evaluation_id: str,
+        jwt_token: Optional[str],
+        config: Dict[str, Any]
+) -> None:
+    """Run DeepEval evaluation as a background task."""
+    try:
+        from backend.app.db.session import db_session
+        from backend.app.services.evaluation_service import EvaluationService
+        from uuid import UUID
+
+        evaluation_uuid = UUID(evaluation_id)
+
+        async with db_session() as session:
+            service = EvaluationService(session)
+
+            # Get evaluation method handler
+            evaluation = await service.get_evaluation(evaluation_uuid)
+            method_handler = await service.get_evaluation_method_handler(evaluation.method)
+
+            # Run the evaluation
+            results = await method_handler.run_evaluation(evaluation, jwt_token=jwt_token)
+
+            # Save results
+            for result_data in results:
+                await service.create_evaluation_result(result_data)
+
+            # Mark as completed
+            await service.complete_evaluation(evaluation_uuid, success=True)
+
+            logger.info(f"DeepEval background task completed for evaluation {evaluation_id}")
+
+    except Exception as e:
+        logger.error(f"DeepEval background task failed for evaluation {evaluation_id}: {e}")
+        # Mark as failed if possible
+        try:
+            async with db_session() as session:
+                service = EvaluationService(session)
+                await service.complete_evaluation(UUID(evaluation_id), success=False)
+        except Exception:
+            pass

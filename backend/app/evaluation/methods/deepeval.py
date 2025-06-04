@@ -1,34 +1,69 @@
-import asyncio
 import datetime
 import logging
+import time
+import warnings
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from backend.app.evaluation.adapters.dataset_adapter import DatasetAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models.orm import Evaluation, EvaluationStatus
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
-from backend.app.evaluation.adapters.prompt_adapter import PromptAdapter
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 from backend.app.evaluation.metrics.deepeval_metrics import (
-    DEEPEVAL_DATASET_TYPE_METRICS, DEEPEVAL_AVAILABLE
+    DEEPEVAL_AVAILABLE
 )
 
-# Configure logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('deepeval_evaluation.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+
 logger = logging.getLogger(__name__)
 
-# Only import deepeval if available
+# Suppress verbose third-party loggers
+third_party_loggers = [
+    'urllib3.connectionpool',
+    'httpx',
+    'backoff', 
+    'posthog',
+    'requests.packages.urllib3.connectionpool',
+    'deepeval'
+]
+
+for logger_name in third_party_loggers:
+    logging.getLogger(logger_name).setLevel(logging.ERROR)
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+logger.info("DeepEval method module loaded successfully")
+
+
 if DEEPEVAL_AVAILABLE:
     try:
         from deepeval import evaluate
         from deepeval.test_case import LLMTestCase
         from deepeval.dataset import EvaluationDataset
         from deepeval.metrics import (
-            AnswerRelevancyMetric, FaithfulnessMetric, ContextualPrecisionMetric,
-            ContextualRecallMetric, ContextualRelevancyMetric, HallucinationMetric,
-            ToxicityMetric, BiasMetric, GEval
+            AnswerRelevancyMetric,
+            ContextualRecallMetric,
+            ContextualPrecisionMetric,
+            ContextualRelevancyMetric,
+            FaithfulnessMetric,
+            BiasMetric,
+            ToxicityMetric,
+            HallucinationMetric
         )
+        from deepeval.models.base_model import DeepEvalBaseLLM
+
+        # Import LangChain Azure OpenAI
+        from langchain_openai import AzureChatOpenAI
 
         logger.info("DeepEval library successfully imported")
     except ImportError as e:
@@ -36,287 +71,421 @@ if DEEPEVAL_AVAILABLE:
         DEEPEVAL_AVAILABLE = False
 
 
-class DeepEvalMethod(BaseEvaluationMethod):
-    """Evaluation method using DeepEval library for LLM evaluation."""
+class EnhancedAzureOpenAI(DeepEvalBaseLLM):
+    """Enhanced Azure OpenAI model wrapper"""
 
+    def __init__(self, agent):
+        """Initialize with agent configuration - removed logger parameter since we use module logger"""
+        self.agent = agent
+        self.model = None
+
+    def load_model(self):
+        """Load the model with error handling"""
+        try:
+            if not self.model:
+                # Use the same pattern
+                from backend.app.core.config import settings
+
+                # Extract credentials from agent
+                credentials = self.agent.auth_credentials or {}
+
+                self.model = AzureChatOpenAI(
+                    openai_api_key=credentials.get("api_key", settings.AZURE_OPENAI_KEY),
+                    azure_endpoint=self.agent.api_endpoint or settings.AZURE_OPENAI_ENDPOINT,
+                    azure_deployment=credentials.get("deployment", settings.AZURE_OPENAI_DEPLOYMENT),
+                    api_version=credentials.get("api_version", settings.AZURE_OPENAI_VERSION),
+                    request_timeout=60,
+                    max_retries=3,
+                    temperature=0.0
+                )
+
+                logger.info("Successfully loaded Azure OpenAI model")
+            return self.model
+        except Exception as e:
+            logger.error(f"Failed to load model: {str(e)}")
+            raise
+
+    def generate(self, prompt: str) -> str:
+        """Generate response with retry logic"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                model = self.load_model()
+                response = model.invoke(prompt)
+                return response.content
+            except Exception as e:
+                logger.warning(f"Generation attempt {attempt + 1} failed: {str(e)}")
+                if attempt == max_retries - 1:
+                    logger.error(f"All generation attempts failed: {str(e)}")
+                    raise
+                time.sleep(2 ** attempt)  # Exponential backoff
+
+    async def a_generate(self, prompt: str) -> str:
+        """Async generation"""
+        try:
+            model = self.load_model()
+            res = await model.ainvoke(prompt)
+            return res.content
+        except Exception as e:
+            logger.error(f"Async generation failed: {str(e)}")
+            raise
+
+    def get_model_name(self):
+        return "Enhanced Azure OpenAI Model"
+
+
+class DeepEvalMethod(BaseEvaluationMethod):
     method_name = "deepeval"
 
     def __init__(self, db_session: AsyncSession):
-        """Initialize the DeepEval evaluation method."""
+        """Initialize"""
         super().__init__(db_session)
         self.deepeval_available = DEEPEVAL_AVAILABLE
 
         if not self.deepeval_available:
             raise ImportError("DeepEval library is not available. Please install it with: pip install deepeval")
 
-        # Initialize adapters
-        self.dataset_adapter = DatasetAdapter()
-        self.prompt_adapter = PromptAdapter()
-
         logger.info(f"Initializing DeepEval evaluation method. DeepEval available: {self.deepeval_available}")
 
-    async def run_evaluation(self, evaluation: Evaluation, jwt_token: Optional[str] = None) -> List[
-        EvaluationResultCreate]:
-        """
-        Run evaluation using DeepEval.
-
-        Args:
-            evaluation: Evaluation model
-            jwt_token: Optional JWT token for MCP agent authentication
-
-        Returns:
-            List[EvaluationResultCreate]: List of evaluation results
-        """
+    async def run_evaluation(self,
+                             evaluation: Evaluation,
+                             jwt_token: Optional[str] = None
+                             ) -> List[EvaluationResultCreate]:
         logger.info(f"Starting DeepEval evaluation {evaluation.id}")
 
         try:
             # Get related entities
-            agent = await self.get_agent(evaluation.agent_id)
+            from backend.app.db.repositories.agent_repository import AgentRepository
+
+            agent_repo = AgentRepository(self.db_session)
+            agent = await agent_repo.get_with_decrypted_credentials(evaluation.agent_id)
             dataset = await self.get_dataset(evaluation.dataset_id)
             prompt = await self.get_prompt(evaluation.prompt_id)
 
             if not agent or not dataset or not prompt:
                 raise ValueError(f"Missing required entities for evaluation {evaluation.id}")
 
-            # Validate metrics based on dataset type
-            if not evaluation.metrics:
-                # Default metrics based on dataset type
-                evaluation.metrics = DEEPEVAL_DATASET_TYPE_METRICS.get(
-                    dataset.type, ["answer_relevancy", "faithfulness"]
-                )
-                logger.info(f"Using default DeepEval metrics for {dataset.type} dataset: {evaluation.metrics}")
-            else:
-                # Check that selected metrics are appropriate for this dataset type
-                valid_metrics = DEEPEVAL_DATASET_TYPE_METRICS.get(dataset.type, [])
-                invalid_metrics = [m for m in evaluation.metrics if m not in valid_metrics]
-                if invalid_metrics:
-                    logger.warning(
-                        f"Metrics {invalid_metrics} may not be appropriate for {dataset.type} datasets. "
-                        f"Valid metrics are: {valid_metrics}"
-                    )
+            # Load dataset and create test cases
+            dataset_items = await self.load_dataset(dataset)
+            test_cases = self._create_comprehensive_test_cases(dataset_items)
 
-            # Use enhanced batch processing with DeepEval integration
-            results = await self.batch_process_with_deepeval(evaluation, jwt_token=jwt_token)
+            # Generate agent responses
+            test_cases_with_outputs = await self._generate_agent_responses(
+                test_cases, agent, prompt, jwt_token
+            )
 
-            logger.info(f"Completed DeepEval evaluation {evaluation.id} with {len(results)} results")
-            return results
+            # Initialize Azure OpenAI model - removed logger parameter
+            azure_openai = EnhancedAzureOpenAI(agent)
+
+            # Create metrics following
+            metrics_dict = self._create_comprehensive_metrics(azure_openai, evaluation)
+
+            # Validate test cases
+            validated_metrics_dict = self._validate_test_cases_for_metrics(test_cases_with_outputs, metrics_dict)
+
+            if not validated_metrics_dict:
+                raise ValueError("No metrics can be used with the provided test cases")
+
+            # Extract metrics for evaluation
+            metrics = [m['metric'] for m in validated_metrics_dict.values()]
+
+            logger.info(f"Running evaluation with {len(metrics)} metrics on {len(test_cases_with_outputs)} test cases")
+
+            # Run evaluation
+            results = evaluate(test_cases=test_cases_with_outputs, metrics=metrics)
+
+            # Convert results to platform format
+            platform_results = await self._convert_results_to_platform_format(
+                evaluation, results, test_cases_with_outputs, validated_metrics_dict
+            )
+
+            logger.info(f"Completed DeepEval evaluation {evaluation.id} with {len(platform_results)} results")
+            return platform_results
 
         except Exception as e:
-            # Update evaluation to failed status
             await self._update_evaluation_status(
                 evaluation.id,
                 EvaluationStatus.FAILED,
                 {"end_time": datetime.datetime.now()}
             )
-
             logger.exception(f"Failed DeepEval evaluation {evaluation.id}: {str(e)}")
             raise
 
-    async def batch_process_with_deepeval(
+    @staticmethod
+    def _create_comprehensive_test_cases(dataset_items: List[Dict[str, Any]]) -> List[LLMTestCase]:
+        """Create test cases following"""
+        test_cases = []
+
+        for i, item in enumerate(dataset_items):
+            try:
+                # Extract fields using flexible mapping
+                query = item.get("query", item.get("question", item.get("input", "")))
+                context = item.get("context", item.get("contexts", []))
+                expected_output = item.get("ground_truth", item.get("expected_answer", item.get("answer", "")))
+
+                # Normalize context
+                if isinstance(context, str):
+                    context = [context] if context else []
+                elif not isinstance(context, list):
+                    context = []
+
+                # Create test case with all fields
+                test_case = LLMTestCase(
+                    input=query,
+                    actual_output='',  # Will be filled by agent response
+                    expected_output=expected_output,
+                    context=context,
+                    retrieval_context=item.get("retrieval_context", context)
+                )
+
+                test_cases.append(test_case)
+
+            except Exception as e:
+                logger.error(f"Error creating test case {i}: {e}")
+                # Create minimal test case for error handling
+                error_test_case = LLMTestCase(
+                    input=f"Error processing item {i}",
+                    actual_output="Error occurred during processing",
+                    expected_output="Error",
+                    context=["Error in processing"],
+                    retrieval_context=["Error in processing"]
+                )
+                test_cases.append(error_test_case)
+
+        logger.info(f"Created {len(test_cases)} comprehensive test cases")
+        return test_cases
+
+    async def _generate_agent_responses(
             self,
-            evaluation: Evaluation,
-            batch_size: int = 10,
+            test_cases: List[LLMTestCase],
+            agent,
+            prompt,
             jwt_token: Optional[str] = None
-    ) -> List[EvaluationResultCreate]:
-        """
-        Process dataset items using DeepEval with your existing batch processing pattern.
-
-        Args:
-            evaluation: Evaluation model
-            batch_size: Number of items to process in each batch
-            jwt_token: Optional JWT token for MCP authentication
-
-        Returns:
-            List[EvaluationResultCreate]: List of evaluation results
-        """
-        # Get related entities
-        from backend.app.db.repositories.agent_repository import AgentRepository
+    ) -> List[LLMTestCase]:
+        """Generate agent responses"""
         from backend.app.services.agent_clients.factory import AgentClientFactory
         from backend.app.db.models.orm import IntegrationType
 
-        agent_repo = AgentRepository(self.db_session)
-        agent = await agent_repo.get_with_decrypted_credentials(evaluation.agent_id)
-        dataset = await self.get_dataset(evaluation.dataset_id)
-        prompt = await self.get_prompt(evaluation.prompt_id)
-
-        if not agent or not dataset or not prompt:
-            logger.error(f"Missing required entities for evaluation {evaluation.id}")
-            return []
-
-        # Load and convert dataset to DeepEval format
-        dataset_items = await self.load_dataset(dataset)
-        deepeval_dataset = await self.dataset_adapter.convert_to_deepeval_dataset(
-            dataset, dataset_items
-        )
-
         # Create agent client
-        logger.info(f"Creating client for agent type: {agent.integration_type}")
         if agent.integration_type == IntegrationType.MCP and jwt_token:
-            logger.info(f"Using JWT token for MCP agent in evaluation {evaluation.id}")
+            logger.info(f"Using JWT token for MCP agent in evaluation")
             agent_client = await AgentClientFactory.create_client(agent, jwt_token)
         else:
             agent_client = await AgentClientFactory.create_client(agent)
 
-        # Generate responses for all test cases first
-        test_cases_with_outputs = []
-        for i, test_case in enumerate(deepeval_dataset.test_cases):
+        # Process test cases to generate responses
+        for i, test_case in enumerate(test_cases):
             try:
-                # Apply prompt template to generate response
-                actual_output = await self.prompt_adapter.apply_prompt_to_agent_client(
-                    agent_client, prompt, test_case.input, test_case.context
+                # Format prompt with test case data
+                formatted_prompt = self._format_prompt(prompt.content, {
+                    "query": test_case.input,
+                    "context": "\n".join(test_case.context) if test_case.context else "",
+                    "ground_truth": test_case.expected_output or ""
+                })
+
+                # Generate response using agent client
+                response = await agent_client.process_query(
+                    query=test_case.input,
+                    context="\n".join(test_case.context) if test_case.context else None,
+                    system_message=formatted_prompt
                 )
 
-                # Update test case with actual output
-                test_case.actual_output = actual_output
-                test_cases_with_outputs.append(test_case)
+                # Extract answer
+                if response.get("success", True):
+                    test_case.actual_output = response.get("answer", "")
+                else:
+                    test_case.actual_output = f"Error: {response.get('error', 'Unknown error')}"
 
-                # Log progress
                 if (i + 1) % 5 == 0:
-                    logger.info(f"Generated {i + 1}/{len(deepeval_dataset.test_cases)} responses")
+                    logger.info(f"Generated {i + 1}/{len(test_cases)} responses")
 
             except Exception as e:
                 logger.error(f"Error generating response for test case {i}: {e}")
-                # Create test case with error
                 test_case.actual_output = f"Error: {str(e)}"
-                test_cases_with_outputs.append(test_case)
 
-        # Create evaluation dataset with outputs
-        evaluation_dataset = EvaluationDataset(test_cases=test_cases_with_outputs)
+        return test_cases
 
-        # Initialize DeepEval metrics
-        deepeval_metrics = self._initialize_deepeval_metrics(evaluation.metrics, evaluation.config or {})
+    @staticmethod
+    def _create_comprehensive_metrics(azure_openai, evaluation: Evaluation) -> Dict[str, Any]:
+        """Create metrics following"""
+        metrics = {}
 
-        # Run DeepEval evaluation in thread pool (since it's synchronous)
-        deepeval_results = await self._run_deepeval_async(evaluation_dataset, deepeval_metrics)
+        try:
+            # Get threshold from config
+            threshold = evaluation.config.get('threshold', 0.7) if evaluation.config else 0.7
+            include_reason = evaluation.config.get('include_reason', True) if evaluation.config else True
 
-        # Convert results to your format
-        evaluation_results = await self._convert_deepeval_results(
-            evaluation, test_cases_with_outputs, deepeval_results
-        )
+            # Core RAG Metrics
+            metrics['answer_relevancy'] = {
+                'metric': AnswerRelevancyMetric(
+                    threshold=threshold,
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Measures how relevant the answer is to the given question',
+                'use_case': 'Ensures responses directly address user queries'
+            }
 
-        return evaluation_results
+            metrics['contextual_recall'] = {
+                'metric': ContextualRecallMetric(
+                    threshold=threshold,
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Measures how much of the expected output can be attributed to the retrieval context',
+                'use_case': 'Evaluates if retrieved context contains necessary information'
+            }
 
-    def _initialize_deepeval_metrics(self, metric_names: List[str], config: Dict[str, Any]) -> List:
-        """Initialize DeepEval metrics based on configuration."""
-        metrics = []
+            metrics['contextual_precision'] = {
+                'metric': ContextualPrecisionMetric(
+                    threshold=threshold,
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Measures whether nodes in retrieval context are relevant to the given input',
+                'use_case': 'Evaluates quality of retrieved context'
+            }
 
-        for metric_name in metric_names:
-            try:
-                metric_config = config.get('deepeval_config', {}).get(metric_name, {})
-                threshold = metric_config.get('threshold', 0.7)
-                model = metric_config.get('model', 'gpt-4')
+            metrics['contextual_relevancy'] = {
+                'metric': ContextualRelevancyMetric(
+                    threshold=threshold,
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Measures how relevant the retrieval context is to the given input',
+                'use_case': 'Ensures retrieved documents are actually relevant'
+            }
 
-                if metric_name == 'answer_relevancy':
-                    metrics.append(AnswerRelevancyMetric(
-                        threshold=threshold,
-                        model=model,
-                        include_reason=True
-                    ))
-                elif metric_name == 'faithfulness':
-                    metrics.append(FaithfulnessMetric(
-                        threshold=threshold,
-                        model=model,
-                        include_reason=True
-                    ))
-                elif metric_name == 'contextual_precision':
-                    metrics.append(ContextualPrecisionMetric(
-                        threshold=threshold,
-                        model=model,
-                        include_reason=True
-                    ))
-                elif metric_name == 'contextual_recall':
-                    metrics.append(ContextualRecallMetric(
-                        threshold=threshold,
-                        model=model,
-                        include_reason=True
-                    ))
-                elif metric_name == 'contextual_relevancy':
-                    metrics.append(ContextualRelevancyMetric(
-                        threshold=threshold,
-                        model=model,
-                        include_reason=True
-                    ))
-                elif metric_name == 'hallucination':
-                    metrics.append(HallucinationMetric(
-                        threshold=threshold,
-                        model=model
-                    ))
-                elif metric_name == 'toxicity':
-                    metrics.append(ToxicityMetric(
-                        threshold=threshold,
-                        model=model
-                    ))
-                elif metric_name == 'bias':
-                    metrics.append(BiasMetric(
-                        threshold=threshold,
-                        model=model
-                    ))
-                elif metric_name.startswith('g_eval_'):
-                    # Custom G-Eval metric
-                    g_eval_config = metric_config.get('g_eval', {})
-                    metrics.append(GEval(
-                        name=g_eval_config.get('name', metric_name),
-                        criteria=g_eval_config.get('criteria', 'Evaluate the response quality'),
-                        evaluation_steps=g_eval_config.get('evaluation_steps', [
-                            "Read the input and response carefully",
-                            "Evaluate based on the given criteria",
-                            "Provide a score from 1-10"
-                        ]),
-                        evaluation_params=g_eval_config.get('evaluation_params', []),
-                        threshold=threshold
-                    ))
-                else:
-                    logger.warning(f"Unknown DeepEval metric: {metric_name}")
+            metrics['faithfulness'] = {
+                'metric': FaithfulnessMetric(
+                    threshold=threshold,
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Measures how factually accurate the actual output is to the retrieval context',
+                'use_case': 'Prevents hallucinations and ensures factual accuracy'
+            }
 
-            except Exception as e:
-                logger.error(f"Error initializing metric {metric_name}: {e}")
+            # Safety and Ethics Metrics
+            metrics['bias'] = {
+                'metric': BiasMetric(
+                    threshold=0.5,  # Lower threshold for bias detection
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Detects bias in model outputs across various dimensions',
+                'use_case': 'Ensures fair and unbiased responses'
+            }
+
+            metrics['toxicity'] = {
+                'metric': ToxicityMetric(
+                    threshold=0.5,  # Lower threshold for toxicity detection
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Detects toxic, harmful, or inappropriate content',
+                'use_case': 'Ensures safe and appropriate responses'
+            }
+
+            # Content Quality Metrics
+            metrics['hallucination'] = {
+                'metric': HallucinationMetric(
+                    threshold=0.5,
+                    model=azure_openai,
+                    include_reason=include_reason
+                ),
+                'description': 'Detects hallucinated information not present in the context',
+                'use_case': 'Prevents generation of false information'
+            }
+
+            logger.info(f"Successfully created {len(metrics)} evaluation metrics")
+
+        except Exception as e:
+            logger.error(f"Failed to create metrics: {str(e)}")
+            raise
 
         return metrics
 
-    async def _run_deepeval_async(self, dataset, metrics: List) -> Dict:
-        """Run DeepEval in async context using thread pool."""
-        loop = asyncio.get_event_loop()
+    def _validate_test_cases_for_metrics(self, test_cases: List[LLMTestCase], metrics_dict: Dict) -> Dict[str, Any]:
+        """Validate test cases against metric requirements."""
+        validated_metrics = {}
+        issues = []
 
-        def run_deepeval():
-            return evaluate(
-                test_cases=dataset.test_cases,
-                metrics=metrics,
-                hyperparameters={"model": "gpt-4"}
-            )
+        for metric_name, metric_info in metrics_dict.items():
+            metric = metric_info['metric']
+            metric_type = type(metric).__name__
 
-        return await loop.run_in_executor(None, run_deepeval)
+            # Check requirements for each metric type
+            can_use_metric = True
+            missing_fields = []
 
-    async def _convert_deepeval_results(
+            for test_case in test_cases:
+                if metric_type == 'HallucinationMetric':
+                    if not test_case.context:
+                        missing_fields.append(f"Test case '{test_case.input[:30]}...' missing 'context' field")
+                        can_use_metric = False
+
+                elif metric_type in ['ContextualRecallMetric', 'ContextualPrecisionMetric',
+                                     'ContextualRelevancyMetric']:
+                    if not test_case.retrieval_context:
+                        missing_fields.append(
+                            f"Test case '{test_case.input[:30]}...' missing 'retrieval_context' field")
+                        can_use_metric = False
+
+                elif metric_type == 'FaithfulnessMetric':
+                    if not test_case.retrieval_context:
+                        missing_fields.append(
+                            f"Test case '{test_case.input[:30]}...' missing 'retrieval_context' field")
+                        can_use_metric = False
+
+            if can_use_metric:
+                validated_metrics[metric_name] = metric_info
+                logger.info(f"[OK] {metric_name} validated successfully")
+            else:
+                issues.extend(missing_fields)
+                logger.warning(f"[SKIP] Skipping {metric_name} due to missing required fields")
+
+        if issues:
+            logger.warning(f"Validation issues found: {len(issues)} problems detected")
+            for issue in issues[:5]:  # Show first 5 issues
+                logger.warning(f"  - {issue}")
+
+        logger.info(f"Using {len(validated_metrics)}/{len(metrics_dict)} metrics after validation")
+        return validated_metrics
+
+    async def _convert_results_to_platform_format(
             self,
             evaluation: Evaluation,
+            deepeval_results: Any,
             test_cases: List[LLMTestCase],
-            deepeval_results: Dict
+            validated_metrics_dict: Dict
     ) -> List[EvaluationResultCreate]:
-        """Convert DeepEval results to your EvaluationResult format."""
-        results = []
+        """Convert DeepEval results to platform format."""
+        platform_results = []
 
-        for i, test_case in enumerate(test_cases):
-            try:
-                # Extract metric scores from the test case after evaluation
-                metric_scores = []
-                total_score = 0
-                passed_count = 0
+        # Process each test result
+        if hasattr(deepeval_results, 'test_results'):
+            for i, test_result in enumerate(deepeval_results.test_results):
+                try:
+                    # Extract metric scores
+                    metric_scores = []
+                    total_score = 0
+                    passed_count = 0
 
-                # Get metric results from test case
-                for metric in deepeval_results.get('metrics', []):
-                    if hasattr(metric, 'score') and hasattr(metric, 'success'):
-                        score_value = getattr(metric, 'score', 0)
-                        success = getattr(metric, 'success', False)
-                        reason = getattr(metric, 'reason', '')
+                    # Get metric results from test case
+                    for metric_data in test_result.metrics_data:
+                        score_value = getattr(metric_data, 'score', 0)
+                        success = getattr(metric_data, 'success', False)
+                        reason = getattr(metric_data, 'reason', '')
 
                         metric_scores.append(MetricScoreCreate(
-                            name=metric.__name__ if hasattr(metric, '__name__') else str(metric),
+                            name=metric_data.name,
                             value=score_value,
                             weight=1.0,
                             meta_info={
                                 'success': success,
                                 'reason': reason,
-                                'threshold': getattr(metric, 'threshold', 0.7)
+                                'threshold': getattr(metric_data, 'threshold', 0.7)
                             }
                         ))
 
@@ -324,94 +493,88 @@ class DeepEvalMethod(BaseEvaluationMethod):
                         if success:
                             passed_count += 1
 
-                # Calculate overall score
-                overall_score = total_score / len(metric_scores) if metric_scores else 0
-                passed = passed_count == len(metric_scores) if metric_scores else False
+                    # Calculate overall score
+                    overall_score = total_score / len(metric_scores) if metric_scores else 0
+                    passed = passed_count == len(metric_scores) if metric_scores else False
 
-                # Create evaluation result
-                result = EvaluationResultCreate(
-                    evaluation_id=evaluation.id,
-                    overall_score=overall_score,
-                    raw_results={
-                        'deepeval_metrics': [
-                            {
-                                'name': ms.name,
-                                'value': ms.value,
-                                'success': ms.meta_info.get('success'),
-                                'reason': ms.meta_info.get('reason')
-                            } for ms in metric_scores
-                        ]
-                    },
-                    dataset_sample_id=str(i),
-                    input_data={
-                        'input': test_case.input,
-                        'context': test_case.context,
-                        'expected_output': test_case.expected_output
-                    },
-                    output_data={
-                        'actual_output': test_case.actual_output
-                    },
-                    metric_scores=metric_scores,
-                    passed=passed,
-                    pass_threshold=evaluation.pass_threshold or 0.7
-                )
+                    # Create evaluation result
+                    result = EvaluationResultCreate(
+                        evaluation_id=evaluation.id,
+                        overall_score=overall_score,
+                        raw_results={
+                            'deepeval_metrics': [
+                                {
+                                    'name': ms.name,
+                                    'value': ms.value,
+                                    'success': ms.meta_info.get('success'),
+                                    'reason': ms.meta_info.get('reason')
+                                } for ms in metric_scores
+                            ]
+                        },
+                        dataset_sample_id=str(i),
+                        input_data={
+                            'input': test_cases[i].input if i < len(test_cases) else "",
+                            'context': test_cases[i].context if i < len(test_cases) else [],
+                            'expected_output': test_cases[i].expected_output if i < len(test_cases) else ""
+                        },
+                        output_data={
+                            'actual_output': test_cases[i].actual_output if i < len(test_cases) else ""
+                        },
+                        metric_scores=metric_scores,
+                        passed=passed,
+                        pass_threshold=evaluation.pass_threshold or 0.7
+                    )
 
-                results.append(result)
+                    platform_results.append(result)
 
-            except Exception as e:
-                logger.error(f"Error converting result for test case {i}: {e}")
-                # Create error result
-                error_result = EvaluationResultCreate(
-                    evaluation_id=evaluation.id,
-                    overall_score=0.0,
-                    raw_results={'error': str(e)},
-                    dataset_sample_id=str(i),
-                    input_data={'error': 'Failed to process'},
-                    output_data={'error': str(e)},
-                    metric_scores=[],
-                    passed=False,
-                    pass_threshold=evaluation.pass_threshold or 0.7
-                )
-                results.append(error_result)
+                except Exception as e:
+                    logger.error(f"Error converting result for test case {i}: {e}")
+                    # Create error result
+                    error_result = EvaluationResultCreate(
+                        evaluation_id=evaluation.id,
+                        overall_score=0.0,
+                        raw_results={'error': str(e)},
+                        dataset_sample_id=str(i),
+                        input_data={'error': 'Failed to process'},
+                        output_data={'error': str(e)},
+                        metric_scores=[],
+                        passed=False,
+                        pass_threshold=evaluation.pass_threshold or 0.7
+                    )
+                    platform_results.append(error_result)
 
-        return results
+        return platform_results
 
     async def calculate_metrics(
             self, input_data: Dict[str, Any], output_data: Dict[str, Any], config: Dict[str, Any]
     ) -> Dict[str, float]:
-        """
-        Calculate DeepEval metrics for a single evaluation item.
-
-        Note: This method is kept for compatibility but DeepEval works better
-        with batch processing in run_evaluation.
-        """
+        """Calculate metrics for individual items"""
         logger.info("Individual metric calculation called - DeepEval works best with batch processing")
 
-        # For individual calculation, create a single test case and evaluate
+        # For individual calculation, create a single test case
         test_case = LLMTestCase(
             input=input_data.get('query', ''),
             actual_output=output_data.get('answer', ''),
             expected_output=input_data.get('ground_truth', ''),
-            context=input_data.get('context', [])
-        )
-
-        # Initialize metrics
-        metrics = self._initialize_deepeval_metrics(
-            config.get('metrics', ['answer_relevancy']),
-            config
+            context=input_data.get('context', []),
+            retrieval_context=input_data.get('context', [])
         )
 
         try:
+            # Create a mock Azure OpenAI for individual calculations - removed logger parameter
+            mock_azure = EnhancedAzureOpenAI(None)
+
+            # Initialize metrics
+            metrics = self._create_comprehensive_metrics(mock_azure, type('MockEval', (), {'config': config})())
+
             # Run evaluation on single test case
-            dataset = EvaluationDataset(test_cases=[test_case])
-            await self._run_deepeval_async(dataset, metrics)
+            results = evaluate(test_cases=[test_case], metrics=[m['metric'] for m in metrics.values()])
 
             # Extract scores
             scores = {}
-            for metric in metrics:
-                if hasattr(metric, 'score'):
-                    metric_name = metric.__name__ if hasattr(metric, '__name__') else str(metric)
-                    scores[metric_name] = getattr(metric, 'score', 0.0)
+            if hasattr(results, 'test_results') and results.test_results:
+                for metric_data in results.test_results[0].metrics_data:
+                    scores[metric_data.name] = getattr(metric_data, 'score', 0.0)
 
             return scores
 

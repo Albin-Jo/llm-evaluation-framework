@@ -1,7 +1,8 @@
 import asyncio
 import datetime
 import logging
-from typing import Optional
+import time
+from typing import Optional, Dict, Any, List
 from uuid import UUID
 
 from celery import Celery
@@ -472,3 +473,501 @@ async def _test_db_connection():
     async with db_session() as session:
         result = await session.execute("SELECT 1")
         return result.scalar()
+
+
+# Add this to backend/app/workers/tasks.py
+
+@celery_app.task(name="run_deepeval_evaluation", bind=True, max_retries=2)
+def run_deepeval_evaluation_task(
+        self,
+        evaluation_id: str,
+        jwt_token: Optional[str] = None,
+        deepeval_config: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Enhanced Celery task specifically for DeepEval evaluations.
+
+    Args:
+        evaluation_id: Evaluation ID
+        jwt_token: Optional JWT token for MCP agent authentication
+        deepeval_config: DeepEval-specific configuration
+
+    Returns:
+        str: Task result
+    """
+    evaluation_uuid = UUID(evaluation_id)
+
+    # Set up asyncio event loop
+    loop = asyncio.get_event_loop()
+
+    try:
+        return loop.run_until_complete(
+            _run_deepeval_evaluation_enhanced(evaluation_uuid, jwt_token, deepeval_config)
+        )
+    except Exception as exc:
+        logger.exception(f"Error running DeepEval evaluation {evaluation_id}")
+
+        # Retry with exponential backoff, but fewer retries for DeepEval
+        retry_in = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
+        self.retry(exc=exc, countdown=retry_in)
+
+
+async def _run_deepeval_evaluation_enhanced(
+        evaluation_id: UUID,
+        jwt_token: Optional[str] = None,
+        deepeval_config: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Enhanced async function to run DeepEval evaluations with better error handling.
+    """
+    async with db_session() as session:
+        evaluation_service = EvaluationService(session)
+
+        try:
+            # Get the evaluation
+            evaluation = await evaluation_service.get_evaluation(evaluation_id)
+            if not evaluation:
+                logger.error(f"DeepEval evaluation {evaluation_id} not found")
+                return f"Evaluation {evaluation_id} not found"
+
+            # Validate evaluation is for DeepEval
+            if evaluation.method != EvaluationMethod.DEEPEVAL:
+                error_msg = f"Evaluation {evaluation_id} is not a DeepEval evaluation (method: {evaluation.method})"
+                logger.error(error_msg)
+                return error_msg
+
+            # Check status
+            if evaluation.status not in (EvaluationStatus.PENDING, EvaluationStatus.RUNNING):
+                logger.warning(f"DeepEval evaluation {evaluation_id} is in {evaluation.status} status")
+                return f"Evaluation {evaluation_id} is in {evaluation.status} status"
+
+            # Update configuration if provided
+            if deepeval_config:
+                current_config = evaluation.config or {}
+                current_config.update(deepeval_config)
+                await evaluation_service.evaluation_repo.update(evaluation_id, {"config": current_config})
+                logger.info(f"Updated DeepEval config for evaluation {evaluation_id}")
+
+            # Start the evaluation if pending
+            if evaluation.status == EvaluationStatus.PENDING:
+                await evaluation_service.evaluation_repo.update(evaluation_id, {
+                    "status": EvaluationStatus.RUNNING,
+                    "start_time": datetime.datetime.now()
+                })
+                logger.info(f"Started DeepEval evaluation {evaluation_id}")
+
+            # Get the DeepEval method handler
+            method_handler = await evaluation_service.get_evaluation_method_handler(evaluation.method)
+
+            # Add progress tracking
+            logger.info(f"Running DeepEval evaluation {evaluation_id} with JWT: {bool(jwt_token)}")
+
+            # Run the evaluation with enhanced monitoring
+            start_time = time.time()
+
+            try:
+                results = await method_handler.run_evaluation(evaluation, jwt_token=jwt_token)
+                processing_time = time.time() - start_time
+
+                logger.info(f"DeepEval processing completed in {processing_time:.2f}s, got {len(results)} results")
+
+            except Exception as eval_error:
+                # Log detailed error for DeepEval-specific issues
+                logger.error(f"DeepEval execution failed for evaluation {evaluation_id}: {eval_error}")
+
+                # Try to provide more specific error information
+                if "deepeval" in str(eval_error).lower():
+                    error_msg = f"DeepEval library error: {str(eval_error)}"
+                elif "model" in str(eval_error).lower() or "openai" in str(eval_error).lower():
+                    error_msg = f"LLM/Model error: {str(eval_error)}"
+                elif "timeout" in str(eval_error).lower():
+                    error_msg = f"Timeout error - consider reducing batch size: {str(eval_error)}"
+                else:
+                    error_msg = f"Evaluation error: {str(eval_error)}"
+
+                # Update evaluation status with specific error
+                await evaluation_service.evaluation_repo.update(evaluation_id, {
+                    "status": EvaluationStatus.FAILED,
+                    "end_time": datetime.datetime.now(),
+                    "config": {
+                        **(evaluation.config or {}),
+                        "error_details": error_msg,
+                        "processing_time_seconds": time.time() - start_time
+                    }
+                })
+
+                return error_msg
+
+            # Process and save results
+            logger.info(f"Saving {len(results)} DeepEval results for evaluation {evaluation_id}")
+
+            saved_count = 0
+            failed_count = 0
+
+            for i, result_data in enumerate(results):
+                try:
+                    await evaluation_service.create_evaluation_result(result_data)
+                    saved_count += 1
+                except Exception as result_error:
+                    logger.error(f"Error saving DeepEval result {i} for evaluation {evaluation_id}: {result_error}")
+                    failed_count += 1
+
+            # Update evaluation status
+            final_config = {
+                **(evaluation.config or {}),
+                "results_saved": saved_count,
+                "results_failed": failed_count,
+                "processing_time_seconds": time.time() - start_time,
+                "deepeval_version": "latest"  # Could get actual version
+            }
+
+            if failed_count == 0:
+                # Mark as completed
+                await evaluation_service.evaluation_repo.update(evaluation_id, {
+                    "status": EvaluationStatus.COMPLETED,
+                    "end_time": datetime.datetime.now(),
+                    "config": final_config
+                })
+
+                result_msg = f"DeepEval evaluation {evaluation_id} completed successfully with {saved_count} results"
+                logger.info(result_msg)
+                return result_msg
+
+            else:
+                # Partial success
+                await evaluation_service.evaluation_repo.update(evaluation_id, {
+                    "status": EvaluationStatus.COMPLETED,  # Still mark as completed
+                    "end_time": datetime.datetime.now(),
+                    "config": final_config
+                })
+
+                result_msg = f"DeepEval evaluation {evaluation_id} completed with {saved_count} results, {failed_count} failed"
+                logger.warning(result_msg)
+                return result_msg
+
+        except Exception as e:
+            # Handle any other unexpected errors
+            logger.exception(f"Unexpected error in DeepEval evaluation {evaluation_id}: {e}")
+
+            # Try to mark as failed
+            try:
+                await evaluation_service.evaluation_repo.update(evaluation_id, {
+                    "status": EvaluationStatus.FAILED,
+                    "end_time": datetime.datetime.now(),
+                    "config": {
+                        **(evaluation.config if evaluation else {}),
+                        "error": str(e),
+                        "error_type": "unexpected_error"
+                    }
+                })
+            except Exception:
+                logger.error(f"Could not update failed status for evaluation {evaluation_id}")
+
+            return f"Unexpected error in DeepEval evaluation {evaluation_id}: {str(e)}"
+
+
+@celery_app.task(name="validate_deepeval_dataset_enhanced", bind=True)
+def validate_deepeval_dataset_enhanced_task(
+        self,
+        dataset_id: str,
+        metrics: List[str],
+        generate_preview: bool = True
+) -> Dict[str, Any]:
+    """
+    Enhanced dataset validation task for DeepEval with preview generation.
+
+    Args:
+        dataset_id: Dataset ID to validate
+        metrics: List of metrics to validate against
+        generate_preview: Whether to generate conversion preview
+
+    Returns:
+        Enhanced validation results
+    """
+    loop = asyncio.get_event_loop()
+    try:
+        return loop.run_until_complete(
+            _validate_deepeval_dataset_enhanced(UUID(dataset_id), metrics, generate_preview)
+        )
+    except Exception as exc:
+        logger.exception(f"Error validating dataset {dataset_id} for DeepEval")
+        return {
+            "compatible": False,
+            "error": str(exc),
+            "warnings": [f"Validation failed: {str(exc)}"],
+            "requirements": ["Check dataset format and content"],
+            "supported_metrics": [],
+            "recommended_metrics": []
+        }
+
+
+async def _validate_deepeval_dataset_enhanced(
+        dataset_id: UUID,
+        metrics: List[str],
+        generate_preview: bool = True
+) -> Dict[str, Any]:
+    """Enhanced dataset validation with detailed analysis."""
+    async with db_session() as session:
+        from backend.app.services.dataset_service import DatasetService
+        from backend.app.evaluation.adapters.dataset_adapter import DatasetAdapter
+        from backend.app.evaluation.metrics.deepeval_metrics import (
+            get_supported_metrics_for_dataset_type, get_recommended_metrics
+        )
+
+        dataset_service = DatasetService(session)
+        dataset = await dataset_service.get_dataset(dataset_id)
+
+        if not dataset:
+            return {
+                "compatible": False,
+                "error": "Dataset not found",
+                "warnings": [],
+                "requirements": ["Ensure dataset exists and is accessible"]
+            }
+
+        try:
+            # Load dataset content
+            from backend.app.services.storage import get_storage_service
+            storage_service = get_storage_service()
+            file_content = await storage_service.read_file(dataset.file_path)
+
+            # Parse content based on file type
+            if dataset.file_path.endswith('.json'):
+                import json
+                dataset_content = json.loads(file_content)
+            else:
+                import pandas as pd
+                import io
+                df = pd.read_csv(io.StringIO(file_content))
+                dataset_content = df.to_dict('records')
+
+            # Validate using enhanced adapter
+            adapter = DatasetAdapter()
+            validation_results = adapter.validate_dataset_for_deepeval(dataset_content, metrics)
+
+            # Get dataset type specific information
+            supported_metrics = get_supported_metrics_for_dataset_type(dataset.type)
+            recommended_metrics = get_recommended_metrics(dataset.type)
+
+            # Enhanced validation with detailed field analysis
+            field_analysis = _analyze_dataset_fields(dataset_content)
+
+            # Generate conversion preview if requested
+            preview = None
+            if generate_preview and validation_results.get("compatible", False):
+                try:
+                    # Convert first few items as preview
+                    preview_items = dataset_content[:3] if isinstance(dataset_content, list) else [dataset_content]
+                    deepeval_dataset = await adapter.convert_to_deepeval_dataset(dataset, preview_items)
+
+                    preview = []
+                    for i, test_case in enumerate(deepeval_dataset.test_cases):
+                        preview.append({
+                            "index": i,
+                            "input": test_case.input,
+                            "expected_output": test_case.expected_output,
+                            "context": test_case.context,
+                            "has_all_required_fields": bool(test_case.input and test_case.context)
+                        })
+                except Exception as preview_error:
+                    logger.warning(f"Could not generate preview: {preview_error}")
+
+            # Combine results
+            enhanced_results = {
+                **validation_results,
+                "dataset_info": {
+                    "id": str(dataset_id),
+                    "name": dataset.name,
+                    "type": dataset.type.value,
+                    "total_items": len(dataset_content) if isinstance(dataset_content, list) else 1,
+                    "file_format": "json" if dataset.file_path.endswith('.json') else "csv"
+                },
+                "field_analysis": field_analysis,
+                "metric_compatibility": {
+                    "requested_metrics": metrics,
+                    "supported_metrics": supported_metrics,
+                    "recommended_metrics": recommended_metrics,
+                    "compatible_metrics": [m for m in metrics if m in supported_metrics],
+                    "incompatible_metrics": [m for m in metrics if m not in supported_metrics]
+                },
+                "deepeval_preview": preview,
+                "recommendations": _generate_dataset_recommendations(validation_results, field_analysis, metrics)
+            }
+
+            return enhanced_results
+
+        except Exception as e:
+            logger.error(f"Error during enhanced dataset validation: {e}")
+            return {
+                "compatible": False,
+                "error": f"Validation error: {str(e)}",
+                "warnings": [f"Could not validate dataset: {str(e)}"],
+                "requirements": ["Check dataset format and accessibility"]
+            }
+
+
+def _analyze_dataset_fields(dataset_content: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Analyze dataset fields for DeepEval compatibility."""
+    if not dataset_content or not isinstance(dataset_content, list):
+        return {"error": "Invalid dataset format"}
+
+    # Analyze field presence across all items
+    all_fields = set()
+    field_presence = {}
+
+    for item in dataset_content:
+        if isinstance(item, dict):
+            for field in item.keys():
+                all_fields.add(field)
+                field_presence[field] = field_presence.get(field, 0) + 1
+
+    total_items = len(dataset_content)
+
+    # Categorize fields
+    input_fields = []
+    context_fields = []
+    output_fields = []
+    other_fields = []
+
+    for field in all_fields:
+        field_lower = field.lower()
+        coverage = (field_presence[field] / total_items) * 100
+
+        if any(term in field_lower for term in ['input', 'query', 'question']):
+            input_fields.append({"name": field, "coverage": coverage})
+        elif any(term in field_lower for term in ['context', 'contexts', 'background']):
+            context_fields.append({"name": field, "coverage": coverage})
+        elif any(term in field_lower for term in ['output', 'answer', 'ground_truth', 'expected']):
+            output_fields.append({"name": field, "coverage": coverage})
+        else:
+            other_fields.append({"name": field, "coverage": coverage})
+
+    return {
+        "total_items": total_items,
+        "total_fields": len(all_fields),
+        "field_categories": {
+            "input_fields": input_fields,
+            "context_fields": context_fields,
+            "output_fields": output_fields,
+            "other_fields": other_fields
+        },
+        "field_coverage": {
+            field: round((count / total_items) * 100, 1)
+            for field, count in field_presence.items()
+        },
+        "completeness_score": _calculate_completeness_score(input_fields, context_fields, output_fields)
+    }
+
+
+def _calculate_completeness_score(input_fields, context_fields, output_fields) -> float:
+    """Calculate a completeness score for DeepEval compatibility."""
+    score = 0.0
+
+    # Input fields (required)
+    if input_fields and any(f["coverage"] > 80 for f in input_fields):
+        score += 40
+
+    # Context fields (important for most metrics)
+    if context_fields and any(f["coverage"] > 80 for f in context_fields):
+        score += 35
+
+    # Output fields (helpful for comparison)
+    if output_fields and any(f["coverage"] > 80 for f in output_fields):
+        score += 25
+
+    return score
+
+
+def _generate_dataset_recommendations(
+        validation_results: Dict[str, Any],
+        field_analysis: Dict[str, Any],
+        requested_metrics: List[str]
+) -> List[str]:
+    """Generate specific recommendations for dataset improvement."""
+    recommendations = []
+
+    if not validation_results.get("compatible", False):
+        recommendations.append("Dataset is not compatible with DeepEval. Consider restructuring the data.")
+
+    # Field-specific recommendations
+    if "field_categories" in field_analysis:
+        categories = field_analysis["field_categories"]
+
+        if not categories["input_fields"]:
+            recommendations.append("Add input/query fields for DeepEval test cases.")
+
+        if not categories["context_fields"] and any("contextual" in m for m in requested_metrics):
+            recommendations.append(
+                "Add context fields for contextual metrics (contextual_precision, contextual_recall, etc.).")
+
+        if not categories["output_fields"]:
+            recommendations.append("Consider adding expected output fields for better evaluation.")
+
+    # Metric-specific recommendations
+    contextual_metrics = [m for m in requested_metrics if "contextual" in m]
+    if contextual_metrics and field_analysis.get("completeness_score", 0) < 75:
+        recommendations.append(f"Improve dataset completeness for contextual metrics: {contextual_metrics}")
+
+    # General recommendations
+    if validation_results.get("warnings"):
+        recommendations.extend([f"Address warning: {w}" for w in validation_results["warnings"]])
+
+    if not recommendations:
+        recommendations.append("Dataset looks good for DeepEval! You can proceed with the evaluation.")
+
+    return recommendations
+
+
+# Add periodic cleanup task for DeepEval temporary files
+@celery_app.task(name="cleanup_deepeval_temp_files")
+def cleanup_deepeval_temp_files_task():
+    """
+    Clean up temporary files created during DeepEval evaluations.
+    """
+    logger.info("Starting DeepEval temporary files cleanup")
+
+    try:
+        import tempfile
+        import os
+        import time
+        import glob
+
+        temp_dir = tempfile.gettempdir()
+
+        # DeepEval might create various temporary files
+        patterns_to_clean = [
+            "deepeval_*",
+            "*.deepeval",
+            "evaluation_*.tmp",
+            "test_case_*.json"
+        ]
+
+        # Remove files older than 2 hours
+        cutoff_time = time.time() - 7200
+        cleaned_count = 0
+
+        for pattern in patterns_to_clean:
+            pattern_path = os.path.join(temp_dir, pattern)
+            for filepath in glob.glob(pattern_path):
+                try:
+                    if os.path.getctime(filepath) < cutoff_time:
+                        os.remove(filepath)
+                        cleaned_count += 1
+                except (OSError, FileNotFoundError):
+                    pass
+
+        logger.info(f"Cleaned up {cleaned_count} DeepEval temporary files")
+        return f"Cleaned up {cleaned_count} temporary files"
+
+    except Exception as e:
+        logger.error(f"Error during DeepEval cleanup: {e}")
+        return f"Cleanup error: {str(e)}"
+
+
+# Update the periodic task schedule to include DeepEval cleanup
+celery_app.conf.beat_schedule.update({
+    'cleanup-deepeval-temp-files': {
+        'task': 'cleanup_deepeval_temp_files',
+        'schedule': 7200.0,  # Run every 2 hours
+    }
+})
