@@ -20,30 +20,39 @@ async def update_evaluation_progress(evaluation_id: UUID, processed_items: int, 
         from backend.app.db.models.orm import Evaluation, Dataset
 
         async with db_session() as session:
-            # Use repository to update the record
-            repo = BaseRepository(Evaluation, session)
+            try:
+                # Use repository to update the record
+                repo = BaseRepository(Evaluation, session)
 
-            # Update processed_items in database
-            update_data = {"processed_items": processed_items}
+                # Update processed_items in database
+                update_data = {"processed_items": processed_items}
 
-            # If dataset has no row_count yet but we know the total, update it
-            if total_items is not None:
-                # Get the evaluation to check if we need to update its dataset
-                evaluation = await repo.get(evaluation_id)
-                if evaluation and evaluation.dataset_id:
-                    dataset_repo = BaseRepository(Dataset, session)
-                    dataset = await dataset_repo.get(evaluation.dataset_id)
-                    if dataset and (not dataset.row_count or dataset.row_count == 0):
-                        await dataset_repo.update(dataset.id, {"row_count": total_items})
-                        logger.info(f"Updated dataset {dataset.id} row_count to {total_items}")
+                if total_items is not None:
+                    # Get the evaluation
+                    evaluation = await repo.get(evaluation_id)
+                    if evaluation and evaluation.dataset_id:
+                        dataset_repo = BaseRepository(Dataset, session)
+                        dataset = await dataset_repo.get(evaluation.dataset_id)
+                        if dataset and (not dataset.row_count or dataset.row_count == 0):
+                            await dataset_repo.update(dataset.id, {"row_count": total_items})
+                            logger.info(f"Updated dataset {dataset.id} row_count to {total_items}")
 
-            # Update the evaluation
-            await repo.update(evaluation_id, update_data)
+                # Update the evaluation
+                updated_evaluation = await repo.update(evaluation_id, update_data)
 
-            # Commit the changes immediately
-            await session.commit()
+                if updated_evaluation:
+                    # Commit the changes
+                    await session.commit()
+                    logger.debug(
+                        f"Successfully updated evaluation {evaluation_id} progress: {processed_items} items processed")
+                else:
+                    logger.warning(f"Failed to update evaluation {evaluation_id} - evaluation not found")
+                    await session.rollback()
 
-            logger.debug(f"Updated evaluation {evaluation_id} progress: {processed_items} items processed")
+            except Exception as update_error:
+                await session.rollback()
+                logger.error(f"Error during database update: {update_error}", exc_info=True)
+                raise
 
     except Exception as e:
         # Log error but don't fail the evaluation if progress update fails
@@ -68,7 +77,33 @@ async def get_evaluation_result_count(db_session, evaluation_id: UUID) -> int:
             EvaluationResult.evaluation_id == evaluation_id
         )
         result = await db_session.execute(query)
-        return result.scalar_one_or_none() or 0
+        count = result.scalar_one_or_none() or 0
+        logger.debug(f"Found {count} results for evaluation {evaluation_id}")
+        return count
     except Exception as e:
         logger.error(f"Error getting evaluation result count: {e}")
+        return 0
+
+
+async def get_evaluation_processed_items(db_session, evaluation_id: UUID) -> int:
+    """
+    Get the current processed items count from the evaluation record.
+
+    Args:
+        db_session: Database session
+        evaluation_id: Evaluation ID
+
+    Returns:
+        int: Number of processed items
+    """
+    try:
+        from backend.app.db.models.orm import Evaluation
+
+        query = select(Evaluation.processed_items).where(Evaluation.id == evaluation_id)
+        result = await db_session.execute(query)
+        processed_items = result.scalar_one_or_none() or 0
+        logger.debug(f"Evaluation {evaluation_id} has {processed_items} processed items")
+        return processed_items
+    except Exception as e:
+        logger.error(f"Error getting evaluation processed items: {e}")
         return 0

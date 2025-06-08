@@ -274,8 +274,8 @@ class BaseEvaluationMethod(ABC):
             Exception: If processing fails
         """
         raise NotImplementedError("Subclasses must implement process_item method")
-
-    async def log_progress(self, evaluation_id: UUID, total: int, processed: int) -> None:
+    @staticmethod
+    async def log_progress(evaluation_id: UUID, total: int, processed: int) -> None:
         """
         Log evaluation progress.
 
@@ -756,9 +756,9 @@ class BaseEvaluationMethod(ABC):
                 output_data={"error": str(e)},
                 metric_scores=[]
             )
-
+    @staticmethod
     async def _call_agent_api_with_retry(
-            self, api_endpoint: str, payload: Dict[str, Any], max_retries: int = 3
+            api_endpoint: str, payload: Dict[str, Any], max_retries: int = 3
     ) -> Dict[str, Any]:
         """
         Call the micro-agent API with retry logic.
@@ -916,13 +916,19 @@ class BaseEvaluationMethod(ABC):
                 }
             )
 
+            # Calculate processing time
+            processing_time = int((time.time() - start_time) * 1000)
+
             # Extract results
             success = response.get("success", False)
             answer = response.get("answer", "")
-            processing_time = response.get("processing_time_ms", 0)
+            response_processing_time = response.get("processing_time_ms", 0)
             error = response.get("error")
 
-            # If there was an error, log.json it
+            # Use the actual processing time from response if available, otherwise use calculated
+            final_processing_time = response_processing_time if response_processing_time else processing_time
+
+            # If there was an error, log it
             if not success or error:
                 logger.warning(f"Error processing item {item_index}: {error}")
 
@@ -943,10 +949,10 @@ class BaseEvaluationMethod(ABC):
                         "answer": answer if answer else "Error occurred during processing",
                         "success": False
                     },
-                    processing_time_ms=processing_time,
+                    processing_time_ms=final_processing_time,
                     metric_scores=[],
                     passed=False,
-                    pass_threshold=evaluation.pass_threshold
+                    pass_threshold=evaluation.pass_threshold or 0.7
                 )
 
             # Calculate metrics
@@ -981,7 +987,7 @@ class BaseEvaluationMethod(ABC):
                 for name, value in metrics.items()
             ]
 
-            # Create result
+            # Create result with all required fields
             return EvaluationResultCreate(
                 evaluation_id=evaluation.id,
                 overall_score=overall_score,
@@ -994,7 +1000,7 @@ class BaseEvaluationMethod(ABC):
                     "prompt": formatted_prompt
                 },
                 output_data={"answer": answer},
-                processing_time_ms=processing_time,
+                processing_time_ms=final_processing_time,
                 metric_scores=metric_scores,
                 passed=passed,
                 pass_threshold=pass_threshold
@@ -1002,7 +1008,7 @@ class BaseEvaluationMethod(ABC):
 
         except Exception as e:
             logger.exception(f"Error processing dataset item {item_index}: {e}")
-            # Create error result
+            # Create error result with all required fields
             return EvaluationResultCreate(
                 evaluation_id=evaluation.id,
                 overall_score=0.0,
@@ -1010,7 +1016,8 @@ class BaseEvaluationMethod(ABC):
                 dataset_sample_id=str(item_index),
                 input_data=item,
                 output_data={"error": str(e)},
+                processing_time_ms=0,
                 metric_scores=[],
                 passed=False,
-                pass_threshold=evaluation.pass_threshold
+                pass_threshold=evaluation.pass_threshold or 0.7
             )

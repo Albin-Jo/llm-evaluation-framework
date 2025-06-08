@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm import Evaluation, EvaluationStatus
+from backend.app.db.models.orm import Evaluation, EvaluationStatus, Dataset
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 from backend.app.evaluation.metrics.ragas_metrics import (
@@ -49,6 +49,17 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
             dataset = await self.get_dataset(evaluation.dataset_id)
             if not dataset:
                 raise ValueError(f"Dataset with ID {evaluation.dataset_id} not found")
+
+            # Load dataset to get total count
+            dataset_items = await self.load_dataset(dataset)
+            total_items = len(dataset_items)
+
+            # Update dataset row count if needed
+            if not dataset.row_count or dataset.row_count != total_items:
+                from backend.app.db.repositories.base import BaseRepository
+                dataset_repo = BaseRepository(Dataset, self.db_session)
+                await dataset_repo.update(dataset.id, {"row_count": total_items})
+                logger.info(f"Updated dataset {dataset.id} row_count to {total_items}")
 
             # Validate metrics based on dataset type
             if not evaluation.metrics:
