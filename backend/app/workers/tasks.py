@@ -5,99 +5,579 @@ import time
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 
-from celery import Celery
-from celery.signals import worker_ready
+# Try to import Redis and Celery - handle graceful degradation if not available
+try:
+    import redis
+
+    REDIS_AVAILABLE = True
+except ImportError:
+    redis = None
+    REDIS_AVAILABLE = False
+    logging.warning("Redis package not installed. Install with: pip install redis")
+
+try:
+    from celery import Celery
+    from celery.signals import worker_ready
+
+    CELERY_AVAILABLE = True
+except ImportError:
+    Celery = None
+    worker_ready = None
+    CELERY_AVAILABLE = False
+    logging.warning("Celery package not installed. Install with: pip install celery")
 
 from backend.app.core.config import settings
 from backend.app.db.models.orm import EvaluationStatus, EvaluationMethod
 from backend.app.db.session import db_session
 from backend.app.services.evaluation_service import EvaluationService
 
-# Configure Celery
-celery_app = Celery(
-    "evaluation_worker",
-    broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND,
-)
-
-# Configure Celery settings for better DeepEval performance
-celery_app.conf.update(
-    task_serializer='json',
-    accept_content=['json'],
-    result_serializer='json',
-    timezone='UTC',
-    enable_utc=True,
-    # Increase task timeout for DeepEval evaluations
-    task_time_limit=1800,  # 30 minutes
-    task_soft_time_limit=1500,  # 25 minutes
-    worker_prefetch_multiplier=1,  # Process one task at a time for memory efficiency
-)
-
-# Configure logging
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(name="run_evaluation", bind=True, max_retries=3)
-def run_evaluation_task(self, evaluation_id: str, jwt_token: Optional[str] = None) -> str:
+def validate_redis_connection() -> bool:
     """
-    Run an evaluation as a background task.
-    Now supports both RAGAS and DeepEval methods.
-
-    Args:
-        evaluation_id: Evaluation ID
-        jwt_token: Optional JWT token for MCP agent authentication
+    Validate Redis connection before creating Celery app.
 
     Returns:
-        str: Task result
+        bool: True if Redis is available, False otherwise
     """
-    # Convert string to UUID
-    evaluation_uuid = UUID(evaluation_id)
+    if not REDIS_AVAILABLE:
+        logger.error("Redis package not installed")
+        return False
 
-    # Run the evaluation in an asyncio event loop
-    loop = asyncio.get_event_loop()
     try:
-        return loop.run_until_complete(_run_evaluation(evaluation_uuid, jwt_token))
-    except Exception as exc:
-        logger.exception(f"Error running evaluation {evaluation_id}")
-        # Retry with exponential backoff
-        retry_in = 2 ** self.request.retries
-        self.retry(exc=exc, countdown=retry_in)
+        r = redis.Redis.from_url(settings.CELERY_BROKER_URL)
+        r.ping()
+        logger.info("Redis connection validated successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Redis connection failed: {e}")
+        return False
 
 
-@celery_app.task(name="run_deepeval_batch", bind=True, max_retries=2)
-def run_deepeval_batch_task(
-        self,
-        evaluation_id: str,
-        batch_start: int,
-        batch_end: int,
-        jwt_token: Optional[str] = None
-) -> str:
+def create_celery_app() -> Optional[Celery]:
     """
-    Run a batch of DeepEval test cases as a separate task.
-    This allows for parallel processing of large datasets.
-
-    Args:
-        evaluation_id: Evaluation ID
-        batch_start: Start index of batch
-        batch_end: End index of batch  
-        jwt_token: Optional JWT token for MCP agent authentication
+    Create Celery app only if Redis and Celery packages are available and Redis is connected.
 
     Returns:
-        str: Batch processing result
+        Optional[Celery]: Celery app instance or None if unavailable
     """
-    evaluation_uuid = UUID(evaluation_id)
+    if not CELERY_AVAILABLE:
+        logger.warning("Celery disabled - Celery package not installed")
+        return None
 
-    loop = asyncio.get_event_loop()
-    try:
-        return loop.run_until_complete(
-            _run_deepeval_batch(evaluation_uuid, batch_start, batch_end, jwt_token)
-        )
-    except Exception as exc:
-        logger.exception(f"Error running DeepEval batch {batch_start}-{batch_end} for evaluation {evaluation_id}")
-        # Shorter retry for batch tasks
-        retry_in = 30 * (self.request.retries + 1)
-        self.retry(exc=exc, countdown=retry_in)
+    if not REDIS_AVAILABLE:
+        logger.warning("Celery disabled - Redis package not installed")
+        return None
 
+    if not validate_redis_connection():
+        logger.warning("Celery disabled - Redis not available")
+        return None
+
+    app = Celery(
+        "evaluation_worker",
+        broker=settings.CELERY_BROKER_URL,
+        backend=settings.CELERY_RESULT_BACKEND,
+    )
+
+    # Configure Celery settings for better DeepEval performance
+    app.conf.update(
+        task_serializer='json',
+        accept_content=['json'],
+        result_serializer='json',
+        timezone='UTC',
+        enable_utc=True,
+        # Increase task timeout for DeepEval evaluations
+        task_time_limit=1800,  # 30 minutes
+        task_soft_time_limit=1500,  # 25 minutes
+        worker_prefetch_multiplier=1,  # Process one task at a time for memory efficiency
+    )
+
+    # Configure periodic tasks
+    app.conf.beat_schedule = {
+        'cleanup-evaluation-cache': {
+            'task': 'cleanup_evaluation_cache',
+            'schedule': 3600.0,  # Run every hour
+        },
+        'cleanup-deepeval-temp-files': {
+            'task': 'cleanup_deepeval_temp_files',
+            'schedule': 7200.0,  # Run every 2 hours
+        }
+    }
+
+    logger.info("Celery app created and configured successfully")
+    return app
+
+
+def ensure_celery_available(func):
+    """
+    Decorator to ensure Celery is available before executing task.
+
+    Args:
+        func: Function to decorate
+
+    Returns:
+        Decorated function that checks Celery availability
+    """
+
+    def wrapper(*args, **kwargs):
+        if not CELERY_AVAILABLE:
+            error_msg = "Celery not available - Celery package not installed"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        if not REDIS_AVAILABLE:
+            error_msg = "Celery not available - Redis package not installed"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        if celery_app is None:
+            error_msg = "Celery not available - Redis connection failed"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+# Helper functions for checking package and service availability
+def is_redis_package_available() -> bool:
+    """Check if Redis Python package is installed."""
+    return REDIS_AVAILABLE
+
+
+def is_celery_package_available() -> bool:
+    """Check if Celery package is installed."""
+    return CELERY_AVAILABLE
+
+
+# Create Celery app instance
+celery_app = create_celery_app()
+
+# Only define tasks if both packages are available and Celery app was created successfully
+if celery_app is not None and CELERY_AVAILABLE and REDIS_AVAILABLE:
+
+    @celery_app.task(name="run_evaluation", bind=True, max_retries=3)
+    def run_evaluation_task(self, evaluation_id: str, jwt_token: Optional[str] = None) -> str:
+        """
+        Run an evaluation as a background task.
+        Now supports both RAGAS and DeepEval methods.
+
+        Args:
+            evaluation_id: Evaluation ID
+            jwt_token: Optional JWT token for MCP agent authentication
+
+        Returns:
+            str: Task result
+        """
+        # Convert string to UUID
+        evaluation_uuid = UUID(evaluation_id)
+
+        # Run the evaluation in an asyncio event loop
+        loop = asyncio.get_event_loop()
+        try:
+            return loop.run_until_complete(_run_evaluation(evaluation_uuid, jwt_token))
+        except Exception as exc:
+            logger.exception(f"Error running evaluation {evaluation_id}")
+            # Retry with exponential backoff
+            retry_in = 2 ** self.request.retries
+            self.retry(exc=exc, countdown=retry_in)
+
+
+    @celery_app.task(name="run_deepeval_batch", bind=True, max_retries=2)
+    def run_deepeval_batch_task(
+            self,
+            evaluation_id: str,
+            batch_start: int,
+            batch_end: int,
+            jwt_token: Optional[str] = None
+    ) -> str:
+        """
+        Run a batch of DeepEval test cases as a separate task.
+        This allows for parallel processing of large datasets.
+
+        Args:
+            evaluation_id: Evaluation ID
+            batch_start: Start index of batch
+            batch_end: End index of batch  
+            jwt_token: Optional JWT token for MCP agent authentication
+
+        Returns:
+            str: Batch processing result
+        """
+        evaluation_uuid = UUID(evaluation_id)
+
+        loop = asyncio.get_event_loop()
+        try:
+            return loop.run_until_complete(
+                _run_deepeval_batch(evaluation_uuid, batch_start, batch_end, jwt_token)
+            )
+        except Exception as exc:
+            logger.exception(f"Error running DeepEval batch {batch_start}-{batch_end} for evaluation {evaluation_id}")
+            # Shorter retry for batch tasks
+            retry_in = 30 * (self.request.retries + 1)
+            self.retry(exc=exc, countdown=retry_in)
+
+
+    @celery_app.task(name="validate_deepeval_dataset", bind=True)
+    def validate_deepeval_dataset_task(self, dataset_id: str, metrics: list) -> dict:
+        """
+        Validate a dataset for DeepEval compatibility as a background task.
+
+        Args:
+            dataset_id: Dataset ID to validate
+            metrics: List of metrics to validate against
+
+        Returns:
+            Validation results
+        """
+        loop = asyncio.get_event_loop()
+        try:
+            return loop.run_until_complete(
+                _validate_deepeval_dataset(UUID(dataset_id), metrics)
+            )
+        except Exception as exc:
+            logger.exception(f"Error validating dataset {dataset_id} for DeepEval")
+            return {
+                "compatible": False,
+                "error": str(exc),
+                "warnings": [],
+                "requirements": []
+            }
+
+
+    @celery_app.task(name="cleanup_evaluation_cache")
+    def cleanup_evaluation_cache_task():
+        """
+        Periodic task to clean up evaluation caches and temporary data.
+        """
+        logger.info("Starting evaluation cache cleanup")
+
+        try:
+            # Clean up any temporary DeepEval files
+            import tempfile
+            import os
+            import time
+
+            temp_dir = tempfile.gettempdir()
+
+            # Remove temporary files older than 1 hour
+            cutoff_time = time.time() - 3600
+            cleaned_count = 0
+
+            for filename in os.listdir(temp_dir):
+                if filename.startswith("deepeval_"):
+                    filepath = os.path.join(temp_dir, filename)
+                    if os.path.getctime(filepath) < cutoff_time:
+                        try:
+                            os.remove(filepath)
+                            cleaned_count += 1
+                        except OSError:
+                            pass
+
+            logger.info(f"Cleaned up {cleaned_count} temporary DeepEval files")
+            return f"Cleaned up {cleaned_count} files"
+
+        except Exception as e:
+            logger.error(f"Error during cache cleanup: {e}")
+            return f"Error: {str(e)}"
+
+
+    @celery_app.task(name="health_check")
+    def health_check_task():
+        """Health check task for monitoring."""
+        try:
+            # Test Redis connection
+            if not REDIS_AVAILABLE:
+                return {
+                    "status": "unhealthy",
+                    "error": "Redis package not installed",
+                    "timestamp": datetime.datetime.now().isoformat()
+                }
+
+            if not validate_redis_connection():
+                return {
+                    "status": "unhealthy",
+                    "error": "Redis connection failed",
+                    "timestamp": datetime.datetime.now().isoformat()
+                }
+
+            # Test database connection
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(_test_db_connection())
+
+            # Test DeepEval availability
+            deepeval_available = False
+            try:
+                import deepeval
+                deepeval_available = True
+            except ImportError:
+                pass
+
+            return {
+                "status": "healthy",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "database": "connected",
+                "redis": "connected",
+                "redis_package": "installed" if REDIS_AVAILABLE else "not_installed",
+                "celery_package": "installed" if CELERY_AVAILABLE else "not_installed",
+                "deepeval": "available" if deepeval_available else "not_available",
+                "worker": "running"
+            }
+
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "redis_package": "installed" if REDIS_AVAILABLE else "not_installed",
+                "celery_package": "installed" if CELERY_AVAILABLE else "not_installed",
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+
+
+    @celery_app.task(name="run_deepeval_evaluation", bind=True, max_retries=2)
+    def run_deepeval_evaluation_task(
+            self,
+            evaluation_id: str,
+            jwt_token: Optional[str] = None,
+            deepeval_config: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Enhanced Celery task specifically for DeepEval evaluations.
+
+        Args:
+            evaluation_id: Evaluation ID
+            jwt_token: Optional JWT token for MCP agent authentication
+            deepeval_config: DeepEval-specific configuration
+
+        Returns:
+            str: Task result
+        """
+        evaluation_uuid = UUID(evaluation_id)
+
+        # Set up asyncio event loop
+        loop = asyncio.get_event_loop()
+
+        try:
+            return loop.run_until_complete(
+                _run_deepeval_evaluation_enhanced(evaluation_uuid, jwt_token, deepeval_config)
+            )
+        except Exception as exc:
+            logger.exception(f"Error running DeepEval evaluation {evaluation_id}")
+
+            # Retry with exponential backoff, but fewer retries for DeepEval
+            retry_in = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
+            self.retry(exc=exc, countdown=retry_in)
+
+
+    @celery_app.task(name="validate_deepeval_dataset_enhanced", bind=True)
+    def validate_deepeval_dataset_enhanced_task(
+            self,
+            dataset_id: str,
+            metrics: List[str],
+            generate_preview: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Enhanced dataset validation task for DeepEval with preview generation.
+
+        Args:
+            dataset_id: Dataset ID to validate
+            metrics: List of metrics to validate against
+            generate_preview: Whether to generate conversion preview
+
+        Returns:
+            Enhanced validation results
+        """
+        loop = asyncio.get_event_loop()
+        try:
+            return loop.run_until_complete(
+                _validate_deepeval_dataset_enhanced(UUID(dataset_id), metrics, generate_preview)
+            )
+        except Exception as exc:
+            logger.exception(f"Error validating dataset {dataset_id} for DeepEval")
+            return {
+                "compatible": False,
+                "error": str(exc),
+                "warnings": [f"Validation failed: {str(exc)}"],
+                "requirements": ["Check dataset format and content"],
+                "supported_metrics": [],
+                "recommended_metrics": []
+            }
+
+
+    @celery_app.task(name="cleanup_deepeval_temp_files")
+    def cleanup_deepeval_temp_files_task():
+        """
+        Clean up temporary files created during DeepEval evaluations.
+        """
+        logger.info("Starting DeepEval temporary files cleanup")
+
+        try:
+            import tempfile
+            import os
+            import time
+            import glob
+
+            temp_dir = tempfile.gettempdir()
+
+            # DeepEval might create various temporary files
+            patterns_to_clean = [
+                "deepeval_*",
+                "*.deepeval",
+                "evaluation_*.tmp",
+                "test_case_*.json"
+            ]
+
+            # Remove files older than 2 hours
+            cutoff_time = time.time() - 7200
+            cleaned_count = 0
+
+            for pattern in patterns_to_clean:
+                pattern_path = os.path.join(temp_dir, pattern)
+                for filepath in glob.glob(pattern_path):
+                    try:
+                        if os.path.getctime(filepath) < cutoff_time:
+                            os.remove(filepath)
+                            cleaned_count += 1
+                    except (OSError, FileNotFoundError):
+                        pass
+
+            logger.info(f"Cleaned up {cleaned_count} DeepEval temporary files")
+            return f"Cleaned up {cleaned_count} temporary files"
+
+        except Exception as e:
+            logger.error(f"Error during DeepEval cleanup: {e}")
+            return f"Cleanup error: {str(e)}"
+
+
+    if CELERY_AVAILABLE and worker_ready:
+        @worker_ready.connect
+        def at_start(sender, **kwargs):
+            """
+            Function to run when the worker starts.
+            """
+            logger.info("Evaluation worker is ready!")
+
+            # Re-validate Redis connection at startup
+            if not validate_redis_connection():
+                logger.error("Redis unavailable at worker startup!")
+                return
+
+            # Check if DeepEval is available
+            try:
+                import deepeval
+                logger.info("DeepEval is available for evaluations")
+            except ImportError:
+                logger.warning("DeepEval is not available. Install with: pip install deepeval")
+
+            # Log worker configuration
+            logger.info(f"Worker configured with:")
+            logger.info(f"  - Task time limit: {celery_app.conf.task_time_limit}s")
+            logger.info(f"  - Soft time limit: {celery_app.conf.task_soft_time_limit}s")
+            logger.info(f"  - Prefetch multiplier: {celery_app.conf.worker_prefetch_multiplier}")
+
+else:
+    # Celery/Redis packages not available - define stub functions for graceful degradation
+    missing_deps = []
+    if not CELERY_AVAILABLE:
+        missing_deps.append("celery")
+    if not REDIS_AVAILABLE:
+        missing_deps.append("redis")
+
+    error_message = f"Required packages not installed: {', '.join(missing_deps)}"
+    logger.warning(f"Celery tasks not defined - {error_message}")
+
+
+    def run_evaluation_task(*args, **kwargs):
+        raise RuntimeError(f"Celery not available - {error_message}")
+
+
+    def run_deepeval_batch_task(*args, **kwargs):
+        raise RuntimeError(f"Celery not available - {error_message}")
+
+
+    def validate_deepeval_dataset_task(*args, **kwargs):
+        raise RuntimeError(f"Celery not available - {error_message}")
+
+
+    def cleanup_evaluation_cache_task(*args, **kwargs):
+        raise RuntimeError(f"Celery not available - {error_message}")
+
+
+    def health_check_task(*args, **kwargs):
+        return {
+            "status": "unhealthy",
+            "error": f"Celery not available - {error_message}",
+            "redis_package": "installed" if REDIS_AVAILABLE else "not_installed",
+            "celery_package": "installed" if CELERY_AVAILABLE else "not_installed",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+
+
+# Helper functions for getting Celery status
+def is_celery_available() -> bool:
+    """Check if Celery is available and properly configured."""
+    return celery_app is not None
+
+
+def get_celery_app() -> Optional[Celery]:
+    """Get the Celery app instance if available."""
+    return celery_app
+
+
+def ensure_redis_available():
+    """
+    Ensure Redis is available, raise exception if not.
+    Use this before attempting to queue tasks.
+    """
+    if not CELERY_AVAILABLE:
+        raise RuntimeError("Celery not available - Celery package not installed")
+
+    if not REDIS_AVAILABLE:
+        raise RuntimeError("Celery not available - Redis package not installed")
+
+    if not is_celery_available():
+        raise RuntimeError("Celery not available - Redis connection failed")
+
+    if not validate_redis_connection():
+        raise RuntimeError("Redis connection is not available")
+
+
+def get_system_status() -> Dict[str, Any]:
+    """
+    Get comprehensive system status including package availability.
+
+    Returns:
+        Dict containing system status information
+    """
+    status = {
+        "packages": {
+            "redis": REDIS_AVAILABLE,
+            "celery": CELERY_AVAILABLE,
+        },
+        "services": {
+            "redis_connection": False,
+            "celery_app": is_celery_available(),
+        },
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+
+    # Test Redis connection if package is available
+    if REDIS_AVAILABLE:
+        status["services"]["redis_connection"] = validate_redis_connection()
+
+    # Overall system health
+    status["healthy"] = (
+            status["packages"]["redis"] and
+            status["packages"]["celery"] and
+            status["services"]["redis_connection"] and
+            status["services"]["celery_app"]
+    )
+
+    return status
+
+
+# Async helper functions (implementation would continue below...)
 
 async def _run_evaluation(evaluation_id: UUID, jwt_token: Optional[str] = None) -> str:
     """
@@ -301,33 +781,6 @@ async def _run_deepeval_batch(
         return f"Batch {batch_start}-{batch_end} completed with {len(batch_items)} items"
 
 
-@celery_app.task(name="validate_deepeval_dataset", bind=True)
-def validate_deepeval_dataset_task(self, dataset_id: str, metrics: list) -> dict:
-    """
-    Validate a dataset for DeepEval compatibility as a background task.
-
-    Args:
-        dataset_id: Dataset ID to validate
-        metrics: List of metrics to validate against
-
-    Returns:
-        Validation results
-    """
-    loop = asyncio.get_event_loop()
-    try:
-        return loop.run_until_complete(
-            _validate_deepeval_dataset(UUID(dataset_id), metrics)
-        )
-    except Exception as exc:
-        logger.exception(f"Error validating dataset {dataset_id} for DeepEval")
-        return {
-            "compatible": False,
-            "error": str(exc),
-            "warnings": [],
-            "requirements": []
-        }
-
-
 async def _validate_deepeval_dataset(dataset_id: UUID, metrics: list) -> dict:
     """Validate dataset for DeepEval compatibility."""
     async with db_session() as session:
@@ -365,151 +818,6 @@ async def _validate_deepeval_dataset(dataset_id: UUID, metrics: list) -> dict:
         validation_results = adapter.validate_dataset_for_deepeval(dataset_content, metrics)
 
         return validation_results
-
-
-@celery_app.task(name="cleanup_evaluation_cache")
-def cleanup_evaluation_cache_task():
-    """
-    Periodic task to clean up evaluation caches and temporary data.
-    """
-    logger.info("Starting evaluation cache cleanup")
-
-    try:
-        # Clean up any temporary DeepEval files
-        import tempfile
-        import os
-        import time
-
-        temp_dir = tempfile.gettempdir()
-        deepeval_pattern = "deepeval_*"
-
-        # Remove temporary files older than 1 hour
-        cutoff_time = time.time() - 3600
-        cleaned_count = 0
-
-        for filename in os.listdir(temp_dir):
-            if filename.startswith("deepeval_"):
-                filepath = os.path.join(temp_dir, filename)
-                if os.path.getctime(filepath) < cutoff_time:
-                    try:
-                        os.remove(filepath)
-                        cleaned_count += 1
-                    except OSError:
-                        pass
-
-        logger.info(f"Cleaned up {cleaned_count} temporary DeepEval files")
-        return f"Cleaned up {cleaned_count} files"
-
-    except Exception as e:
-        logger.error(f"Error during cache cleanup: {e}")
-        return f"Error: {str(e)}"
-
-
-# Periodic task setup
-celery_app.conf.beat_schedule = {
-    'cleanup-evaluation-cache': {
-        'task': 'cleanup_evaluation_cache',
-        'schedule': 3600.0,  # Run every hour
-    },
-}
-
-
-@worker_ready.connect
-def at_start(sender, **kwargs):
-    """
-    Function to run when the worker starts.
-    """
-    logger.info("Evaluation worker is ready!")
-
-    # Check if DeepEval is available
-    try:
-        import deepeval
-        logger.info("DeepEval is available for evaluations")
-    except ImportError:
-        logger.warning("DeepEval is not available. Install with: pip install deepeval")
-
-    # Log worker configuration
-    logger.info(f"Worker configured with:")
-    logger.info(f"  - Task time limit: {celery_app.conf.task_time_limit}s")
-    logger.info(f"  - Soft time limit: {celery_app.conf.task_soft_time_limit}s")
-    logger.info(f"  - Prefetch multiplier: {celery_app.conf.worker_prefetch_multiplier}")
-
-
-# Health check task
-@celery_app.task(name="health_check")
-def health_check_task():
-    """Health check task for monitoring."""
-    try:
-        # Test database connection
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(_test_db_connection())
-
-        # Test DeepEval availability
-        deepeval_available = False
-        try:
-            import deepeval
-            deepeval_available = True
-        except ImportError:
-            pass
-
-        return {
-            "status": "healthy",
-            "timestamp": datetime.datetime.now().isoformat(),
-            "database": "connected",
-            "deepeval": "available" if deepeval_available else "not_available",
-            "worker": "running"
-        }
-
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.datetime.now().isoformat()
-        }
-
-
-async def _test_db_connection():
-    """Test database connection."""
-    async with db_session() as session:
-        result = await session.execute("SELECT 1")
-        return result.scalar()
-
-
-# Add this to backend/app/workers/tasks.py
-
-@celery_app.task(name="run_deepeval_evaluation", bind=True, max_retries=2)
-def run_deepeval_evaluation_task(
-        self,
-        evaluation_id: str,
-        jwt_token: Optional[str] = None,
-        deepeval_config: Optional[Dict[str, Any]] = None
-) -> str:
-    """
-    Enhanced Celery task specifically for DeepEval evaluations.
-
-    Args:
-        evaluation_id: Evaluation ID
-        jwt_token: Optional JWT token for MCP agent authentication
-        deepeval_config: DeepEval-specific configuration
-
-    Returns:
-        str: Task result
-    """
-    evaluation_uuid = UUID(evaluation_id)
-
-    # Set up asyncio event loop
-    loop = asyncio.get_event_loop()
-
-    try:
-        return loop.run_until_complete(
-            _run_deepeval_evaluation_enhanced(evaluation_uuid, jwt_token, deepeval_config)
-        )
-    except Exception as exc:
-        logger.exception(f"Error running DeepEval evaluation {evaluation_id}")
-
-        # Retry with exponential backoff, but fewer retries for DeepEval
-        retry_in = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
-        self.retry(exc=exc, countdown=retry_in)
 
 
 async def _run_deepeval_evaluation_enhanced(
@@ -664,41 +972,6 @@ async def _run_deepeval_evaluation_enhanced(
                 logger.error(f"Could not update failed status for evaluation {evaluation_id}")
 
             return f"Unexpected error in DeepEval evaluation {evaluation_id}: {str(e)}"
-
-
-@celery_app.task(name="validate_deepeval_dataset_enhanced", bind=True)
-def validate_deepeval_dataset_enhanced_task(
-        self,
-        dataset_id: str,
-        metrics: List[str],
-        generate_preview: bool = True
-) -> Dict[str, Any]:
-    """
-    Enhanced dataset validation task for DeepEval with preview generation.
-
-    Args:
-        dataset_id: Dataset ID to validate
-        metrics: List of metrics to validate against
-        generate_preview: Whether to generate conversion preview
-
-    Returns:
-        Enhanced validation results
-    """
-    loop = asyncio.get_event_loop()
-    try:
-        return loop.run_until_complete(
-            _validate_deepeval_dataset_enhanced(UUID(dataset_id), metrics, generate_preview)
-        )
-    except Exception as exc:
-        logger.exception(f"Error validating dataset {dataset_id} for DeepEval")
-        return {
-            "compatible": False,
-            "error": str(exc),
-            "warnings": [f"Validation failed: {str(exc)}"],
-            "requirements": ["Check dataset format and content"],
-            "supported_metrics": [],
-            "recommended_metrics": []
-        }
 
 
 async def _validate_deepeval_dataset_enhanced(
@@ -918,56 +1191,99 @@ def _generate_dataset_recommendations(
     return recommendations
 
 
-# Add periodic cleanup task for DeepEval temporary files
-@celery_app.task(name="cleanup_deepeval_temp_files")
-def cleanup_deepeval_temp_files_task():
+async def _test_db_connection():
+    """Test database connection."""
+    async with db_session() as session:
+        result = await session.execute("SELECT 1")
+        return result.scalar()
+
+
+# Additional utility functions for dependency checking
+def check_dependencies() -> Dict[str, Any]:
     """
-    Clean up temporary files created during DeepEval evaluations.
+    Check if all required packages are installed and services are available.
+
+    Returns:
+        Dict with dependency status information
     """
-    logger.info("Starting DeepEval temporary files cleanup")
-
-    try:
-        import tempfile
-        import os
-        import time
-        import glob
-
-        temp_dir = tempfile.gettempdir()
-
-        # DeepEval might create various temporary files
-        patterns_to_clean = [
-            "deepeval_*",
-            "*.deepeval",
-            "evaluation_*.tmp",
-            "test_case_*.json"
-        ]
-
-        # Remove files older than 2 hours
-        cutoff_time = time.time() - 7200
-        cleaned_count = 0
-
-        for pattern in patterns_to_clean:
-            pattern_path = os.path.join(temp_dir, pattern)
-            for filepath in glob.glob(pattern_path):
-                try:
-                    if os.path.getctime(filepath) < cutoff_time:
-                        os.remove(filepath)
-                        cleaned_count += 1
-                except (OSError, FileNotFoundError):
-                    pass
-
-        logger.info(f"Cleaned up {cleaned_count} DeepEval temporary files")
-        return f"Cleaned up {cleaned_count} temporary files"
-
-    except Exception as e:
-        logger.error(f"Error during DeepEval cleanup: {e}")
-        return f"Cleanup error: {str(e)}"
-
-
-# Update the periodic task schedule to include DeepEval cleanup
-celery_app.conf.beat_schedule.update({
-    'cleanup-deepeval-temp-files': {
-        'task': 'cleanup_deepeval_temp_files',
-        'schedule': 7200.0,  # Run every 2 hours
+    status = {
+        "packages": {
+            "redis": {
+                "installed": REDIS_AVAILABLE,
+                "install_command": "pip install redis" if not REDIS_AVAILABLE else None
+            },
+            "celery": {
+                "installed": CELERY_AVAILABLE,
+                "install_command": "pip install celery" if not CELERY_AVAILABLE else None
+            }
+        },
+        "services": {
+            "redis_connection": validate_redis_connection() if REDIS_AVAILABLE else False,
+            "celery_app": is_celery_available()
+        },
+        "overall_status": "ready" if (REDIS_AVAILABLE and CELERY_AVAILABLE and is_celery_available()) else "not_ready"
     }
-})
+
+    # Add missing dependencies list
+    missing_packages = []
+    if not REDIS_AVAILABLE:
+        missing_packages.append("redis")
+    if not CELERY_AVAILABLE:
+        missing_packages.append("celery")
+
+    if missing_packages:
+        status["missing_packages"] = missing_packages
+        status["install_command"] = f"pip install {' '.join(missing_packages)}"
+
+    return status
+
+
+def get_worker_info() -> Dict[str, Any]:
+    """
+    Get detailed worker information and configuration.
+
+    Returns:
+        Dict with worker information
+    """
+    info = {
+        "worker_status": "available" if is_celery_available() else "unavailable",
+        "dependencies": check_dependencies(),
+        "configuration": None,
+        "tasks": {
+            "available": [],
+            "unavailable_reason": None
+        }
+    }
+
+    if is_celery_available() and celery_app:
+        info["configuration"] = {
+            "task_time_limit": celery_app.conf.task_time_limit,
+            "task_soft_time_limit": celery_app.conf.task_soft_time_limit,
+            "worker_prefetch_multiplier": celery_app.conf.worker_prefetch_multiplier,
+            "broker_url": settings.CELERY_BROKER_URL,
+            "result_backend": settings.CELERY_RESULT_BACKEND
+        }
+
+        info["tasks"]["available"] = [
+            "run_evaluation",
+            "run_deepeval_batch",
+            "validate_deepeval_dataset",
+            "cleanup_evaluation_cache",
+            "health_check",
+            "run_deepeval_evaluation",
+            "validate_deepeval_dataset_enhanced",
+            "cleanup_deepeval_temp_files"
+        ]
+    else:
+        missing_deps = []
+        if not CELERY_AVAILABLE:
+            missing_deps.append("celery")
+        if not REDIS_AVAILABLE:
+            missing_deps.append("redis")
+
+        if missing_deps:
+            info["tasks"]["unavailable_reason"] = f"Missing packages: {', '.join(missing_deps)}"
+        else:
+            info["tasks"]["unavailable_reason"] = "Redis connection failed"
+
+    return info

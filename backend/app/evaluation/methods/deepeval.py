@@ -1,5 +1,7 @@
+import asyncio
 import datetime
 import logging
+import random
 import time
 import warnings
 from typing import Any, Dict, List, Optional
@@ -13,7 +15,6 @@ from backend.app.evaluation.methods.base import BaseEvaluationMethod
 from backend.app.evaluation.metrics.deepeval_metrics import (
     DEEPEVAL_AVAILABLE
 )
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 third_party_loggers = [
     'urllib3.connectionpool',
     'httpx',
-    'backoff', 
+    'backoff',
     'posthog',
     'requests.packages.urllib3.connectionpool',
     'deepeval'
@@ -43,7 +44,6 @@ for logger_name in third_party_loggers:
 warnings.filterwarnings("ignore")
 
 logger.info("DeepEval method module loaded successfully")
-
 
 if DEEPEVAL_AVAILABLE:
     try:
@@ -72,32 +72,50 @@ if DEEPEVAL_AVAILABLE:
 
 
 class EnhancedAzureOpenAI(DeepEvalBaseLLM):
-    """Enhanced Azure OpenAI model wrapper"""
+    """Enhanced Azure OpenAI model wrapper with proper async/sync handling"""
 
     def __init__(self, agent):
-        """Initialize with agent configuration - removed logger parameter since we use module logger"""
-        self.agent = agent
+        """Initialize with agent configuration"""
         self.model = None
+        self.agent = agent
+        self.semaphore = asyncio.Semaphore(3)
+        self.last_request_time = 0
+        self.min_request_interval = 0.5
+        self._rate_limit_lock = asyncio.Lock()
+
+        super().__init__()
 
     def load_model(self):
         """Load the model with error handling"""
         try:
             if not self.model:
-                # Use the same pattern
                 from backend.app.core.config import settings
 
-                # Extract credentials from agent
-                credentials = self.agent.auth_credentials or {}
+                # Handle case where agent is None (for mock scenarios)
+                if self.agent is None:
+                    # Use default settings for mock scenarios
+                    self.model = AzureChatOpenAI(
+                        openai_api_key=settings.AZURE_OPENAI_KEY,
+                        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                        azure_deployment=settings.AZURE_OPENAI_DEPLOYMENT,
+                        api_version=settings.AZURE_OPENAI_VERSION,
+                        request_timeout=60,
+                        max_retries=3,
+                        temperature=0.0
+                    )
+                else:
+                    # Extract credentials from agent
+                    credentials = self.agent.auth_credentials or {}
 
-                self.model = AzureChatOpenAI(
-                    openai_api_key=credentials.get("api_key", settings.AZURE_OPENAI_KEY),
-                    azure_endpoint=self.agent.api_endpoint or settings.AZURE_OPENAI_ENDPOINT,
-                    azure_deployment=credentials.get("deployment", settings.AZURE_OPENAI_DEPLOYMENT),
-                    api_version=credentials.get("api_version", settings.AZURE_OPENAI_VERSION),
-                    request_timeout=60,
-                    max_retries=3,
-                    temperature=0.0
-                )
+                    self.model = AzureChatOpenAI(
+                        openai_api_key=credentials.get("api_key", settings.AZURE_OPENAI_KEY),
+                        azure_endpoint=self.agent.api_endpoint or settings.AZURE_OPENAI_ENDPOINT,
+                        azure_deployment=credentials.get("deployment", settings.AZURE_OPENAI_DEPLOYMENT),
+                        api_version=credentials.get("api_version", settings.AZURE_OPENAI_VERSION),
+                        request_timeout=60,
+                        max_retries=3,
+                        temperature=0.0
+                    )
 
                 logger.info("Successfully loaded Azure OpenAI model")
             return self.model
@@ -105,32 +123,90 @@ class EnhancedAzureOpenAI(DeepEvalBaseLLM):
             logger.error(f"Failed to load model: {str(e)}")
             raise
 
-    def generate(self, prompt: str) -> str:
-        """Generate response with retry logic"""
-        max_retries = 3
+    async def _apply_rate_limiting(self):
+        """Apply rate limiting with async lock"""
+        async with self._rate_limit_lock:
+            elapsed = time.time() - self.last_request_time
+            if elapsed < self.min_request_interval:
+                await asyncio.sleep(self.min_request_interval - elapsed)
+            self.last_request_time = time.time()
+
+    async def _retry_request_async(self, request_func, max_retries=5):
+        """Execute async request with retry logic"""
         for attempt in range(max_retries):
             try:
+                return await request_func()
+            except Exception as e:
+                if self._should_retry(e, attempt, max_retries):
+                    wait_time = (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"Retry {attempt + 1}/{max_retries} after {wait_time}s: {e}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                raise
+
+    @staticmethod
+    def _should_retry(error: Exception, attempt: int, max_retries: int) -> bool:
+        """Determine if request should be retried"""
+        if attempt >= max_retries - 1:
+            return False
+
+        error_str = str(error).lower()
+        retry_conditions = [
+            "500" in error_str,
+            "502" in error_str,
+            "503" in error_str,
+            "504" in error_str,
+            "rate limit" in error_str,
+            "timeout" in error_str,
+            "connection" in error_str
+        ]
+
+        return any(retry_conditions)
+
+    def generate(self, prompt: str) -> str:
+        """Generate response with retry logic - FIXED SYNC VERSION"""
+        # This needs to be synchronous to match DeepEval expectations
+        max_retries = 5
+
+        for attempt in range(max_retries):
+            try:
+                # Simple synchronous rate limiting
+                elapsed = time.time() - self.last_request_time
+                if elapsed < self.min_request_interval:
+                    time.sleep(self.min_request_interval - elapsed)
+
                 model = self.load_model()
                 response = model.invoke(prompt)
+                self.last_request_time = time.time()
                 return response.content
+
             except Exception as e:
-                logger.warning(f"Generation attempt {attempt + 1} failed: {str(e)}")
-                if attempt == max_retries - 1:
-                    logger.error(f"All generation attempts failed: {str(e)}")
-                    raise
-                time.sleep(2 ** attempt)  # Exponential backoff
+                if self._should_retry(e, attempt, max_retries):
+                    wait_time = (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"Sync retry {attempt + 1}/{max_retries} after {wait_time}s: {e}")
+                    time.sleep(wait_time)
+                    continue
+                logger.error(f"Generate failed after {attempt + 1} attempts: {e}")
+                raise
 
     async def a_generate(self, prompt: str) -> str:
-        """Async generation"""
-        try:
+        """Async generation with proper rate limiting and retry logic"""
+
+        async def _make_request():
             model = self.load_model()
-            res = await model.ainvoke(prompt)
-            return res.content
+            response = await model.ainvoke(prompt)
+            return response.content
+
+        try:
+            async with self.semaphore:
+                await self._apply_rate_limiting()
+                return await self._retry_request_async(_make_request)
         except Exception as e:
             logger.error(f"Async generation failed: {str(e)}")
             raise
 
     def get_model_name(self):
+        """Return model name"""
         return "Enhanced Azure OpenAI Model"
 
 
