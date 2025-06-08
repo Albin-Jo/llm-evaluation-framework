@@ -43,37 +43,30 @@ export interface ComparisonFilterParams {
 }
 
 /**
- * Interface for metric difference
+ * Interface for metric difference - aligned with API response
  */
 export interface MetricDifference {
-  id: string;
-  name: string;
+  metric_name?: string; // Added to match API
+  name?: string; // For backwards compatibility
   evaluation_a_value: number;
   evaluation_b_value: number;
   absolute_difference: number;
-  percentage_difference: number;
+  percentage_change?: number; // Renamed from percentage_difference
+  percentage_difference?: number; // Keep for backwards compatibility
   is_improvement: boolean;
-  is_significant: boolean;
-  meta_info?: Record<string, any>;
-  comparison_id: string;
-  created_at: string;
-  updated_at: string;
+  is_significant?: boolean;
 }
 
 /**
- * Interface for sample difference
+ * Interface for sample difference - aligned with API response
  */
 export interface SampleDifference {
-  id: string;
   sample_id: string;
   evaluation_a_score?: number;
   evaluation_b_score?: number;
   absolute_difference?: number;
   percentage_difference?: number;
   status: 'improved' | 'regressed' | 'unchanged';
-  comparison_id: string;
-  created_at: string;
-  updated_at: string;
   input_data?: Record<string, any>;
   evaluation_a_output?: Record<string, any>;
   evaluation_b_output?: Record<string, any>;
@@ -91,10 +84,37 @@ export interface Comparison {
   status: ComparisonStatus;
   config?: Record<string, any>;
   comparison_results?: Record<string, any>;
-  summary?: Record<string, any>;
+  summary?: ComparisonSummary;
   created_at: string;
   updated_at: string;
   created_by_id?: string;
+}
+
+/**
+ * Interface for comparison summary - aligned with API response
+ */
+export interface ComparisonSummary {
+  evaluation_a_name?: string;
+  evaluation_b_name?: string;
+  overall_result?: string; // "improved", "regressed", etc.
+  percentage_change?: number; // The actual percentage improvement/regression
+  total_metrics?: number;
+  improved_metrics?: number;
+  regressed_metrics?: number;
+  unchanged_metrics?: number;
+  improved_samples?: number;
+  regressed_samples?: number;
+  matched_samples?: number;
+  top_improvements?: Array<{
+    metric_name: string;
+    absolute_difference: number;
+    percentage_change: number;
+  }>;
+  top_regressions?: Array<{
+    metric_name: string;
+    absolute_difference: number;
+    percentage_change: number;
+  }>;
 }
 
 /**
@@ -105,13 +125,20 @@ export interface ComparisonDetail extends Comparison {
   evaluation_b?: Record<string, any>;
   metric_differences?: MetricDifference[];
   result_differences?: Record<string, SampleDifference[]>;
-  summary?: {
-    overall_result?: number;
-    total_metrics?: number;
-    improved_metrics?: number;
-    regressed_metrics?: number;
-    unchanged_metrics?: number;
-    significant_changes?: number;
+  overall_comparison?: {
+    overall_scores?: {
+      evaluation_a: number;
+      evaluation_b: number;
+      absolute_difference: number;
+      percentage_change: number;
+      is_improvement: boolean;
+    };
+    metric_stats?: {
+      total_metrics: number;
+      improved_metrics: number;
+      regressed_metrics: number;
+      metric_improvement_rate: number;
+    };
   };
 }
 

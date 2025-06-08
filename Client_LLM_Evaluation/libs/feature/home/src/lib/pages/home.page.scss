@@ -37,7 +37,7 @@
 // Dashboard stats cards
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: $spacing-3;
 
   @include media-breakpoint-down(xl) {
@@ -133,7 +133,9 @@
 
     &:hover {
       border-color: rgba($primary, 0.3);
-      .stat-arrow { color: $primary; }
+      .stat-arrow {
+        color: $primary;
+      }
     }
   }
 
@@ -145,7 +147,9 @@
 
     &:hover {
       border-color: rgba($info, 0.3);
-      .stat-arrow { color: $info; }
+      .stat-arrow {
+        color: $info;
+      }
     }
   }
 
@@ -157,7 +161,9 @@
 
     &:hover {
       border-color: rgba(#673ab7, 0.3);
-      .stat-arrow { color: #673ab7; }
+      .stat-arrow {
+        color: #673ab7;
+      }
     }
   }
 
@@ -169,7 +175,9 @@
 
     &:hover {
       border-color: rgba($success, 0.3);
-      .stat-arrow { color: $success; }
+      .stat-arrow {
+        color: $success;
+      }
     }
   }
 
@@ -181,7 +189,9 @@
 
     &:hover {
       border-color: rgba($warning, 0.1);
-      .stat-arrow { color: $warning; }
+      .stat-arrow {
+        color: $warning;
+      }
     }
   }
 }
@@ -285,38 +295,44 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-  .status-badge {
-  padding: $spacing-1 $spacing-2;
-  border-radius: $radius-full;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-medium;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+    .status-badge {
+      padding: $spacing-1 $spacing-2;
+      border-radius: $radius-full;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
 
-  &.ready, &.active, &.completed {
-    background-color: rgba($success, 0.1);
-    color: $success;
-    border: 1px solid rgba($success, 0.3);
-  }
+      &.ready,
+      &.active,
+      &.completed {
+        background-color: rgba($success, 0.1);
+        color: $success;
+        border: 1px solid rgba($success, 0.3);
+      }
 
-  &.processing, &.pending, &.warning {
-    background-color: rgba($warning, 0.1);
-    color: darken($warning, 15%);
-    border: 1px solid rgba($warning, 0.3);
-  }
+      &.processing,
+      &.pending,
+      &.warning {
+        background-color: rgba($warning, 0.1);
+        color: darken($warning, 15%);
+        border: 1px solid rgba($warning, 0.3);
+      }
 
-  &.error, &.failed, &.inactive {
-    background-color: rgba($error, 0.1);
-    color: $error;
-    border: 1px solid rgba($error, 0.3);
-  }
+      &.error,
+      &.failed,
+      &.inactive {
+        background-color: rgba($error, 0.1);
+        color: $error;
+        border: 1px solid rgba($error, 0.3);
+      }
 
-  &.running {
-    background-color: rgba($info, 0.1);
-    color: $info;
-    border: 1px solid rgba($info, 0.3);
-  }
-}
+      &.running {
+        background-color: rgba($info, 0.1);
+        color: $info;
+        border: 1px solid rgba($info, 0.3);
+      }
+    }
   }
 
   .item-details {

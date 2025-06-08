@@ -4,6 +4,7 @@ import {
   OnDestroy,
   ElementRef,
   NO_ERRORS_SCHEMA,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -76,7 +77,8 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     private comparisonService: ComparisonService,
     private evaluationService: EvaluationService,
     private confirmationDialogService: ConfirmationDialogService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -87,6 +89,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         this.loadComparison(id);
       } else {
         this.error = 'Comparison ID not found.';
+        this.cdr.markForCheck();
       }
     });
   }
@@ -102,6 +105,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   loadComparison(id: string): void {
     this.isLoading = true;
     this.error = null;
+    this.cdr.markForCheck();
 
     this.comparisonService
       .getComparison(id)
@@ -109,68 +113,122 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         finalize(() => {
           this.isLoading = false;
+          this.cdr.markForCheck();
         })
       )
       .subscribe({
         next: (comparison) => {
+          console.log('Loaded comparison:', comparison);
           this.comparison = comparison;
 
-          // Process metrics data if available
-          if (
-            comparison.metric_differences &&
-            comparison.metric_differences.length > 0
-          ) {
-            this.metricDifferences = comparison.metric_differences;
-          } else {
-            // If no metrics in the response, try to load them separately
-            this.loadMetrics();
-          }
+          // Extract metrics data from the response
+          this.extractMetricDifferences(comparison);
 
-          // Process sample differences if available
-          if (comparison.result_differences) {
-            this.processSampleDifferences(comparison.result_differences);
-          }
+          // Extract sample differences
+          this.extractSampleDifferences(comparison);
 
           // Load visualization data for the default visualization
           this.loadVisualizationData(this.selectedVisualization);
+
+          this.cdr.markForCheck();
         },
-        error: (error) => {
+        error: (err) => {
           this.error = 'Failed to load comparison details. Please try again.';
-          console.error('Error loading comparison:', error);
+          console.error('Error loading comparison:', err);
+          this.cdr.markForCheck();
         },
       });
   }
 
   /**
-   * Load metrics data separately
+   * Extract metric differences from comparison data
    */
-  loadMetrics(): void {
-    if (!this.comparison || !this.comparisonId) return;
+  extractMetricDifferences(comparison: ComparisonDetail): void {
+    this.metricDifferences = [];
 
-    this.comparisonService
-      .getComparisonMetrics(this.comparisonId)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError((error) => {
-          console.error('Error loading metrics:', error);
-          return of([]);
-        })
-      )
-      .subscribe((metrics) => {
-        this.metricDifferences = metrics;
-      });
+    // Check if comparison_results contains metric_comparison data
+    if (
+      comparison.comparison_results?.['metric_comparison'] &&
+      typeof comparison.comparison_results['metric_comparison'] === 'object'
+    ) {
+      const metricComparison =
+        comparison.comparison_results['metric_comparison'];
+
+      // Convert the metric_comparison object into an array of MetricDifference objects
+      this.metricDifferences = Object.entries(metricComparison).map(
+        ([metricName, data]) => {
+          const metricData = data as any;
+          return {
+            name: metricName,
+            metric_name: metricName,
+            evaluation_a_value: metricData.evaluation_a?.average || 0,
+            evaluation_b_value: metricData.evaluation_b?.average || 0,
+            absolute_difference:
+              metricData.comparison?.absolute_difference || 0,
+            percentage_change: metricData.comparison?.percentage_change || 0,
+            is_improvement: metricData.comparison?.is_improvement || false,
+          };
+        }
+      );
+
+      console.log('Extracted metric differences:', this.metricDifferences);
+    }
+
+    // If we have metric_differences directly in the comparison data, use those
+    else if (
+      comparison.metric_differences &&
+      comparison.metric_differences.length > 0
+    ) {
+      this.metricDifferences = comparison.metric_differences;
+    }
   }
 
   /**
-   * Process sample differences from the response
+   * Extract sample differences from comparison data
    */
-  processSampleDifferences(
-    resultDifferences: Record<string, SampleDifference[]>
-  ): void {
-    // Flatten the samples from the result differences
-    this.sampleDifferences = Object.values(resultDifferences)
-      .flat()
-      .filter((sample) => !!sample); // Filter out any null/undefined values
+  extractSampleDifferences(comparison: ComparisonDetail): void {
+    this.sampleDifferences = [];
+
+    // Check for sample_comparison data in the API response
+    if (
+      comparison.comparison_results?.['sample_comparison']?.matched_results &&
+      typeof comparison.comparison_results['sample_comparison']
+        .matched_results === 'object'
+    ) {
+      const sampleResults =
+        comparison.comparison_results['sample_comparison'].matched_results;
+
+      // Convert the nested object structure to an array of SampleDifference objects
+      this.sampleDifferences = Object.entries(sampleResults).map(
+        ([sampleId, data]) => {
+          const sampleData = data as any;
+          return {
+            sample_id: sampleId,
+            evaluation_a_score: sampleData.evaluation_a?.overall_score,
+            evaluation_b_score: sampleData.evaluation_b?.overall_score,
+            absolute_difference: sampleData.comparison?.absolute_difference,
+            percentage_difference: sampleData.comparison?.percentage_change,
+            status: sampleData.comparison?.is_improvement
+              ? 'improved'
+              : 'regressed',
+            // These fields might need to be populated from elsewhere
+            input_data: {},
+            evaluation_a_output: sampleData.evaluation_a || {},
+            evaluation_b_output: sampleData.evaluation_b || {},
+          };
+        }
+      );
+
+      console.log('Extracted sample differences:', this.sampleDifferences);
+    }
+
+    // If we have result_differences directly in the comparison data, use those
+    else if (comparison.result_differences) {
+      // Flatten the object of arrays into a single array
+      this.sampleDifferences = Object.values(
+        comparison.result_differences
+      ).flat();
+    }
 
     // Apply initial filtering and sorting
     this.filterSamples();
@@ -180,7 +238,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    * Load visualization data
    */
   loadVisualizationData(type: 'radar' | 'bar' | 'line'): void {
-    if (!this.comparison || !this.comparisonId || !this.hasResults()) return;
+    if (!this.comparisonId || !this.hasResults()) return;
 
     this.comparisonService
       .getVisualizationData(this.comparisonId, type)
@@ -188,14 +246,74 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         catchError((error) => {
           console.error(`Error loading ${type} visualization:`, error);
-          return of(null);
+          // If API fails, create visualization data from metrics
+          return of(this.createVisualizationDataFromMetrics(type));
         })
       )
       .subscribe((data) => {
         if (data) {
           this.visualizationData = data;
+          this.cdr.markForCheck();
         }
       });
+  }
+
+  /**
+   * Create visualization data from metrics if API doesn't provide it
+   */
+  createVisualizationDataFromMetrics(
+    type: 'radar' | 'bar' | 'line'
+  ): VisualizationData {
+    const labels = this.metricDifferences.map(
+      (m) => m.name || m.metric_name || ''
+    );
+
+    // Create datasets based on visualization type
+    let datasets;
+
+    if (type === 'radar' || type === 'line') {
+      datasets = [
+        {
+          label: 'Evaluation A',
+          data: this.metricDifferences.map((m) => m.evaluation_a_value),
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          fill: type === 'radar',
+        },
+        {
+          label: 'Evaluation B',
+          data: this.metricDifferences.map((m) => m.evaluation_b_value),
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          fill: type === 'radar',
+        },
+      ];
+    } else {
+      // bar chart
+      datasets = [
+        {
+          label: 'Evaluation A',
+          data: this.metricDifferences.map((m) => m.evaluation_a_value),
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        },
+        {
+          label: 'Evaluation B',
+          data: this.metricDifferences.map((m) => m.evaluation_b_value),
+          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+        },
+        {
+          label: 'Difference (%)',
+          data: this.metricDifferences.map((m) => m.percentage_change || 0),
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        },
+      ];
+    }
+
+    return {
+      type,
+      labels,
+      datasets,
+    };
   }
 
   /**
@@ -243,6 +361,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     }
 
     this.filteredSamples = filtered;
+    this.cdr.markForCheck();
   }
 
   /**
@@ -266,6 +385,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   viewSampleDetails(sample: SampleDifference): void {
     this.selectedSample = sample;
     this.showSampleDetails = true;
+    this.cdr.markForCheck();
   }
 
   /**
@@ -274,6 +394,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   closeSampleDetails(): void {
     this.showSampleDetails = false;
     this.selectedSample = null;
+    this.cdr.markForCheck();
   }
 
   /**
@@ -293,12 +414,16 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       .subscribe((confirmed) => {
         if (confirmed) {
           this.isLoading = true;
+          this.cdr.markForCheck();
 
           this.comparisonService
             .runComparison(this.comparisonId)
             .pipe(
               takeUntil(this.destroy$),
-              finalize(() => (this.isLoading = false))
+              finalize(() => {
+                this.isLoading = false;
+                this.cdr.markForCheck();
+              })
             )
             .subscribe({
               next: () => {
@@ -433,29 +558,65 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    * Get formatted overall result
    */
   getFormattedOverallResult(): string {
-    if (!this.comparison?.summary?.overall_result) return 'N/A';
+    if (!this.comparison?.summary) return 'N/A';
 
-    const improvement = this.comparison.summary.overall_result;
-    return `${improvement > 0 ? '+' : ''}${(improvement * 100).toFixed(
-      1
-    )}% Improvement`;
+    // Check for percentage_change in the summary
+    if (this.comparison.summary.percentage_change !== undefined) {
+      const improvement = this.comparison.summary.percentage_change;
+      return `${improvement > 0 ? '+' : ''}${improvement.toFixed(
+        1
+      )}% Improvement`;
+    }
+
+    // Fallback to overall_comparison if available
+    else if (
+      this.comparison.overall_comparison?.overall_scores?.percentage_change !==
+      undefined
+    ) {
+      const improvement =
+        this.comparison.overall_comparison.overall_scores.percentage_change;
+      return `${improvement > 0 ? '+' : ''}${improvement.toFixed(
+        1
+      )}% Improvement`;
+    }
+
+    // If neither is available, just return the text result
+    return this.comparison.summary.overall_result || 'N/A';
   }
 
   /**
    * Get result CSS class
    */
   getResultClass(): string {
-    if (!this.comparison?.summary?.overall_result) return 'neutral';
+    if (!this.comparison?.summary) return 'neutral';
 
-    const improvement = this.comparison.summary.overall_result;
-
-    if (improvement > 0) {
-      return 'improved';
-    } else if (improvement < 0) {
-      return 'regressed';
-    } else {
+    // Try to determine from percentage_change
+    if (this.comparison.summary.percentage_change !== undefined) {
+      const improvement = this.comparison.summary.percentage_change;
+      if (improvement > 0) return 'improved';
+      if (improvement < 0) return 'regressed';
       return 'neutral';
     }
+
+    // Check overall_comparison
+    else if (
+      this.comparison.overall_comparison?.overall_scores?.is_improvement !==
+      undefined
+    ) {
+      return this.comparison.overall_comparison.overall_scores.is_improvement
+        ? 'improved'
+        : 'regressed';
+    }
+
+    // Check overall_result string
+    else if (this.comparison.summary.overall_result) {
+      if (this.comparison.summary.overall_result === 'improved')
+        return 'improved';
+      if (this.comparison.summary.overall_result === 'regressed')
+        return 'regressed';
+    }
+
+    return 'neutral';
   }
 
   /**
@@ -500,7 +661,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   getDifferenceWithSign(metric: MetricDifference): string {
     const sign = metric.is_improvement ? '+' : '';
-    return `${sign}${metric.absolute_difference.toFixed(2)}`;
+    return `${sign}${metric.absolute_difference.toFixed(4)}`;
   }
 
   /**
@@ -508,7 +669,9 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   getPercentageDifference(metric: MetricDifference): string {
     const sign = metric.is_improvement ? '+' : '';
-    return `${sign}${(metric.percentage_difference * 100).toFixed(1)}%`;
+    const percentage =
+      metric.percentage_change || metric.percentage_difference || 0;
+    return `${sign}${percentage.toFixed(1)}%`;
   }
 
   /**
@@ -533,7 +696,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     if (!sample || !sample.absolute_difference) return '0.00';
 
     const sign = sample.status === 'improved' ? '+' : '';
-    return `${sign}${sample.absolute_difference.toFixed(2)}`;
+    return `${sign}${sample.absolute_difference.toFixed(4)}`;
   }
 
   /**

@@ -1,6 +1,8 @@
+/* Path: libs/data-access/services/src/lib/comparison.service.ts */
+
 import { Injectable } from '@angular/core';
 import { Observable, throwError, of } from 'rxjs';
-import { catchError, map, delay } from 'rxjs/operators';
+import { catchError, map, delay, tap } from 'rxjs/operators';
 import {
   HttpParams,
   HttpErrorResponse,
@@ -66,17 +68,17 @@ export class ComparisonService {
 
     // Add evaluation_a_id filter
     if (filters.evaluation_a_id) {
-      params = params.set('evaluation_a_id', filters.evaluation_a_id);
+      params = params.set('evaluation_id', filters.evaluation_a_id);
     }
 
-    // Add evaluation_b_id filter
-    if (filters.evaluation_b_id) {
-      params = params.set('evaluation_b_id', filters.evaluation_b_id);
+    // Add evaluation_b_id filter - only if evaluation_a_id is not set
+    else if (filters.evaluation_b_id) {
+      params = params.set('evaluation_id', filters.evaluation_b_id);
     }
 
     // Add name filter if provided
     if (filters.name) {
-      params = params.set('name', filters.name);
+      params = params.set('search', filters.name); // Changed from 'name' to 'search' to match API
     }
 
     // Add sort parameters - always sending these parameters to match backend expectations
@@ -84,7 +86,10 @@ export class ComparisonService {
     params = params.set('sort_by', filters.sortBy || 'created_at');
     params = params.set('sort_dir', filters.sortDirection || 'desc');
 
+    console.log('API Request params:', params.toString()); // Debug log
+
     return this.httpClient.get<any>(this.baseUrl, params).pipe(
+      tap((response) => console.log('API Response:', response)), // Debug log
       map((response) => {
         // Transform the API response to match the expected structure
         if (response && response.items && Array.isArray(response.items)) {
@@ -104,9 +109,10 @@ export class ComparisonService {
         // Return the response as is if it already matches our format
         return response as ComparisonsResponse;
       }),
-      catchError((error) =>
-        this.handleError('Failed to fetch comparisons', error)
-      )
+      catchError((error) => {
+        console.error('API Error:', error); // Debug log
+        return this.handleError('Failed to fetch comparisons', error);
+      })
     );
   }
 
@@ -115,7 +121,9 @@ export class ComparisonService {
    */
   getComparison(id: string): Observable<ComparisonDetail> {
     return this.httpClient.get<ComparisonDetail>(`${this.baseUrl}/${id}`).pipe(
+      tap((response) => console.log('API Detail Response:', response)), // Debug log
       catchError((error) => {
+        console.error('API Detail Error:', error); // Debug log
         return this.handleError(
           `Failed to fetch comparison with ID ${id}`,
           error
@@ -185,12 +193,21 @@ export class ComparisonService {
   }
 
   /**
-   * Get comparison metrics
+   * Get comparison metrics - directly maps to API response structure
    */
   getComparisonMetrics(id: string): Observable<MetricDifference[]> {
     return this.httpClient
-      .get<MetricDifference[]>(`${this.baseUrl}/${id}/metrics`)
+      .get<Comparison>(`${this.baseUrl}/${id}`) // Get the full comparison
       .pipe(
+        map((comparison) => {
+          // Extract and transform metric differences from the comparison results
+          if (comparison.comparison_results?.metric_comparison) {
+            return this.extractMetricDifferences(
+              comparison.comparison_results.metric_comparison
+            );
+          }
+          return [];
+        }),
         catchError((error) => {
           return this.handleError(
             `Failed to fetch metrics for comparison with ID ${id}`,
@@ -201,27 +218,138 @@ export class ComparisonService {
   }
 
   /**
-   * Get visualization data
+   * Extract metric differences from the API response format
+   */
+  private extractMetricDifferences(metricComparison: any): MetricDifference[] {
+    const metrics: MetricDifference[] = [];
+
+    // Loop through each metric in the comparison
+    for (const [metricName, data] of Object.entries(metricComparison)) {
+      const metricData = data as any;
+
+      metrics.push({
+        name: metricName,
+        metric_name: metricName,
+        evaluation_a_value: metricData.evaluation_a?.average || 0,
+        evaluation_b_value: metricData.evaluation_b?.average || 0,
+        absolute_difference: metricData.comparison?.absolute_difference || 0,
+        percentage_change: metricData.comparison?.percentage_change || 0,
+        is_improvement: metricData.comparison?.is_improvement || false,
+      });
+    }
+
+    return metrics;
+  }
+
+  /**
+   * Get visualization data - use actual API or fallback to mock data
    */
   getVisualizationData(
     id: string,
     type: 'radar' | 'bar' | 'line'
   ): Observable<VisualizationData> {
+    // First try to get the real data from the API
     return this.httpClient
-      .get<VisualizationData>(`${this.baseUrl}/${id}/visualizations/${type}`)
+      .get<any>(`${this.baseUrl}/${id}/visualizations/${type}`)
       .pipe(
         catchError((error) => {
-          // If API endpoint not available yet, return mock data for development
+          // If API endpoint not available, try to build visualization from metrics
           if (error.status === 404) {
-            return this.getMockVisualizationData(type);
+            return this.buildVisualizationFromMetrics(id, type);
           }
-
           return this.handleError(
             `Failed to fetch ${type} visualization data for comparison with ID ${id}`,
             error
           );
         })
       );
+  }
+
+  /**
+   * Build visualization data from metrics if the API doesn't provide it
+   */
+  private buildVisualizationFromMetrics(
+    id: string,
+    type: 'radar' | 'bar' | 'line'
+  ): Observable<VisualizationData> {
+    // Get the comparison data which includes metrics
+    return this.getComparison(id).pipe(
+      map((comparison) => {
+        // Extract metric differences
+        let metrics: MetricDifference[] = [];
+
+        if (comparison.comparison_results?.['metric_comparison']) {
+          metrics = this.extractMetricDifferences(
+            comparison.comparison_results['metric_comparison']
+          );
+        }
+
+        // Now create visualization data
+        return this.createVisualizationData(metrics, type);
+      }),
+      catchError((error) => {
+        // Return mock data as a last resort if we can't get metrics
+        console.log('Falling back to mock visualization data');
+        return of(this.getMockVisualizationData(type));
+      })
+    );
+  }
+
+  /**
+   * Create visualization data from metrics
+   */
+  private createVisualizationData(
+    metrics: MetricDifference[],
+    type: 'radar' | 'bar' | 'line'
+  ): VisualizationData {
+    const labels = metrics.map((m) => m.name || m.metric_name || '');
+
+    // Create datasets based on visualization type
+    let datasets;
+
+    if (type === 'radar' || type === 'line') {
+      datasets = [
+        {
+          label: 'Evaluation A',
+          data: metrics.map((m) => m.evaluation_a_value),
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          fill: type === 'radar',
+        },
+        {
+          label: 'Evaluation B',
+          data: metrics.map((m) => m.evaluation_b_value),
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          fill: type === 'radar',
+        },
+      ];
+    } else {
+      // bar chart
+      datasets = [
+        {
+          label: 'Evaluation A',
+          data: metrics.map((m) => m.evaluation_a_value),
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        },
+        {
+          label: 'Evaluation B',
+          data: metrics.map((m) => m.evaluation_b_value),
+          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+        },
+        {
+          label: 'Difference (%)',
+          data: metrics.map((m) => m.percentage_change || 0),
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        },
+      ];
+    }
+
+    return {
+      type,
+      labels,
+      datasets,
+    };
   }
 
   /**
@@ -318,7 +446,7 @@ export class ComparisonService {
    */
   private getMockVisualizationData(
     type: 'radar' | 'bar' | 'line'
-  ): Observable<VisualizationData> {
+  ): VisualizationData {
     // Create mock data based on visualization type
     const metrics = [
       'Context Recall',
@@ -399,7 +527,7 @@ export class ComparisonService {
     }
 
     // Return mock data with a small delay to simulate API call
-    return of(mockData).pipe(delay(500));
+    return mockData;
   }
 
   /**

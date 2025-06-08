@@ -1,16 +1,18 @@
 <div class="visualization-container">
-  <div class="chart-container">
-    <!-- Error Message -->
-    <div *ngIf="!chartData" class="no-data-message">
-      No visualization data available.
-    </div>
+  <!-- Error Message -->
+  <div *ngIf="!chartData" class="no-data-message">
+    No visualization data available. Run the comparison to see visualizations of
+    the results.
+  </div>
 
-    <!-- Chart Area -->
+  <!-- Chart Area -->
+  <div class="chart-container" *ngIf="chartData">
     <svg
-      *ngIf="chartData"
       [attr.width]="svgWidth"
       [attr.height]="svgHeight"
       class="chart-svg"
+      [attr.viewBox]="'0 0 ' + svgWidth + ' ' + svgHeight"
+      preserveAspectRatio="xMidYMid meet"
     >
       <!-- Radar Chart -->
       <g *ngIf="visualizationType === 'radar'">
@@ -118,6 +120,7 @@
             text-anchor="middle"
             alignment-baseline="hanging"
             class="axis-label"
+            [attr.transform]="'rotate(-45, ' + label.x + ', ' + label.y + ')'"
           >
             {{ label.label }}
           </text>
@@ -231,6 +234,9 @@
             text-anchor="middle"
             alignment-baseline="hanging"
             class="axis-label small"
+            [attr.transform]="
+              'rotate(-45, ' + label.x + ', ' + (label.y + 10) + ')'
+            "
           >
             {{ label.label }}
           </text>
@@ -246,6 +252,19 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           ></path>
+
+          <!-- Add data points -->
+          <g *ngFor="let point of getDataPoints(i)">
+            <circle
+              *ngIf="point"
+              [attr.cx]="point.x"
+              [attr.cy]="point.y"
+              r="4"
+              [attr.fill]="dataset.borderColor"
+              stroke="white"
+              stroke-width="1"
+            ></circle>
+          </g>
         </g>
       </g>
     </svg>

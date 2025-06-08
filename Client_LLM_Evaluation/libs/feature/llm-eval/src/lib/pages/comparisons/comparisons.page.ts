@@ -20,6 +20,7 @@ import {
   distinctUntilChanged,
   finalize,
   catchError,
+  tap,
 } from 'rxjs/operators';
 import {
   Comparison,
@@ -161,6 +162,7 @@ export class ComparisonsPage implements OnInit, OnDestroy {
       ?.valueChanges.pipe(
         debounceTime(400),
         distinctUntilChanged(),
+        tap((value) => console.log('Search value changed:', value)), // Debug log
         takeUntil(this.destroy$)
       )
       .subscribe((value: string) => {
@@ -172,7 +174,10 @@ export class ComparisonsPage implements OnInit, OnDestroy {
     // Listen to status changes
     this.filterForm
       .get('status')
-      ?.valueChanges.pipe(takeUntil(this.destroy$))
+      ?.valueChanges.pipe(
+        tap((value) => console.log('Status value changed:', value)), // Debug log
+        takeUntil(this.destroy$)
+      )
       .subscribe((value: string) => {
         this.filterParams.status = value
           ? (value as ComparisonStatus)
@@ -184,15 +189,16 @@ export class ComparisonsPage implements OnInit, OnDestroy {
     // Listen to evaluation changes
     this.filterForm
       .get('evaluation')
-      ?.valueChanges.pipe(takeUntil(this.destroy$))
+      ?.valueChanges.pipe(
+        tap((value) => console.log('Evaluation value changed:', value)), // Debug log
+        takeUntil(this.destroy$)
+      )
       .subscribe((value: string) => {
         if (value) {
           // When an evaluation is selected, we want to find comparisons that have it
-          // in either evaluation_a_id or evaluation_b_id, but the backend may not support this directly.
-          // We'll handle this in the implementation when it's clear how the backend API works.
-          // For now, we'll just store the evaluation ID in a custom field.
+          // in either evaluation_a_id or evaluation_b_id
           this.filterParams.evaluation_a_id = value;
-          this.filterParams.evaluation_b_id = value;
+          this.filterParams.evaluation_b_id = undefined; // Clear the other field to prevent conflicts
         } else {
           this.filterParams.evaluation_a_id = undefined;
           this.filterParams.evaluation_b_id = undefined;
@@ -207,6 +213,8 @@ export class ComparisonsPage implements OnInit, OnDestroy {
     this.error = null;
     this.cdr.markForCheck();
 
+    console.log('Loading comparisons with params:', this.filterParams); // Debug log
+
     this.comparisonService
       .getComparisons(this.filterParams)
       .pipe(
@@ -218,6 +226,7 @@ export class ComparisonsPage implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (response) => {
+          console.log('Comparisons loaded:', response); // Debug log
           this.comparisons = response.comparisons;
           this.totalCount = response.totalCount;
           this.updateVisiblePages();
@@ -454,11 +463,15 @@ export class ComparisonsPage implements OnInit, OnDestroy {
     }
 
     // Get the overall improvement from the summary
-    const improvement = comparison.summary['overall_improvement'] || 0;
+    // Check for percentage_change field first (from API sample)
+    const improvement =
+      comparison.summary.percentage_change !== undefined
+        ? comparison.summary.percentage_change
+        : 0;
 
     // Format as percentage with sign
     const sign = improvement > 0 ? '+' : '';
-    return `${sign}${(improvement * 100).toFixed(1)}%`;
+    return `${sign}${improvement.toFixed(1)}%`;
   }
 
   getResultClass(comparison: Comparison): string {
@@ -469,15 +482,27 @@ export class ComparisonsPage implements OnInit, OnDestroy {
       return 'neutral';
     }
 
-    const improvement = comparison.summary['overall_improvement'] || 0;
+    // Check for percentage_change from API sample
+    if (comparison.summary.percentage_change !== undefined) {
+      const improvement = comparison.summary.percentage_change;
 
-    if (improvement > 0) {
-      return 'improved';
-    } else if (improvement < 0) {
-      return 'regressed';
-    } else {
-      return 'neutral';
+      if (improvement > 0) {
+        return 'improved';
+      } else if (improvement < 0) {
+        return 'regressed';
+      }
     }
+
+    // Check for overall_result string
+    if (comparison.summary.overall_result) {
+      if (comparison.summary.overall_result === 'improved') {
+        return 'improved';
+      } else if (comparison.summary.overall_result === 'regressed') {
+        return 'regressed';
+      }
+    }
+
+    return 'neutral';
   }
 
   getEvaluationName(evaluationId: string): string {
