@@ -274,6 +274,7 @@ class BaseEvaluationMethod(ABC):
             Exception: If processing fails
         """
         raise NotImplementedError("Subclasses must implement process_item method")
+
     @staticmethod
     async def log_progress(evaluation_id: UUID, total: int, processed: int) -> None:
         """
@@ -756,6 +757,7 @@ class BaseEvaluationMethod(ABC):
                 output_data={"error": str(e)},
                 metric_scores=[]
             )
+
     @staticmethod
     async def _call_agent_api_with_retry(
             api_endpoint: str, payload: Dict[str, Any], max_retries: int = 3
@@ -843,7 +845,6 @@ class BaseEvaluationMethod(ABC):
         # If we've exhausted retries
         logger.error(f"Exhausted retries calling agent API: {last_exception}")
         raise Exception(f"Failed to call agent API after {max_retries} retries: {str(last_exception)}")
-
 
     def _get_metric_description(self, metric_name: str) -> str:
         """
@@ -987,7 +988,7 @@ class BaseEvaluationMethod(ABC):
                 for name, value in metrics.items()
             ]
 
-            # Create result with all required fields
+            # Create result
             return EvaluationResultCreate(
                 evaluation_id=evaluation.id,
                 overall_score=overall_score,

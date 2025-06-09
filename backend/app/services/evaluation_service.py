@@ -740,7 +740,8 @@ class EvaluationService:
             logger.error(f"Error deleting evaluation {evaluation_id}: {str(e)}")
             return False
 
-    async def _validate_metrics_for_dataset(self, metrics: Optional[List[str]], dataset: Dataset) -> None:
+    @staticmethod
+    async def _validate_metrics_for_dataset(metrics: Optional[List[str]], dataset: Dataset) -> None:
         """
         Validate that the selected metrics are appropriate for the dataset type.
 

@@ -1,5 +1,8 @@
+import asyncio
 import logging
-from typing import Dict, List, Optional, Union, Any
+import time
+from functools import lru_cache
+from typing import Dict, List, Optional, Union, Any, Set, Tuple
 
 import ragas
 from ragas import SingleTurnSample
@@ -17,8 +20,13 @@ from ragas.metrics import (
     FactualCorrectness
 )
 
+# Configure logging to include line numbers
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.ERROR)
+
 RAGAS_AVAILABLE = True
 logger.info(f"RAGAS library found (version: {ragas.__version__})")
 
@@ -26,13 +34,225 @@ logger.info(f"RAGAS library found (version: {ragas.__version__})")
 _cache = {}
 
 
+# Custom Exception Hierarchies
+class RAGASException(Exception):
+    """Base exception for RAGAS-related errors."""
+    pass
+
+
+class RAGASInitializationException(RAGASException):
+    """Raised when RAGAS components fail to initialize."""
+    pass
+
+
+class RAGASTimeoutException(RAGASException):
+    """Raised when RAGAS calculation times out."""
+    pass
+
+
+class RAGASAPIException(RAGASException):
+    """Raised when API calls fail."""
+    pass
+
+
+class RAGASValidationException(RAGASException):
+    """Raised when input validation fails."""
+    pass
+
+
+class FallbackCalculationException(RAGASException):
+    """Raised when fallback calculations fail."""
+    pass
+
+
+class FallbackCalculator:
+    """Consolidated fallback calculations with proper logging."""
+
+    @staticmethod
+    @lru_cache(maxsize=1000)
+    def _tokenize_and_extract_features(text: str) -> Tuple[Set[str], Set[str]]:
+        """
+        Extract word tokens and simple entities from text.
+
+        Returns:
+            Tuple of (word_tokens, entities)
+        """
+        try:
+            if not text or not isinstance(text, str):
+                logger.warning(f"Invalid text input for tokenization")
+                return set(), set()
+
+            words = set(text.lower().split())
+            # Simple entity extraction (capitalized words)
+            entities = {word for word in text.split() if word and len(word) > 1 and word[0].isupper()}
+
+            logger.debug(
+                f"Tokenized text: {len(words)} words, {len(entities)} entities")
+            return words, entities
+
+        except Exception as e:
+            logger.error(f"Error in tokenization: {e}")
+            raise FallbackCalculationException(f"Tokenization failed: {e}")
+
+    @staticmethod
+    def _calculate_token_overlap_score(text1: str, text2: str, score_type: str = "jaccard") -> float:
+        """
+        Calculate token overlap score between two texts.
+
+        Args:
+            text1: First text
+            text2: Second text
+            score_type: Type of score ('jaccard', 'precision', 'recall', 'f1')
+
+        Returns:
+            float: Overlap score (0-1)
+        """
+        try:
+            logger.debug(f"Calculating {score_type} overlap score")
+
+            if not text1 or not text2:
+                logger.warning(f"Empty input for overlap calculation")
+                return 0.0
+
+            words1, _ = FallbackCalculator._tokenize_and_extract_features(text1)
+            words2, _ = FallbackCalculator._tokenize_and_extract_features(text2)
+
+            if not words1 or not words2:
+                logger.warning(f"No tokens found in texts for overlap")
+                return 0.0
+
+            intersection = words1.intersection(words2)
+
+            if score_type == "jaccard":
+                union = words1.union(words2)
+                score = len(intersection) / len(union) if union else 0.0
+            elif score_type == "precision":
+                score = len(intersection) / len(words1)
+            elif score_type == "recall":
+                score = len(intersection) / len(words2)
+            elif score_type == "f1":
+                if not intersection:
+                    score = 0.0
+                else:
+                    precision = len(intersection) / len(words1)
+                    recall = len(intersection) / len(words2)
+                    score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+            else:
+                logger.error(f"Unknown score type: {score_type}")
+                raise FallbackCalculationException(f"Unknown score type: {score_type}")
+
+            logger.debug(f"{score_type} score calculated: {score:.3f}")
+            return score
+
+        except Exception as e:
+            logger.error(f"Error calculating token overlap: {e}")
+            raise FallbackCalculationException(f"Token overlap calculation failed: {e}")
+
+    @staticmethod
+    def _calculate_entity_overlap(text1: str, text2: str, score_type: str = "recall") -> float:
+        """
+        Calculate entity overlap between two texts.
+
+        Args:
+            text1: First text
+            text2: Second text
+            score_type: Type of score ('precision', 'recall', 'f1')
+
+        Returns:
+            float: Entity overlap score (0-1)
+        """
+        try:
+            logger.debug(f"Calculating entity {score_type}")
+
+            if not text1 or not text2:
+                logger.warning(f"Empty input for entity overlap")
+                return 0.0
+
+            _, entities1 = FallbackCalculator._tokenize_and_extract_features(text1)
+            _, entities2 = FallbackCalculator._tokenize_and_extract_features(text2)
+
+            if score_type == "recall" and not entities2:
+                logger.info(
+                    f"No entities in reference text, returning 1.0")
+                return 1.0
+            elif score_type == "precision" and not entities1:
+                logger.info(
+                    f"No entities in candidate text, returning 1.0")
+                return 1.0
+
+            if not entities1 or not entities2:
+                logger.warning(
+                    f"No entities found for overlap calculation")
+                return 0.0
+
+            intersection = entities1.intersection(entities2)
+
+            if score_type == "precision":
+                score = len(intersection) / len(entities1)
+            elif score_type == "recall":
+                score = len(intersection) / len(entities2)
+            elif score_type == "f1":
+                if not intersection:
+                    score = 0.0
+                else:
+                    precision = len(intersection) / len(entities1)
+                    recall = len(intersection) / len(entities2)
+                    score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+            else:
+                logger.error(f"Unknown entity score type: {score_type}")
+                raise FallbackCalculationException(f"Unknown entity score type: {score_type}")
+
+            logger.debug(f"Entity {score_type} calculated: {score:.3f}")
+            return score
+
+        except Exception as e:
+            logger.error(f"Error calculating entity overlap: {e}")
+            raise FallbackCalculationException(f"Entity overlap calculation failed: {e}")
+
+    @staticmethod
+    def _normalize_context(context: Union[str, List[str]]) -> str:
+        """
+        Normalize context to string format.
+
+        Args:
+            context: Context as string or list of strings
+
+        Returns:
+            str: Normalized context string
+        """
+        try:
+            if isinstance(context, list):
+                normalized = " ".join(str(item) for item in context if item)
+                logger.debug(
+                    f"Normalized list context to string: {len(normalized)} chars")
+                return normalized
+            elif isinstance(context, str):
+                logger.debug(
+                    f"Context already string: {len(context)} chars")
+                return context
+            else:
+                logger.warning(
+                    f"Unexpected context type: {type(context)}")
+                return str(context) if context else ""
+
+        except Exception as e:
+            logger.error(f"Error normalizing context: {e}")
+            raise FallbackCalculationException(f"Context normalization failed: {e}")
+
+
+# Initialize fallback calculator
+fallback_calc = FallbackCalculator()
+
+
 async def get_ragas_llm():
     """Get or create a cached RAGAS LLM wrapper."""
     if not RAGAS_AVAILABLE:
+        logger.warning(f"RAGAS not available")
         return None
 
     if "ragas_llm" not in _cache:
         try:
+            logger.info(f"Initializing RAGAS LLM wrapper")
             from langchain_openai import AzureChatOpenAI
             from backend.app.core.config import settings
 
@@ -50,10 +270,10 @@ async def get_ragas_llm():
 
             # Wrap in the RAGAS LLM interface
             _cache["ragas_llm"] = LangchainLLMWrapper(llm)
-            logger.info("Successfully initialized RAGAS LLM wrapper")
+            logger.info(f"Successfully initialized RAGAS LLM wrapper")
         except Exception as e:
             logger.error(f"Error initializing RAGAS LLM: {e}")
-            return None
+            raise RAGASInitializationException(f"Failed to initialize RAGAS LLM: {e}")
 
     return _cache["ragas_llm"]
 
@@ -61,10 +281,12 @@ async def get_ragas_llm():
 async def get_ragas_embeddings():
     """Get or create a cached embeddings model for RAGAS."""
     if not RAGAS_AVAILABLE:
+        logger.warning(f"RAGAS not available")
         return None
 
     if "ragas_embeddings" not in _cache:
         try:
+            logger.info(f"Initializing RAGAS embeddings")
             from langchain_openai import AzureOpenAIEmbeddings
             from backend.app.core.config import settings
 
@@ -79,45 +301,81 @@ async def get_ragas_embeddings():
             )
 
             _cache["ragas_embeddings"] = embeddings
-            logger.info("Successfully initialized embeddings model for RAGAS")
+            logger.info(
+                f"Successfully initialized embeddings model for RAGAS")
         except Exception as e:
             logger.error(f"Error initializing embeddings model: {e}")
-            return None
+            raise RAGASInitializationException(f"Failed to initialize embeddings: {e}")
 
     return _cache["ragas_embeddings"]
+
+
+def _validate_sample_fields(sample: Dict[str, Any], required_fields: List[str], metric_name: str) -> None:
+    """
+    Validate that sample contains required fields.
+
+    Args:
+        sample: Sample data dictionary
+        required_fields: List of required field names
+        metric_name: Name of the metric for error reporting
+
+    Raises:
+        RAGASValidationException: If required fields are missing
+    """
+    missing_fields = [field for field in required_fields if field not in sample or not sample[field]]
+    if missing_fields:
+        error_msg = f"Missing required fields for {metric_name}: {missing_fields}"
+        logger.error(f"{error_msg}")
+        raise RAGASValidationException(error_msg)
+
+    logger.debug(f"Sample validation passed for {metric_name}")
 
 
 async def _calculate_with_ragas(
         metric_class, sample: Dict[str, Any], requires_reference: bool = False,
         requires_embeddings: bool = False
 ) -> Optional[float]:
-    """Generic function to calculate metrics using RAGAS."""
+    """Generic function to calculate metrics using RAGAS with enhanced error handling."""
     if not RAGAS_AVAILABLE:
+        logger.warning(
+            f"RAGAS not available for {metric_class.__name__}")
         return None
 
     # Check if required fields are present
-    if "query" not in sample or "answer" not in sample or "context" not in sample:
-        logger.warning(f"Missing required fields for {metric_class.__name__}. Needed: query, answer, context")
-        return None
+    required_fields = ["query", "answer", "context"]
+    if requires_reference:
+        required_fields.append("ground_truth")
 
-    if requires_reference and "ground_truth" not in sample:
-        logger.warning(f"Missing ground_truth field required for {metric_class.__name__}")
+    try:
+        _validate_sample_fields(sample, required_fields, metric_class.__name__)
+    except RAGASValidationException:
         return None
 
     try:
+        logger.info(
+            f"Starting RAGAS calculation for {metric_class.__name__}")
+
         # Get RAGAS LLM
-        ragas_llm = await get_ragas_llm()
-        if not ragas_llm:
-            logger.error(f"Could not initialize RAGAS LLM for {metric_class.__name__}")
-            return None
+        try:
+            ragas_llm = await get_ragas_llm()
+            if not ragas_llm:
+                raise RAGASInitializationException("Could not initialize RAGAS LLM")
+        except Exception as e:
+            logger.error(
+                f"LLM initialization failed for {metric_class.__name__}: {e}")
+            raise RAGASAPIException(f"LLM initialization failed: {e}")
 
         # Get embeddings if required
         embeddings = None
         if requires_embeddings:
-            embeddings = await get_ragas_embeddings()
-            if not embeddings:
-                logger.error(f"Embeddings required for {metric_class.__name__} but could not be initialized")
-                return None
+            try:
+                embeddings = await get_ragas_embeddings()
+                if not embeddings:
+                    raise RAGASInitializationException("Could not initialize embeddings")
+            except Exception as e:
+                logger.error(
+                    f"Embeddings initialization failed for {metric_class.__name__}: {e}")
+                raise RAGASAPIException(f"Embeddings initialization failed: {e}")
 
         # Prepare context (ensure it's a list)
         contexts = sample["context"]
@@ -130,8 +388,8 @@ async def _calculate_with_ragas(
             if not embeddings:
                 embeddings = await get_ragas_embeddings()
                 if not embeddings:
-                    logger.error("Could not initialize embeddings for AnswerSimilarity dependency")
-                    return None
+                    raise RAGASInitializationException(
+                        "Could not initialize embeddings for AnswerSimilarity dependency")
 
             # First initialize AnswerSimilarity (which only needs embeddings)
             answer_similarity = AnswerSimilarity(embeddings=embeddings)
@@ -142,18 +400,22 @@ async def _calculate_with_ragas(
                 embeddings=embeddings,
                 answer_similarity=answer_similarity
             )
-            logger.info(f"Created {metric_class.__name__} with LLM, embeddings, and AnswerSimilarity dependency")
+            logger.info(
+                f"Created {metric_class.__name__} with LLM, embeddings, and AnswerSimilarity dependency")
         elif metric_class == AnswerSimilarity:
             # AnswerSimilarity only uses embeddings, not LLM
             metric_instance = metric_class(embeddings=embeddings)
-            logger.info(f"Created {metric_class.__name__} with embeddings only")
+            logger.info(
+                f"Created {metric_class.__name__} with embeddings only")
         elif requires_embeddings:
             # Other metrics that need both LLM and embeddings
             metric_instance = metric_class(llm=ragas_llm, embeddings=embeddings)
-            logger.info(f"Created {metric_class.__name__} with LLM and embeddings")
+            logger.info(
+                f"Created {metric_class.__name__} with LLM and embeddings")
         else:
             # Metrics that only need LLM
             metric_instance = metric_class(llm=ragas_llm)
+            logger.info(f"Created {metric_class.__name__} with LLM only")
 
         # Create SingleTurnSample with the correct field mapping for RAGAS
         ragas_sample = SingleTurnSample(
@@ -164,21 +426,186 @@ async def _calculate_with_ragas(
         )
 
         # Calculate score with proper timeout handling
-        import asyncio
         logger.info(f"Calculating {metric_class.__name__} using RAGAS")
-        score = await asyncio.wait_for(
-            metric_instance.single_turn_ascore(ragas_sample),
-            timeout=120.0  # 2-minute timeout
-        )
-        logger.info(f"{metric_class.__name__} score: {score}")
+        start_time = time.time()
+
+        try:
+            score = await asyncio.wait_for(
+                metric_instance.single_turn_ascore(ragas_sample),
+                timeout=120.0  # 2-minute timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout calculating {metric_class.__name__}")
+            raise RAGASTimeoutException(f"Timeout calculating {metric_class.__name__}")
+
+        calculation_time = time.time() - start_time
+        logger.info(
+            f"{metric_class.__name__} score: {score} (took {calculation_time:.2f}s)")
         return float(score)
 
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout calculating {metric_class.__name__}")
-        return None
+    except (RAGASTimeoutException, RAGASAPIException, RAGASInitializationException):
+        # Re-raise specific RAGAS exceptions
+        raise
     except Exception as e:
-        logger.error(f"Error calculating RAGAS metric {metric_class.__name__}: {e}", exc_info=True)
-        return None
+        logger.error(
+            f"Unexpected error calculating RAGAS metric {metric_class.__name__}: {e}",
+            exc_info=True)
+        raise RAGASException(f"Unexpected error in {metric_class.__name__}: {e}")
+
+
+# Batch Processing Implementation
+async def calculate_metrics_batch(
+        samples: List[Dict[str, Any]],
+        metric_names: List[str],
+        max_concurrent: int = 5
+) -> List[Dict[str, Any]]:
+    """
+    Calculate multiple metrics for multiple samples efficiently.
+
+    Args:
+        samples: List of sample dictionaries
+        metric_names: List of metric names to calculate
+        max_concurrent: Maximum number of concurrent calculations
+
+    Returns:
+        List of dictionaries with results for each sample
+    """
+    logger.info(
+        f"Starting batch calculation for {len(samples)} samples and {len(metric_names)} metrics")
+
+    # Create semaphore to limit concurrent operations
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def calculate_single_metric(sample_idx: int, sample: Dict[str, Any], metric_name: str) -> Dict[str, Any]:
+        """Calculate a single metric for a single sample."""
+        async with semaphore:
+            try:
+                logger.debug(
+                    f"Calculating {metric_name} for sample {sample_idx}")
+
+                # Get the calculation function
+                if metric_name not in METRIC_REQUIREMENTS:
+                    logger.error(f"Unknown metric: {metric_name}")
+                    return {
+                        "sample_idx": sample_idx,
+                        "metric_name": metric_name,
+                        "score": None,
+                        "error": f"Unknown metric: {metric_name}",
+                        "calculation_time": 0.0
+                    }
+
+                calc_func = METRIC_REQUIREMENTS[metric_name]["calculation_func"]
+                required_fields = METRIC_REQUIREMENTS[metric_name]["required_fields"]
+
+                # Check if sample has required fields
+                missing_fields = [field for field in required_fields if field not in sample or not sample[field]]
+                if missing_fields:
+                    logger.warning(
+                        f"Sample {sample_idx} missing fields {missing_fields} for {metric_name}")
+                    return {
+                        "sample_idx": sample_idx,
+                        "metric_name": metric_name,
+                        "score": None,
+                        "error": f"Missing required fields: {missing_fields}",
+                        "calculation_time": 0.0
+                    }
+
+                # Calculate metric
+                start_time = time.time()
+
+                # Call the appropriate calculation function with the right parameters
+                if metric_name == "faithfulness":
+                    score = await calc_func(sample["answer"], sample["context"])
+                elif metric_name == "response_relevancy":
+                    score = await calc_func(sample["answer"], sample["query"], sample.get("context"))
+                elif metric_name == "context_precision":
+                    score = await calc_func(sample["context"], sample["query"])
+                elif metric_name == "context_recall":
+                    score = await calc_func(sample["context"], sample["query"], sample["ground_truth"])
+                elif metric_name == "context_entity_recall":
+                    score = await calc_func(sample["context"], sample["ground_truth"])
+                elif metric_name == "noise_sensitivity":
+                    score = await calc_func(sample["query"], sample["answer"], sample["context"],
+                                            sample["ground_truth"])
+                elif metric_name == "answer_correctness":
+                    score = await calc_func(sample["answer"], sample["ground_truth"])
+                elif metric_name == "answer_similarity":
+                    score = await calc_func(sample["answer"], sample["ground_truth"])
+                elif metric_name == "answer_relevancy":
+                    score = await calc_func(sample["query"], sample["answer"], sample.get("context"))
+                elif metric_name == "factual_correctness":
+                    score = await calc_func(sample["answer"], sample["context"], sample.get("ground_truth"))
+                else:
+                    raise ValueError(f"Unsupported metric: {metric_name}")
+
+                calculation_time = time.time() - start_time
+
+                logger.debug(
+                    f"Completed {metric_name} for sample {sample_idx}: {score}")
+
+                return {
+                    "sample_idx": sample_idx,
+                    "metric_name": metric_name,
+                    "score": score,
+                    "error": None,
+                    "calculation_time": calculation_time
+                }
+
+            except Exception as e:
+                calculation_time = time.time() - start_time
+                logger.error(
+                    f"Error calculating {metric_name} for sample {sample_idx}: {e}")
+                return {
+                    "sample_idx": sample_idx,
+                    "metric_name": metric_name,
+                    "score": None,
+                    "error": str(e),
+                    "calculation_time": calculation_time
+                }
+
+    # Create all tasks
+    tasks = []
+    for sample_idx, sample in enumerate(samples):
+        for metric_name in metric_names:
+            task = calculate_single_metric(sample_idx, sample, metric_name)
+            tasks.append(task)
+
+    logger.info(f"Created {len(tasks)} calculation tasks")
+
+    # Execute all tasks
+    start_time = time.time()
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    total_time = time.time() - start_time
+
+    logger.info(f"Batch calculation completed in {total_time:.2f}s")
+
+    # Process results into structured format
+    structured_results = []
+    for sample_idx in range(len(samples)):
+        sample_results = {
+            "sample_idx": sample_idx,
+            "metrics": {},
+            "errors": {},
+            "calculation_times": {}
+        }
+
+        # Find results for this sample
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(
+                    f"Task exception in batch processing: {result}")
+                continue
+
+            if result["sample_idx"] == sample_idx:
+                metric_name = result["metric_name"]
+                sample_results["metrics"][metric_name] = result["score"]
+                sample_results["errors"][metric_name] = result["error"]
+                sample_results["calculation_times"][metric_name] = result["calculation_time"]
+
+        structured_results.append(sample_results)
+
+    logger.info(f"Processed {len(structured_results)} sample results")
+    return structured_results
 
 
 async def calculate_faithfulness(answer: str, context: Union[str, List[str]]) -> float:
@@ -192,36 +619,38 @@ async def calculate_faithfulness(answer: str, context: Union[str, List[str]]) ->
     Returns:
         float: Faithfulness score (0-1)
     """
+    logger.debug(f"Calculating faithfulness")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        result = await _calculate_with_ragas(
-            Faithfulness,
-            {"query": "", "answer": answer, "context": context}
-        )
-        if result is not None:
-            return result
+        try:
+            result = await _calculate_with_ragas(
+                Faithfulness,
+                {"query": "", "answer": answer, "context": context}
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS faithfulness failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_faithfulness_fallback(answer, context)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(f"Using fallback calculation for faithfulness")
 
+        if not answer or not context:
+            logger.warning(f"Empty inputs for faithfulness fallback")
+            return 0.0
 
-def _calculate_faithfulness_fallback(answer: str, context: Union[str, List[str]]) -> float:
-    """Simple fallback implementation for faithfulness when RAGAS is not available."""
-    if not answer or not context:
+        normalized_context = fallback_calc._normalize_context(context)
+        score = fallback_calc._calculate_token_overlap_score(answer, normalized_context, "precision")
+
+        logger.info(f"Faithfulness fallback score: {score}")
+        return score
+
+    except Exception as e:
+        logger.error(f"Faithfulness fallback calculation failed: {e}")
         return 0.0
-
-    # Ensure context is a string for fallback
-    if isinstance(context, list):
-        context = " ".join(context)
-
-    answer_words = set(answer.lower().split())
-    context_words = set(context.lower().split())
-
-    if not answer_words:
-        return 0.0
-
-    overlap = answer_words.intersection(context_words)
-    return len(overlap) / len(answer_words)
 
 
 async def calculate_response_relevancy(answer: str, query: str,
@@ -237,60 +666,73 @@ async def calculate_response_relevancy(answer: str, query: str,
     Returns:
         float: Response relevancy score (0-1)
     """
+    logger.debug(f"Calculating response relevancy")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        sample = {"query": query, "answer": answer}
-        if context is not None:
-            sample["context"] = context
-        else:
-            sample["context"] = [""]  # Empty context as placeholder
+        try:
+            sample = {"query": query, "answer": answer}
+            if context is not None:
+                sample["context"] = context
+            else:
+                sample["context"] = [""]  # Empty context as placeholder
 
-        # ResponseRelevancy requires embeddings
-        result = await _calculate_with_ragas(
-            ResponseRelevancy,
-            sample,
-            requires_embeddings=True
-        )
-        if result is not None:
-            return result
+            # ResponseRelevancy requires embeddings
+            result = await _calculate_with_ragas(
+                ResponseRelevancy,
+                sample,
+                requires_embeddings=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS response relevancy failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_response_relevancy_fallback(answer, query)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(f"Using fallback calculation for response relevancy")
 
+        if not answer or not query:
+            logger.warning(
+                f"Empty inputs for response relevancy fallback")
+            return 0.0
 
-def _calculate_response_relevancy_fallback(answer: str, query: str) -> float:
-    """Simple fallback implementation for response relevancy when RAGAS is not available."""
-    if not answer or not query:
-        return 0.0
+        # Enhanced relevancy calculation considering question words
+        query_words, _ = fallback_calc._tokenize_and_extract_features(query)
+        answer_words, _ = fallback_calc._tokenize_and_extract_features(answer)
 
-    query_words = set(query.lower().split())
-    answer_words = set(answer.lower().split())
+        if not query_words:
+            logger.warning(f"No query words found")
+            return 0.0
 
-    if not query_words:
-        return 0.0
+        # Consider key question terms as more important
+        question_terms = {"what", "how", "why", "when", "where", "who", "which"}
+        query_question_words = query_words.intersection(question_terms)
 
-    # Consider key question terms as more important
-    question_terms = {"what", "how", "why", "when", "where", "who", "which"}
-    query_question_words = {word for word in query_words if word in question_terms}
-
-    # If the query contains question words, check if they're addressed in the answer
-    if query_question_words:
-        # Calculate a weighted score - question words are more important
+        # Calculate weighted score
         regular_overlap = query_words.intersection(answer_words)
-        question_overlap = query_question_words.intersection(answer_words)
 
-        if not question_overlap and query_question_words:
-            # Penalize not addressing question words
-            score = len(regular_overlap) / (len(query_words) * 2)
+        if query_question_words:
+            question_overlap = query_question_words.intersection(answer_words)
+            if not question_overlap:
+                # Penalize not addressing question words
+                score = len(regular_overlap) / (len(query_words) * 2)
+            else:
+                # Bonus for addressing question words
+                score = (len(regular_overlap) + len(question_overlap)) / (len(query_words) + len(query_question_words))
+            score = min(score, 1.0)
         else:
-            # Bonus for addressing question words
-            score = (len(regular_overlap) + len(question_overlap)) / (len(query_words) + len(query_question_words))
+            # Simple overlap for non-question queries
+            score = len(regular_overlap) / len(query_words)
 
-        return min(score, 1.0)
+        logger.info(f"Response relevancy fallback score: {score}")
+        return score
 
-    # Simple overlap for non-question queries
-    overlap = query_words.intersection(answer_words)
-    return len(overlap) / len(query_words)
+    except Exception as e:
+        logger.error(
+            f"Response relevancy fallback calculation failed: {e}")
+        return 0.0
 
 
 async def calculate_context_precision(context: Union[str, List[str]], query: str) -> float:
@@ -304,43 +746,47 @@ async def calculate_context_precision(context: Union[str, List[str]], query: str
     Returns:
         float: Context precision score (0-1)
     """
+    logger.debug(f"Calculating context precision")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        # ContextPrecision requires a response and empty reference
-        placeholder_answer = "This is a placeholder answer for context precision evaluation."
-        result = await _calculate_with_ragas(
-            ContextPrecision,
-            {
-                "query": query,
-                "answer": placeholder_answer,
-                "context": context,
-                "ground_truth": ""  # Empty reference - crucial!
-            }
-        )
-        if result is not None:
-            return result
+        try:
+            # ContextPrecision requires a response and empty reference
+            placeholder_answer = "This is a placeholder answer for context precision evaluation."
+            result = await _calculate_with_ragas(
+                ContextPrecision,
+                {
+                    "query": query,
+                    "answer": placeholder_answer,
+                    "context": context,
+                    "ground_truth": ""  # Empty reference - crucial!
+                }
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS context precision failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_context_precision_fallback(context, query)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(f"Using fallback calculation for context precision")
 
+        if not context or not query:
+            logger.warning(
+                f"Empty inputs for context precision fallback")
+            return 0.0
 
-def _calculate_context_precision_fallback(context: Union[str, List[str]], query: str) -> float:
-    """Simple fallback implementation for context precision when RAGAS is not available."""
-    if not context or not query:
+        normalized_context = fallback_calc._normalize_context(context)
+        score = fallback_calc._calculate_token_overlap_score(query, normalized_context, "recall")
+
+        logger.info(f"Context precision fallback score: {score}")
+        return score
+
+    except Exception as e:
+        logger.error(
+            f"Context precision fallback calculation failed: {e}")
         return 0.0
-
-    # Ensure context is a string for fallback
-    if isinstance(context, list):
-        context = " ".join(context)
-
-    query_words = set(query.lower().split())
-    context_words = set(context.lower().split())
-
-    if not query_words:
-        return 0.0
-
-    overlap = query_words.intersection(context_words)
-    return len(overlap) / len(query_words)
 
 
 async def calculate_context_recall(context: Union[str, List[str]], query: str, ground_truth: str) -> float:
@@ -355,45 +801,46 @@ async def calculate_context_recall(context: Union[str, List[str]], query: str, g
     Returns:
         float: Context recall score (0-1)
     """
+    logger.debug(f"Calculating context recall")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        # ContextRecall requires a reference/ground_truth
-        placeholder_answer = "This is a placeholder answer for context recall evaluation."
-        result = await _calculate_with_ragas(
-            ContextRecall,
-            {
-                "query": query,
-                "answer": placeholder_answer,
-                "context": context,
-                "ground_truth": ground_truth
-            },
-            requires_reference=True
-        )
-        if result is not None:
-            return result
+        try:
+            # ContextRecall requires a reference/ground_truth
+            placeholder_answer = "This is a placeholder answer for context recall evaluation."
+            result = await _calculate_with_ragas(
+                ContextRecall,
+                {
+                    "query": query,
+                    "answer": placeholder_answer,
+                    "context": context,
+                    "ground_truth": ground_truth
+                },
+                requires_reference=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS context recall failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_context_recall_fallback(context, ground_truth)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(f"Using fallback calculation for context recall")
 
+        if not context or not ground_truth:
+            logger.warning(f"Empty inputs for context recall fallback")
+            return 0.0
 
-def _calculate_context_recall_fallback(context: Union[str, List[str]], ground_truth: str) -> float:
-    """Simple fallback implementation for context recall when RAGAS is not available."""
-    if not context or not ground_truth:
+        normalized_context = fallback_calc._normalize_context(context)
+        score = fallback_calc._calculate_token_overlap_score(ground_truth, normalized_context, "recall")
+
+        logger.info(f"Context recall fallback score: {score}")
+        return score
+
+    except Exception as e:
+        logger.error(f"Context recall fallback calculation failed: {e}")
         return 0.0
-
-    # Ensure context is a string for fallback
-    if isinstance(context, list):
-        context = " ".join(context)
-
-    ground_truth_words = set(ground_truth.lower().split())
-    context_words = set(context.lower().split())
-
-    if not ground_truth_words:
-        return 0.0
-
-    # Calculate token overlap
-    common_words = ground_truth_words.intersection(context_words)
-    return len(common_words) / len(ground_truth_words)
 
 
 async def calculate_context_entity_recall(context: Union[str, List[str]], ground_truth: str) -> float:
@@ -407,55 +854,50 @@ async def calculate_context_entity_recall(context: Union[str, List[str]], ground
     Returns:
         float: Context entity recall score (0-1)
     """
+    logger.debug(f"Calculating context entity recall")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        # ContextEntityRecall just needs context and reference
-        placeholder_query = "This is a placeholder query for context entity recall."
-        placeholder_answer = "This is a placeholder answer for context entity recall evaluation."
-        result = await _calculate_with_ragas(
-            ContextEntityRecall,
-            {
-                "query": placeholder_query,
-                "answer": placeholder_answer,
-                "context": context,
-                "ground_truth": ground_truth
-            },
-            requires_reference=True
-        )
-        if result is not None:
-            return result
+        try:
+            # ContextEntityRecall just needs context and reference
+            placeholder_query = "This is a placeholder query for context entity recall."
+            placeholder_answer = "This is a placeholder answer for context entity recall evaluation."
+            result = await _calculate_with_ragas(
+                ContextEntityRecall,
+                {
+                    "query": placeholder_query,
+                    "answer": placeholder_answer,
+                    "context": context,
+                    "ground_truth": ground_truth
+                },
+                requires_reference=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS context entity recall failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_entity_recall_fallback(context, ground_truth)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(
+            f"Using fallback calculation for context entity recall")
 
+        if not context or not ground_truth:
+            logger.warning(
+                f"Empty inputs for context entity recall fallback")
+            return 0.0
 
-def _calculate_entity_recall_fallback(context: Union[str, List[str]], ground_truth: str) -> float:
-    """Simple entity extraction fallback when RAGAS is not available."""
-    if not context or not ground_truth:
+        normalized_context = fallback_calc._normalize_context(context)
+        score = fallback_calc._calculate_entity_overlap(normalized_context, ground_truth, "recall")
+
+        logger.info(f"Context entity recall fallback score: {score}")
+        return score
+
+    except Exception as e:
+        logger.error(
+            f"Context entity recall fallback calculation failed: {e}")
         return 0.0
-
-    # Ensure context is a string for fallback
-    if isinstance(context, list):
-        context = " ".join(context)
-
-    # Naive entity extraction (words starting with capital letters)
-    def extract_entities(text):
-        words = text.split()
-        entities = set()
-        for word in words:
-            if word and word[0].isupper() and len(word) > 1:
-                entities.add(word)
-        return entities
-
-    context_entities = extract_entities(context)
-    ground_truth_entities = extract_entities(ground_truth)
-
-    if not ground_truth_entities:
-        return 1.0  # No entities to recall
-
-    # Calculate recall
-    common_entities = context_entities.intersection(ground_truth_entities)
-    return len(common_entities) / len(ground_truth_entities)
 
 
 async def calculate_noise_sensitivity(query: str, answer: str, context: Union[str, List[str]],
@@ -473,56 +915,50 @@ async def calculate_noise_sensitivity(query: str, answer: str, context: Union[st
     Returns:
         float: Noise sensitivity score (0-1)
     """
+    logger.debug(f"Calculating noise sensitivity")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        result = await _calculate_with_ragas(
-            NoiseSensitivity,
-            {
-                "query": query,
-                "answer": answer,
-                "context": context,
-                "ground_truth": ground_truth
-            },
-            requires_reference=True
-        )
-        if result is not None:
-            return result
+        try:
+            result = await _calculate_with_ragas(
+                NoiseSensitivity,
+                {
+                    "query": query,
+                    "answer": answer,
+                    "context": context,
+                    "ground_truth": ground_truth
+                },
+                requires_reference=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS noise sensitivity failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_noise_sensitivity_fallback(answer, ground_truth)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(f"Using fallback calculation for noise sensitivity")
 
+        # For noise sensitivity, lower is better, so we invert the correctness score
+        if not answer or not ground_truth:
+            logger.warning(
+                f"Empty inputs for noise sensitivity fallback")
+            return 1.0  # Worst score if missing inputs
 
-def _calculate_noise_sensitivity_fallback(answer: str, ground_truth: str) -> float:
-    """Simple fallback implementation for noise sensitivity when RAGAS is not available."""
-    # For noise sensitivity, lower is better, so we invert the correctness score
-    # and cap at 1.0
+        # Calculate F1-like score for correctness
+        f1_score = fallback_calc._calculate_token_overlap_score(answer, ground_truth, "f1")
 
-    # First calculate correctness between answer and ground truth
-    if not answer or not ground_truth:
-        return 1.0  # Worst score if missing inputs
+        # Invert to get noise sensitivity (1 - correctness)
+        score = min(1.0, 1.0 - f1_score)
 
-    answer_tokens = answer.lower().split()
-    ground_truth_tokens = ground_truth.lower().split()
+        logger.info(f"Noise sensitivity fallback score: {score}")
+        return score
 
-    if not ground_truth_tokens:
-        return 1.0  # Worst score if no ground truth
-
-    # Calculate F1-like score for correctness
-    common_tokens = sum(1 for token in answer_tokens if token in ground_truth_tokens)
-
-    if not common_tokens:
-        return 1.0  # Completely incorrect = high noise sensitivity
-
-    precision = common_tokens / len(answer_tokens) if answer_tokens else 0
-    recall = common_tokens / len(ground_truth_tokens) if ground_truth_tokens else 0
-
-    if precision + recall == 0:
-        return 1.0  # Avoid division by zero
-
-    f1 = 2 * (precision * recall) / (precision + recall)
-
-    # Invert to get noise sensitivity (1 - correctness) and ensure in range [0,1]
-    return min(1.0, 1.0 - f1)
+    except Exception as e:
+        logger.error(
+            f"Noise sensitivity fallback calculation failed: {e}")
+        return 1.0  # Worst score on error
 
 
 async def calculate_answer_correctness(answer: str, ground_truth: str) -> float:
@@ -536,54 +972,49 @@ async def calculate_answer_correctness(answer: str, ground_truth: str) -> float:
     Returns:
         float: Correctness score (0-1)
     """
+    logger.debug(f"Calculating answer correctness")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        placeholder_query = "This is a placeholder query for answer correctness."
-        placeholder_context = ["This is a placeholder context for answer correctness evaluation."]
+        try:
+            placeholder_query = "This is a placeholder query for answer correctness."
+            placeholder_context = ["This is a placeholder context for answer correctness evaluation."]
 
-        result = await _calculate_with_ragas(
-            AnswerCorrectness,
-            {
-                "query": placeholder_query,
-                "answer": answer,
-                "context": placeholder_context,
-                "ground_truth": ground_truth
-            },
-            requires_reference=True,
-            requires_embeddings=True
-        )
-        if result is not None:
-            return result
+            result = await _calculate_with_ragas(
+                AnswerCorrectness,
+                {
+                    "query": placeholder_query,
+                    "answer": answer,
+                    "context": placeholder_context,
+                    "ground_truth": ground_truth
+                },
+                requires_reference=True,
+                requires_embeddings=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS answer correctness failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_answer_correctness_fallback(answer, ground_truth)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(f"Using fallback calculation for answer correctness")
 
+        if not answer or not ground_truth:
+            logger.warning(
+                f"Empty inputs for answer correctness fallback")
+            return 0.0
 
-def _calculate_answer_correctness_fallback(answer: str, ground_truth: str) -> float:
-    """Simple fallback implementation for answer correctness when RAGAS is not available."""
-    if not answer or not ground_truth:
+        score = fallback_calc._calculate_token_overlap_score(answer, ground_truth, "f1")
+
+        logger.info(f"Answer correctness fallback score: {score}")
+        return score
+
+    except Exception as e:
+        logger.error(
+            f"Answer correctness fallback calculation failed: {e}")
         return 0.0
-
-    answer_tokens = answer.lower().split()
-    ground_truth_tokens = ground_truth.lower().split()
-
-    if not answer_tokens or not ground_truth_tokens:
-        return 0.0
-
-    # Calculate F1-like score
-    common_tokens = sum(1 for token in answer_tokens if token in ground_truth_tokens)
-
-    if not common_tokens:
-        return 0.0
-
-    precision = common_tokens / len(answer_tokens)
-    recall = common_tokens / len(ground_truth_tokens)
-
-    if precision + recall == 0:
-        return 0.0
-
-    f1 = 2 * (precision * recall) / (precision + recall)
-    return f1
 
 
 async def calculate_answer_similarity(answer: str, ground_truth: str) -> float:
@@ -597,46 +1028,50 @@ async def calculate_answer_similarity(answer: str, ground_truth: str) -> float:
     Returns:
         float: Similarity score (0-1)
     """
+    logger.debug(f"Calculating answer similarity")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        placeholder_query = "This is a placeholder query for answer similarity."
-        placeholder_context = ["This is a placeholder context for answer similarity evaluation."]
+        try:
+            placeholder_query = "This is a placeholder query for answer similarity."
+            placeholder_context = ["This is a placeholder context for answer similarity evaluation."]
 
-        result = await _calculate_with_ragas(
-            AnswerSimilarity,
-            {
-                "query": placeholder_query,
-                "answer": answer,
-                "context": placeholder_context,
-                "ground_truth": ground_truth
-            },
-            requires_reference=True,
-            requires_embeddings=True
-        )
-        if result is not None:
-            return result
+            result = await _calculate_with_ragas(
+                AnswerSimilarity,
+                {
+                    "query": placeholder_query,
+                    "answer": answer,
+                    "context": placeholder_context,
+                    "ground_truth": ground_truth
+                },
+                requires_reference=True,
+                requires_embeddings=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS answer similarity failed, using fallback: {e}")
 
-    # Fallback implementation
-    return _calculate_answer_similarity_fallback(answer, ground_truth)
+    # Fallback implementation using consolidated logic
+    try:
+        logger.info(f"Using fallback calculation for answer similarity")
 
+        if not answer or not ground_truth:
+            logger.warning(
+                f"Empty inputs for answer similarity fallback")
+            return 0.0
 
-def _calculate_answer_similarity_fallback(answer: str, ground_truth: str) -> float:
-    """Simple fallback implementation for answer similarity when RAGAS is not available."""
-    if not answer or not ground_truth:
+        # Use Jaccard similarity as it measures similarity well
+        score = fallback_calc._calculate_token_overlap_score(answer, ground_truth, "jaccard")
+
+        logger.info(f"Answer similarity fallback score: {score}")
+        return score
+
+    except Exception as e:
+        logger.error(
+            f"Answer similarity fallback calculation failed: {e}")
         return 0.0
-
-    # Convert to sets of words for a simple Jaccard similarity
-    answer_words = set(answer.lower().split())
-    ground_truth_words = set(ground_truth.lower().split())
-
-    if not answer_words or not ground_truth_words:
-        return 0.0
-
-    # Jaccard similarity: intersection size / union size
-    intersection = answer_words.intersection(ground_truth_words)
-    union = answer_words.union(ground_truth_words)
-
-    return len(intersection) / len(union)
 
 
 async def calculate_answer_relevancy(query: str, answer: str, context: Optional[Union[str, List[str]]] = None) -> float:
@@ -651,24 +1086,37 @@ async def calculate_answer_relevancy(query: str, answer: str, context: Optional[
     Returns:
         float: Answer relevancy score (0-1)
     """
+    logger.debug(f"Calculating answer relevancy")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        sample = {
-            "query": query,
-            "answer": answer,
-            "context": context if context else [""]
-        }
+        try:
+            sample = {
+                "query": query,
+                "answer": answer,
+                "context": context if context else [""]
+            }
 
-        result = await _calculate_with_ragas(
-            AnswerRelevancy,
-            sample,
-            requires_embeddings=True
-        )
-        if result is not None:
-            return result
+            result = await _calculate_with_ragas(
+                AnswerRelevancy,
+                sample,
+                requires_embeddings=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS answer relevancy failed, using fallback: {e}")
 
     # Fallback to response relevancy as they measure similar things
-    return await calculate_response_relevancy(answer, query, context)
+    try:
+        logger.info(
+            f"Using response relevancy fallback for answer relevancy")
+        return await calculate_response_relevancy(answer, query, context)
+    except Exception as e:
+        logger.error(
+            f"Answer relevancy fallback calculation failed: {e}")
+        return 0.0
 
 
 async def calculate_factual_correctness(answer: str, context: Union[str, List[str]],
@@ -684,30 +1132,43 @@ async def calculate_factual_correctness(answer: str, context: Union[str, List[st
     Returns:
         float: Factual correctness score (0-1)
     """
+    logger.debug(f"Calculating factual correctness")
+
     # Try using RAGAS
     if RAGAS_AVAILABLE:
-        placeholder_query = "This is a placeholder query for factual correctness."
+        try:
+            placeholder_query = "This is a placeholder query for factual correctness."
 
-        # If ground_truth is not provided, use context as reference
-        reference = ground_truth if ground_truth else (
-            context if isinstance(context, str) else " ".join(context)
-        )
+            # If ground_truth is not provided, use context as reference
+            reference = ground_truth if ground_truth else (
+                context if isinstance(context, str) else " ".join(context)
+            )
 
-        result = await _calculate_with_ragas(
-            FactualCorrectness,
-            {
-                "query": placeholder_query,
-                "answer": answer,
-                "context": context,
-                "ground_truth": reference
-            },
-            requires_reference=True
-        )
-        if result is not None:
-            return result
+            result = await _calculate_with_ragas(
+                FactualCorrectness,
+                {
+                    "query": placeholder_query,
+                    "answer": answer,
+                    "context": context,
+                    "ground_truth": reference
+                },
+                requires_reference=True
+            )
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"RAGAS factual correctness failed, using fallback: {e}")
 
     # Fallback to faithfulness as they measure similar things
-    return await calculate_faithfulness(answer, context)
+    try:
+        logger.info(
+            f"Using faithfulness fallback for factual correctness")
+        return await calculate_faithfulness(answer, context)
+    except Exception as e:
+        logger.error(
+            f"Factual correctness fallback calculation failed: {e}")
+        return 0.0
 
 
 # Mapping of metrics to their required dataset fields and calculation functions

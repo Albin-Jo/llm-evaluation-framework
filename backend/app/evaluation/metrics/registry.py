@@ -40,8 +40,7 @@ def register_builtin_metrics():
         calculate_context_precision, calculate_context_recall,
         calculate_context_entity_recall, calculate_noise_sensitivity,
         calculate_answer_correctness, calculate_answer_relevancy,
-        calculate_answer_similarity, calculate_factual_correctness,
-        calculate_topic_adherence
+        calculate_answer_similarity, calculate_factual_correctness
     )
 
     MetricsRegistry.register(
@@ -112,13 +111,6 @@ def register_builtin_metrics():
         "factual_correctness",
         calculate_factual_correctness,
         "Measures how factually accurate the answer is based on the provided context.",
-        1.0
-    )
-
-    MetricsRegistry.register(
-        "topic_adherence",
-        calculate_topic_adherence,
-        "Measures how well the answer stays on topic with the query.",
         1.0
     )
 
