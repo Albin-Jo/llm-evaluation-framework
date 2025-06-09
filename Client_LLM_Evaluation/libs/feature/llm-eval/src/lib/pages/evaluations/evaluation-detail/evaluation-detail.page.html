@@ -1,5 +1,3 @@
-<!-- Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluation-detail/evaluation-detail.page.html -->
-
 <div class="evaluation-detail-container">
   <!-- Header Section -->
   <div class="header-section">
@@ -193,14 +191,6 @@
       </div>
     </div>
 
-    <!-- Configuration Section -->
-    <!-- <div class="config-section" *ngIf="evaluation.config">
-      <h3 class="section-title">Configuration</h3>
-      <div class="config-content">
-        <pre class="config-json">{{ evaluation.config | json }}</pre>
-      </div>
-    </div> -->
-
     <!-- Metrics Section -->
     <div class="metrics-section" *ngIf="hasResults() && metricsData.length > 0">
       <h3 class="section-title">Metrics Overview</h3>
@@ -227,16 +217,7 @@
         <div
           class="results-actions"
           *ngIf="evaluation.status === EvaluationStatus.COMPLETED || evaluation.status === EvaluationStatus.FAILED || evaluation.status === EvaluationStatus.CANCELLED"
-        >
-          <button
-            class="refresh-button"
-            (click)="refreshResults()"
-            [disabled]="isLoadingResults"
-          >
-            <span *ngIf="!isLoadingResults">🔄 Refresh</span>
-            <span *ngIf="isLoadingResults">Loading...</span>
-          </button>
-        </div>
+        ></div>
       </div>
 
       <!-- Results Loading State -->
@@ -249,9 +230,6 @@
       <div *ngIf="resultsError && !isLoadingResults" class="results-error">
         <div class="error-icon">❌</div>
         <p>{{ resultsError }}</p>
-        <button class="retry-button" (click)="refreshResults()">
-          Try Again
-        </button>
       </div>
 
       <!-- No Results State -->

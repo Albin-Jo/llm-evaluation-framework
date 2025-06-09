@@ -93,6 +93,9 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       this.loadEvaluationData();
     }
 
+    // Set up form subscriptions to watch for changes
+    this.setupFormSubscriptions();
+
     // Listen for dataset changes to update available metrics
     this.evaluationForm
       .get('dataset_id')
@@ -248,6 +251,50 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         },
       });
   }
+
+  /**
+   * Set up form subscriptions to watch for dataset and method changes
+   */
+  private setupFormSubscriptions(): void {
+    // Listen for dataset changes to update available metrics
+    this.evaluationForm
+      .get('dataset_id')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((datasetId) => {
+        if (datasetId) {
+          this.loadDatasetMetrics(datasetId);
+        } else {
+          // Clear metrics when no dataset is selected
+          this.availableMetrics = [];
+          this.selectedMetrics = [];
+          this.evaluationForm.get('metrics')?.setValue([]);
+        }
+      });
+
+    // Listen for evaluation method changes to update available metrics
+    this.evaluationForm
+      .get('method')
+      ?.valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((method) => {
+        if (method) {
+          this.loadDatasetMetricsForMethod();
+        } else {
+          // Clear metrics when no method is selected
+          this.availableMetrics = [];
+          this.selectedMetrics = [];
+          this.evaluationForm.get('metrics')?.setValue([]);
+        }
+      });
+  }
+  /**
+   * Load dataset metrics when evaluation method changes
+   */
+  private loadDatasetMetricsForMethod(): void {
+    const datasetId = this.evaluationForm.get('dataset_id')?.value;
+    if (datasetId) {
+      this.loadDatasetMetrics(datasetId);
+    }
+  }
   /**
    * Load dataset metrics when a dataset is selected
    */
@@ -260,25 +307,38 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       return;
     }
 
+    // Get the selected evaluation method from the form
+    const evaluationMethod = this.evaluationForm.get('method')?.value;
+
+    // If no evaluation method is selected yet, default to RAGAS or wait
+    if (!evaluationMethod) {
+      this.availableMetrics = [];
+      this.selectedMetrics = [];
+      return;
+    }
+
     this.evaluationService
-      .getSupportedMetrics(selectedDataset.type)
+      .getSupportedMetrics(selectedDataset.type, evaluationMethod)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (metrics) => {
-          this.availableMetrics = metrics['supported_metrics'];
-          // Reset the selected metrics when changing datasets
+          this.availableMetrics = metrics['supported_metrics'] || [];
+          // Reset the selected metrics when changing datasets or methods
           this.selectedMetrics = [];
           this.evaluationForm.get('metrics')?.setValue([]);
         },
         error: (err) => {
           console.error('Error loading metrics for dataset type:', err);
           this.notificationService.error(
-            'Failed to load metrics for the selected dataset type.'
+            `Failed to load ${evaluationMethod} metrics for the selected dataset type.`
           );
+          // Reset metrics on error
+          this.availableMetrics = [];
+          this.selectedMetrics = [];
+          this.evaluationForm.get('metrics')?.setValue([]);
         },
       });
   }
-
   /**
    * Load evaluation data for edit mode
    */
@@ -309,8 +369,10 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
           this.populateForm(evaluation);
           this.isLoading = false;
 
-          // Load metrics for this dataset
-          if (evaluation.dataset_id) {
+          // Load metrics for this dataset AND method combination
+          if (evaluation.dataset_id && evaluation.method) {
+            // Set the method first, then load metrics
+            this.evaluationForm.patchValue({ method: evaluation.method });
             this.loadDatasetMetrics(evaluation.dataset_id);
           }
         },

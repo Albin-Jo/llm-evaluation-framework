@@ -270,13 +270,41 @@ export class EvaluationService {
   }
 
   /**
+   * Get supported metrics for a dataset type and evaluation method
+   */
+  getSupportedMetricsByMethod(
+    datasetType: string,
+    evaluationMethod: string
+  ): Observable<Record<string, any>> {
+    return this.httpClient
+      .get<Record<string, any>>(
+        `${this.baseUrl}/metrics/${datasetType}/${evaluationMethod}`
+      )
+      .pipe(
+        catchError((error) => {
+          return this.handleError(
+            `Failed to fetch supported metrics for dataset type ${datasetType} and method ${evaluationMethod}`,
+            error
+          );
+        })
+      );
+  }
+
+  /**
    * Get supported metrics for a dataset type
    */
   getSupportedMetrics(
-    datasetType: string
-  ): Observable<Record<string, string[]>> {
+    datasetType: string,
+    evaluationMethod?: string
+  ): Observable<Record<string, any>> {
+    // If evaluation method is provided, use the new endpoint
+    if (evaluationMethod) {
+      return this.getSupportedMetricsByMethod(datasetType, evaluationMethod);
+    }
+
+    // Otherwise, use the old endpoint (defaults to RAGAS)
     return this.httpClient
-      .get<Record<string, string[]>>(`${this.baseUrl}/metrics/${datasetType}`)
+      .get<Record<string, any>>(`${this.baseUrl}/metrics/${datasetType}`)
       .pipe(
         catchError((error) => {
           return this.handleError(
