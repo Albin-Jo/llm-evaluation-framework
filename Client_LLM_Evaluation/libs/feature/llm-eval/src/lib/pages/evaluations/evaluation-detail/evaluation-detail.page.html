@@ -1,3 +1,5 @@
+<!-- Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluation-detail/evaluation-detail.page.html -->
+
 <div class="evaluation-detail-container">
   <!-- Header Section -->
   <div class="header-section">
@@ -64,7 +66,7 @@
   <div *ngIf="error" class="error-container">
     <div class="error-icon">❌</div>
     <p>{{ error }}</p>
-    <button class="retry-button" (click)="loadEvaluation(evaluationId)">
+    <button class="retry-button" (click)="loadEvaluationData(evaluationId)">
       Try Again
     </button>
   </div>
@@ -192,12 +194,12 @@
     </div>
 
     <!-- Configuration Section -->
-    <div class="config-section" *ngIf="evaluation.config">
+    <!-- <div class="config-section" *ngIf="evaluation.config">
       <h3 class="section-title">Configuration</h3>
       <div class="config-content">
         <pre class="config-json">{{ evaluation.config | json }}</pre>
       </div>
-    </div>
+    </div> -->
 
     <!-- Metrics Section -->
     <div class="metrics-section" *ngIf="hasResults() && metricsData.length > 0">
@@ -219,9 +221,63 @@
     </div>
 
     <!-- Results Section -->
-    <div class="results-section" *ngIf="hasResults()">
-      <h3 class="section-title">Evaluation Results</h3>
-      <div class="results-content">
+    <div class="results-section">
+      <div class="results-header">
+        <h3 class="section-title">Evaluation Results</h3>
+        <div
+          class="results-actions"
+          *ngIf="evaluation.status === EvaluationStatus.COMPLETED || evaluation.status === EvaluationStatus.FAILED || evaluation.status === EvaluationStatus.CANCELLED"
+        >
+          <button
+            class="refresh-button"
+            (click)="refreshResults()"
+            [disabled]="isLoadingResults"
+          >
+            <span *ngIf="!isLoadingResults">🔄 Refresh</span>
+            <span *ngIf="isLoadingResults">Loading...</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Results Loading State -->
+      <div *ngIf="isLoadingResults" class="results-loading">
+        <div class="spinner"></div>
+        <p>Loading evaluation results...</p>
+      </div>
+
+      <!-- Results Error State -->
+      <div *ngIf="resultsError && !isLoadingResults" class="results-error">
+        <div class="error-icon">❌</div>
+        <p>{{ resultsError }}</p>
+        <button class="retry-button" (click)="refreshResults()">
+          Try Again
+        </button>
+      </div>
+
+      <!-- No Results State -->
+      <div
+        *ngIf="!hasResults() && !isLoadingResults && !resultsError && evaluation.status === EvaluationStatus.COMPLETED"
+        class="no-results"
+      >
+        <div class="empty-icon">📊</div>
+        <p>No results found for this evaluation.</p>
+      </div>
+
+      <!-- Results Not Ready State -->
+      <div
+        *ngIf="!hasResults() && !isLoadingResults && !resultsError && (evaluation.status === EvaluationStatus.PENDING || evaluation.status === EvaluationStatus.RUNNING)"
+        class="results-pending"
+      >
+        <div class="pending-icon">⏳</div>
+        <p>Results will be available once the evaluation is completed.</p>
+      </div>
+
+      <!-- Results Content -->
+      <div *ngIf="hasResults() && !isLoadingResults" class="results-content">
+        <div class="results-summary">
+          <span class="results-count">Total Results: {{ totalResults }}</span>
+        </div>
+
         <table class="results-table">
           <thead>
             <tr>
@@ -229,21 +285,20 @@
               <th>Sample ID</th>
               <th>Score</th>
               <th>Status</th>
-              <!-- New column -->
               <th>Processing Time</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let result of evaluation.results; let i = index">
+            <tr *ngFor="let result of getDisplayResults(); let i = index">
               <td>{{ i + 1 }}</td>
               <td>{{ result['dataset_sample_id'] || 'N/A' }}</td>
               <td>
                 {{ result['overall_score'] ? (result['overall_score'] |
                 number:'1.2-2') : 'N/A' }}
               </td>
-              <!-- New pass/fail status column -->
+              <!-- Pass/fail status column -->
               <td>
                 <span
                   class="status-badge"
@@ -281,7 +336,7 @@
           <h2>Result Details</h2>
           <button class="close-button" (click)="closeResultDetails()">×</button>
         </div>
-        <!-- Replace the modal body section in evaluation-detail.page.html -->
+
         <div class="modal-body" *ngIf="selectedResult">
           <!-- Input/Output Data Section -->
           <div class="result-io-section">
@@ -347,6 +402,7 @@
               </tbody>
             </table>
           </div>
+
           <!-- Raw Results -->
           <div class="result-raw-section" *ngIf="selectedResult.raw_results">
             <h4>Raw Results</h4>

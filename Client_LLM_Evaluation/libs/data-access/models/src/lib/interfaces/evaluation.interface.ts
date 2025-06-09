@@ -1,3 +1,5 @@
+/* Path: libs/data-access/models/src/lib/interfaces/evaluation.interface.ts */
+
 import { Agent } from './agent.interface';
 import { Dataset } from './dataset.interface';
 import { Prompt } from './prompt.interface';
@@ -9,7 +11,7 @@ export enum EvaluationMethod {
   RAGAS = 'ragas',
   DEEPEVAL = 'deepeval',
   CUSTOM = 'custom',
-  MANUAL = 'manual'
+  MANUAL = 'manual',
 }
 
 /**
@@ -20,7 +22,7 @@ export enum EvaluationStatus {
   RUNNING = 'running',
   COMPLETED = 'completed',
   FAILED = 'failed',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
 }
 
 /**
@@ -129,7 +131,7 @@ export interface EvaluationDetail extends Evaluation {
   agent?: Agent;
   dataset?: Dataset;
   prompt?: Prompt;
-  results?: Record<string, any>[];  // Changed to array for ngFor compatibility
+  results?: Record<string, any>[]; // Changed to array for ngFor compatibility
   metrics_results?: Record<string, number>;
   progress?: EvaluationProgress;
   error_message?: string;
@@ -140,19 +142,44 @@ export interface EvaluationDetail extends Evaluation {
 }
 
 /**
- * Interface for evaluation progress
+ * Interface for evaluation progress - Updated to match backend response
  */
 export interface EvaluationProgress {
+  // Core progress fields that match backend
   total: number;
   completed: number;
   failed: number;
   percentage: number;
-  percentage_complete: number; // Added for template compatibility
-  processed_items: number; // Added for template compatibility
-  total_items: number; // Added for template compatibility
-  estimated_completion?: string; // Added for template compatibility
-  eta_seconds?: number;
+
+  // Template compatibility fields (mapped from backend)
+  percentage_complete: number; // Maps to progress_percentage
+  processed_items: number; // Maps to completed_items
+  total_items: number; // Maps to total_items
+
+  // Time-related fields
+  estimated_completion?: string; // Calculated from estimated_time_remaining_seconds
+  eta_seconds?: number; // Maps to estimated_time_remaining_seconds
+
+  // Status and metadata
   status?: EvaluationStatus;
+  start_time?: string;
+  last_updated?: string;
+  running_time_seconds?: number;
+}
+
+/**
+ * Interface for backend progress response (for reference)
+ */
+export interface BackendProgressResponse {
+  status: string;
+  total_items: number;
+  completed_items: number;
+  progress_percentage: number;
+  start_time: string;
+  end_time?: string | null;
+  running_time_seconds: number;
+  estimated_time_remaining_seconds: number;
+  last_updated: string;
 }
 
 /**

@@ -215,15 +215,42 @@ export class EvaluationService {
   /**
    * Get evaluation results
    */
-  getEvaluationResults(id: string): Observable<any[]> {
-    return this.httpClient.get<any[]>(`${this.baseUrl}/${id}/results`).pipe(
-      catchError((error) => {
-        return this.handleError(
-          `Failed to fetch results for evaluation with ID ${id}`,
-          error
-        );
-      })
-    );
+  getEvaluationResults(id: string, skip: number = 0, limit: number = 100) {
+    let params = new HttpParams()
+      .set('skip', skip.toString())
+      .set('limit', limit.toString());
+    return this.httpClient
+      .get<any>(`${this.baseUrl}/${id}/results`, params)
+      .pipe(
+        map((response) => {
+          // Handle different response formats
+          if (response && response.items && Array.isArray(response.items)) {
+            // Backend returns {items: [...], total: number}
+            return {
+              items: response.items,
+              total: response.total || response.items.length,
+            };
+          } else if (Array.isArray(response)) {
+            // Backend returns array directly
+            return {
+              items: response,
+              total: response.length,
+            };
+          } else {
+            // Fallback to empty response
+            return {
+              items: [],
+              total: 0,
+            };
+          }
+        }),
+        catchError((error) => {
+          return this.handleError(
+            `Failed to fetch results for evaluation with ID ${id}`,
+            error
+          );
+        })
+      );
   }
 
   /**

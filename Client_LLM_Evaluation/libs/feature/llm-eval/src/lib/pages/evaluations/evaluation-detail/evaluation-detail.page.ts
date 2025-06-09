@@ -1,7 +1,9 @@
+/* Path: libs/feature/llm-eval/src/lib/pages/evaluations/evaluation-detail/evaluation-detail.page.ts */
+
 import { Component, OnDestroy, OnInit, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, interval, takeUntil } from 'rxjs';
+import { Subject, interval, takeUntil, forkJoin } from 'rxjs';
 import { switchMap, filter } from 'rxjs/operators';
 import {
   EvaluationDetail,
@@ -38,10 +40,18 @@ import {
 })
 export class EvaluationDetailPage implements OnInit, OnDestroy {
   evaluation: EvaluationDetail | null = null;
+  evaluationResults: any[] = []; // Separate results from evaluation details
   isLoading = false;
+  isLoadingResults = false;
   error: string | null = null;
+  resultsError: string | null = null;
   evaluationProgress: EvaluationProgress | null = null;
   evaluationId: string = '';
+
+  // Pagination for results
+  resultsPage = 1;
+  resultsLimit = 100;
+  totalResults = 0;
 
   expandedSections = {
     input: false,
@@ -81,7 +91,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       const id = params.get('id');
       if (id) {
         this.evaluationId = id;
-        this.loadEvaluation(id);
+        this.loadEvaluationData(id);
       } else {
         this.error = 'Evaluation ID not found.';
       }
@@ -94,10 +104,14 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     this.stopProgressPolling();
   }
 
-  loadEvaluation(id: string): void {
+  /**
+   * Load both evaluation details and results
+   */
+  loadEvaluationData(id: string): void {
     this.isLoading = true;
     this.error = null;
 
+    // Load evaluation details first
     this.evaluationService
       .getEvaluation(id)
       .pipe(takeUntil(this.destroy$))
@@ -109,8 +123,13 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
           // Load agent, dataset, and prompt names
           this.loadRelatedEntities();
 
-          if (this.evaluation.results && this.evaluation.results.length > 0) {
-            this.prepareMetricsData();
+          // If evaluation has completed status, load results
+          if (
+            evaluation.status === EvaluationStatus.COMPLETED ||
+            evaluation.status === EvaluationStatus.FAILED ||
+            evaluation.status === EvaluationStatus.CANCELLED
+          ) {
+            this.loadEvaluationResults();
           }
 
           // Start polling for progress if evaluation is running
@@ -125,6 +144,36 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
           this.error = 'Failed to load evaluation details. Please try again.';
           this.isLoading = false;
           console.error('Error loading evaluation:', error);
+        },
+      });
+  }
+
+  /**
+   * Load evaluation results separately
+   */
+  loadEvaluationResults(): void {
+    if (!this.evaluation) return;
+
+    this.isLoadingResults = true;
+    this.resultsError = null;
+
+    this.evaluationService
+      .getEvaluationResults(this.evaluation.id, 0, 100)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          // Handle the response structure {items: [], total: number}
+          this.evaluationResults = response.items || [];
+          this.totalResults = response.total || 0;
+          this.isLoadingResults = false;
+
+          // Prepare metrics data from the loaded results
+          this.prepareMetricsData();
+        },
+        error: (error) => {
+          this.resultsError = 'Failed to load evaluation results.';
+          this.isLoadingResults = false;
+          console.error('Error loading evaluation results:', error);
         },
       });
   }
@@ -215,7 +264,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
                   'Evaluation started successfully'
                 );
                 // Refresh evaluation details
-                this.loadEvaluation(this.evaluation!.id);
+                this.loadEvaluationData(this.evaluation!.id);
                 this.startProgressPolling();
               },
               error: (error) => {
@@ -250,8 +299,8 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
                 this.notificationService.success(
                   'Evaluation cancelled successfully'
                 );
-                // Refresh evaluation details
-                this.loadEvaluation(this.evaluation!.id);
+                // Refresh evaluation details and results
+                this.loadEvaluationData(this.evaluation!.id);
                 this.stopProgressPolling();
               },
               error: (error) => {
@@ -312,7 +361,8 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (progress) => {
-          this.evaluationProgress = progress;
+          // Transform the backend response to match frontend expectations
+          this.evaluationProgress = this.transformProgressResponse(progress);
         },
         error: (error) => {
           console.error('Error loading evaluation progress:', error);
@@ -320,10 +370,50 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Transform backend progress response to match frontend interface
+   */
+  private transformProgressResponse(backendProgress: any): EvaluationProgress {
+    return {
+      // Map backend fields to frontend fields
+      total: backendProgress.total_items || 0,
+      completed: backendProgress.completed_items || 0,
+      failed: 0, // Backend doesn't provide this, default to 0
+      percentage: backendProgress.progress_percentage || 0,
+
+      // Template compatibility fields
+      percentage_complete: backendProgress.progress_percentage || 0,
+      processed_items: backendProgress.completed_items || 0,
+      total_items: backendProgress.total_items || 0,
+
+      // Time estimates
+      estimated_completion: this.calculateEstimatedCompletion(
+        backendProgress.estimated_time_remaining_seconds
+      ),
+      eta_seconds: backendProgress.estimated_time_remaining_seconds,
+
+      // Status
+      status: backendProgress.status as EvaluationStatus,
+    };
+  }
+
+  /**
+   * Calculate estimated completion time
+   */
+  private calculateEstimatedCompletion(
+    etaSeconds?: number
+  ): string | undefined {
+    if (!etaSeconds || etaSeconds <= 0) return undefined;
+
+    const now = new Date();
+    const estimatedTime = new Date(now.getTime() + etaSeconds * 1000);
+    return estimatedTime.toISOString();
+  }
+
   startProgressPolling(): void {
     this.progressPolling = true;
 
-    interval(5000) // Poll every 5 seconds
+    interval(15000) // Poll every 15 seconds
       .pipe(
         takeUntil(this.destroy$),
         filter(() => this.progressPolling),
@@ -333,17 +423,19 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (progress) => {
-          this.evaluationProgress = progress;
+          // Transform the response before using it
+          this.evaluationProgress = this.transformProgressResponse(progress);
 
           // If evaluation status is no longer running, refresh the evaluation data
           // and stop polling
-          if (progress['status'] !== EvaluationStatus.RUNNING) {
-            this.loadEvaluation(this.evaluationId);
+          if (this.evaluationProgress.status !== EvaluationStatus.RUNNING) {
+            this.loadEvaluationData(this.evaluationId);
             this.stopProgressPolling();
           }
         },
         error: (error) => {
           console.error('Error polling evaluation progress:', error);
+          // Continue polling even if one request fails
         },
       });
   }
@@ -361,11 +453,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
   }
 
   prepareMetricsData(): void {
-    if (
-      !this.evaluation ||
-      !this.evaluation.results ||
-      this.evaluation.results.length === 0
-    ) {
+    if (!this.evaluationResults || this.evaluationResults.length === 0) {
       return;
     }
 
@@ -373,7 +461,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     const metricNames = new Set<string>();
     const metricValues: Record<string, number[]> = {};
 
-    this.evaluation.results.forEach((result) => {
+    this.evaluationResults.forEach((result) => {
       if (result['metric_scores'] && result['metric_scores'].length > 0) {
         result['metric_scores'].forEach((metric: any) => {
           metricNames.add(metric.name);
@@ -478,7 +566,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
    * Check if evaluation has results to show
    */
   hasResults(): boolean {
-    return !!this.evaluation?.results && this.evaluation.results.length > 0;
+    return this.evaluationResults && this.evaluationResults.length > 0;
   }
 
   /**
@@ -513,5 +601,28 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       this.expandedSections[section as keyof typeof this.expandedSections] =
         !this.expandedSections[section as keyof typeof this.expandedSections];
     }
+  }
+
+  /**
+   * Refresh results manually
+   */
+  refreshResults(): void {
+    this.loadEvaluationResults();
+  }
+
+  /**
+   * Check if results are loading
+   */
+  isResultsLoading(): boolean {
+    return this.isLoadingResults;
+  }
+
+  /**
+   * Get results for display (with pagination support)
+   */
+  getDisplayResults(): any[] {
+    // For now, return all results since we're loading with limit 100
+    // In the future, this could support client-side pagination
+    return this.evaluationResults;
   }
 }
