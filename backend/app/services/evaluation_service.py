@@ -174,9 +174,13 @@ class EvaluationService:
                 detail=f"Prompt with ID {evaluation_data.prompt_id} not found"
             )
 
-        # Validate metrics based on dataset type
+        # Validate metrics based on dataset type AND evaluation method
         if evaluation_data.metrics:
-            await self._validate_metrics_for_dataset(evaluation_data.metrics, dataset)
+            await self._validate_metrics_for_dataset(
+                evaluation_data.metrics,
+                dataset,
+                evaluation_data.method
+            )
 
         # Ensure a user ID is provided for attribution
         if not evaluation_data.created_by_id:
@@ -741,23 +745,54 @@ class EvaluationService:
             return False
 
     @staticmethod
-    async def _validate_metrics_for_dataset(metrics: Optional[List[str]], dataset: Dataset) -> None:
+    async def _validate_metrics_for_dataset(
+            metrics: Optional[List[str]],
+            dataset: Dataset,
+            evaluation_method: EvaluationMethod
+    ) -> None:
         """
-        Validate that the selected metrics are appropriate for the dataset type.
+        Validate that the selected metrics are appropriate for the dataset type and evaluation method.
 
         Args:
             metrics: List of metrics to validate
             dataset: Dataset to validate against
+            evaluation_method: Evaluation method (RAGAS or DeepEval)
 
         Raises:
-            HTTPException: If metrics are invalid for the dataset type
+            HTTPException: If metrics are invalid for the dataset type and method combination
         """
         if not metrics:
             return  # No metrics specified, will use defaults
 
-        # Get allowed metrics for this dataset type
+        # Get allowed metrics based on evaluation method
         dataset_type = dataset.type
-        allowed_metrics = DATASET_TYPE_METRICS.get(dataset_type, [])
+
+        if evaluation_method == EvaluationMethod.RAGAS:
+            from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
+            allowed_metrics = DATASET_TYPE_METRICS.get(dataset_type, [])
+            method_name = "RAGAS"
+
+        elif evaluation_method == EvaluationMethod.DEEPEVAL:
+            from backend.app.evaluation.metrics.deepeval_metrics import get_supported_metrics_for_dataset_type
+            allowed_metrics = get_supported_metrics_for_dataset_type(dataset_type)
+            method_name = "DeepEval"
+
+        elif evaluation_method == EvaluationMethod.CUSTOM:
+            # For custom methods, allow any metrics (no validation)
+            logger.info(f"Custom evaluation method - skipping metric validation")
+            return
+
+        elif evaluation_method == EvaluationMethod.MANUAL:
+            # For manual methods, allow any metrics (no validation)
+            logger.info(f"Manual evaluation method - skipping metric validation")
+            return
+
+        else:
+            logger.warning(f"Unknown evaluation method: {evaluation_method}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown evaluation method: {evaluation_method}"
+            )
 
         if not dataset_type:
             logger.warning(f"Dataset {dataset.id} has no type specified")
@@ -767,22 +802,24 @@ class EvaluationService:
             )
 
         if not allowed_metrics:
-            logger.warning(f"No metrics defined for dataset type {dataset_type}")
+            logger.warning(f"No {method_name} metrics defined for dataset type {dataset_type}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No metrics are defined for dataset type {dataset_type}"
+                detail=f"No {method_name} metrics are defined for dataset type {dataset_type}"
             )
 
         # Check if any specified metrics are not allowed
         invalid_metrics = [m for m in metrics if m not in allowed_metrics]
 
         if invalid_metrics:
-            logger.warning(f"Invalid metrics for dataset type {dataset_type}: {invalid_metrics}")
+            logger.warning(f"Invalid {method_name} metrics for dataset type {dataset_type}: {invalid_metrics}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Metrics {invalid_metrics} are not valid for {dataset_type} datasets. "
-                       f"Valid metrics are: {allowed_metrics}"
+                detail=f"Metrics {invalid_metrics} are not valid for {dataset_type} datasets using {method_name}. "
+                       f"Valid {method_name} metrics are: {allowed_metrics}"
             )
+
+        logger.info(f"Validated {len(metrics)} {method_name} metrics for dataset type {dataset_type}: {metrics}")
 
     async def create_evaluation_result(
             self, result_data: EvaluationResultCreate

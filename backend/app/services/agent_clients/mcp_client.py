@@ -1,4 +1,3 @@
-# File: backend/app/services/agent_clients/mcp_client.py
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -101,7 +100,7 @@ class MCPAgentClient(AgentClient):
             "Content-Type": "application/json",
         }
 
-        logger.info(f"Connecting to SSE endpoint with Bearer authentication: {self.sse_url}")
+        logger.info(f"Connecting to SSE endpoint with Bearer authentication")
 
         try:
             # Establish SSE connection with authentication headers
@@ -188,8 +187,6 @@ class MCPAgentClient(AgentClient):
                 "role": "system",
                 "content": system_message
             })
-
-        logger.info(f"\n\n\narguments: {arguments}\n\n\n")
 
         try:
             # Process using MCP connection

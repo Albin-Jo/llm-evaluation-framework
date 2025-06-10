@@ -862,6 +862,71 @@ async def get_supported_metrics(
         )
 
 
+@router.get("/metrics/{dataset_type}/{evaluation_method}", response_model=Dict[str, Union[str, List[str]]])
+async def get_supported_metrics_by_method(
+        dataset_type: Annotated[str, Path(description="The dataset type to get supported metrics for")],
+        evaluation_method: Annotated[str, Path(description="The evaluation method (ragas or deepeval)")]
+):
+    """
+    Get supported metrics for a specific dataset type and evaluation method.
+
+    This endpoint returns the list of metrics that can be calculated for a given
+    dataset type using a specific evaluation method (RAGAS or DeepEval).
+
+    - **dataset_type**: The type of dataset (e.g., user_query, context, question_answer, etc.)
+    - **evaluation_method**: The evaluation method (ragas or deepeval)
+
+    Returns a dictionary with the dataset type, evaluation method, and list of supported metrics.
+    """
+    try:
+        # Normalize inputs
+        dataset_type = dataset_type.lower()
+        evaluation_method = evaluation_method.lower()
+
+        if evaluation_method == "ragas":
+            from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
+            if dataset_type not in DATASET_TYPE_METRICS:
+                raise ValidationException(
+                    detail=f"Invalid dataset type: {dataset_type}. Valid types are: {list(DATASET_TYPE_METRICS.keys())}"
+                )
+            supported_metrics = DATASET_TYPE_METRICS[dataset_type]
+
+        elif evaluation_method == "deepeval":
+            from backend.app.evaluation.metrics.deepeval_metrics import get_supported_metrics_for_dataset_type
+            from backend.app.db.models.orm import DatasetType
+
+            # Convert string to DatasetType enum
+            try:
+                dataset_enum = DatasetType(dataset_type)
+            except ValueError:
+                valid_types = [dt.value for dt in DatasetType]
+                raise ValidationException(
+                    detail=f"Invalid dataset type: {dataset_type}. Valid types are: {valid_types}"
+                )
+
+            supported_metrics = get_supported_metrics_for_dataset_type(dataset_enum)
+
+        else:
+            raise ValidationException(
+                detail=f"Invalid evaluation method: {evaluation_method}. Valid methods are: ['ragas', 'deepeval']"
+            )
+
+        return {
+            "dataset_type": dataset_type,
+            "evaluation_method": evaluation_method,
+            "supported_metrics": supported_metrics
+        }
+
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting supported metrics: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting supported metrics: {str(e)}"
+        )
+
+
 @router.post("/{evaluation_id}/test", response_model=Dict)
 async def test_evaluation(
         evaluation_id: Annotated[UUID, Path(description="The ID of the evaluation to test")],
@@ -1483,8 +1548,6 @@ async def get_deepeval_metrics_for_dataset_type(
             detail=f"Error getting metrics: {str(e)}"
         )
 
-
-# Add these improved endpoints to backend/app/api/v1/evaluations.py
 
 @router.post("/{evaluation_id}/run-deepeval")
 async def run_deepeval_evaluation(

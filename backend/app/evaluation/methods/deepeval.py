@@ -48,7 +48,7 @@ logger.info("DeepEval method module loaded successfully")
 if DEEPEVAL_AVAILABLE:
     try:
         from deepeval import evaluate
-        from deepeval.test_case import LLMTestCase
+        from deepeval.test_case import LLMTestCase, LLMTestCaseParams
         from deepeval.dataset import EvaluationDataset
         from deepeval.metrics import (
             AnswerRelevancyMetric,
@@ -58,8 +58,8 @@ if DEEPEVAL_AVAILABLE:
             FaithfulnessMetric,
             BiasMetric,
             ToxicityMetric,
-            HallucinationMetric
-        )
+            HallucinationMetric, GEval
+)
         from deepeval.models.base_model import DeepEvalBaseLLM
 
         # Import LangChain Azure OpenAI
@@ -241,6 +241,14 @@ class DeepEvalMethod(BaseEvaluationMethod):
             if not agent or not dataset or not prompt:
                 raise ValueError(f"Missing required entities for evaluation {evaluation.id}")
 
+            # Ensure evaluation has selected metrics
+            if not evaluation.metrics:
+                # Default to basic metrics if none specified
+                evaluation.metrics = ['answer_relevancy', 'faithfulness']
+                logger.info(f"No metrics specified, using defaults: {evaluation.metrics}")
+
+            logger.info(f"DeepEval evaluation {evaluation.id} will use metrics: {evaluation.metrics}")
+
             # Load dataset and create test cases
             dataset_items = await self.load_dataset(dataset)
             test_cases = self._create_comprehensive_test_cases(dataset_items)
@@ -250,10 +258,10 @@ class DeepEvalMethod(BaseEvaluationMethod):
                 test_cases, agent, prompt, jwt_token
             )
 
-            # Initialize Azure OpenAI model - removed logger parameter
+            # Initialize Azure OpenAI model
             azure_openai = EnhancedAzureOpenAI(agent)
 
-            # Create metrics following
+            # Create metrics following selected metrics in evaluation
             metrics_dict = self._create_comprehensive_metrics(azure_openai, evaluation)
 
             # Validate test cases
@@ -265,7 +273,9 @@ class DeepEvalMethod(BaseEvaluationMethod):
             # Extract metrics for evaluation
             metrics = [m['metric'] for m in validated_metrics_dict.values()]
 
-            logger.info(f"Running evaluation with {len(metrics)} metrics on {len(test_cases_with_outputs)} test cases")
+            logger.info(
+                f"Running evaluation with {len(metrics)} selected metrics on {len(test_cases_with_outputs)} test cases")
+            logger.info(f"Selected metrics: {list(validated_metrics_dict.keys())}")
 
             # Run evaluation
             results = evaluate(test_cases=test_cases_with_outputs, metrics=metrics)
@@ -383,7 +393,7 @@ class DeepEvalMethod(BaseEvaluationMethod):
 
     @staticmethod
     def _create_comprehensive_metrics(azure_openai, evaluation: Evaluation) -> Dict[str, Any]:
-        """Create metrics following"""
+        """Create metrics following selected metrics in evaluation"""
         metrics = {}
 
         try:
@@ -391,90 +401,148 @@ class DeepEvalMethod(BaseEvaluationMethod):
             threshold = evaluation.config.get('threshold', 0.7) if evaluation.config else 0.7
             include_reason = evaluation.config.get('include_reason', True) if evaluation.config else True
 
-            # Core RAG Metrics
-            metrics['answer_relevancy'] = {
-                'metric': AnswerRelevancyMetric(
-                    threshold=threshold,
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Measures how relevant the answer is to the given question',
-                'use_case': 'Ensures responses directly address user queries'
+            # Get selected metrics from evaluation.metrics or config
+            selected_metrics = []
+            if evaluation.metrics:
+                selected_metrics = evaluation.metrics
+            elif evaluation.config and evaluation.config.get('selected_metrics'):
+                selected_metrics = evaluation.config['selected_metrics']
+            else:
+                # Default to basic metrics if none specified
+                selected_metrics = ['answer_relevancy', 'faithfulness']
+
+            logger.info(f"Creating DeepEval metrics for: {selected_metrics}")
+
+            # Define all available metrics and their configurations
+            available_metrics_config = {
+                'answer_relevancy': {
+                    'metric': AnswerRelevancyMetric(
+                        threshold=threshold,
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Measures how relevant the answer is to the given question',
+                    'use_case': 'Ensures responses directly address user queries'
+                },
+                'contextual_recall': {
+                    'metric': ContextualRecallMetric(
+                        threshold=threshold,
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Measures how much of the expected output can be attributed to the retrieval context',
+                    'use_case': 'Evaluates if retrieved context contains necessary information'
+                },
+                'contextual_precision': {
+                    'metric': ContextualPrecisionMetric(
+                        threshold=threshold,
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Measures whether nodes in retrieval context are relevant to the given input',
+                    'use_case': 'Evaluates quality of retrieved context'
+                },
+                'contextual_relevancy': {
+                    'metric': ContextualRelevancyMetric(
+                        threshold=threshold,
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Measures how relevant the retrieval context is to the given input',
+                    'use_case': 'Ensures retrieved documents are actually relevant'
+                },
+                'faithfulness': {
+                    'metric': FaithfulnessMetric(
+                        threshold=threshold,
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Measures how factually accurate the actual output is to the retrieval context',
+                    'use_case': 'Prevents hallucinations and ensures factual accuracy'
+                },
+                'bias': {
+                    'metric': BiasMetric(
+                        threshold=0.5,  # Lower threshold for bias detection
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Detects bias in model outputs across various dimensions',
+                    'use_case': 'Ensures fair and unbiased responses'
+                },
+                'toxicity': {
+                    'metric': ToxicityMetric(
+                        threshold=0.5,  # Lower threshold for toxicity detection
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Detects toxic, harmful, or inappropriate content',
+                    'use_case': 'Ensures safe and appropriate responses'
+                },
+                'hallucination': {
+                    'metric': HallucinationMetric(
+                        threshold=0.5,
+                        model=azure_openai,
+                        include_reason=include_reason
+                    ),
+                    'description': 'Detects hallucinated information not present in the context',
+                    'use_case': 'Prevents generation of false information'
+                },
+                # Add G-Eval metrics with correct syntax
+                'g_eval_coherence': {
+                    'metric': GEval(
+                        name="Coherence",
+                        criteria="Determine whether the actual output is coherent, well-structured, and flows logically from one point to the next. Consider the logical flow, structure, clarity, and readability of the response.",
+                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
+                        model=azure_openai,
+                        threshold=threshold
+                    ),
+                    'description': 'G-Eval metric for response coherence and logical flow',
+                    'use_case': 'Evaluates how well-structured and logically connected the response is'
+                },
+                'g_eval_correctness': {
+                    'metric': GEval(
+                        name="Correctness",
+                        criteria="Determine whether the actual output is factually correct based on the expected output. Check whether the facts in actual output contradict any facts in expected output. Heavily penalize omission of detail, but vague language or contradicting opinions are acceptable.",
+                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+                        model=azure_openai,
+                        threshold=threshold
+                    ),
+                    'description': 'G-Eval metric for factual correctness and accuracy',
+                    'use_case': 'Evaluates factual accuracy and truthfulness of responses'
+                },
+                'g_eval_completeness': {
+                    'metric': GEval(
+                        name="Completeness",
+                        criteria="Determine whether the actual output comprehensively addresses all aspects of the input question or request. Check if all parts of the input are addressed and whether important information is missing.",
+                        evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+                        model=azure_openai,
+                        threshold=threshold
+                    ),
+                    'description': 'G-Eval metric for response completeness and thoroughness',
+                    'use_case': 'Evaluates whether all aspects of the question are addressed'
+                },
+                'g_eval_helpfulness': {
+                    'metric': GEval(
+                        name="Helpfulness",
+                        criteria="Determine whether the actual output is helpful, useful, and actionable for the user based on the input. Consider whether the response provides useful information, guidance, and practical value.",
+                        evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+                        model=azure_openai,
+                        threshold=threshold
+                    ),
+                    'description': 'G-Eval metric for response helpfulness and usefulness',
+                    'use_case': 'Evaluates how helpful and actionable the response is for users'
+                }
             }
 
-            metrics['contextual_recall'] = {
-                'metric': ContextualRecallMetric(
-                    threshold=threshold,
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Measures how much of the expected output can be attributed to the retrieval context',
-                'use_case': 'Evaluates if retrieved context contains necessary information'
-            }
+            # Only create metrics that were selected
+            for metric_name in selected_metrics:
+                if metric_name in available_metrics_config:
+                    metrics[metric_name] = available_metrics_config[metric_name]
+                    logger.info(f"Added {metric_name} to evaluation metrics")
+                else:
+                    logger.warning(f"Unknown DeepEval metric: {metric_name}")
 
-            metrics['contextual_precision'] = {
-                'metric': ContextualPrecisionMetric(
-                    threshold=threshold,
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Measures whether nodes in retrieval context are relevant to the given input',
-                'use_case': 'Evaluates quality of retrieved context'
-            }
-
-            metrics['contextual_relevancy'] = {
-                'metric': ContextualRelevancyMetric(
-                    threshold=threshold,
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Measures how relevant the retrieval context is to the given input',
-                'use_case': 'Ensures retrieved documents are actually relevant'
-            }
-
-            metrics['faithfulness'] = {
-                'metric': FaithfulnessMetric(
-                    threshold=threshold,
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Measures how factually accurate the actual output is to the retrieval context',
-                'use_case': 'Prevents hallucinations and ensures factual accuracy'
-            }
-
-            # Safety and Ethics Metrics
-            metrics['bias'] = {
-                'metric': BiasMetric(
-                    threshold=0.5,  # Lower threshold for bias detection
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Detects bias in model outputs across various dimensions',
-                'use_case': 'Ensures fair and unbiased responses'
-            }
-
-            metrics['toxicity'] = {
-                'metric': ToxicityMetric(
-                    threshold=0.5,  # Lower threshold for toxicity detection
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Detects toxic, harmful, or inappropriate content',
-                'use_case': 'Ensures safe and appropriate responses'
-            }
-
-            # Content Quality Metrics
-            metrics['hallucination'] = {
-                'metric': HallucinationMetric(
-                    threshold=0.5,
-                    model=azure_openai,
-                    include_reason=include_reason
-                ),
-                'description': 'Detects hallucinated information not present in the context',
-                'use_case': 'Prevents generation of false information'
-            }
-
-            logger.info(f"Successfully created {len(metrics)} evaluation metrics")
+            logger.info(f"Successfully created {len(metrics)} evaluation metrics: {list(metrics.keys())}")
 
         except Exception as e:
             logger.error(f"Failed to create metrics: {str(e)}")
@@ -627,6 +695,10 @@ class DeepEvalMethod(BaseEvaluationMethod):
         """Calculate metrics for individual items"""
         logger.info("Individual metric calculation called - DeepEval works best with batch processing")
 
+        # Get selected metrics from config
+        selected_metrics = config.get("selected_metrics", ["answer_relevancy"])
+        logger.info(f"Calculating selected DeepEval metrics: {selected_metrics}")
+
         # For individual calculation, create a single test case
         test_case = LLMTestCase(
             input=input_data.get('query', ''),
@@ -637,25 +709,35 @@ class DeepEvalMethod(BaseEvaluationMethod):
         )
 
         try:
-            # Create a mock Azure OpenAI for individual calculations - removed logger parameter
+            # Create a mock Azure OpenAI for individual calculations
             mock_azure = EnhancedAzureOpenAI(None)
 
-            # Initialize metrics
-            metrics = self._create_comprehensive_metrics(mock_azure, type('MockEval', (), {'config': config})())
+            # Create mock evaluation object with selected metrics
+            mock_eval = type('MockEval', (), {
+                'config': config,
+                'metrics': selected_metrics
+            })()
 
-            # Run evaluation on single test case
-            results = evaluate(test_cases=[test_case], metrics=[m['metric'] for m in metrics.values()])
+            # Initialize only selected metrics
+            metrics_dict = self._create_comprehensive_metrics(mock_azure, mock_eval)
+
+            # Run evaluation on single test case with only selected metrics
+            results = evaluate(test_cases=[test_case], metrics=[m['metric'] for m in metrics_dict.values()])
 
             # Extract scores
             scores = {}
             if hasattr(results, 'test_results') and results.test_results:
                 for metric_data in results.test_results[0].metrics_data:
-                    scores[metric_data.name] = getattr(metric_data, 'score', 0.0)
+                    metric_name = metric_data.name
+                    # Only include scores for selected metrics
+                    if metric_name in selected_metrics:
+                        scores[metric_name] = getattr(metric_data, 'score', 0.0)
 
+            logger.info(f"Calculated DeepEval scores: {scores}")
             return scores
 
         except Exception as e:
-            logger.error(f"Error calculating individual metrics: {e}")
+            logger.error(f"Error calculating individual DeepEval metrics: {e}")
             return {}
 
     async def _update_evaluation_status(

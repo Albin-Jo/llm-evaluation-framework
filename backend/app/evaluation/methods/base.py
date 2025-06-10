@@ -956,6 +956,10 @@ class BaseEvaluationMethod(ABC):
                     pass_threshold=evaluation.pass_threshold or 0.7
                 )
 
+            eval_config = evaluation.config or {}
+            if evaluation.metrics:
+                eval_config["selected_metrics"] = evaluation.metrics
+
             # Calculate metrics
             metrics = await self.calculate_metrics(
                 input_data={
@@ -964,7 +968,7 @@ class BaseEvaluationMethod(ABC):
                     "ground_truth": ground_truth
                 },
                 output_data={"answer": answer},
-                config=evaluation.config or {}
+                config=eval_config
             )
 
             # Calculate overall score

@@ -143,9 +143,7 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
             ground_truth) > 100 else f"Ground truth: {ground_truth}")
         logger.info(f"Answer: {answer[:100]}..." if len(answer) > 100 else f"Answer: {answer}")
 
-        # Get enabled metrics from config or use defaults
-        # Update this to use more metrics from the DATASET_TYPE_METRICS mapping
-        # Instead of using a hard-coded list of metrics
+        # Get enabled metrics from config (selected_metrics) or use defaults
         dataset_type = config.get("dataset_type", "custom")
         available_metrics = DATASET_TYPE_METRICS.get(dataset_type, [
             "faithfulness",
@@ -156,8 +154,13 @@ class RagasEvaluationMethod(BaseEvaluationMethod):
             "factual_correctness"
         ])
 
-        # Use configured metrics or fall back to all available ones
-        enabled_metrics = config.get("metrics", available_metrics)
+        # Use selected metrics from config if provided, otherwise use all available
+        enabled_metrics = config.get("selected_metrics", available_metrics)
+
+        # Filter to only include metrics that are available for this dataset type
+        enabled_metrics = [m for m in enabled_metrics if m in available_metrics]
+
+        logger.info(f"Enabled metrics: {enabled_metrics}")
 
         # Initialize metrics dictionary
         metrics = {}

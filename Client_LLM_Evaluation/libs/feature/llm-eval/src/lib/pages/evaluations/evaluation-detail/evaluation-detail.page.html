@@ -1,4 +1,4 @@
-<div class="evaluation-detail-container">
+  <div class="evaluation-detail-container">
   <!-- Header Section -->
   <div class="header-section">
     <div class="back-navigation">
@@ -305,101 +305,278 @@
 
     <!-- Result Details Modal -->
     <div
-      class="modal-overlay"
-      *ngIf="showResultDetails"
-      (click)="closeResultDetails()"
-    >
-      <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h2>Result Details</h2>
-          <button class="close-button" (click)="closeResultDetails()">×</button>
+  class="modal-overlay"
+  *ngIf="showResultDetails"
+  (click)="closeResultDetails()"
+>
+  <div class="enhanced-modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Result Details</h2>
+      <div class="header-actions">
+        <button class="export-button" (click)="exportResultDetails()">
+          <span class="export-icon">📊</span>
+          Export
+        </button>
+        <button class="close-button" (click)="closeResultDetails()">×</button>
+      </div>
+    </div>
+
+    <div class="modal-body" *ngIf="selectedResult">
+      <!-- Tab Navigation -->
+      <div class="tab-navigation">
+        <button
+          class="tab-button"
+          [class.active]="activeResultTab === 'query'"
+          (click)="setActiveResultTab('query')"
+        >
+          Query
+        </button>
+        <button
+          class="tab-button"
+          [class.active]="activeResultTab === 'context'"
+          (click)="setActiveResultTab('context')"
+        >
+          Context
+        </button>
+        <button
+          class="tab-button"
+          [class.active]="activeResultTab === 'output'"
+          (click)="setActiveResultTab('output')"
+        >
+          Output
+        </button>
+        <button
+          class="tab-button"
+          [class.active]="activeResultTab === 'metrics'"
+          (click)="setActiveResultTab('metrics')"
+        >
+          Metrics
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content-container">
+
+        <!-- Query Tab -->
+        <div class="tab-content" *ngIf="activeResultTab === 'query'" >
+          <div class="content-section">
+            <div class="section-header">
+              <h4>User Query</h4>
+              <button
+                class="copy-button"
+                (click)="copyToClipboard(getQueryText(selectedResult))"
+                title="Copy query"
+              >
+                📋 Copy
+              </button>
+            </div>
+            <div class="content-wrapper">
+              <div
+                class="formatted-content"
+                [class.collapsed]="!expandedSections.query"
+                [class.expanded]="expandedSections.query"
+              >
+                <p>{{ getQueryText(selectedResult) }}</p>
+              </div>
+              <div
+                class="expand-toggle"
+                *ngIf="shouldShowExpandButton(getQueryText(selectedResult))"
+                (click)="toggleSection('query')"
+              >
+                {{ expandedSections.query ? 'Show Less' : 'Show More' }}
+                <span class="character-count">
+                  {{ getCharacterCountText(getQueryText(selectedResult), expandedSections.query) }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="modal-body" *ngIf="selectedResult">
-          <!-- Input/Output Data Section -->
-          <div class="result-io-section">
-            <div class="result-input" *ngIf="selectedResult.input_data">
-              <h4>Input Data</h4>
-              <pre
-                [class]="'code-block expandable ' + (expandedSections.input ? 'expanded' : '')"
-                #inputBlock
+        <!-- Context Tab -->
+        <div class="tab-content" *ngIf="activeResultTab === 'context'">
+          <div class="content-section">
+            <div class="section-header">
+              <h4>Retrieved Context</h4>
+              <button
+                class="copy-button"
+                (click)="copyToClipboard(getContextText(selectedResult))"
+                title="Copy context"
               >
-{{ selectedResult.input_data | json }}</pre
+                📋 Copy
+              </button>
+            </div>
+            <div class="content-wrapper">
+              <div
+                class="formatted-content"
+                [class.collapsed]="!expandedSections.context"
+                [class.expanded]="expandedSections.context"
               >
+                <div *ngFor="let context of getContextArray(selectedResult); let i = index" class="context-item">
+                  <div class="context-header">
+                    <span class="context-label">Context {{ i + 1 }}</span>
+                    <span class="context-source" *ngIf="context.source">{{ context.source }}</span>
+                  </div>
+                  <p>{{ context.content || context }}</p>
+                </div>
+              </div>
               <div
                 class="expand-toggle"
-                *ngIf="inputBlock.scrollHeight > 250"
-                (click)="toggleSection('input')"
+                *ngIf="shouldShowExpandButton(getContextText(selectedResult))"
+                (click)="toggleSection('context')"
               >
-                {{ expandedSections.input ? 'Collapse' : 'Expand' }}
+                {{ expandedSections.context ? 'Show Less' : 'Show More' }}
+                <span class="character-count">
+                  {{ getCharacterCountText(getContextText(selectedResult), expandedSections.context) }}
+                </span>
               </div>
             </div>
-            <div class="result-output" *ngIf="selectedResult.output_data">
-              <h4>Output Data</h4>
-              <pre
-                [class]="'code-block expandable ' + (expandedSections.output ? 'expanded' : '')"
-                #outputBlock
+          </div>
+        </div>
+
+        <!-- Output Tab -->
+        <div class="tab-content" *ngIf="activeResultTab === 'output'">
+          <div class="content-section">
+            <div class="section-header">
+              <h4>Generated Response</h4>
+              <button
+                class="copy-button"
+                (click)="copyToClipboard(getOutputText(selectedResult))"
+                title="Copy response"
               >
-{{ selectedResult.output_data | json }}</pre
+                📋 Copy
+              </button>
+            </div>
+            <div class="content-wrapper">
+              <div
+                class="formatted-content"
+                [class.collapsed]="!expandedSections.output"
+                [class.expanded]="expandedSections.output"
               >
+                <p>{{ getOutputText(selectedResult) }}</p>
+              </div>
               <div
                 class="expand-toggle"
-                *ngIf="outputBlock.scrollHeight > 250"
+                *ngIf="shouldShowExpandButton(getOutputText(selectedResult))"
                 (click)="toggleSection('output')"
               >
-                {{ expandedSections.output ? 'Collapse' : 'Expand' }}
+                {{ expandedSections.output ? 'Show Less' : 'Show More' }}
+                <span class="character-count">
+                  {{ getCharacterCountText(getOutputText(selectedResult), expandedSections.output) }}
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Metric Scores -->
-          <div
-            class="result-metrics-section"
-            *ngIf="selectedResult.metric_scores && selectedResult.metric_scores.length > 0"
-          >
-            <h4>Metric Scores</h4>
-            <table class="metrics-table">
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  <th>Score</th>
-                  <th>Weight</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let metric of selectedResult.metric_scores">
-                  <td>{{ metric.name }}</td>
-                  <td>{{ metric.value | number:'1.2-2' }}</td>
-                  <td>{{ metric.weight | number:'1.2-2' }}</td>
-                  <td>
-                    {{ metric.meta_info && metric.meta_info['description'] ?
-                    metric.meta_info['description'] : 'N/A' }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <!-- Metrics Tab -->
+        <div class="tab-content" *ngIf="activeResultTab === 'metrics'">
+          <div class="content-section">
+            <div class="section-header">
+              <h4>Evaluation Metrics</h4>
+              <div class="overall-score">
+                Overall Score:
+                <span class="score-value">
+                  {{ selectedResult.overall_score ? (selectedResult.overall_score | number:'1.2-2') : 'N/A' }}
+                </span>
+              </div>
+            </div>
 
-          <!-- Raw Results -->
-          <div class="result-raw-section" *ngIf="selectedResult.raw_results">
-            <h4>Raw Results</h4>
-            <pre
-              [class]="'code-block expandable ' + (expandedSections.raw ? 'expanded' : '')"
-              #rawBlock
-            >
-{{ selectedResult.raw_results | json }}</pre
-            >
-            <div
-              class="expand-toggle"
-              *ngIf="rawBlock.scrollHeight > 250"
-              (click)="toggleSection('raw')"
-            >
-              {{ expandedSections.raw ? 'Collapse' : 'Expand' }}
+            <!-- Metrics Table -->
+            <div class="metrics-table-container" *ngIf="selectedResult.metric_scores && selectedResult.metric_scores.length > 0">
+              <table class="metrics-table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Score</th>
+                    <th>Weight</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let metric of selectedResult.metric_scores">
+                    <td>
+                      <div class="metric-name">{{ metric.name }}</div>
+                      <div class="metric-description" *ngIf="metric.meta_info?.description">
+                        {{ metric.meta_info.description }}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="score-cell">
+                        <div class="score-bar">
+                          <div class="score-fill" [style.width.%]="metric.value * 100"></div>
+                        </div>
+                        <span class="score-text">{{ metric.value | number:'1.2-2' }}</span>
+                      </div>
+                    </td>
+                    <td>{{ metric.weight | number:'1.2-2' }}</td>
+                    <td>
+                      <span
+                        class="metric-status"
+                        [class.pass]="metric.value >= 0.7"
+                        [class.warn]="metric.value >= 0.5 && metric.value < 0.7"
+                        [class.fail]="metric.value < 0.5"
+                      >
+                        {{ getMetricStatus(metric.value) }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Raw Results (if needed) -->
+            <div class="raw-results-section" *ngIf="selectedResult.raw_results">
+              <div class="section-header">
+                <h5>Raw Results</h5>
+                <button
+                  class="copy-button"
+                  (click)="copyToClipboard(selectedResult.raw_results | json)"
+                  title="Copy raw results"
+                >
+                  📋 Copy JSON
+                </button>
+              </div>
+              <pre
+                class="raw-results-content"
+                [class.collapsed]="!expandedSections.raw"
+                [class.expanded]="expandedSections.raw"
+              >{{ selectedResult.raw_results | json }}</pre>
+              <div
+                class="expand-toggle"
+                (click)="toggleSection('raw')"
+              >
+                {{ expandedSections.raw ? 'Collapse' : 'Expand' }} Raw Data
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Summary Footer -->
+      <div class="result-summary-footer">
+        <div class="summary-item">
+          <span class="summary-label">Processing Time:</span>
+          <span class="summary-value">
+            {{ selectedResult.processing_time_ms ? (selectedResult.processing_time_ms | number) + ' ms' : 'N/A' }}
+          </span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Status:</span>
+          <span
+            class="summary-value status-badge"
+            [class.pass]="selectedResult.passed"
+            [class.fail]="selectedResult.passed === false"
+          >
+            {{ selectedResult.passed === undefined ? 'N/A' : (selectedResult.passed ? 'PASS' : 'FAIL') }}
+          </span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Sample ID:</span>
+          <span class="summary-value">{{ selectedResult.dataset_sample_id || 'N/A' }}</span>
+        </div>
+      </div>
     </div>
+  </div>
+</div>
   </div>
 </div>
