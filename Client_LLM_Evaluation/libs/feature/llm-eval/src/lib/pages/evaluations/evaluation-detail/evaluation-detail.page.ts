@@ -11,7 +11,7 @@ import {
   EvaluationStatus,
   MetricScore,
   Prompt,
-  Dataset,
+  Dataset, // Make sure Dataset is imported
 } from '@ngtx-apps/data-access/models';
 import {
   EvaluationService,
@@ -38,7 +38,7 @@ import {
 })
 export class EvaluationDetailPage implements OnInit, OnDestroy {
   evaluation: EvaluationDetail | null = null;
-  evaluationResults: any[] = []; // Separate results from evaluation details
+  evaluationResults: any[] = [];
   isLoading = false;
   isLoadingResults = false;
   error: string | null = null;
@@ -51,9 +51,13 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
   resultsLimit = 100;
   totalResults = 0;
 
+  // Enhanced modal state
+  activeResultTab: 'query' | 'context' | 'output' | 'metrics' = 'query';
   expandedSections = {
-    input: false,
+    query: false,
+    context: false,
     output: false,
+    input: false,
     raw: false,
   };
 
@@ -61,7 +65,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
   selectedResult: EvaluationResult | null = null;
   showResultDetails = false;
 
-  // Polling for progress updates (if evaluation is running)
+  // Polling for progress updates
   progressPolling = false;
 
   // Enums for template access
@@ -102,6 +106,21 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     this.stopProgressPolling();
   }
 
+  // ISSUE 4 FIX: Add status validation before editing
+  editEvaluation(): void {
+    if (!this.evaluation) return;
+
+    // Check if evaluation can be edited (only PENDING status)
+    if (this.evaluation.status !== EvaluationStatus.PENDING) {
+      this.notificationService.error(
+        `Cannot edit ${this.evaluation.status.toLowerCase()} evaluation`
+      );
+      return;
+    }
+
+    this.router.navigate(['app/evaluations', this.evaluation.id, 'edit']);
+  }
+
   /**
    * Load both evaluation details and results
    */
@@ -109,7 +128,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    // Load evaluation details first
     this.evaluationService
       .getEvaluation(id)
       .pipe(takeUntil(this.destroy$))
@@ -118,10 +136,10 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
           this.evaluation = evaluation;
           this.isLoading = false;
 
-          // Load agent, dataset, and prompt names
+          // Load related entities
           this.loadRelatedEntities();
 
-          // If evaluation has completed status, load results
+          // Load results if evaluation has completed
           if (
             evaluation.status === EvaluationStatus.COMPLETED ||
             evaluation.status === EvaluationStatus.FAILED ||
@@ -130,11 +148,10 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
             this.loadEvaluationResults();
           }
 
-          // Start polling for progress if evaluation is running
+          // Handle progress polling
           if (evaluation.status === EvaluationStatus.RUNNING) {
             this.startProgressPolling();
           } else if (evaluation.status === EvaluationStatus.PENDING) {
-            // For pending evaluations, fetch initial progress once
             this.loadEvaluationProgress();
           }
         },
@@ -160,12 +177,9 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
-          // Handle the response structure {items: [], total: number}
           this.evaluationResults = response.items || [];
           this.totalResults = response.total || 0;
           this.isLoadingResults = false;
-
-          // Prepare metrics data from the loaded results
           this.prepareMetricsData();
         },
         error: (error) => {
@@ -187,24 +201,31 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
         .subscribe({
           next: (agent) => {
             this.evaluation!.agent = agent;
+            console.log('✅ Loaded agent:', agent.name); // Debug log
           },
           error: (error) => {
-            console.error('Error loading agent details:', error);
+            console.error('❌ Error loading agent details:', error);
           },
         });
     }
 
-    // Load dataset details if we have dataset_id
+    // FIXED: Load dataset details - extract dataset from DatasetDetailResponse
     if (this.evaluation.dataset_id && !this.evaluation.dataset) {
       this.datasetService
         .getDataset(this.evaluation.dataset_id)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
-          next: (dataset) => {
-            this.evaluation!.dataset = dataset as unknown as Dataset;
+          next: (datasetDetailResponse) => {
+            // DatasetService.getDataset() returns { dataset: Dataset, documents: Document[] }
+            // We need to extract the dataset property
+            this.evaluation!.dataset = datasetDetailResponse.dataset;
+            console.log(
+              '✅ Loaded dataset:',
+              datasetDetailResponse.dataset.name
+            ); // Debug log
           },
           error: (error) => {
-            console.error('Error loading dataset details:', error);
+            console.error('❌ Error loading dataset details:', error);
           },
         });
     }
@@ -224,19 +245,13 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
               created_at: prompt.created_at,
               updated_at: prompt.updated_at,
               version: prompt.version ? Number(prompt.version) : undefined,
-              // Add any other required properties
             } as Prompt;
+            console.log('✅ Loaded prompt:', prompt.name); // Debug log
           },
           error: (error) => {
-            console.error('Error loading prompt details:', error);
+            console.error('❌ Error loading prompt details:', error);
           },
         });
-    }
-  }
-
-  editEvaluation(): void {
-    if (this.evaluation) {
-      this.router.navigate(['app/evaluations', this.evaluation.id, 'edit']);
     }
   }
 
@@ -261,14 +276,11 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
                 this.notificationService.success(
                   'Evaluation started successfully'
                 );
-                // Refresh evaluation details
                 this.loadEvaluationData(this.evaluation!.id);
                 this.startProgressPolling();
               },
               error: (error) => {
-                this.notificationService.error(
-                  'Failed to start evaluation. Please try again.'
-                );
+                this.notificationService.error('Failed to start evaluation');
                 console.error('Error starting evaluation:', error);
               },
             });
@@ -297,14 +309,11 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
                 this.notificationService.success(
                   'Evaluation cancelled successfully'
                 );
-                // Refresh evaluation details and results
                 this.loadEvaluationData(this.evaluation!.id);
                 this.stopProgressPolling();
               },
               error: (error) => {
-                this.notificationService.error(
-                  'Failed to cancel evaluation. Please try again.'
-                );
+                this.notificationService.error('Failed to cancel evaluation');
                 console.error('Error cancelling evaluation:', error);
               },
             });
@@ -327,13 +336,10 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
                 this.notificationService.success(
                   'Evaluation deleted successfully'
                 );
-                // Navigate back to evaluations list
                 this.router.navigate(['app/evaluations']);
               },
               error: (error) => {
-                this.notificationService.error(
-                  'Failed to delete evaluation. Please try again.'
-                );
+                this.notificationService.error('Failed to delete evaluation');
                 console.error('Error deleting evaluation:', error);
               },
             });
@@ -341,14 +347,201 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       });
   }
 
+  // ISSUE 1: Enhanced result details methods
   viewResultDetails(result: any): void {
     this.selectedResult = result;
     this.showResultDetails = true;
+    this.activeResultTab = 'query'; // Reset to first tab
+    // Reset expanded sections
+    this.expandedSections = {
+      query: false,
+      context: false,
+      output: false,
+      input: false,
+      raw: false,
+    };
   }
 
   closeResultDetails(): void {
     this.showResultDetails = false;
     this.selectedResult = null;
+  }
+
+  setActiveResultTab(tab: 'query' | 'context' | 'output' | 'metrics'): void {
+    this.activeResultTab = tab;
+  }
+  // Text extraction methods for different result fields
+  getQueryText(result: any): string {
+    if (!result || !result.input_data) return 'No query available';
+
+    // Handle different possible query field names
+    return (
+      result.input_data.query ||
+      result.input_data.question ||
+      result.input_data.user_input ||
+      JSON.stringify(result.input_data)
+    );
+  }
+
+  getContextText(result: any): string {
+    if (!result || !result.input_data) return 'No context available';
+
+    const context =
+      result.input_data.context ||
+      result.input_data.contexts ||
+      result.input_data.retrieved_context;
+
+    if (Array.isArray(context)) {
+      return context.join('\n\n');
+    } else if (typeof context === 'string') {
+      return context;
+    }
+
+    return 'No context available';
+  }
+
+  getContextArray(result: any): any[] {
+    if (!result || !result.input_data) return [];
+
+    const context =
+      result.input_data.context ||
+      result.input_data.contexts ||
+      result.input_data.retrieved_context;
+
+    if (Array.isArray(context)) {
+      return context;
+    } else if (typeof context === 'string') {
+      return [{ content: context }];
+    }
+
+    return [];
+  }
+
+  getOutputText(result: any): string {
+    if (!result || !result.output_data) return 'No output available';
+
+    return (
+      result.output_data.response ||
+      result.output_data.answer ||
+      result.output_data.generated_text ||
+      JSON.stringify(result.output_data)
+    );
+  }
+
+  // Utility methods for text management
+  shouldShowExpandButton(text: string | undefined): boolean {
+    return !!(text && typeof text === 'string' && text.length > 300);
+  }
+
+  getCharacterCountText(text: string | undefined, isExpanded: boolean): string {
+    if (!text || typeof text !== 'string') return '';
+
+    if (isExpanded) {
+      return `${text.length} characters`;
+    } else {
+      const visibleChars = Math.min(300, text.length);
+      return `${visibleChars} of ${text.length} characters`;
+    }
+  }
+
+  getMetricStatus(metric: any): string {
+    // Use backend-calculated success if available
+    if (metric.meta_info && typeof metric.meta_info.success === 'boolean') {
+      return metric.meta_info.success ? 'PASS' : 'FAIL';
+    }
+    
+    // Fallback to frontend calculation (should not be needed anymore)
+    if (metric.value >= 0.7) return 'PASS';
+    if (metric.value >= 0.5) return 'WARN';
+    return 'FAIL';
+  }
+  getMetricStatusClass(metric: any): string {
+    // Use backend-calculated success if available
+    if (metric.meta_info && typeof metric.meta_info.success === 'boolean') {
+      return metric.meta_info.success ? 'pass' : 'fail';
+    }
+    
+    // Fallback to frontend calculation
+    if (metric.value >= 0.7) return 'pass';
+    if (metric.value >= 0.5) return 'warn';
+    return 'fail';
+  }
+  
+  getMetricThreshold(metric: any): number | null {
+    return metric.meta_info && metric.meta_info.threshold ? metric.meta_info.threshold : null;
+  }
+  
+  getMetricReason(metric: any): string | null {
+    return metric.meta_info && metric.meta_info.reason ? metric.meta_info.reason : null;
+  }
+
+  // Copy to clipboard functionality
+  copyToClipboard(text: string): void {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        this.notificationService.success('Copied to clipboard');
+      },
+      (err) => {
+        console.error('Could not copy text: ', err);
+        this.notificationService.error('Failed to copy text');
+      }
+    );
+  }
+
+  // Helper method to safely convert objects to JSON strings
+  getJsonString(obj: any): string {
+    try {
+      return JSON.stringify(obj, null, 2);
+    } catch (error) {
+      console.error('Error converting to JSON:', error);
+      return String(obj);
+    }
+  }
+
+  // ISSUE 2 FIX: Generate Report Button
+  navigateToCreateReport(): void {
+    if (!this.evaluation) return;
+
+    // Check if evaluation is completed
+    if (this.evaluation.status !== EvaluationStatus.COMPLETED) {
+      this.notificationService.error(
+        'Reports can only be generated for completed evaluations'
+      );
+      return;
+    }
+
+    // Navigate to report creation with evaluation ID
+    this.router.navigate(['app/reports/create'], {
+      queryParams: { evaluation_id: this.evaluation.id },
+    });
+  }
+
+  exportResultDetails(): void {
+    if (!this.selectedResult) return;
+
+    const exportData = {
+      evaluation_id: this.evaluation?.id,
+      result_id: this.selectedResult.id,
+      query: this.getQueryText(this.selectedResult),
+      context: this.getContextText(this.selectedResult),
+      output: this.getOutputText(this.selectedResult),
+      metrics: this.selectedResult.metric_scores,
+      overall_score: this.selectedResult.overall_score,
+      timestamp: new Date().toISOString(),
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataUri =
+      'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+    const exportFileDefaultName = `evaluation_result_${this.selectedResult.id}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+
+    this.notificationService.success('Result exported successfully');
   }
 
   loadEvaluationProgress(): void {
@@ -359,7 +552,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (progress) => {
-          // Transform the backend response to match frontend expectations
           this.evaluationProgress = this.transformProgressResponse(progress);
         },
         error: (error) => {
@@ -368,36 +560,23 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Transform backend progress response to match frontend interface
-   */
   private transformProgressResponse(backendProgress: any): EvaluationProgress {
     return {
-      // Map backend fields to frontend fields
       total: backendProgress.total_items || 0,
       completed: backendProgress.completed_items || 0,
-      failed: 0, // Backend doesn't provide this, default to 0
+      failed: 0,
       percentage: backendProgress.progress_percentage || 0,
-
-      // Template compatibility fields
       percentage_complete: backendProgress.progress_percentage || 0,
       processed_items: backendProgress.completed_items || 0,
       total_items: backendProgress.total_items || 0,
-
-      // Time estimates
       estimated_completion: this.calculateEstimatedCompletion(
         backendProgress.estimated_time_remaining_seconds
       ),
       eta_seconds: backendProgress.estimated_time_remaining_seconds,
-
-      // Status
       status: backendProgress.status as EvaluationStatus,
     };
   }
 
-  /**
-   * Calculate estimated completion time
-   */
   private calculateEstimatedCompletion(
     etaSeconds?: number
   ): string | undefined {
@@ -411,7 +590,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
   startProgressPolling(): void {
     this.progressPolling = true;
 
-    interval(15000) // Poll every 15 seconds
+    interval(15000)
       .pipe(
         takeUntil(this.destroy$),
         filter(() => this.progressPolling),
@@ -421,11 +600,8 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (progress) => {
-          // Transform the response before using it
           this.evaluationProgress = this.transformProgressResponse(progress);
 
-          // If evaluation status is no longer running, refresh the evaluation data
-          // and stop polling
           if (this.evaluationProgress.status !== EvaluationStatus.RUNNING) {
             this.loadEvaluationData(this.evaluationId);
             this.stopProgressPolling();
@@ -433,7 +609,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error polling evaluation progress:', error);
-          // Continue polling even if one request fails
         },
       });
   }
@@ -442,20 +617,11 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     this.progressPolling = false;
   }
 
-  navigateToCreateReport(): void {
-    // Navigate to report creation page with evaluation ID
-    // This will be implemented when we add the reports module
-    this.notificationService.info(
-      'Report creation feature will be implemented in the Reports module'
-    );
-  }
-
   prepareMetricsData(): void {
     if (!this.evaluationResults || this.evaluationResults.length === 0) {
       return;
     }
 
-    // Collect all metrics across all results
     const metricNames = new Set<string>();
     const metricValues: Record<string, number[]> = {};
 
@@ -471,7 +637,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       }
     });
 
-    // Calculate average for each metric
     this.metricsData = Array.from(metricNames).map((name) => {
       const values = metricValues[name];
       const average =
@@ -482,7 +647,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       };
     });
 
-    // Sort by value descending
     this.metricsData.sort((a, b) => b.value - a.value);
   }
 
@@ -532,7 +696,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
 
       if (durationMs < 0) return 'Invalid duration';
 
-      // Format duration
       const seconds = Math.floor(durationMs / 1000);
       if (seconds < 60) return `${seconds} seconds`;
 
@@ -546,30 +709,18 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Check if evaluation can be started (only PENDING evaluations)
-   */
   canStartEvaluation(): boolean {
     return this.evaluation?.status === EvaluationStatus.PENDING;
   }
 
-  /**
-   * Check if evaluation can be cancelled (only RUNNING evaluations)
-   */
   canCancelEvaluation(): boolean {
     return this.evaluation?.status === EvaluationStatus.RUNNING;
   }
 
-  /**
-   * Check if evaluation has results to show
-   */
   hasResults(): boolean {
     return this.evaluationResults && this.evaluationResults.length > 0;
   }
 
-  /**
-   * Navigate to detailed view for related data
-   */
   viewAgent(): void {
     if (this.evaluation?.agent_id) {
       this.router.navigate(['app/agents', this.evaluation.agent_id]);
@@ -591,9 +742,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Toggle expanded state for a section
-   */
   toggleSection(section: string): void {
     if (section in this.expandedSections) {
       this.expandedSections[section as keyof typeof this.expandedSections] =
@@ -601,26 +749,15 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Refresh results manually
-   */
   refreshResults(): void {
     this.loadEvaluationResults();
   }
 
-  /**
-   * Check if results are loading
-   */
   isResultsLoading(): boolean {
     return this.isLoadingResults;
   }
 
-  /**
-   * Get results for display (with pagination support)
-   */
   getDisplayResults(): any[] {
-    // For now, return all results since we're loading with limit 100
-    // In the future, this could support client-side pagination
     return this.evaluationResults;
   }
 }

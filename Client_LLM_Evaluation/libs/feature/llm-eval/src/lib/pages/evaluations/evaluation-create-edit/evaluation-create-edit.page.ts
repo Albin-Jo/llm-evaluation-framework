@@ -64,8 +64,6 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
   methodOptions = [
     { value: EvaluationMethod.RAGAS, label: 'RAGAS' },
     { value: EvaluationMethod.DEEPEVAL, label: 'DeepEval' },
-    { value: EvaluationMethod.CUSTOM, label: 'Custom' },
-    { value: EvaluationMethod.MANUAL, label: 'Manual' },
   ];
 
   private destroy$ = new Subject<void>();
@@ -353,15 +351,35 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (evaluation) => {
-          // Check if evaluation is editable (only PENDING evaluations can be edited)
+          // Enhanced check for edit permissions
           if (
             this.isEditMode &&
             evaluation.status !== EvaluationStatus.PENDING
           ) {
             this.isLoading = false;
-            this.notificationService.error(
-              'Only pending evaluations can be edited'
-            );
+
+            // Show user-friendly error message based on status
+            let errorMessage = '';
+            switch (evaluation.status) {
+              case EvaluationStatus.RUNNING:
+                errorMessage = "Cannot edit evaluation while it's running";
+                break;
+              case EvaluationStatus.COMPLETED:
+                errorMessage = 'Cannot edit completed evaluation';
+                break;
+              case EvaluationStatus.FAILED:
+                errorMessage = 'Cannot edit failed evaluation';
+                break;
+              case EvaluationStatus.CANCELLED:
+                errorMessage = 'Cannot edit cancelled evaluation';
+                break;
+              default:
+                errorMessage = `Cannot edit ${String(
+                  evaluation.status
+                ).toLowerCase()} evaluation`;
+            }
+
+            this.notificationService.error(errorMessage);
             this.router.navigate(['app/evaluations']);
             return;
           }
@@ -371,13 +389,12 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
 
           // Load metrics for this dataset AND method combination
           if (evaluation.dataset_id && evaluation.method) {
-            // Set the method first, then load metrics
             this.evaluationForm.patchValue({ method: evaluation.method });
             this.loadDatasetMetrics(evaluation.dataset_id);
           }
         },
         error: (err) => {
-          this.error = 'Failed to load evaluation data. Please try again.';
+          this.error = 'Failed to load evaluation data';
           this.isLoading = false;
           console.error('Error loading evaluation data:', err);
           this.notificationService.error(this.error);

@@ -193,6 +193,20 @@
       }
     }
   }
+
+  &.comparison-card {
+    .stat-icon {
+      background-color: rgba($success, 0.1);
+      color: $warning;
+    }
+
+    &:hover {
+      border-color: rgba($success, 0.3);
+      .stat-arrow {
+        color: $success;
+      }
+    }
+  }
 }
 
 // Recent items grid

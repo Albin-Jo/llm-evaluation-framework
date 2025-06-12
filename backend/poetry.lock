@@ -12,6 +12,11 @@ files = [
     {file = "aiohappyeyeballs-2.6.1.tar.gz", hash = "sha256:c3f9d0113123803ccadfdf3f0faa505bc78e6a72d1cc4806cbd719826e943558"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "aiohttp"
 version = "3.11.16"
@@ -115,6 +120,11 @@ yarl = ">=1.17.0,<2.0"
 [package.extras]
 speedups = ["Brotli ; platform_python_implementation == \"CPython\"", "aiodns (>=3.2.0) ; sys_platform == \"linux\" or sys_platform == \"darwin\"", "brotlicffi ; platform_python_implementation != \"CPython\""]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "aiosignal"
 version = "1.3.2"
@@ -129,6 +139,11 @@ files = [
 
 [package.dependencies]
 frozenlist = ">=1.1.0"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "amqp"
@@ -145,6 +160,11 @@ files = [
 [package.dependencies]
 vine = ">=5.0.0,<6.0.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
@@ -156,6 +176,11 @@ files = [
     {file = "annotated_types-0.7.0-py3-none-any.whl", hash = "sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53"},
     {file = "annotated_types-0.7.0.tar.gz", hash = "sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "anthropic"
@@ -182,6 +207,11 @@ typing-extensions = ">=4.10,<5"
 bedrock = ["boto3 (>=1.28.57)", "botocore (>=1.31.57)"]
 vertex = ["google-auth (>=2,<3)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "anyio"
 version = "4.9.0"
@@ -204,6 +234,11 @@ doc = ["Sphinx (>=8.2,<9.0)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)",
 test = ["anyio[trio]", "blockbuster (>=1.5.23)", "coverage[toml] (>=7)", "exceptiongroup (>=1.2.0)", "hypothesis (>=4.0)", "psutil (>=5.9)", "pytest (>=7.0)", "trustme", "truststore (>=0.9.1) ; python_version >= \"3.10\"", "uvloop (>=0.21) ; platform_python_implementation == \"CPython\" and platform_system != \"Windows\" and python_version < \"3.14\""]
 trio = ["trio (>=0.26.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "appdirs"
 version = "1.4.4"
@@ -215,6 +250,11 @@ files = [
     {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
     {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "asgi-lifespan"
@@ -230,6 +270,29 @@ files = [
 
 [package.dependencies]
 sniffio = "*"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
+[[package]]
+name = "async-timeout"
+version = "5.0.1"
+description = "Timeout context manager for asyncio programs"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+markers = "python_version == \"3.11\" and python_full_version < \"3.11.3\""
+files = [
+    {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
+    {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "asyncpg"
@@ -295,6 +358,11 @@ docs = ["Sphinx (>=8.1.3,<8.2.0)", "sphinx-rtd-theme (>=1.2.2)"]
 gssauth = ["gssapi ; platform_system != \"Windows\"", "sspilib ; platform_system == \"Windows\""]
 test = ["distro (>=1.9.0,<1.10.0)", "flake8 (>=6.1,<7.0)", "flake8-pyi (>=24.1.0,<24.2.0)", "gssapi ; platform_system == \"Linux\"", "k5test ; platform_system == \"Linux\"", "mypy (>=1.8.0,<1.9.0)", "sspilib ; platform_system == \"Windows\"", "uvloop (>=0.15.3) ; platform_system != \"Windows\" and python_version < \"3.14.0\""]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "attrs"
 version = "25.3.0"
@@ -315,6 +383,11 @@ docs = ["cogapp", "furo", "myst-parser", "sphinx", "sphinx-notfound-page", "sphi
 tests = ["cloudpickle ; platform_python_implementation == \"CPython\"", "hypothesis", "mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" and python_version >= \"3.10\"", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins ; platform_python_implementation == \"CPython\" and python_version >= \"3.10\"", "pytest-xdist[psutil]"]
 tests-mypy = ["mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" and python_version >= \"3.10\"", "pytest-mypy-plugins ; platform_python_implementation == \"CPython\" and python_version >= \"3.10\""]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "authlib"
 version = "1.5.2"
@@ -330,6 +403,11 @@ files = [
 [package.dependencies]
 cryptography = "*"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "backoff"
 version = "2.2.1"
@@ -342,6 +420,11 @@ files = [
     {file = "backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "billiard"
 version = "4.2.1"
@@ -353,6 +436,11 @@ files = [
     {file = "billiard-4.2.1-py3-none-any.whl", hash = "sha256:40b59a4ac8806ba2c2369ea98d876bc6108b051c227baffd928c644d15d8f3cb"},
     {file = "billiard-4.2.1.tar.gz", hash = "sha256:12b641b0c539073fc8d3f5b8b7be998956665c4233c7c1fcd66a7e677c4fb36f"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "black"
@@ -399,6 +487,11 @@ d = ["aiohttp (>=3.10)"]
 jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "cachetools"
 version = "5.5.2"
@@ -410,6 +503,11 @@ files = [
     {file = "cachetools-5.5.2-py3-none-any.whl", hash = "sha256:d26a22bcc62eb95c3beabd9f1ee5e820d3d2704fe2967cbe350e20c8ffcd3f0a"},
     {file = "cachetools-5.5.2.tar.gz", hash = "sha256:1a661caa9175d26759571b2e19580f9d6393969e5dfca11fdb1f947a23e640d4"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "celery"
@@ -468,6 +566,11 @@ yaml = ["PyYAML (>=3.10)"]
 zookeeper = ["kazoo (>=1.3.1)"]
 zstd = ["zstandard (==0.23.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "certifi"
 version = "2025.1.31"
@@ -479,6 +582,11 @@ files = [
     {file = "certifi-2025.1.31-py3-none-any.whl", hash = "sha256:ca78db4565a652026a4db2bcdf68f2fb589ea80d0be70e03929ed730746b84fe"},
     {file = "certifi-2025.1.31.tar.gz", hash = "sha256:3d5da6925056f6f18f119200434a4780a94263f10d1c21d032a6f6b2baa20651"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "cffi"
@@ -559,6 +667,28 @@ files = [
 
 [package.dependencies]
 pycparser = "*"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
+[[package]]
+name = "chardet"
+version = "5.2.0"
+description = "Universal encoding detector for Python 3"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "chardet-5.2.0-py3-none-any.whl", hash = "sha256:e1cf59446890a00105fe7b7912492ea04b6e6f06d4b742b2c788469e34c82970"},
+    {file = "chardet-5.2.0.tar.gz", hash = "sha256:1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "charset-normalizer"
@@ -662,6 +792,11 @@ files = [
     {file = "charset_normalizer-3.4.1.tar.gz", hash = "sha256:44251f18cd68a75b56585dd00dae26183e102cd5e0f9f1466e6df5da2ed64ea3"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "click"
 version = "8.1.8"
@@ -677,6 +812,11 @@ files = [
 [package.dependencies]
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "click-didyoumean"
 version = "0.3.1"
@@ -691,6 +831,11 @@ files = [
 
 [package.dependencies]
 click = ">=7"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "click-plugins"
@@ -709,6 +854,11 @@ click = ">=4.0"
 
 [package.extras]
 dev = ["coveralls", "pytest (>=3.6)", "pytest-cov", "wheel"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "click-repl"
@@ -729,6 +879,11 @@ prompt-toolkit = ">=3.0.36"
 [package.extras]
 testing = ["pytest (>=7.2.1)", "pytest-cov (>=4.0.0)", "tox (>=4.4.3)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "colorama"
 version = "0.4.6"
@@ -742,12 +897,17 @@ files = [
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "cryptography"
 version = "44.0.2"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
 optional = false
-python-versions = "!=3.9.0,!=3.9.1,>=3.7"
+python-versions = ">=3.7, !=3.9.0, !=3.9.1"
 groups = ["main"]
 files = [
     {file = "cryptography-44.0.2-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:efcfe97d1b3c79e486554efddeb8f6f53a4cdd4cf6086642784fa31fc384e1d7"},
@@ -800,12 +960,17 @@ ssh = ["bcrypt (>=3.1.5)"]
 test = ["certifi (>=2024)", "cryptography-vectors (==44.0.2)", "pretend (>=0.7)", "pytest (>=7.4.0)", "pytest-benchmark (>=4.0)", "pytest-cov (>=2.10.1)", "pytest-xdist (>=3.5.0)"]
 test-randomorder = ["pytest-randomly"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "dataclasses-json"
 version = "0.6.7"
 description = "Easily serialize dataclasses to and from JSON."
 optional = false
-python-versions = "<4.0,>=3.7"
+python-versions = ">=3.7,<4.0"
 groups = ["main"]
 files = [
     {file = "dataclasses_json-0.6.7-py3-none-any.whl", hash = "sha256:0dbf33f26c8d5305befd61b39d2b3414e8a407bedc2834dea9b8d642666fb40a"},
@@ -815,6 +980,11 @@ files = [
 [package.dependencies]
 marshmallow = ">=3.18.0,<4.0.0"
 typing-inspect = ">=0.4.0,<1"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "datasets"
@@ -860,12 +1030,17 @@ tests-numpy2 = ["Pillow (>=9.4.0)", "absl-py", "decorator", "elasticsearch (>=7.
 torch = ["torch"]
 vision = ["Pillow (>=9.4.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "deepeval"
 version = "2.9.7"
 description = "The LLM Evaluation Framework"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = ">=3.9,<4.0"
 groups = ["main"]
 files = [
     {file = "deepeval-2.9.7-py3-none-any.whl", hash = "sha256:1e998c75bb555d6ee5684c02303861ca1c93931feacc93437022e5309217430c"},
@@ -901,12 +1076,17 @@ tqdm = ">=4.66.1,<5.0.0"
 typer = ">=0.9,<1.0.0"
 wheel = "*"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "deprecated"
 version = "1.2.18"
 description = "Python @deprecated decorator to deprecate old python classes, functions or methods."
 optional = false
-python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 groups = ["main"]
 files = [
     {file = "Deprecated-1.2.18-py2.py3-none-any.whl", hash = "sha256:bd5011788200372a32418f888e326a09ff80d0214bd961147cfed01b5c018eec"},
@@ -918,6 +1098,11 @@ wrapt = ">=1.10,<2"
 
 [package.extras]
 dev = ["PyTest", "PyTest-Cov", "bump2version (<1)", "setuptools ; python_version >= \"3.12\"", "tox"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "dill"
@@ -935,6 +1120,11 @@ files = [
 graph = ["objgraph (>=1.7.2)"]
 profile = ["gprof2dot (>=2022.7.29)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "diskcache"
 version = "5.6.3"
@@ -947,6 +1137,11 @@ files = [
     {file = "diskcache-5.6.3.tar.gz", hash = "sha256:2c3a3fa2743d8535d832ec61c2054a1641f41775aa7c556758a109941e33e4fc"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "distro"
 version = "1.9.0"
@@ -958,6 +1153,11 @@ files = [
     {file = "distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2"},
     {file = "distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "dnspython"
@@ -980,12 +1180,17 @@ idna = ["idna (>=3.7)"]
 trio = ["trio (>=0.23)"]
 wmi = ["wmi (>=1.5.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "ecdsa"
 version = "0.19.1"
 description = "ECDSA cryptographic signature library (pure python)"
 optional = false
-python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.6"
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 groups = ["main"]
 files = [
     {file = "ecdsa-0.19.1-py2.py3-none-any.whl", hash = "sha256:30638e27cf77b7e15c4c4cc1973720149e1033827cfd00661ca5c8cc0cdb24c3"},
@@ -998,6 +1203,11 @@ six = ">=1.9.0"
 [package.extras]
 gmpy = ["gmpy"]
 gmpy2 = ["gmpy2"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "email-validator"
@@ -1015,6 +1225,11 @@ files = [
 dnspython = ">=2.0.0"
 idna = ">=2.0.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "execnet"
 version = "2.1.1"
@@ -1029,6 +1244,11 @@ files = [
 
 [package.extras]
 testing = ["hatch", "pre-commit", "pytest", "tox"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "fastapi"
@@ -1057,6 +1277,11 @@ uvicorn = {version = ">=0.12.0", extras = ["standard"], optional = true, markers
 all = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.5)", "httpx (>=0.23.0)", "itsdangerous (>=1.1.0)", "jinja2 (>=3.1.5)", "orjson (>=3.2.1)", "pydantic-extra-types (>=2.0.0)", "pydantic-settings (>=2.0.0)", "python-multipart (>=0.0.18)", "pyyaml (>=5.3.1)", "ujson (>=4.0.1,!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0)", "uvicorn[standard] (>=0.12.0)"]
 standard = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.5)", "httpx (>=0.23.0)", "jinja2 (>=3.1.5)", "python-multipart (>=0.0.18)", "uvicorn[standard] (>=0.12.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "fastapi-cli"
 version = "0.0.7"
@@ -1077,6 +1302,11 @@ uvicorn = {version = ">=0.15.0", extras = ["standard"]}
 [package.extras]
 standard = ["uvicorn[standard] (>=0.15.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "filelock"
 version = "3.18.0"
@@ -1093,6 +1323,11 @@ files = [
 docs = ["furo (>=2024.8.6)", "sphinx (>=8.1.3)", "sphinx-autodoc-typehints (>=3)"]
 testing = ["covdefaults (>=2.3)", "coverage (>=7.6.10)", "diff-cover (>=9.2.1)", "pytest (>=8.3.4)", "pytest-asyncio (>=0.25.2)", "pytest-cov (>=6)", "pytest-mock (>=3.14)", "pytest-timeout (>=2.3.1)", "virtualenv (>=20.28.1)"]
 typing = ["typing-extensions (>=4.12.2) ; python_version < \"3.11\""]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "frozenlist"
@@ -1196,6 +1431,11 @@ files = [
     {file = "frozenlist-1.5.0.tar.gz", hash = "sha256:81d5af29e61b9c8348e876d442253723928dce6433e0e76cd925cd83f1b4b817"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "fsspec"
 version = "2024.12.0"
@@ -1239,6 +1479,11 @@ test-downstream = ["aiobotocore (>=2.5.4,<3.0.0)", "dask-expr", "dask[dataframe,
 test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "cloudpickle", "dask", "distributed", "dropbox", "dropboxdrivefs", "fastparquet", "fusepy", "gcsfs", "jinja2", "kerchunk", "libarchive-c", "lz4", "notebook", "numpy", "ocifs", "pandas", "panel", "paramiko", "pyarrow", "pyarrow (>=1)", "pyftpdlib", "pygit2", "pytest", "pytest-asyncio (!=0.22.0)", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-recording", "pytest-rerunfailures", "python-snappy", "requests", "smbprotocol", "tqdm", "urllib3", "zarr", "zstandard"]
 tqdm = ["tqdm"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "google-auth"
 version = "2.40.2"
@@ -1266,6 +1511,11 @@ requests = ["requests (>=2.20.0,<3.0.0)"]
 testing = ["aiohttp (<3.10.0)", "aiohttp (>=3.6.2,<4.0.0)", "aioresponses", "cryptography (<39.0.0) ; python_version < \"3.8\"", "cryptography (>=38.0.3)", "flask", "freezegun", "grpcio", "mock", "oauth2client", "packaging", "pyjwt (>=2.0)", "pyopenssl (<24.3.0)", "pyopenssl (>=20.0.0)", "pytest", "pytest-asyncio", "pytest-cov", "pytest-localserver", "pyu2f (>=0.1.5)", "requests (>=2.20.0,<3.0.0)", "responses", "urllib3"]
 urllib3 = ["packaging", "urllib3"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "google-genai"
 version = "1.16.1"
@@ -1287,6 +1537,11 @@ requests = ">=2.28.1,<3.0.0"
 typing-extensions = ">=4.11.0,<5.0.0"
 websockets = ">=13.0.0,<15.1.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "googleapis-common-protos"
 version = "1.70.0"
@@ -1304,6 +1559,11 @@ protobuf = ">=3.20.2,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4
 
 [package.extras]
 grpc = ["grpcio (>=1.44.0,<2.0.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "greenlet"
@@ -1393,6 +1653,11 @@ files = [
 docs = ["Sphinx", "furo"]
 test = ["objgraph", "psutil"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "grpcio"
 version = "1.71.0"
@@ -1457,6 +1722,11 @@ files = [
 [package.extras]
 protobuf = ["grpcio-tools (>=1.71.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "h11"
 version = "0.14.0"
@@ -1468,6 +1738,11 @@ files = [
     {file = "h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761"},
     {file = "h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "httpcore"
@@ -1490,6 +1765,11 @@ asyncio = ["anyio (>=4.0,<5.0)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (==1.*)"]
 trio = ["trio (>=0.22.0,<1.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "httptools"
@@ -1547,6 +1827,11 @@ files = [
 [package.extras]
 test = ["Cython (>=0.29.24)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "httpx"
 version = "0.28.1"
@@ -1572,6 +1857,11 @@ http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (==1.*)"]
 zstd = ["zstandard (>=0.18.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "httpx-sse"
 version = "0.4.0"
@@ -1583,6 +1873,11 @@ files = [
     {file = "httpx-sse-0.4.0.tar.gz", hash = "sha256:1e81a3a3070ce322add1d3529ed42eb5f70817f45ed6ec915ab753f961139721"},
     {file = "httpx_sse-0.4.0-py3-none-any.whl", hash = "sha256:f329af6eae57eaa2bdfd962b42524764af68075ea87370a2de920af5341e318f"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "huggingface-hub"
@@ -1620,6 +1915,11 @@ testing = ["InquirerPy (==0.3.4)", "Jinja2", "Pillow", "aiohttp", "fastapi", "gr
 torch = ["safetensors[torch]", "torch"]
 typing = ["types-PyYAML", "types-requests", "types-simplejson", "types-toml", "types-tqdm", "types-urllib3", "typing-extensions (>=4.8.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "idna"
 version = "3.10"
@@ -1634,6 +1934,11 @@ files = [
 
 [package.extras]
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "importlib-metadata"
@@ -1659,6 +1964,11 @@ perf = ["ipython"]
 test = ["flufl.flake8", "importlib_resources (>=1.3) ; python_version < \"3.9\"", "jaraco.test (>=5.4)", "packaging", "pyfakefs", "pytest (>=6,!=8.1.*)", "pytest-perf (>=0.9.2)"]
 type = ["pytest-mypy"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "iniconfig"
 version = "2.1.0"
@@ -1670,6 +1980,11 @@ files = [
     {file = "iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760"},
     {file = "iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "jinja2"
@@ -1688,6 +2003,11 @@ MarkupSafe = ">=2.0"
 
 [package.extras]
 i18n = ["Babel (>=2.7)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "jiter"
@@ -1775,6 +2095,11 @@ files = [
     {file = "jiter-0.9.0.tar.gz", hash = "sha256:aadba0964deb424daa24492abc3d229c60c4a31bfee205aedbf1acc7639d7893"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "jsonpatch"
 version = "1.33"
@@ -1790,6 +2115,11 @@ files = [
 [package.dependencies]
 jsonpointer = ">=1.9"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "jsonpointer"
 version = "3.0.0"
@@ -1801,6 +2131,11 @@ files = [
     {file = "jsonpointer-3.0.0-py2.py3-none-any.whl", hash = "sha256:13e088adc14fca8b6aa8177c044e12701e6ad4b28ff10e65f2267a90109c9942"},
     {file = "jsonpointer-3.0.0.tar.gz", hash = "sha256:2b2d729f2091522d61c3b31f82e11870f60b68f43fbc705cb76bf4b832af59ef"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "kombu"
@@ -1836,6 +2171,11 @@ sqlalchemy = ["sqlalchemy (>=1.4.48,<2.1)"]
 sqs = ["boto3 (>=1.26.143)", "urllib3 (>=1.26.16)"]
 yaml = ["PyYAML (>=3.10)"]
 zookeeper = ["kazoo (>=2.8.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "langchain"
@@ -1877,6 +2217,11 @@ perplexity = ["langchain-perplexity"]
 together = ["langchain-together"]
 xai = ["langchain-xai"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "langchain-community"
 version = "0.3.21"
@@ -1903,6 +2248,11 @@ requests = ">=2,<3"
 SQLAlchemy = ">=1.4,<3"
 tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "langchain-core"
 version = "0.3.51"
@@ -1927,6 +2277,11 @@ PyYAML = ">=5.3"
 tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10.0.0"
 typing-extensions = ">=4.7"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "langchain-openai"
 version = "0.3.12"
@@ -1944,6 +2299,11 @@ langchain-core = ">=0.3.49,<1.0.0"
 openai = ">=1.68.2,<2.0.0"
 tiktoken = ">=0.7,<1"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "langchain-text-splitters"
 version = "0.3.8"
@@ -1959,12 +2319,17 @@ files = [
 [package.dependencies]
 langchain-core = ">=0.3.51,<1.0.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "langsmith"
 version = "0.3.24"
 description = "Client library to connect to the LangSmith LLM Tracing and Evaluation Platform."
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = ">=3.9,<4.0"
 groups = ["main"]
 files = [
     {file = "langsmith-0.3.24-py3-none-any.whl", hash = "sha256:24930d34970281950338f6e2724d04a69804ccb3e89dba9314e6086653dc8bc9"},
@@ -1988,6 +2353,11 @@ langsmith-pyo3 = ["langsmith-pyo3 (>=0.1.0rc2,<0.2.0)"]
 openai-agents = ["openai-agents (>=0.0.3,<0.1)"]
 otel = ["opentelemetry-api (>=1.30.0,<2.0.0)", "opentelemetry-exporter-otlp-proto-http (>=1.30.0,<2.0.0)", "opentelemetry-sdk (>=1.30.0,<2.0.0)"]
 pytest = ["pytest (>=7.0.0)", "rich (>=13.9.4,<14.0.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "markdown-it-py"
@@ -2013,6 +2383,11 @@ plugins = ["mdit-py-plugins"]
 profiling = ["gprof2dot"]
 rtd = ["jupyter_sphinx", "mdit-py-plugins", "myst-parser", "pyyaml", "sphinx", "sphinx-copybutton", "sphinx-design", "sphinx_book_theme"]
 testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "markupsafe"
@@ -2085,6 +2460,11 @@ files = [
     {file = "markupsafe-3.0.2.tar.gz", hash = "sha256:ee55d3edf80167e48ea11a923c7386f4669df67d7994554387f84e7d8b0a2bf0"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "marshmallow"
 version = "3.26.1"
@@ -2104,6 +2484,11 @@ packaging = ">=17.0"
 dev = ["marshmallow[tests]", "pre-commit (>=3.5,<5.0)", "tox"]
 docs = ["autodocsumm (==0.2.14)", "furo (==2024.8.6)", "sphinx (==8.1.3)", "sphinx-copybutton (==0.5.2)", "sphinx-issues (==5.0.0)", "sphinxext-opengraph (==0.9.1)"]
 tests = ["pytest", "simplejson"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "mcp"
@@ -2133,6 +2518,11 @@ cli = ["python-dotenv (>=1.0.0)", "typer (>=0.12.4)"]
 rich = ["rich (>=13.9.4)"]
 ws = ["websockets (>=15.0.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "mdurl"
 version = "0.1.2"
@@ -2145,6 +2535,11 @@ files = [
     {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "monotonic"
 version = "1.6"
@@ -2156,6 +2551,11 @@ files = [
     {file = "monotonic-1.6-py2.py3-none-any.whl", hash = "sha256:68687e19a14f11f26d140dd5c86f3dba4bf5df58003000ed467e0e2a69bca96c"},
     {file = "monotonic-1.6.tar.gz", hash = "sha256:3a55207bcfed53ddd5c5bae174524062935efed17792e9de2ad0205ce9ad63f7"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "multidict"
@@ -2259,6 +2659,11 @@ files = [
     {file = "multidict-6.3.2.tar.gz", hash = "sha256:c1035eea471f759fa853dd6e76aaa1e389f93b3e1403093fa0fd3ab4db490678"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "multiprocess"
 version = "0.70.16"
@@ -2284,6 +2689,11 @@ files = [
 [package.dependencies]
 dill = ">=0.3.8"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "mypy-extensions"
 version = "1.0.0"
@@ -2296,6 +2706,11 @@ files = [
     {file = "mypy_extensions-1.0.0.tar.gz", hash = "sha256:75dbf8955dc00442a438fc4d0666508a9a97b6bd41aa2f0ffe9d2f2725af0782"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "nest-asyncio"
 version = "1.6.0"
@@ -2307,6 +2722,11 @@ files = [
     {file = "nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c"},
     {file = "nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "numpy"
@@ -2373,12 +2793,17 @@ files = [
     {file = "numpy-2.2.4.tar.gz", hash = "sha256:9ba03692a45d3eef66559efe1d1096c4b9b75c0986b5dff5530c378fb8331d4f"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "ollama"
 version = "0.4.8"
 description = "The official Python client for Ollama."
 optional = false
-python-versions = "<4.0,>=3.8"
+python-versions = ">=3.8,<4.0"
 groups = ["main"]
 files = [
     {file = "ollama-0.4.8-py3-none-any.whl", hash = "sha256:04312af2c5e72449aaebac4a2776f52ef010877c554103419d3f36066fe8af4c"},
@@ -2388,6 +2813,11 @@ files = [
 [package.dependencies]
 httpx = ">=0.27,<0.29"
 pydantic = ">=2.9.0,<3.0.0"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "openai"
@@ -2416,6 +2846,11 @@ datalib = ["numpy (>=1)", "pandas (>=1.2.3)", "pandas-stubs (>=1.1.0.11)"]
 realtime = ["websockets (>=13,<15)"]
 voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "opentelemetry-api"
 version = "1.33.1"
@@ -2432,6 +2867,11 @@ files = [
 deprecated = ">=1.2.6"
 importlib-metadata = ">=6.0,<8.7.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "opentelemetry-exporter-otlp-proto-common"
 version = "1.33.1"
@@ -2446,6 +2886,11 @@ files = [
 
 [package.dependencies]
 opentelemetry-proto = "1.33.1"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "opentelemetry-exporter-otlp-proto-grpc"
@@ -2471,6 +2916,11 @@ opentelemetry-exporter-otlp-proto-common = "1.33.1"
 opentelemetry-proto = "1.33.1"
 opentelemetry-sdk = ">=1.33.1,<1.34.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "opentelemetry-proto"
 version = "1.33.1"
@@ -2485,6 +2935,11 @@ files = [
 
 [package.dependencies]
 protobuf = ">=5.0,<6.0"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "opentelemetry-sdk"
@@ -2503,6 +2958,11 @@ opentelemetry-api = "1.33.1"
 opentelemetry-semantic-conventions = "0.54b1"
 typing-extensions = ">=3.7.4"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "opentelemetry-semantic-conventions"
 version = "0.54b1"
@@ -2518,6 +2978,11 @@ files = [
 [package.dependencies]
 deprecated = ">=1.2.6"
 opentelemetry-api = "1.33.1"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "orjson"
@@ -2598,6 +3063,11 @@ files = [
     {file = "orjson-3.10.16.tar.gz", hash = "sha256:d2aaa5c495e11d17b9b93205f5fa196737ee3202f000aaebf028dc9a73750f10"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "packaging"
 version = "24.2"
@@ -2609,6 +3079,11 @@ files = [
     {file = "packaging-24.2-py3-none-any.whl", hash = "sha256:09abb1bccd265c01f4a3aa3f7a7db064b36514d2cba19a2f694fe6150451a759"},
     {file = "packaging-24.2.tar.gz", hash = "sha256:c228a6dc5e932d346bc5739379109d49e8853dd8223571c7c5b55260edc0b97f"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pandas"
@@ -2696,6 +3171,11 @@ sql-other = ["SQLAlchemy (>=2.0.0)", "adbc-driver-postgresql (>=0.8.0)", "adbc-d
 test = ["hypothesis (>=6.46.1)", "pytest (>=7.3.2)", "pytest-xdist (>=2.2.0)"]
 xml = ["lxml (>=4.9.2)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pathspec"
 version = "0.12.1"
@@ -2707,6 +3187,116 @@ files = [
     {file = "pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"},
     {file = "pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
+[[package]]
+name = "pillow"
+version = "11.2.1"
+description = "Python Imaging Library (Fork)"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "pillow-11.2.1-cp310-cp310-macosx_10_10_x86_64.whl", hash = "sha256:d57a75d53922fc20c165016a20d9c44f73305e67c351bbc60d1adaf662e74047"},
+    {file = "pillow-11.2.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:127bf6ac4a5b58b3d32fc8289656f77f80567d65660bc46f72c0d77e6600cc95"},
+    {file = "pillow-11.2.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b4ba4be812c7a40280629e55ae0b14a0aafa150dd6451297562e1764808bbe61"},
+    {file = "pillow-11.2.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c8bd62331e5032bc396a93609982a9ab6b411c05078a52f5fe3cc59234a3abd1"},
+    {file = "pillow-11.2.1-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:562d11134c97a62fe3af29581f083033179f7ff435f78392565a1ad2d1c2c45c"},
+    {file = "pillow-11.2.1-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:c97209e85b5be259994eb5b69ff50c5d20cca0f458ef9abd835e262d9d88b39d"},
+    {file = "pillow-11.2.1-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:0c3e6d0f59171dfa2e25d7116217543310908dfa2770aa64b8f87605f8cacc97"},
+    {file = "pillow-11.2.1-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:cc1c3bc53befb6096b84165956e886b1729634a799e9d6329a0c512ab651e579"},
+    {file = "pillow-11.2.1-cp310-cp310-win32.whl", hash = "sha256:312c77b7f07ab2139924d2639860e084ec2a13e72af54d4f08ac843a5fc9c79d"},
+    {file = "pillow-11.2.1-cp310-cp310-win_amd64.whl", hash = "sha256:9bc7ae48b8057a611e5fe9f853baa88093b9a76303937449397899385da06fad"},
+    {file = "pillow-11.2.1-cp310-cp310-win_arm64.whl", hash = "sha256:2728567e249cdd939f6cc3d1f049595c66e4187f3c34078cbc0a7d21c47482d2"},
+    {file = "pillow-11.2.1-cp311-cp311-macosx_10_10_x86_64.whl", hash = "sha256:35ca289f712ccfc699508c4658a1d14652e8033e9b69839edf83cbdd0ba39e70"},
+    {file = "pillow-11.2.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e0409af9f829f87a2dfb7e259f78f317a5351f2045158be321fd135973fff7bf"},
+    {file = "pillow-11.2.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d4e5c5edee874dce4f653dbe59db7c73a600119fbea8d31f53423586ee2aafd7"},
+    {file = "pillow-11.2.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b93a07e76d13bff9444f1a029e0af2964e654bfc2e2c2d46bfd080df5ad5f3d8"},
+    {file = "pillow-11.2.1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:e6def7eed9e7fa90fde255afaf08060dc4b343bbe524a8f69bdd2a2f0018f600"},
+    {file = "pillow-11.2.1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:8f4f3724c068be008c08257207210c138d5f3731af6c155a81c2b09a9eb3a788"},
+    {file = "pillow-11.2.1-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:a0a6709b47019dff32e678bc12c63008311b82b9327613f534e496dacaefb71e"},
+    {file = "pillow-11.2.1-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:f6b0c664ccb879109ee3ca702a9272d877f4fcd21e5eb63c26422fd6e415365e"},
+    {file = "pillow-11.2.1-cp311-cp311-win32.whl", hash = "sha256:cc5d875d56e49f112b6def6813c4e3d3036d269c008bf8aef72cd08d20ca6df6"},
+    {file = "pillow-11.2.1-cp311-cp311-win_amd64.whl", hash = "sha256:0f5c7eda47bf8e3c8a283762cab94e496ba977a420868cb819159980b6709193"},
+    {file = "pillow-11.2.1-cp311-cp311-win_arm64.whl", hash = "sha256:4d375eb838755f2528ac8cbc926c3e31cc49ca4ad0cf79cff48b20e30634a4a7"},
+    {file = "pillow-11.2.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:78afba22027b4accef10dbd5eed84425930ba41b3ea0a86fa8d20baaf19d807f"},
+    {file = "pillow-11.2.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:78092232a4ab376a35d68c4e6d5e00dfd73454bd12b230420025fbe178ee3b0b"},
+    {file = "pillow-11.2.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:25a5f306095c6780c52e6bbb6109624b95c5b18e40aab1c3041da3e9e0cd3e2d"},
+    {file = "pillow-11.2.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0c7b29dbd4281923a2bfe562acb734cee96bbb129e96e6972d315ed9f232bef4"},
+    {file = "pillow-11.2.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3e645b020f3209a0181a418bffe7b4a93171eef6c4ef6cc20980b30bebf17b7d"},
+    {file = "pillow-11.2.1-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:b2dbea1012ccb784a65349f57bbc93730b96e85b42e9bf7b01ef40443db720b4"},
+    {file = "pillow-11.2.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:da3104c57bbd72948d75f6a9389e6727d2ab6333c3617f0a89d72d4940aa0443"},
+    {file = "pillow-11.2.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:598174aef4589af795f66f9caab87ba4ff860ce08cd5bb447c6fc553ffee603c"},
+    {file = "pillow-11.2.1-cp312-cp312-win32.whl", hash = "sha256:1d535df14716e7f8776b9e7fee118576d65572b4aad3ed639be9e4fa88a1cad3"},
+    {file = "pillow-11.2.1-cp312-cp312-win_amd64.whl", hash = "sha256:14e33b28bf17c7a38eede290f77db7c664e4eb01f7869e37fa98a5aa95978941"},
+    {file = "pillow-11.2.1-cp312-cp312-win_arm64.whl", hash = "sha256:21e1470ac9e5739ff880c211fc3af01e3ae505859392bf65458c224d0bf283eb"},
+    {file = "pillow-11.2.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:fdec757fea0b793056419bca3e9932eb2b0ceec90ef4813ea4c1e072c389eb28"},
+    {file = "pillow-11.2.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:b0e130705d568e2f43a17bcbe74d90958e8a16263868a12c3e0d9c8162690830"},
+    {file = "pillow-11.2.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7bdb5e09068332578214cadd9c05e3d64d99e0e87591be22a324bdbc18925be0"},
+    {file = "pillow-11.2.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d189ba1bebfbc0c0e529159631ec72bb9e9bc041f01ec6d3233d6d82eb823bc1"},
+    {file = "pillow-11.2.1-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:191955c55d8a712fab8934a42bfefbf99dd0b5875078240943f913bb66d46d9f"},
+    {file = "pillow-11.2.1-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:ad275964d52e2243430472fc5d2c2334b4fc3ff9c16cb0a19254e25efa03a155"},
+    {file = "pillow-11.2.1-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:750f96efe0597382660d8b53e90dd1dd44568a8edb51cb7f9d5d918b80d4de14"},
+    {file = "pillow-11.2.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:fe15238d3798788d00716637b3d4e7bb6bde18b26e5d08335a96e88564a36b6b"},
+    {file = "pillow-11.2.1-cp313-cp313-win32.whl", hash = "sha256:3fe735ced9a607fee4f481423a9c36701a39719252a9bb251679635f99d0f7d2"},
+    {file = "pillow-11.2.1-cp313-cp313-win_amd64.whl", hash = "sha256:74ee3d7ecb3f3c05459ba95eed5efa28d6092d751ce9bf20e3e253a4e497e691"},
+    {file = "pillow-11.2.1-cp313-cp313-win_arm64.whl", hash = "sha256:5119225c622403afb4b44bad4c1ca6c1f98eed79db8d3bc6e4e160fc6339d66c"},
+    {file = "pillow-11.2.1-cp313-cp313t-macosx_10_13_x86_64.whl", hash = "sha256:8ce2e8411c7aaef53e6bb29fe98f28cd4fbd9a1d9be2eeea434331aac0536b22"},
+    {file = "pillow-11.2.1-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:9ee66787e095127116d91dea2143db65c7bb1e232f617aa5957c0d9d2a3f23a7"},
+    {file = "pillow-11.2.1-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9622e3b6c1d8b551b6e6f21873bdcc55762b4b2126633014cea1803368a9aa16"},
+    {file = "pillow-11.2.1-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:63b5dff3a68f371ea06025a1a6966c9a1e1ee452fc8020c2cd0ea41b83e9037b"},
+    {file = "pillow-11.2.1-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:31df6e2d3d8fc99f993fd253e97fae451a8db2e7207acf97859732273e108406"},
+    {file = "pillow-11.2.1-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:062b7a42d672c45a70fa1f8b43d1d38ff76b63421cbbe7f88146b39e8a558d91"},
+    {file = "pillow-11.2.1-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:4eb92eca2711ef8be42fd3f67533765d9fd043b8c80db204f16c8ea62ee1a751"},
+    {file = "pillow-11.2.1-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:f91ebf30830a48c825590aede79376cb40f110b387c17ee9bd59932c961044f9"},
+    {file = "pillow-11.2.1-cp313-cp313t-win32.whl", hash = "sha256:e0b55f27f584ed623221cfe995c912c61606be8513bfa0e07d2c674b4516d9dd"},
+    {file = "pillow-11.2.1-cp313-cp313t-win_amd64.whl", hash = "sha256:36d6b82164c39ce5482f649b437382c0fb2395eabc1e2b1702a6deb8ad647d6e"},
+    {file = "pillow-11.2.1-cp313-cp313t-win_arm64.whl", hash = "sha256:225c832a13326e34f212d2072982bb1adb210e0cc0b153e688743018c94a2681"},
+    {file = "pillow-11.2.1-cp39-cp39-macosx_10_10_x86_64.whl", hash = "sha256:7491cf8a79b8eb867d419648fff2f83cb0b3891c8b36da92cc7f1931d46108c8"},
+    {file = "pillow-11.2.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:8b02d8f9cb83c52578a0b4beadba92e37d83a4ef11570a8688bbf43f4ca50909"},
+    {file = "pillow-11.2.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:014ca0050c85003620526b0ac1ac53f56fc93af128f7546623cc8e31875ab928"},
+    {file = "pillow-11.2.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3692b68c87096ac6308296d96354eddd25f98740c9d2ab54e1549d6c8aea9d79"},
+    {file = "pillow-11.2.1-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:f781dcb0bc9929adc77bad571b8621ecb1e4cdef86e940fe2e5b5ee24fd33b35"},
+    {file = "pillow-11.2.1-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:2b490402c96f907a166615e9a5afacf2519e28295f157ec3a2bb9bd57de638cb"},
+    {file = "pillow-11.2.1-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:dd6b20b93b3ccc9c1b597999209e4bc5cf2853f9ee66e3fc9a400a78733ffc9a"},
+    {file = "pillow-11.2.1-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:4b835d89c08a6c2ee7781b8dd0a30209a8012b5f09c0a665b65b0eb3560b6f36"},
+    {file = "pillow-11.2.1-cp39-cp39-win32.whl", hash = "sha256:b10428b3416d4f9c61f94b494681280be7686bda15898a3a9e08eb66a6d92d67"},
+    {file = "pillow-11.2.1-cp39-cp39-win_amd64.whl", hash = "sha256:6ebce70c3f486acf7591a3d73431fa504a4e18a9b97ff27f5f47b7368e4b9dd1"},
+    {file = "pillow-11.2.1-cp39-cp39-win_arm64.whl", hash = "sha256:c27476257b2fdcd7872d54cfd119b3a9ce4610fb85c8e32b70b42e3680a29a1e"},
+    {file = "pillow-11.2.1-pp310-pypy310_pp73-macosx_10_15_x86_64.whl", hash = "sha256:9b7b0d4fd2635f54ad82785d56bc0d94f147096493a79985d0ab57aedd563156"},
+    {file = "pillow-11.2.1-pp310-pypy310_pp73-macosx_11_0_arm64.whl", hash = "sha256:aa442755e31c64037aa7c1cb186e0b369f8416c567381852c63444dd666fb772"},
+    {file = "pillow-11.2.1-pp310-pypy310_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f0d3348c95b766f54b76116d53d4cb171b52992a1027e7ca50c81b43b9d9e363"},
+    {file = "pillow-11.2.1-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:85d27ea4c889342f7e35f6d56e7e1cb345632ad592e8c51b693d7b7556043ce0"},
+    {file = "pillow-11.2.1-pp310-pypy310_pp73-manylinux_2_28_aarch64.whl", hash = "sha256:bf2c33d6791c598142f00c9c4c7d47f6476731c31081331664eb26d6ab583e01"},
+    {file = "pillow-11.2.1-pp310-pypy310_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:e616e7154c37669fc1dfc14584f11e284e05d1c650e1c0f972f281c4ccc53193"},
+    {file = "pillow-11.2.1-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:39ad2e0f424394e3aebc40168845fee52df1394a4673a6ee512d840d14ab3013"},
+    {file = "pillow-11.2.1-pp311-pypy311_pp73-macosx_10_15_x86_64.whl", hash = "sha256:80f1df8dbe9572b4b7abdfa17eb5d78dd620b1d55d9e25f834efdbee872d3aed"},
+    {file = "pillow-11.2.1-pp311-pypy311_pp73-macosx_11_0_arm64.whl", hash = "sha256:ea926cfbc3957090becbcbbb65ad177161a2ff2ad578b5a6ec9bb1e1cd78753c"},
+    {file = "pillow-11.2.1-pp311-pypy311_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:738db0e0941ca0376804d4de6a782c005245264edaa253ffce24e5a15cbdc7bd"},
+    {file = "pillow-11.2.1-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9db98ab6565c69082ec9b0d4e40dd9f6181dab0dd236d26f7a50b8b9bfbd5076"},
+    {file = "pillow-11.2.1-pp311-pypy311_pp73-manylinux_2_28_aarch64.whl", hash = "sha256:036e53f4170e270ddb8797d4c590e6dd14d28e15c7da375c18978045f7e6c37b"},
+    {file = "pillow-11.2.1-pp311-pypy311_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:14f73f7c291279bd65fda51ee87affd7c1e097709f7fdd0188957a16c264601f"},
+    {file = "pillow-11.2.1-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:208653868d5c9ecc2b327f9b9ef34e0e42a4cdd172c2988fd81d62d2bc9bc044"},
+    {file = "pillow-11.2.1.tar.gz", hash = "sha256:a64dd61998416367b7ef979b73d3a85853ba9bec4c2925f74e588879a58716b6"},
+]
+
+[package.extras]
+docs = ["furo", "olefile", "sphinx (>=8.2)", "sphinx-copybutton", "sphinx-inline-tabs", "sphinxext-opengraph"]
+fpx = ["olefile"]
+mic = ["olefile"]
+test-arrow = ["pyarrow"]
+tests = ["check-manifest", "coverage (>=7.4.2)", "defusedxml", "markdown2", "olefile", "packaging", "pyroma", "pytest", "pytest-cov", "pytest-timeout", "trove-classifiers (>=2024.10.12)"]
+typing = ["typing-extensions ; python_version < \"3.10\""]
+xmp = ["defusedxml"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "platformdirs"
@@ -2725,6 +3315,11 @@ docs = ["furo (>=2024.8.6)", "proselint (>=0.14)", "sphinx (>=8.1.3)", "sphinx-a
 test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=8.3.4)", "pytest-cov (>=6)", "pytest-mock (>=3.14)"]
 type = ["mypy (>=1.14.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pluggy"
 version = "1.5.0"
@@ -2740,6 +3335,11 @@ files = [
 [package.extras]
 dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "portalocker"
@@ -2760,6 +3360,11 @@ pywin32 = {version = ">=226", markers = "platform_system == \"Windows\""}
 docs = ["sphinx (>=1.7.1)"]
 redis = ["redis"]
 tests = ["pytest (>=5.4.1)", "pytest-cov (>=2.8.1)", "pytest-mypy (>=0.8.0)", "pytest-rerunfailures (>=15.0)", "pytest-timeout (>=2.1.0)", "redis", "sphinx (>=6.0.0)", "types-redis"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "posthog"
@@ -2787,6 +3392,11 @@ langchain = ["langchain (>=0.2.0)"]
 sentry = ["django", "sentry-sdk"]
 test = ["anthropic", "coverage", "django", "flake8", "freezegun (==1.5.1)", "langchain-anthropic (>=0.2.0)", "langchain-community (>=0.2.0)", "langchain-openai (>=0.2.0)", "langgraph", "mock (>=2.0.0)", "openai", "parameterized (>=0.8.1)", "pydantic", "pylint", "pytest", "pytest-asyncio", "pytest-timeout"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "prompt-toolkit"
 version = "3.0.50"
@@ -2801,6 +3411,11 @@ files = [
 
 [package.dependencies]
 wcwidth = "*"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "propcache"
@@ -2910,6 +3525,11 @@ files = [
     {file = "propcache-0.3.1.tar.gz", hash = "sha256:40d980c33765359098837527e18eddefc9a24cea5b45e078a7f3bb5b032c6ecf"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "protobuf"
 version = "5.29.4"
@@ -2930,6 +3550,11 @@ files = [
     {file = "protobuf-5.29.4-py3-none-any.whl", hash = "sha256:3fde11b505e1597f71b875ef2fc52062b6a9740e5f7c8997ce878b6009145862"},
     {file = "protobuf-5.29.4.tar.gz", hash = "sha256:4f1dfcd7997b31ef8f53ec82781ff434a28bf71d9102ddde14d076adcfc78c99"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pyarrow"
@@ -2986,6 +3611,11 @@ files = [
 [package.extras]
 test = ["cffi", "hypothesis", "pandas", "pytest", "pytz"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pyasn1"
 version = "0.4.8"
@@ -2997,6 +3627,11 @@ files = [
     {file = "pyasn1-0.4.8-py2.py3-none-any.whl", hash = "sha256:39c7e2ec30515947ff4e87fb6f456dfc6e84857d34be479c9d4a4ba4bf46aa5d"},
     {file = "pyasn1-0.4.8.tar.gz", hash = "sha256:aef77c9fb94a3ac588e87841208bdec464471d9871bd5050a287cc9a475cd0ba"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pyasn1-modules"
@@ -3013,6 +3648,11 @@ files = [
 [package.dependencies]
 pyasn1 = ">=0.4.6,<0.7.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pycparser"
 version = "2.22"
@@ -3024,6 +3664,11 @@ files = [
     {file = "pycparser-2.22-py3-none-any.whl", hash = "sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc"},
     {file = "pycparser-2.22.tar.gz", hash = "sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pydantic"
@@ -3046,6 +3691,11 @@ typing-inspection = ">=0.4.0"
 [package.extras]
 email = ["email-validator (>=2.0.0)"]
 timezone = ["tzdata ; python_version >= \"3.9\" and platform_system == \"Windows\""]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pydantic-core"
@@ -3159,6 +3809,11 @@ files = [
 [package.dependencies]
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pydantic-settings"
 version = "2.8.1"
@@ -3180,6 +3835,11 @@ azure-key-vault = ["azure-identity (>=1.16.0)", "azure-keyvault-secrets (>=4.8.0
 toml = ["tomli (>=2.0.1)"]
 yaml = ["pyyaml (>=6.0.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pygments"
 version = "2.19.1"
@@ -3194,6 +3854,11 @@ files = [
 
 [package.extras]
 windows-terminal = ["colorama (>=0.4.6)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pytest"
@@ -3216,6 +3881,11 @@ pluggy = ">=1.5,<2"
 [package.extras]
 dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pytest-asyncio"
 version = "0.25.3"
@@ -3235,6 +3905,11 @@ pytest = ">=8.2,<9"
 docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1)"]
 testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pytest-repeat"
 version = "0.9.4"
@@ -3249,6 +3924,11 @@ files = [
 
 [package.dependencies]
 pytest = "*"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pytest-rerunfailures"
@@ -3265,6 +3945,11 @@ files = [
 [package.dependencies]
 packaging = ">=17.1"
 pytest = ">=6.2"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pytest-sugar"
@@ -3285,6 +3970,11 @@ termcolor = ">=2.1.0"
 
 [package.extras]
 dev = ["black", "flake8", "pre-commit"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pytest-xdist"
@@ -3307,6 +3997,11 @@ psutil = ["psutil (>=3.0)"]
 setproctitle = ["setproctitle"]
 testing = ["filelock"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
@@ -3322,6 +4017,11 @@ files = [
 [package.dependencies]
 six = ">=1.5"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "python-dotenv"
 version = "1.1.0"
@@ -3336,6 +4036,11 @@ files = [
 
 [package.extras]
 cli = ["click (>=5.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "python-jose"
@@ -3360,6 +4065,11 @@ pycrypto = ["pycrypto (>=2.6.0,<2.7.0)"]
 pycryptodome = ["pycryptodome (>=3.3.1,<4.0.0)"]
 test = ["pytest", "pytest-cov"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "python-multipart"
 version = "0.0.20"
@@ -3372,6 +4082,11 @@ files = [
     {file = "python_multipart-0.0.20.tar.gz", hash = "sha256:8dd0cab45b8e23064ae09147625994d090fa46f5b0d1e13af944c331a7fa9d13"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "pytz"
 version = "2025.2"
@@ -3383,6 +4098,11 @@ files = [
     {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
     {file = "pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pywin32"
@@ -3410,6 +4130,11 @@ files = [
     {file = "pywin32-310-cp39-cp39-win32.whl", hash = "sha256:851c8d927af0d879221e616ae1f66145253537bbdd321a77e8ef701b443a9a1a"},
     {file = "pywin32-310-cp39-cp39-win_amd64.whl", hash = "sha256:96867217335559ac619f00ad70e513c0fcf84b8a3af9fc2bba3b59b97da70475"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "pyyaml"
@@ -3474,6 +4199,11 @@ files = [
     {file = "pyyaml-6.0.2.tar.gz", hash = "sha256:d584d9ec91ad65861cc08d42e834324ef890a082e591037abe114850ff7bbc3e"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "ragas"
 version = "0.2.14"
@@ -3505,6 +4235,36 @@ all = ["datacompy", "llama_index", "nltk", "pandas", "r2r", "rapidfuzz", "rouge_
 dev = ["black[jupyter]", "datacompy", "fastembed", "graphene", "haystack-ai", "isort", "llama_index", "nltk", "notebook", "pandas", "pyright", "r2r", "rapidfuzz", "rich", "rouge_score", "ruff", "sacrebleu", "sentence-transformers", "sphinx-autobuild", "transformers"]
 docs = ["mkdocs (>=1.6.1)", "mkdocs-autorefs", "mkdocs-gen-files", "mkdocs-git-committers-plugin-2", "mkdocs-git-revision-date-localized-plugin", "mkdocs-glightbox", "mkdocs-literate-nav", "mkdocs-material", "mkdocs-material[imaging]", "mkdocs-section-index", "mkdocstrings[python]"]
 test = ["llama_index", "nbmake", "pytest", "pytest-asyncio", "pytest-xdist[psutil]"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
+[[package]]
+name = "redis"
+version = "6.2.0"
+description = "Python client for Redis database and key-value store"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "redis-6.2.0-py3-none-any.whl", hash = "sha256:c8ddf316ee0aab65f04a11229e94a64b2618451dab7a67cb2f77eb799d872d5e"},
+    {file = "redis-6.2.0.tar.gz", hash = "sha256:e821f129b75dde6cb99dd35e5c76e8c49512a5a0d8dfdc560b2fbd44b85ca977"},
+]
+
+[package.dependencies]
+async-timeout = {version = ">=4.0.3", markers = "python_full_version < \"3.11.3\""}
+
+[package.extras]
+hiredis = ["hiredis (>=3.2.0)"]
+jwt = ["pyjwt (>=2.9.0)"]
+ocsp = ["cryptography (>=36.0.1)", "pyopenssl (>=20.0.1)", "requests (>=2.31.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "regex"
@@ -3610,6 +4370,39 @@ files = [
     {file = "regex-2024.11.6.tar.gz", hash = "sha256:7ab159b063c52a0333c884e4679f8d7a85112ee3078fe3d9004b2dd875585519"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
+[[package]]
+name = "reportlab"
+version = "4.4.1"
+description = "The Reportlab Toolkit"
+optional = false
+python-versions = ">=3.7,<4"
+groups = ["main"]
+files = [
+    {file = "reportlab-4.4.1-py3-none-any.whl", hash = "sha256:9217a1c8c1917217f819718b24972a96ad0c485a1c494749562d097b58d974b7"},
+    {file = "reportlab-4.4.1.tar.gz", hash = "sha256:5f9b9fc0b7a48e8912c25ccf69d26b82980ab0da718e4f583fa720e8f8f5073f"},
+]
+
+[package.dependencies]
+chardet = "*"
+pillow = ">=9.0.0"
+
+[package.extras]
+accel = ["rl_accel (>=0.9.0,<1.1)"]
+bidi = ["rlbidi"]
+pycairo = ["freetype-py (>=2.3.0,<2.4)", "rlPyCairo (>=0.2.0,<1)"]
+renderpm = ["rl_renderPM (>=4.0.3,<4.1)"]
+shaping = ["uharfbuzz"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "requests"
 version = "2.32.3"
@@ -3632,6 +4425,11 @@ urllib3 = ">=1.21.1,<3"
 socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "requests-toolbelt"
 version = "1.0.0"
@@ -3646,6 +4444,11 @@ files = [
 
 [package.dependencies]
 requests = ">=2.0.1,<3.0.0"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "rich"
@@ -3666,6 +4469,11 @@ pygments = ">=2.13.0,<3.0.0"
 [package.extras]
 jupyter = ["ipywidgets (>=7.5.1,<9)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "rich-toolkit"
 version = "0.14.1"
@@ -3683,6 +4491,11 @@ click = ">=8.1.7"
 rich = ">=13.7.1"
 typing-extensions = ">=4.12.2"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "rsa"
 version = "4.9"
@@ -3697,6 +4510,80 @@ files = [
 
 [package.dependencies]
 pyasn1 = ">=0.1.3"
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
+[[package]]
+name = "scipy"
+version = "1.15.3"
+description = "Fundamental algorithms for scientific computing in Python"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "scipy-1.15.3-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:a345928c86d535060c9c2b25e71e87c39ab2f22fc96e9636bd74d1dbf9de448c"},
+    {file = "scipy-1.15.3-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:ad3432cb0f9ed87477a8d97f03b763fd1d57709f1bbde3c9369b1dff5503b253"},
+    {file = "scipy-1.15.3-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:aef683a9ae6eb00728a542b796f52a5477b78252edede72b8327a886ab63293f"},
+    {file = "scipy-1.15.3-cp310-cp310-macosx_14_0_x86_64.whl", hash = "sha256:1c832e1bd78dea67d5c16f786681b28dd695a8cb1fb90af2e27580d3d0967e92"},
+    {file = "scipy-1.15.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:263961f658ce2165bbd7b99fa5135195c3a12d9bef045345016b8b50c315cb82"},
+    {file = "scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9e2abc762b0811e09a0d3258abee2d98e0c703eee49464ce0069590846f31d40"},
+    {file = "scipy-1.15.3-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:ed7284b21a7a0c8f1b6e5977ac05396c0d008b89e05498c8b7e8f4a1423bba0e"},
+    {file = "scipy-1.15.3-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:5380741e53df2c566f4d234b100a484b420af85deb39ea35a1cc1be84ff53a5c"},
+    {file = "scipy-1.15.3-cp310-cp310-win_amd64.whl", hash = "sha256:9d61e97b186a57350f6d6fd72640f9e99d5a4a2b8fbf4b9ee9a841eab327dc13"},
+    {file = "scipy-1.15.3-cp311-cp311-macosx_10_13_x86_64.whl", hash = "sha256:993439ce220d25e3696d1b23b233dd010169b62f6456488567e830654ee37a6b"},
+    {file = "scipy-1.15.3-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:34716e281f181a02341ddeaad584205bd2fd3c242063bd3423d61ac259ca7eba"},
+    {file = "scipy-1.15.3-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:3b0334816afb8b91dab859281b1b9786934392aa3d527cd847e41bb6f45bee65"},
+    {file = "scipy-1.15.3-cp311-cp311-macosx_14_0_x86_64.whl", hash = "sha256:6db907c7368e3092e24919b5e31c76998b0ce1684d51a90943cb0ed1b4ffd6c1"},
+    {file = "scipy-1.15.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:721d6b4ef5dc82ca8968c25b111e307083d7ca9091bc38163fb89243e85e3889"},
+    {file = "scipy-1.15.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:39cb9c62e471b1bb3750066ecc3a3f3052b37751c7c3dfd0fd7e48900ed52982"},
+    {file = "scipy-1.15.3-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:795c46999bae845966368a3c013e0e00947932d68e235702b5c3f6ea799aa8c9"},
+    {file = "scipy-1.15.3-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:18aaacb735ab38b38db42cb01f6b92a2d0d4b6aabefeb07f02849e47f8fb3594"},
+    {file = "scipy-1.15.3-cp311-cp311-win_amd64.whl", hash = "sha256:ae48a786a28412d744c62fd7816a4118ef97e5be0bee968ce8f0a2fba7acf3bb"},
+    {file = "scipy-1.15.3-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:6ac6310fdbfb7aa6612408bd2f07295bcbd3fda00d2d702178434751fe48e019"},
+    {file = "scipy-1.15.3-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:185cd3d6d05ca4b44a8f1595af87f9c372bb6acf9c808e99aa3e9aa03bd98cf6"},
+    {file = "scipy-1.15.3-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:05dc6abcd105e1a29f95eada46d4a3f251743cfd7d3ae8ddb4088047f24ea477"},
+    {file = "scipy-1.15.3-cp312-cp312-macosx_14_0_x86_64.whl", hash = "sha256:06efcba926324df1696931a57a176c80848ccd67ce6ad020c810736bfd58eb1c"},
+    {file = "scipy-1.15.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c05045d8b9bfd807ee1b9f38761993297b10b245f012b11b13b91ba8945f7e45"},
+    {file = "scipy-1.15.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:271e3713e645149ea5ea3e97b57fdab61ce61333f97cfae392c28ba786f9bb49"},
+    {file = "scipy-1.15.3-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:6cfd56fc1a8e53f6e89ba3a7a7251f7396412d655bca2aa5611c8ec9a6784a1e"},
+    {file = "scipy-1.15.3-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:0ff17c0bb1cb32952c09217d8d1eed9b53d1463e5f1dd6052c7857f83127d539"},
+    {file = "scipy-1.15.3-cp312-cp312-win_amd64.whl", hash = "sha256:52092bc0472cfd17df49ff17e70624345efece4e1a12b23783a1ac59a1b728ed"},
+    {file = "scipy-1.15.3-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:2c620736bcc334782e24d173c0fdbb7590a0a436d2fdf39310a8902505008759"},
+    {file = "scipy-1.15.3-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:7e11270a000969409d37ed399585ee530b9ef6aa99d50c019de4cb01e8e54e62"},
+    {file = "scipy-1.15.3-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:8c9ed3ba2c8a2ce098163a9bdb26f891746d02136995df25227a20e71c396ebb"},
+    {file = "scipy-1.15.3-cp313-cp313-macosx_14_0_x86_64.whl", hash = "sha256:0bdd905264c0c9cfa74a4772cdb2070171790381a5c4d312c973382fc6eaf730"},
+    {file = "scipy-1.15.3-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:79167bba085c31f38603e11a267d862957cbb3ce018d8b38f79ac043bc92d825"},
+    {file = "scipy-1.15.3-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c9deabd6d547aee2c9a81dee6cc96c6d7e9a9b1953f74850c179f91fdc729cb7"},
+    {file = "scipy-1.15.3-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:dde4fc32993071ac0c7dd2d82569e544f0bdaff66269cb475e0f369adad13f11"},
+    {file = "scipy-1.15.3-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:f77f853d584e72e874d87357ad70f44b437331507d1c311457bed8ed2b956126"},
+    {file = "scipy-1.15.3-cp313-cp313-win_amd64.whl", hash = "sha256:b90ab29d0c37ec9bf55424c064312930ca5f4bde15ee8619ee44e69319aab163"},
+    {file = "scipy-1.15.3-cp313-cp313t-macosx_10_13_x86_64.whl", hash = "sha256:3ac07623267feb3ae308487c260ac684b32ea35fd81e12845039952f558047b8"},
+    {file = "scipy-1.15.3-cp313-cp313t-macosx_12_0_arm64.whl", hash = "sha256:6487aa99c2a3d509a5227d9a5e889ff05830a06b2ce08ec30df6d79db5fcd5c5"},
+    {file = "scipy-1.15.3-cp313-cp313t-macosx_14_0_arm64.whl", hash = "sha256:50f9e62461c95d933d5c5ef4a1f2ebf9a2b4e83b0db374cb3f1de104d935922e"},
+    {file = "scipy-1.15.3-cp313-cp313t-macosx_14_0_x86_64.whl", hash = "sha256:14ed70039d182f411ffc74789a16df3835e05dc469b898233a245cdfd7f162cb"},
+    {file = "scipy-1.15.3-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0a769105537aa07a69468a0eefcd121be52006db61cdd8cac8a0e68980bbb723"},
+    {file = "scipy-1.15.3-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9db984639887e3dffb3928d118145ffe40eff2fa40cb241a306ec57c219ebbbb"},
+    {file = "scipy-1.15.3-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:40e54d5c7e7ebf1aa596c374c49fa3135f04648a0caabcb66c52884b943f02b4"},
+    {file = "scipy-1.15.3-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:5e721fed53187e71d0ccf382b6bf977644c533e506c4d33c3fb24de89f5c3ed5"},
+    {file = "scipy-1.15.3-cp313-cp313t-win_amd64.whl", hash = "sha256:76ad1fb5f8752eabf0fa02e4cc0336b4e8f021e2d5f061ed37d6d264db35e3ca"},
+    {file = "scipy-1.15.3.tar.gz", hash = "sha256:eae3cf522bc7df64b42cad3925c876e1b0b6c35c1337c93e12c0f366f55b0eaf"},
+]
+
+[package.dependencies]
+numpy = ">=1.23.5,<2.5"
+
+[package.extras]
+dev = ["cython-lint (>=0.12.2)", "doit (>=0.36.0)", "mypy (==1.10.0)", "pycodestyle", "pydevtool", "rich-click", "ruff (>=0.0.292)", "types-psutil", "typing_extensions"]
+doc = ["intersphinx_registry", "jupyterlite-pyodide-kernel", "jupyterlite-sphinx (>=0.19.1)", "jupytext", "matplotlib (>=3.5)", "myst-nb", "numpydoc", "pooch", "pydata-sphinx-theme (>=0.15.2)", "sphinx (>=5.0.0,<8.0.0)", "sphinx-copybutton", "sphinx-design (>=0.4.0)"]
+test = ["Cython", "array-api-strict (>=2.0,<2.1.1)", "asv", "gmpy2", "hypothesis (>=6.30)", "meson", "mpmath", "ninja ; sys_platform != \"emscripten\"", "pooch", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "scikit-umfpack", "threadpoolctl"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "sentry-sdk"
@@ -3755,6 +4642,11 @@ statsig = ["statsig (>=0.55.3)"]
 tornado = ["tornado (>=6)"]
 unleash = ["UnleashClient (>=6.0.1)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "setuptools"
 version = "80.8.0"
@@ -3776,6 +4668,11 @@ enabler = ["pytest-enabler (>=2.2)"]
 test = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "ini2toml[lite] (>=0.14)", "jaraco.develop (>=7.21) ; python_version >= \"3.9\" and sys_platform != \"cygwin\"", "jaraco.envs (>=2.2)", "jaraco.path (>=3.7.2)", "jaraco.test (>=5.5)", "packaging (>=24.2)", "pip (>=19.1)", "pyproject-hooks (!=1.1)", "pytest (>=6,!=8.1.*)", "pytest-home (>=0.5)", "pytest-perf ; sys_platform != \"cygwin\"", "pytest-subprocess", "pytest-timeout", "pytest-xdist (>=3)", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel (>=0.44.0)"]
 type = ["importlib_metadata (>=7.0.2) ; python_version < \"3.10\"", "jaraco.develop (>=7.21) ; sys_platform != \"cygwin\"", "mypy (==1.14.*)", "pytest-mypy"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "shellingham"
 version = "1.5.4"
@@ -3788,17 +4685,27 @@ files = [
     {file = "shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "six"
 version = "1.17.0"
 description = "Python 2 and 3 compatibility utilities"
 optional = false
-python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 groups = ["main"]
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
     {file = "six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "sniffio"
@@ -3811,6 +4718,11 @@ files = [
     {file = "sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2"},
     {file = "sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "sqlalchemy"
@@ -3908,6 +4820,11 @@ postgresql-psycopgbinary = ["psycopg[binary] (>=3.0.7)"]
 pymysql = ["pymysql"]
 sqlcipher = ["sqlcipher3_binary"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "sse-starlette"
 version = "2.3.4"
@@ -3928,6 +4845,11 @@ starlette = ">=0.41.3"
 examples = ["fastapi"]
 uvicorn = ["uvicorn (>=0.34.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "starlette"
 version = "0.46.1"
@@ -3946,6 +4868,11 @@ anyio = ">=3.6.2,<5"
 [package.extras]
 full = ["httpx (>=0.27.0,<0.29.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.18)", "pyyaml"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "tabulate"
 version = "0.9.0"
@@ -3960,6 +4887,11 @@ files = [
 
 [package.extras]
 widechars = ["wcwidth"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "tenacity"
@@ -3977,6 +4909,11 @@ files = [
 doc = ["reno", "sphinx"]
 test = ["pytest", "tornado (>=4.5)", "typeguard"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "termcolor"
 version = "3.0.1"
@@ -3991,6 +4928,11 @@ files = [
 
 [package.extras]
 tests = ["pytest", "pytest-cov"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "tiktoken"
@@ -4040,6 +4982,11 @@ requests = ">=2.26.0"
 [package.extras]
 blobfile = ["blobfile (>=2)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "tqdm"
 version = "4.67.1"
@@ -4062,6 +5009,11 @@ notebook = ["ipywidgets (>=6)"]
 slack = ["slack-sdk"]
 telegram = ["requests"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "typer"
 version = "0.15.2"
@@ -4080,6 +5032,11 @@ rich = ">=10.11.0"
 shellingham = ">=1.3.0"
 typing-extensions = ">=3.7.4.3"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "typing-extensions"
 version = "4.13.1"
@@ -4091,6 +5048,11 @@ files = [
     {file = "typing_extensions-4.13.1-py3-none-any.whl", hash = "sha256:4b6cf02909eb5495cfbc3f6e8fd49217e6cc7944e145cdda8caa3734777f9e69"},
     {file = "typing_extensions-4.13.1.tar.gz", hash = "sha256:98795af00fb9640edec5b8e31fc647597b4691f099ad75f469a2616be1a76dff"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "typing-inspect"
@@ -4108,6 +5070,11 @@ files = [
 mypy-extensions = ">=0.3.0"
 typing-extensions = ">=3.7.4"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "typing-inspection"
 version = "0.4.0"
@@ -4123,6 +5090,11 @@ files = [
 [package.dependencies]
 typing-extensions = ">=4.12.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "tzdata"
 version = "2025.2"
@@ -4134,6 +5106,11 @@ files = [
     {file = "tzdata-2025.2-py2.py3-none-any.whl", hash = "sha256:1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8"},
     {file = "tzdata-2025.2.tar.gz", hash = "sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "urllib3"
@@ -4152,6 +5129,11 @@ brotli = ["brotli (>=1.0.9) ; platform_python_implementation == \"CPython\"", "b
 h2 = ["h2 (>=4,<5)"]
 socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "uvicorn"
@@ -4178,6 +5160,11 @@ websockets = {version = ">=10.4", optional = true, markers = "extra == \"standar
 
 [package.extras]
 standard = ["colorama (>=0.4) ; sys_platform == \"win32\"", "httptools (>=0.6.3)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "uvloop (>=0.14.0,!=0.15.0,!=0.15.1) ; sys_platform != \"win32\" and sys_platform != \"cygwin\" and platform_python_implementation != \"PyPy\"", "watchfiles (>=0.13)", "websockets (>=10.4)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "uvloop"
@@ -4232,6 +5219,11 @@ dev = ["Cython (>=3.0,<4.0)", "setuptools (>=60)"]
 docs = ["Sphinx (>=4.1.2,<4.2.0)", "sphinx-rtd-theme (>=0.5.2,<0.6.0)", "sphinxcontrib-asyncio (>=0.3.0,<0.4.0)"]
 test = ["aiohttp (>=3.10.5)", "flake8 (>=5.0,<6.0)", "mypy (>=0.800)", "psutil", "pyOpenSSL (>=23.0.0,<23.1.0)", "pycodestyle (>=2.9.0,<2.10.0)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "vine"
 version = "5.1.0"
@@ -4243,6 +5235,11 @@ files = [
     {file = "vine-5.1.0-py3-none-any.whl", hash = "sha256:40fdf3c48b2cfe1c38a49e9ae2da6fda88e4794c810050a728bd7413811fb1dc"},
     {file = "vine-5.1.0.tar.gz", hash = "sha256:8b62e981d35c41049211cf62a0a1242d8c1ee9bd15bb196ce38aefd6799e61e0"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "watchfiles"
@@ -4328,6 +5325,11 @@ files = [
 [package.dependencies]
 anyio = ">=3.0.0"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "wcwidth"
 version = "0.2.13"
@@ -4339,6 +5341,11 @@ files = [
     {file = "wcwidth-0.2.13-py2.py3-none-any.whl", hash = "sha256:3da69048e4540d84af32131829ff948f1e022c1c6bdb8d6102117aac784f6859"},
     {file = "wcwidth-0.2.13.tar.gz", hash = "sha256:72ea0c06399eb286d978fdedb6923a9eb47e1c486ce63e9b4e64fc18303972b5"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "websockets"
@@ -4419,6 +5426,11 @@ files = [
     {file = "websockets-15.0.1.tar.gz", hash = "sha256:82544de02076bafba038ce055ee6412d68da13ab47f0c60cab827346de828dee"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "wheel"
 version = "0.45.1"
@@ -4433,6 +5445,11 @@ files = [
 
 [package.extras]
 test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "wrapt"
@@ -4522,6 +5539,11 @@ files = [
     {file = "wrapt-1.17.2-py3-none-any.whl", hash = "sha256:b18f2d1533a71f069c7f82d524a52599053d4c7166e9dd374ae2136b7f40f7c8"},
     {file = "wrapt-1.17.2.tar.gz", hash = "sha256:41388e9d4d1522446fe79d3213196bd9e3b301a336965b9e27ca2788ebd122f3"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "xxhash"
@@ -4656,6 +5678,11 @@ files = [
     {file = "xxhash-3.5.0.tar.gz", hash = "sha256:84f2caddf951c9cbf8dc2e22a89d4ccf5d86391ac6418fe81e3c67d0cf60b45f"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "yarl"
 version = "1.19.0"
@@ -4758,6 +5785,11 @@ idna = ">=2.0"
 multidict = ">=4.0"
 propcache = ">=0.2.1"
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [[package]]
 name = "zipp"
 version = "3.21.0"
@@ -4777,6 +5809,11 @@ doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linke
 enabler = ["pytest-enabler (>=2.2)"]
 test = ["big-O", "importlib-resources ; python_version < \"3.9\"", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-itertools", "pytest (>=6,!=8.1.*)", "pytest-ignore-flaky"]
 type = ["pytest-mypy"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
 
 [[package]]
 name = "zstandard"
@@ -4891,7 +5928,12 @@ cffi = {version = ">=1.11", markers = "platform_python_implementation == \"PyPy\
 [package.extras]
 cffi = ["cffi (>=1.11)"]
 
+[package.source]
+type = "legacy"
+url = "https://nexus_svc1:artifct521@repo.qatarairways.com.qa/repository/digital-python-repo/simple"
+reference = "qa_package_index"
+
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "056dc65f661ee346699f20c656644d910a2ca25d685afe4be8e2df78898a4d5e"
+content-hash = "3440b5502d7edfe9c7fe0932e963d6e7fb2b652287d74937aa9217212e27fde8"

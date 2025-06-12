@@ -72,8 +72,8 @@
       </div>
     </div>
 
-    <div class="stat-card reports-card" (click)="viewAllReports()">
-      <div class="stat-icon reports-icon">
+    <div class="stat-card comparison-card" (click)="viewAllComparisons()">
+      <div class="stat-icon comparisons-icon">
         <i class="bi bi-file-earmark-bar-graph">
           <img
             src="assets/images/llmeval/comparisons.svg"
@@ -82,7 +82,7 @@
         </i>
       </div>
       <div class="stat-content">
-        <span class="stat-count">{{reportsCount || 0}}</span>
+        <span class="stat-count">{{ComparisonsCount || 0}}</span>
         <span class="stat-label">Comparisons</span>
       </div>
     </div>
