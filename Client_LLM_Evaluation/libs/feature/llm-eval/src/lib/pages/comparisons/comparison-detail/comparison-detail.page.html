@@ -10,12 +10,18 @@
     <div class="title-actions">
       <div class="title-section">
         <h1 class="page-title" *ngIf="comparison">{{ comparison.name }}</h1>
+        <p
+          class="page-description"
+          *ngIf="comparison && comparison.description"
+        >
+          {{ comparison.description }}
+        </p>
         <div class="status-badge-container" *ngIf="comparison">
           <span
             class="status-badge"
             [ngClass]="getStatusBadgeClass(comparison.status)"
           >
-            {{ comparison.status }}
+            {{ comparison.status | uppercase }}
           </span>
         </div>
       </div>
@@ -26,16 +32,16 @@
           class="action-button run-button"
           (click)="runComparison()"
         >
-          Run Again
+          <span class="button-icon">▶</span> Run Comparison
         </button>
         <button class="action-button edit-button" (click)="editComparison()">
-          Edit
+          <span class="button-icon">✏</span> Edit
         </button>
         <button
           class="action-button delete-button"
           (click)="deleteComparison()"
         >
-          Delete
+          <span class="button-icon">🗑</span> Delete
         </button>
       </div>
     </div>
@@ -58,120 +64,202 @@
 
   <!-- Comparison Content -->
   <div *ngIf="comparison && !isLoading" class="comparison-content">
-    <!-- Information Cards -->
-    <div class="info-cards">
-      <!-- Basic Information Card -->
-      <div class="info-card">
-        <h3 class="card-title">Comparison Details</h3>
+    <!-- Quick Summary Banner -->
+    <div class="summary-banner" *ngIf="hasResults()">
+      <div class="summary-stat">
+        <div class="stat-value" [ngClass]="getResultClass()">
+          {{ getFormattedOverallResult() }}
+        </div>
+        <div class="stat-label">Overall Performance</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-value improved">
+          {{ comparison.summary?.improved_metrics || 0 }}/{{
+          comparison.summary?.total_metrics || 0 }}
+        </div>
+        <div class="stat-label">Metrics Improved</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-value">
+          {{ comparison.summary?.matched_samples || 0 }}
+        </div>
+        <div class="stat-label">Samples Compared</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-value">{{ formatDate(comparison.created_at) }}</div>
+        <div class="stat-label">Created</div>
+      </div>
+    </div>
+
+    <!-- Information Cards Grid -->
+    <div class="info-cards-grid">
+      <!-- Evaluation A Card -->
+      <div class="info-card evaluation-card">
+        <h3 class="card-title">
+          <span class="evaluation-indicator eval-a">A</span>
+          {{ comparison.evaluation_a?.['name'] || 'Evaluation A' }}
+        </h3>
         <div class="card-content">
           <div class="info-row">
-            <span class="info-label">ID:</span>
-            <span class="info-value">{{ comparison.id }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Created:</span>
+            <span class="info-label">Agent:</span>
             <span class="info-value"
-              >{{ formatDate(comparison.created_at) }}</span
+              >{{ comparison.evaluation_a?.['agent']?.name || 'N/A' }}</span
             >
           </div>
           <div class="info-row">
-            <span class="info-label">Config:</span>
-            <span class="info-value" *ngIf="comparison.config">
-              threshold: {{ getConfigThreshold() }}
-            </span>
+            <span class="info-label">Dataset:</span>
+            <span class="info-value"
+              >{{ comparison.evaluation_a?.['dataset']?.name || 'N/A' }}</span
+            >
           </div>
           <div class="info-row">
-            <span class="info-label">Status:</span>
-            <span
-              class="status-badge"
-              [ngClass]="getStatusBadgeClass(comparison.status)"
+            <span class="info-label">Method:</span>
+            <span class="info-value"
+              >{{ comparison.evaluation_a?.['method'] || 'N/A' }}</span
             >
-              {{ comparison.status }}
-            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Processed Items:</span>
+            <span class="info-value"
+              >{{ comparison.evaluation_a?.['processed_items'] || 0 }}</span
+            >
+          </div>
+          <div class="info-row">
+            <span class="info-label">Overall Score:</span>
+            <span class="info-value score"
+              >{{ getOverallScore('a') | number:'1.2-3' }}</span
+            >
           </div>
         </div>
-      </div>
-
-      <!-- Compared Evaluations Card -->
-      <div class="info-card">
-        <h3 class="card-title">Compared Evaluations</h3>
-        <div class="card-content">
-          <div
-            class="info-row clickable"
+        <div class="card-footer">
+          <button
+            class="view-eval-button"
             (click)="viewEvaluation(comparison.evaluation_a_id)"
           >
-            <span class="info-label">Evaluation A:</span>
-            <span class="info-value link-value">
-              {{ comparison.evaluation_a?.['name'] || 'Loading...' }}
-            </span>
+            View Details
+          </button>
+        </div>
+      </div>
+
+      <!-- Evaluation B Card -->
+      <div class="info-card evaluation-card">
+        <h3 class="card-title">
+          <span class="evaluation-indicator eval-b">B</span>
+          {{ comparison.evaluation_b?.['name'] || 'Evaluation B' }}
+        </h3>
+        <div class="card-content">
+          <div class="info-row">
+            <span class="info-label">Agent:</span>
+            <span class="info-value"
+              >{{ comparison.evaluation_b?.['agent']?.name || 'N/A' }}</span
+            >
           </div>
-          <div
-            class="info-row clickable"
+          <div class="info-row">
+            <span class="info-label">Dataset:</span>
+            <span class="info-value"
+              >{{ comparison.evaluation_b?.['dataset']?.name || 'N/A' }}</span
+            >
+          </div>
+          <div class="info-row">
+            <span class="info-label">Method:</span>
+            <span class="info-value"
+              >{{ comparison.evaluation_b?.['method'] || 'N/A' }}</span
+            >
+          </div>
+          <div class="info-row">
+            <span class="info-label">Processed Items:</span>
+            <span class="info-value"
+              >{{ comparison.evaluation_b?.['processed_items'] || 0 }}</span
+            >
+          </div>
+          <div class="info-row">
+            <span class="info-label">Overall Score:</span>
+            <span class="info-value score"
+              >{{ getOverallScore('b') | number:'1.2-3' }}</span
+            >
+          </div>
+        </div>
+        <div class="card-footer">
+          <button
+            class="view-eval-button"
             (click)="viewEvaluation(comparison.evaluation_b_id)"
           >
-            <span class="info-label">Evaluation B:</span>
-            <span class="info-value link-value">
-              {{ comparison.evaluation_b?.['name'] || 'Loading...' }}
-            </span>
+            View Details
+          </button>
+        </div>
+      </div>
+
+      <!-- Configuration Card -->
+      <div class="info-card">
+        <h3 class="card-title">Configuration</h3>
+        <div class="card-content">
+          <div class="info-row">
+            <span class="info-label">Threshold:</span>
+            <span class="info-value">{{ getConfigThreshold() }}</span>
           </div>
-          <div class="info-row" *ngIf="getEvaluationDatasetName()">
-            <span class="info-label">Dataset:</span>
-            <span class="info-value"> {{ getEvaluationDatasetName() }} </span>
+          <div
+            class="info-row"
+            *ngIf="comparison.config?.['normalize_scores'] !== undefined as normalizeScores"
+          >
+            <span class="info-label">Normalized Scores:</span>
+            <span class="info-value">{{ normalizeScores ? 'Yes' : 'No' }}</span>
           </div>
-          <div class="info-row" *ngIf="getEvaluationMethod()">
-            <span class="info-label">Method:</span>
-            <span class="info-value">{{ getEvaluationMethod() }}</span>
+          <div
+            class="info-row"
+            *ngIf="comparison.config?.['normalize_scores'] !== undefined as normalizeScores"
+          >
+            <span class="info-label">Normalized Scores:</span>
+            <span class="info-value">{{ normalizeScores ? 'Yes' : 'No' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Created By:</span>
+            <span class="info-value"
+              >{{ comparison.created_by_id || 'System' }}</span
+            >
           </div>
         </div>
       </div>
 
-      <!-- Summary Card -->
-      <div class="info-card">
-        <h3 class="card-title">Summary</h3>
-        <div class="card-content" *ngIf="hasResults()">
+      <!-- Statistical Summary Card -->
+      <div class="info-card" *ngIf="hasResults()">
+        <h3 class="card-title">Statistical Summary</h3>
+        <div class="card-content">
           <div class="info-row">
-            <span class="info-label">Overall Result:</span>
-            <span class="info-value" [ngClass]="getResultClass()">
-              {{ getFormattedOverallResult() }}
+            <span class="info-label">Statistical Power:</span>
+            <span class="info-value">{{ getStatisticalPower() }}</span>
+          </div>
+          <div class="info-row" *ngIf="getConsistencyScore() !== null">
+            <span class="info-label">Consistency Score:</span>
+            <span class="info-value"
+              >{{ getConsistencyScore() | number:'1.2-2' }}</span
+            >
+          </div>
+          <div class="info-row" *ngIf="getWeightedImprovementScore() !== null">
+            <span class="info-label">Weighted Improvement:</span>
+            <span
+              class="info-value"
+              [ngClass]="getWeightedImprovementScore()! > 0 ? 'improved' : 'regressed'"
+            >
+              {{ getWeightedImprovementScore() | number:'1.2-3' }}
             </span>
           </div>
           <div class="info-row">
-            <span class="info-label">Total Metrics:</span>
-            <span class="info-value">
-              {{ comparison.summary?.total_metrics || 0 }}
-            </span>
+            <span class="info-label">Cross-Method:</span>
+            <span class="info-value"
+              >{{ getCrossMethodComparison() ? 'Yes' : 'No' }}</span
+            >
           </div>
-          <div class="info-row">
-            <span class="info-label">Improved:</span>
-            <span class="info-value improved">
-              {{ comparison.summary?.improved_metrics || 0 }} metrics ({{
-              getImprovedPercentage() }})
-            </span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Regressed:</span>
-            <span class="info-value regressed">
-              {{ comparison.summary?.regressed_metrics || 0 }} metrics ({{
-              getRegressedPercentage() }})
-            </span>
-          </div>
-        </div>
-        <div class="card-content" *ngIf="!hasResults()">
-          <p class="no-results-text">
-            No results available yet. Run the comparison to see results.
-          </p>
-          <button
-            *ngIf="canRunComparison()"
-            class="run-button-sm"
-            (click)="runComparison()"
-          >
-            Run Comparison
-          </button>
         </div>
       </div>
     </div>
 
-    <!-- Tabs -->
+    <!-- Narrative Insights -->
+    <div class="narrative-insights" *ngIf="comparison.narrative_insights">
+      <h3 class="insights-title">Analysis Summary</h3>
+      <div class="insights-content">{{ comparison.narrative_insights }}</div>
+    </div>
+
+    <!-- Tabs Section -->
     <div class="comparison-tabs">
       <div class="tabs-container">
         <div
@@ -179,13 +267,15 @@
           [class.active]="selectedTabIndex === 0"
           (click)="selectedTabIndex = 0"
         >
-          Metrics
+          <span class="tab-icon">📊</span>
+          Metrics Analysis
         </div>
         <div
           class="tab"
           [class.active]="selectedTabIndex === 1"
           (click)="selectedTabIndex = 1"
         >
+          <span class="tab-icon">📈</span>
           Visualizations
         </div>
         <div
@@ -193,50 +283,154 @@
           [class.active]="selectedTabIndex === 2"
           (click)="selectedTabIndex = 2"
         >
-          Samples
+          <span class="tab-icon">🔍</span>
+          Sample Analysis
+        </div>
+        <div
+          class="tab"
+          [class.active]="selectedTabIndex === 3"
+          (click)="selectedTabIndex = 3"
+        >
+          <span class="tab-icon">📋</span>
+          Detailed Metrics
         </div>
       </div>
 
-      <!-- Metrics Tab Content -->
+      <!-- Metrics Analysis Tab -->
       <div class="tab-content" *ngIf="selectedTabIndex === 0">
         <div
-          class="metrics-section"
+          class="metrics-analysis-section"
           *ngIf="hasResults() && metricDifferences.length > 0"
         >
-          <div class="results-table-container">
-            <table class="results-table">
+          <div class="metrics-summary">
+            <div class="summary-cards">
+              <div class="metric-summary-card improved">
+                <div class="summary-number">
+                  {{ comparison.summary?.improved_metrics || 0 }}
+                </div>
+                <div class="summary-label">Improved</div>
+              </div>
+              <div class="metric-summary-card regressed">
+                <div class="summary-number">
+                  {{ comparison.summary?.regressed_metrics || 0 }}
+                </div>
+                <div class="summary-label">Regressed</div>
+              </div>
+              <div class="metric-summary-card neutral">
+                <div class="summary-number">{{ getUnchangedMetrics() }}</div>
+                <div class="summary-label">Unchanged</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="metrics-table-container">
+            <table class="metrics-table">
               <thead>
                 <tr>
                   <th>Metric</th>
                   <th>Evaluation A</th>
                   <th>Evaluation B</th>
                   <th>Difference</th>
+                  <th>% Change</th>
+                  <th>Impact</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let metric of metricDifferences">
-                  <td>{{ metric.name }}</td>
-                  <td>{{ metric.evaluation_a_value | number:'1.2-2' }}</td>
-                  <td>{{ metric.evaluation_b_value | number:'1.2-2' }}</td>
-                  <td [ngClass]="getDifferenceClass(metric)">
-                    {{ getDifferenceWithSign(metric) }} ({{
-                    getPercentageDifference(metric) }})
+                <tr
+                  *ngFor="let metric of metricDifferences"
+                  [ngClass]="getMetricRowClass(metric)"
+                >
+                  <td class="metric-name">
+                    {{ getFormattedMetricName(metric.name) }}
+                  </td>
+                  <td class="metric-value">
+                    {{ metric.evaluation_a_value | number:'1.3-3' }}
+                  </td>
+                  <td class="metric-value">
+                    {{ metric.evaluation_b_value | number:'1.3-3' }}
+                  </td>
+                  <td
+                    class="metric-difference"
+                    [ngClass]="getDifferenceClass(metric)"
+                  >
+                    {{ getDifferenceWithSign(metric) }}
+                  </td>
+                  <td
+                    class="metric-percentage"
+                    [ngClass]="getDifferenceClass(metric)"
+                  >
+                    {{ getPercentageDifference(metric) }}
+                  </td>
+                  <td class="metric-impact">
+                    <span
+                      class="impact-badge"
+                      [ngClass]="getImpactClass(metric)"
+                    >
+                      {{ getImpactLabel(metric) }}
+                    </span>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+
+          <!-- Top Improvements and Regressions -->
+          <div
+            class="top-changes"
+            *ngIf="getTopImprovements().length > 0 || getTopRegressions().length > 0"
+          >
+            <div
+              class="top-improvements"
+              *ngIf="getTopImprovements().length > 0"
+            >
+              <h4>Top Improvements</h4>
+              <div class="change-list">
+                <div
+                  *ngFor="let improvement of getTopImprovements()"
+                  class="change-item improved"
+                >
+                  <span class="change-metric"
+                    >{{ getFormattedMetricName(improvement.metric_name) }}</span
+                  >
+                  <span class="change-value"
+                    >+{{ improvement.percentage_change | number:'1.1-1'
+                    }}%</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="top-regressions" *ngIf="getTopRegressions().length > 0">
+              <h4>Top Regressions</h4>
+              <div class="change-list">
+                <div
+                  *ngFor="let regression of getTopRegressions()"
+                  class="change-item regressed"
+                >
+                  <span class="change-metric"
+                    >{{ getFormattedMetricName(regression.metric_name) }}</span
+                  >
+                  <span class="change-value"
+                    >{{ regression.percentage_change | number:'1.1-1' }}%</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
         <div
           class="no-metrics-container"
           *ngIf="!hasResults() || metricDifferences.length === 0"
         >
+          <div class="empty-state-icon">📊</div>
+          <h3>No Metric Analysis Available</h3>
           <p class="no-results-text">
-            No metric comparison data available yet.
+            Run the comparison to see detailed metric analysis.
           </p>
           <button
             *ngIf="canRunComparison()"
-            class="run-button-sm"
+            class="run-button-primary"
             (click)="runComparison()"
           >
             Run Comparison
@@ -244,51 +438,59 @@
         </div>
       </div>
 
-      <!-- Visualizations Tab Content -->
+      <!-- Visualizations Tab -->
       <div class="tab-content" *ngIf="selectedTabIndex === 1">
-        <div class="visualization-controls" *ngIf="hasResults()">
-          <div class="visualization-type-selector">
-            <span class="visualization-label">Visualization Type:</span>
-            <div class="visualization-buttons">
-              <button
-                class="viz-type-button"
-                [class.active]="selectedVisualization === 'radar'"
-                (click)="selectVisualization('radar')"
-              >
-                Radar
-              </button>
-              <button
-                class="viz-type-button"
-                [class.active]="selectedVisualization === 'bar'"
-                (click)="selectVisualization('bar')"
-              >
-                Bar
-              </button>
-              <button
-                class="viz-type-button"
-                [class.active]="selectedVisualization === 'line'"
-                (click)="selectVisualization('line')"
-              >
-                Line
-              </button>
+        <div class="visualization-section" *ngIf="hasResults()">
+          <div class="visualization-controls">
+            <div class="control-group">
+              <label class="control-label">Visualization Type:</label>
+              <div class="visualization-buttons">
+                <button
+                  class="viz-type-button"
+                  [class.active]="selectedVisualization === 'radar'"
+                  (click)="selectVisualization('radar')"
+                >
+                  <span class="viz-icon">🕸️</span>
+                  Radar Chart
+                </button>
+                <button
+                  class="viz-type-button"
+                  [class.active]="selectedVisualization === 'bar'"
+                  (click)="selectVisualization('bar')"
+                >
+                  <span class="viz-icon">📊</span>
+                  Bar Chart
+                </button>
+                <button
+                  class="viz-type-button"
+                  [class.active]="selectedVisualization === 'line'"
+                  (click)="selectVisualization('line')"
+                >
+                  <span class="viz-icon">📈</span>
+                  Line Chart
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="visualization-wrapper" *ngIf="hasResults()">
-          <!-- Integrated Visualization Component -->
-          <app-comparison-visualization
-            [visualizationType]="selectedVisualization"
-            [visualizationData]="visualizationData"
-            [metricDifferences]="metricDifferences"
-          ></app-comparison-visualization>
+          <div class="visualization-wrapper">
+            <app-comparison-visualization
+              [visualizationType]="selectedVisualization"
+              [visualizationData]="visualizationData"
+              [metricDifferences]="metricDifferences"
+            ></app-comparison-visualization>
+          </div>
         </div>
 
         <div class="no-visualization-container" *ngIf="!hasResults()">
-          <p class="no-results-text">No visualization data available yet.</p>
+          <div class="empty-state-icon">📈</div>
+          <h3>No Visualization Data Available</h3>
+          <p class="no-results-text">
+            Run the comparison to see visual analysis of the results.
+          </p>
           <button
             *ngIf="canRunComparison()"
-            class="run-button-sm"
+            class="run-button-primary"
             (click)="runComparison()"
           >
             Run Comparison
@@ -296,73 +498,110 @@
         </div>
       </div>
 
-      <!-- Samples Tab Content -->
+      <!-- Sample Analysis Tab -->
       <div class="tab-content" *ngIf="selectedTabIndex === 2">
         <div class="samples-section" *ngIf="hasResults()">
-          <div class="samples-filter-container">
-            <div class="filter-wrapper">
-              <span class="filter-label">Filter Samples:</span>
-              <select
-                class="filter-select"
-                [(ngModel)]="sampleFilter"
-                (change)="filterSamples()"
-              >
-                <option value="all">All Samples</option>
-                <option value="improved">Improved</option>
-                <option value="regressed">Regressed</option>
-                <option value="unchanged">Unchanged</option>
-              </select>
+          <div class="samples-controls">
+            <div class="samples-summary">
+              <div class="sample-stat">
+                <span class="stat-number"
+                  >{{ comparison.summary?.matched_samples || 0 }}</span
+                >
+                <span class="stat-label">Matched</span>
+              </div>
+              <div class="sample-stat improved">
+                <span class="stat-number"
+                  >{{ comparison.summary?.improved_samples || 0 }}</span
+                >
+                <span class="stat-label">Improved</span>
+              </div>
+              <div class="sample-stat regressed">
+                <span class="stat-number"
+                  >{{ comparison.summary?.regressed_samples || 0 }}</span
+                >
+                <span class="stat-label">Regressed</span>
+              </div>
             </div>
-            <div class="filter-wrapper">
-              <span class="filter-label">Sort by:</span>
-              <select
-                class="filter-select"
-                [(ngModel)]="sampleSort"
-                (change)="sortSamples()"
-              >
-                <option value="difference">Difference</option>
-                <option value="id">Sample ID</option>
-                <option value="score_a">Score A</option>
-                <option value="score_b">Score B</option>
-              </select>
+
+            <div class="samples-filters">
+              <div class="filter-group">
+                <label class="filter-label">Filter:</label>
+                <select
+                  class="filter-select"
+                  [(ngModel)]="sampleFilter"
+                  (change)="filterSamples()"
+                >
+                  <option value="all">All Samples</option>
+                  <option value="improved">Improved Only</option>
+                  <option value="regressed">Regressed Only</option>
+                  <option value="unchanged">Unchanged Only</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">Sort by:</label>
+                <select
+                  class="filter-select"
+                  [(ngModel)]="sampleSort"
+                  (change)="sortSamples()"
+                >
+                  <option value="difference">Difference</option>
+                  <option value="id">Sample ID</option>
+                  <option value="score_a">Score A</option>
+                  <option value="score_b">Score B</option>
+                </select>
+              </div>
             </div>
-            <button class="export-button">Export Results</button>
           </div>
 
-          <div class="samples-table-container">
+          <div
+            class="samples-table-container"
+            *ngIf="filteredSamples.length > 0"
+          >
             <table class="samples-table">
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Sample ID</th>
-                  <th>Model A Score</th>
-                  <th>Model B Score</th>
+                  <th>Evaluation A Score</th>
+                  <th>Evaluation B Score</th>
                   <th>Difference</th>
+                  <th>% Change</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let sample of filteredSamples; let i = index">
+                <tr
+                  *ngFor="let sample of filteredSamples; let i = index"
+                  [ngClass]="getSampleRowClass(sample)"
+                >
                   <td>{{ i + 1 }}</td>
-                  <td>{{ sample.sample_id }}</td>
-                  <td>
+                  <td class="sample-id">{{ sample.sample_id }}</td>
+                  <td class="sample-score">
                     {{ sample.evaluation_a_score !== undefined &&
                     sample.evaluation_a_score !== null ?
-                    (sample.evaluation_a_score | number:'1.2-2') : 'N/A' }}
+                    (sample.evaluation_a_score | number:'1.3-3') : 'N/A' }}
                   </td>
-                  <td>
+                  <td class="sample-score">
                     {{ sample.evaluation_b_score !== undefined &&
                     sample.evaluation_b_score !== null ?
-                    (sample.evaluation_b_score | number:'1.2-2') : 'N/A' }}
+                    (sample.evaluation_b_score | number:'1.3-3') : 'N/A' }}
                   </td>
-                  <td [ngClass]="getSampleDifferenceClass(sample)">
-                    {{ getSampleDifferenceWithSign(sample) }} ({{
-                    getSamplePercentageDifference(sample) }})
+                  <td
+                    class="sample-difference"
+                    [ngClass]="getSampleDifferenceClass(sample)"
+                  >
+                    {{ getSampleDifferenceWithSign(sample) }}
+                  </td>
+                  <td
+                    class="sample-percentage"
+                    [ngClass]="getSampleDifferenceClass(sample)"
+                  >
+                    {{ getSamplePercentageDifference(sample) }}
                   </td>
                   <td>
                     <span
-                      class="status-badge"
+                      class="status-badge sample-status"
                       [ngClass]="getSampleStatusClass(sample.status)"
                     >
                       {{ sample.status | uppercase }}
@@ -380,18 +619,122 @@
               </tbody>
             </table>
           </div>
+
+          <div class="no-samples-message" *ngIf="filteredSamples.length === 0">
+            <p>No samples match the current filter criteria.</p>
+          </div>
         </div>
 
         <div
           class="no-samples-container"
           *ngIf="!hasResults() || !hasSampleResults()"
         >
+          <div class="empty-state-icon">🔍</div>
+          <h3>No Sample Analysis Available</h3>
           <p class="no-results-text">
-            No sample comparison data available yet.
+            Run the comparison to see detailed sample-by-sample analysis.
           </p>
           <button
             *ngIf="canRunComparison()"
-            class="run-button-sm"
+            class="run-button-primary"
+            (click)="runComparison()"
+          >
+            Run Comparison
+          </button>
+        </div>
+      </div>
+
+      <!-- Detailed Metrics Tab -->
+      <div class="tab-content" *ngIf="selectedTabIndex === 3">
+        <div class="detailed-metrics-section" *ngIf="hasResults()">
+          <div class="metrics-grid">
+            <div
+              *ngFor="let metric of metricDifferences"
+              class="metric-detail-card"
+              [ngClass]="getMetricCardClass(metric)"
+            >
+              <h4 class="metric-title">
+                {{ getFormattedMetricName(metric.name) }}
+              </h4>
+
+              <div class="metric-stats">
+                <div class="stat-row">
+                  <span class="stat-label">Evaluation A:</span>
+                  <span class="stat-value"
+                    >{{ metric.evaluation_a_value | number:'1.4-4' }}</span
+                  >
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Evaluation B:</span>
+                  <span class="stat-value"
+                    >{{ metric.evaluation_b_value | number:'1.4-4' }}</span
+                  >
+                </div>
+                <div class="stat-row highlight">
+                  <span class="stat-label">Difference:</span>
+                  <span
+                    class="stat-value"
+                    [ngClass]="getDifferenceClass(metric)"
+                  >
+                    {{ getDifferenceWithSign(metric) }} ({{
+                    getPercentageDifference(metric) }})
+                  </span>
+                </div>
+              </div>
+
+              <div
+                class="metric-details"
+                *ngIf="metric.name && getMetricStatistics(metric.name) as stats"
+              >
+                <h5>Statistical Details</h5>
+                <div class="stats-grid">
+                  <div class="stats-column">
+                    <div class="stat-item">
+                      <span class="stat-key">Min:</span>
+                      <span class="stat-val"
+                        >{{ stats.evaluation_a?.min | number:'1.3-3' }} / {{
+                        stats.evaluation_b?.min | number:'1.3-3' }}</span
+                      >
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-key">Max:</span>
+                      <span class="stat-val"
+                        >{{ stats.evaluation_a?.max | number:'1.3-3' }} / {{
+                        stats.evaluation_b?.max | number:'1.3-3' }}</span
+                      >
+                    </div>
+                  </div>
+                  <div class="stats-column">
+                    <div class="stat-item">
+                      <span class="stat-key">Median:</span>
+                      <span class="stat-val"
+                        >{{ stats.evaluation_a?.median | number:'1.3-3' }} / {{
+                        stats.evaluation_b?.median | number:'1.3-3' }}</span
+                      >
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-key">Std Dev:</span>
+                      <span class="stat-val"
+                        >{{ stats.evaluation_a?.std_dev | number:'1.3-3' }} / {{
+                        stats.evaluation_b?.std_dev | number:'1.3-3' }}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="no-detailed-metrics-container" *ngIf="!hasResults()">
+          <div class="empty-state-icon">📋</div>
+          <h3>No Detailed Metrics Available</h3>
+          <p class="no-results-text">
+            Run the comparison to see comprehensive metric statistics.
+          </p>
+          <button
+            *ngIf="canRunComparison()"
+            class="run-button-primary"
             (click)="runComparison()"
           >
             Run Comparison
@@ -416,17 +759,15 @@
         <div class="sample-meta-section">
           <div class="sample-id-row">
             <span class="sample-id-label">Sample ID:</span>
-            <span class="sample-id-value"
-              >{{ selectedSample ? selectedSample.sample_id : 'N/A' }}</span
-            >
+            <span class="sample-id-value">{{ selectedSample.sample_id }}</span>
           </div>
           <div class="sample-status-row">
             <span class="sample-status-label">Status:</span>
             <span
               class="status-badge sample-status-badge"
-              [ngClass]="selectedSample ? getSampleStatusClass(selectedSample.status) : ''"
+              [ngClass]="getSampleStatusClass(selectedSample.status)"
             >
-              {{ selectedSample ? (selectedSample.status | uppercase) : 'N/A' }}
+              {{ selectedSample.status | uppercase }}
             </span>
           </div>
         </div>
@@ -436,36 +777,34 @@
             <div class="score-item">
               <span class="score-label">Evaluation A Score:</span>
               <span class="score-value">
-                {{ selectedSample && selectedSample.evaluation_a_score ?
-                (selectedSample.evaluation_a_score | number:'1.2-2') : 'N/A' }}
+                {{ selectedSample.evaluation_a_score !== undefined &&
+                selectedSample.evaluation_a_score !== null ?
+                (selectedSample.evaluation_a_score | number:'1.4-4') : 'N/A' }}
               </span>
             </div>
             <div class="score-item">
               <span class="score-label">Evaluation B Score:</span>
               <span class="score-value">
-                {{ selectedSample && selectedSample.evaluation_b_score ?
-                (selectedSample.evaluation_b_score | number:'1.2-2') : 'N/A' }}
+                {{ selectedSample.evaluation_b_score !== undefined &&
+                selectedSample.evaluation_b_score !== null ?
+                (selectedSample.evaluation_b_score | number:'1.4-4') : 'N/A' }}
               </span>
             </div>
             <div class="score-item">
               <span class="score-label">Difference:</span>
               <span
                 class="score-value"
-                [ngClass]="selectedSample ? getSampleDifferenceClass(selectedSample) : ''"
+                [ngClass]="getSampleDifferenceClass(selectedSample)"
               >
-                {{ selectedSample ? getSampleDifferenceWithSign(selectedSample)
-                : 'N/A' }} ({{ selectedSample ?
-                getSamplePercentageDifference(selectedSample) : 'N/A' }})
+                {{ getSampleDifferenceWithSign(selectedSample) }} ({{
+                getSamplePercentageDifference(selectedSample) }})
               </span>
             </div>
           </div>
         </div>
 
         <div class="sample-data-section">
-          <div
-            class="sample-input"
-            *ngIf="selectedSample && selectedSample.input_data"
-          >
+          <div class="sample-input" *ngIf="selectedSample.input_data">
             <h4>Input Data</h4>
             <div class="data-block">
               {{ formatJsonData(selectedSample.input_data) }}
@@ -476,15 +815,13 @@
             <div class="sample-output-a">
               <h4>Evaluation A Output</h4>
               <div class="data-block">
-                {{ formatJsonData(selectedSample ?
-                selectedSample.evaluation_a_output : null) }}
+                {{ formatJsonData(selectedSample.evaluation_a_output) }}
               </div>
             </div>
             <div class="sample-output-b">
               <h4>Evaluation B Output</h4>
               <div class="data-block">
-                {{ formatJsonData(selectedSample ?
-                selectedSample.evaluation_b_output : null) }}
+                {{ formatJsonData(selectedSample.evaluation_b_output) }}
               </div>
             </div>
           </div>

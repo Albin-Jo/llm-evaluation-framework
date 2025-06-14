@@ -2,14 +2,13 @@ import {
   Component,
   OnInit,
   OnDestroy,
-  ElementRef,
-  NO_ERRORS_SCHEMA,
   ChangeDetectorRef,
+  NO_ERRORS_SCHEMA,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, takeUntil, forkJoin, of } from 'rxjs';
+import { Subject, takeUntil, of } from 'rxjs';
 import { finalize, catchError } from 'rxjs/operators';
 
 import {
@@ -120,16 +119,9 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         next: (comparison) => {
           console.log('Loaded comparison:', comparison);
           this.comparison = comparison;
-
-          // Extract metrics data from the response
           this.extractMetricDifferences(comparison);
-
-          // Extract sample differences
           this.extractSampleDifferences(comparison);
-
-          // Load visualization data for the default visualization
           this.loadVisualizationData(this.selectedVisualization);
-
           this.cdr.markForCheck();
         },
         error: (err) => {
@@ -146,7 +138,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   extractMetricDifferences(comparison: ComparisonDetail): void {
     this.metricDifferences = [];
 
-    // Check if comparison_results contains metric_comparison data
     if (
       comparison.comparison_results?.['metric_comparison'] &&
       typeof comparison.comparison_results['metric_comparison'] === 'object'
@@ -154,7 +145,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       const metricComparison =
         comparison.comparison_results['metric_comparison'];
 
-      // Convert the metric_comparison object into an array of MetricDifference objects
       this.metricDifferences = Object.entries(metricComparison).map(
         ([metricName, data]) => {
           const metricData = data as any;
@@ -170,17 +160,14 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
           };
         }
       );
-
-      console.log('Extracted metric differences:', this.metricDifferences);
-    }
-
-    // If we have metric_differences directly in the comparison data, use those
-    else if (
+    } else if (
       comparison.metric_differences &&
       comparison.metric_differences.length > 0
     ) {
       this.metricDifferences = comparison.metric_differences;
     }
+
+    console.log('Extracted metric differences:', this.metricDifferences);
   }
 
   /**
@@ -189,7 +176,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   extractSampleDifferences(comparison: ComparisonDetail): void {
     this.sampleDifferences = [];
 
-    // Check for sample_comparison data in the API response
     if (
       comparison.comparison_results?.['sample_comparison']?.matched_results &&
       typeof comparison.comparison_results['sample_comparison']
@@ -198,40 +184,46 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       const sampleResults =
         comparison.comparison_results['sample_comparison'].matched_results;
 
-      // Convert the nested object structure to an array of SampleDifference objects
-      this.sampleDifferences = Object.entries(sampleResults).map(
-        ([sampleId, data]) => {
+      this.sampleDifferences = Object.entries(sampleResults)
+        .map(([sampleId, data]) => {
           const sampleData = data as any;
+          if (sampleData.comparison?.missing_in) {
+            return null;
+          }
           return {
             sample_id: sampleId,
             evaluation_a_score: sampleData.evaluation_a?.overall_score,
             evaluation_b_score: sampleData.evaluation_b?.overall_score,
             absolute_difference: sampleData.comparison?.absolute_difference,
             percentage_difference: sampleData.comparison?.percentage_change,
-            status: sampleData.comparison?.is_improvement
-              ? 'improved'
-              : 'regressed',
-            // These fields might need to be populated from elsewhere
+            status: this.determineSampleStatus(sampleData.comparison),
             input_data: {},
             evaluation_a_output: sampleData.evaluation_a || {},
             evaluation_b_output: sampleData.evaluation_b || {},
           };
-        }
-      );
-
-      console.log('Extracted sample differences:', this.sampleDifferences);
-    }
-
-    // If we have result_differences directly in the comparison data, use those
-    else if (comparison.result_differences) {
-      // Flatten the object of arrays into a single array
+        })
+        .filter((sample) => sample !== null) as SampleDifference[];
+    } else if (comparison.result_differences) {
       this.sampleDifferences = Object.values(
         comparison.result_differences
       ).flat();
     }
 
-    // Apply initial filtering and sorting
     this.filterSamples();
+  }
+
+  /**
+   * Determine sample status from comparison data
+   */
+  private determineSampleStatus(comparison: any): string {
+    if (!comparison) return 'unchanged';
+    if (comparison.is_improvement === true) return 'improved';
+    if (
+      comparison.is_improvement === false &&
+      comparison.absolute_difference !== 0
+    )
+      return 'regressed';
+    return 'unchanged';
   }
 
   /**
@@ -246,7 +238,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         catchError((error) => {
           console.error(`Error loading ${type} visualization:`, error);
-          // If API fails, create visualization data from metrics
           return of(this.createVisualizationDataFromMetrics(type));
         })
       )
@@ -259,7 +250,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Create visualization data from metrics if API doesn't provide it
+   * Create visualization data from metrics
    */
   createVisualizationDataFromMetrics(
     type: 'radar' | 'bar' | 'line'
@@ -268,20 +259,19 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       (m) => m.name || m.metric_name || ''
     );
 
-    // Create datasets based on visualization type
     let datasets;
 
     if (type === 'radar' || type === 'line') {
       datasets = [
         {
-          label: 'Evaluation A',
+          label: this.comparison?.evaluation_a?.['name'] || 'Evaluation A',
           data: this.metricDifferences.map((m) => m.evaluation_a_value),
           backgroundColor: 'rgba(54, 162, 235, 0.2)',
           borderColor: 'rgba(54, 162, 235, 1)',
           fill: type === 'radar',
         },
         {
-          label: 'Evaluation B',
+          label: this.comparison?.evaluation_b?.['name'] || 'Evaluation B',
           data: this.metricDifferences.map((m) => m.evaluation_b_value),
           backgroundColor: 'rgba(255, 99, 132, 0.2)',
           borderColor: 'rgba(255, 99, 132, 1)',
@@ -289,15 +279,14 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         },
       ];
     } else {
-      // bar chart
       datasets = [
         {
-          label: 'Evaluation A',
+          label: this.comparison?.evaluation_a?.['name'] || 'Evaluation A',
           data: this.metricDifferences.map((m) => m.evaluation_a_value),
           backgroundColor: 'rgba(54, 162, 235, 0.7)',
         },
         {
-          label: 'Evaluation B',
+          label: this.comparison?.evaluation_b?.['name'] || 'Evaluation B',
           data: this.metricDifferences.map((m) => m.evaluation_b_value),
           backgroundColor: 'rgba(255, 99, 132, 0.7)',
         },
@@ -317,7 +306,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Filter and sort samples based on user selection
+   * Filter and sort samples
    */
   filterSamples(): void {
     if (!this.sampleDifferences || this.sampleDifferences.length === 0) {
@@ -325,7 +314,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       return;
     }
 
-    // Apply filter
     let filtered = [...this.sampleDifferences];
 
     if (this.sampleFilter !== 'all') {
@@ -334,29 +322,26 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       );
     }
 
-    // Apply sort
     switch (this.sampleSort) {
       case 'difference':
         filtered.sort((a, b) => {
           const diffA = Math.abs(a.absolute_difference || 0);
           const diffB = Math.abs(b.absolute_difference || 0);
-          return diffB - diffA; // Sort by absolute difference (largest first)
+          return diffB - diffA;
         });
         break;
       case 'id':
-        filtered.sort((a, b) => {
-          return a.sample_id.localeCompare(b.sample_id);
-        });
+        filtered.sort((a, b) => a.sample_id.localeCompare(b.sample_id));
         break;
       case 'score_a':
-        filtered.sort((a, b) => {
-          return (b.evaluation_a_score || 0) - (a.evaluation_a_score || 0);
-        });
+        filtered.sort(
+          (a, b) => (b.evaluation_a_score || 0) - (a.evaluation_a_score || 0)
+        );
         break;
       case 'score_b':
-        filtered.sort((a, b) => {
-          return (b.evaluation_b_score || 0) - (a.evaluation_b_score || 0);
-        });
+        filtered.sort(
+          (a, b) => (b.evaluation_b_score || 0) - (a.evaluation_b_score || 0)
+        );
         break;
     }
 
@@ -365,10 +350,10 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Sort samples based on user selection
+   * Sort samples
    */
   sortSamples(): void {
-    this.filterSamples(); // Just reapply filtering which includes sorting
+    this.filterSamples();
   }
 
   /**
@@ -380,7 +365,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Show detailed view of a sample
+   * Show sample details
    */
   viewSampleDetails(sample: SampleDifference): void {
     this.selectedSample = sample;
@@ -389,7 +374,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Close the sample details modal
+   * Close sample details modal
    */
   closeSampleDetails(): void {
     this.showSampleDetails = false;
@@ -398,7 +383,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Run the comparison calculation
+   * Run comparison
    */
   runComparison(): void {
     if (!this.comparisonId) return;
@@ -428,7 +413,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
             .subscribe({
               next: () => {
                 this.notificationService.success('Comparison is running');
-                this.loadComparison(this.comparisonId);
+                setTimeout(() => this.loadComparison(this.comparisonId), 2000);
               },
               error: (error) => {
                 this.notificationService.error(
@@ -442,7 +427,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Edit the comparison
+   * Edit comparison
    */
   editComparison(): void {
     if (this.comparison) {
@@ -451,7 +436,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Delete the comparison
+   * Delete comparison
    */
   deleteComparison(): void {
     if (!this.comparison) return;
@@ -482,7 +467,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Navigate to a specific evaluation
+   * Navigate to evaluation
    */
   viewEvaluation(evaluationId: string): void {
     if (evaluationId) {
@@ -510,6 +495,172 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
+   * Get overall score for evaluation
+   */
+  getOverallScore(evaluation: 'a' | 'b'): number {
+    if (
+      !this.comparison?.comparison_results?.['overall_comparison']
+        ?.overall_scores
+    ) {
+      return 0;
+    }
+
+    const scores =
+      this.comparison.comparison_results['overall_comparison'].overall_scores;
+    return evaluation === 'a' ? scores.evaluation_a : scores.evaluation_b;
+  }
+
+  /**
+   * Get formatted metric name
+   */
+  getFormattedMetricName(name: string | undefined): string {
+    if (!name) return 'Unknown Metric';
+
+    return name
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (l) => l.toUpperCase())
+      .replace(/Deepeval/g, 'DeepEval')
+      .replace(/G Eval/g, 'G-Eval');
+  }
+
+  /**
+   * Get statistical power information
+   */
+  getStatisticalPower(): string {
+    const sampleSize = this.comparison?.summary?.matched_samples || 0;
+
+    if (sampleSize < 5) return 'Very Low';
+    if (sampleSize < 10) return 'Low';
+    if (sampleSize < 30) return 'Medium';
+    return 'High';
+  }
+
+  /**
+   * Get consistency score
+   */
+  getConsistencyScore(): number | null {
+    // Check in summary first (based on API response)
+    if (
+      this.comparison?.summary &&
+      'consistency_score' in this.comparison.summary
+    ) {
+      return (this.comparison.summary as any)['consistency_score'];
+    }
+
+    // Fallback to comparison_results
+    const comparisonResults = this.comparison?.comparison_results;
+    if (comparisonResults && 'consistency_score' in comparisonResults) {
+      return comparisonResults['consistency_score'] as number;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get weighted improvement score
+   */
+  getWeightedImprovementScore(): number | null {
+    // Check in summary first (based on API response)
+    if (
+      this.comparison?.summary &&
+      'weighted_improvement_score' in this.comparison.summary
+    ) {
+      return (this.comparison.summary as any)['weighted_improvement_score'];
+    }
+
+    // Fallback to comparison_results
+    const comparisonResults = this.comparison?.comparison_results;
+    if (
+      comparisonResults &&
+      'weighted_improvement_score' in comparisonResults
+    ) {
+      return comparisonResults['weighted_improvement_score'] as number;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get cross method comparison flag
+   */
+  getCrossMethodComparison(): boolean {
+    // Check in summary first (based on API response)
+    if (
+      this.comparison?.summary &&
+      'cross_method_comparison' in this.comparison.summary
+    ) {
+      return (this.comparison.summary as any)['cross_method_comparison'];
+    }
+
+    // Fallback to comparison_results
+    const comparisonResults = this.comparison?.comparison_results;
+    if (comparisonResults && 'cross_method_comparison' in comparisonResults) {
+      return comparisonResults['cross_method_comparison'] as boolean;
+    }
+
+    return false;
+  }
+
+  /**
+   * Get narrative insights
+   */
+  getNarrativeInsights(): string | null {
+    // Check if it's a direct property on the comparison object (based on your API response)
+    if (this.comparison && 'narrative_insights' in this.comparison) {
+      return (this.comparison as any)['narrative_insights'];
+    }
+
+    // Fallback to check in comparison_results
+    const comparisonResults = this.comparison?.comparison_results;
+    if (comparisonResults && 'narrative_insights' in comparisonResults) {
+      return comparisonResults['narrative_insights'] as string;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get top improvements
+   */
+  getTopImprovements(): Array<{
+    metric_name: string;
+    percentage_change: number;
+  }> {
+    return this.comparison?.summary?.top_improvements || [];
+  }
+
+  /**
+   * Get top regressions
+   */
+  getTopRegressions(): Array<{
+    metric_name: string;
+    percentage_change: number;
+  }> {
+    return this.comparison?.summary?.top_regressions || [];
+  }
+
+  /**
+   * Get unchanged metrics count
+   */
+  getUnchangedMetrics(): number {
+    const total = this.comparison?.summary?.total_metrics || 0;
+    const improved = this.comparison?.summary?.improved_metrics || 0;
+    const regressed = this.comparison?.summary?.regressed_metrics || 0;
+    return Math.max(0, total - improved - regressed);
+  }
+
+  /**
+   * Get metric statistics for detailed view
+   */
+  getMetricStatistics(metricName: string): any {
+    if (!this.comparison?.comparison_results?.['metric_comparison']) {
+      return null;
+    }
+
+    return this.comparison.comparison_results['metric_comparison'][metricName];
+  }
+
+  /**
    * Get CSS class for status badge
    */
   getStatusBadgeClass(status: ComparisonStatus): string {
@@ -528,7 +679,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Check if comparison can be run (only PENDING or FAILED comparisons)
+   * Check if comparison can be run
    */
   canRunComparison(): boolean {
     return (
@@ -560,27 +711,30 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   getFormattedOverallResult(): string {
     if (!this.comparison?.summary) return 'N/A';
 
-    // Check for percentage_change in the summary
     if (this.comparison.summary.percentage_change !== undefined) {
       const improvement = this.comparison.summary.percentage_change;
-      return `${improvement > 0 ? '+' : ''}${improvement.toFixed(
-        1
-      )}% Improvement`;
+      return `${improvement > 0 ? '+' : ''}${improvement.toFixed(1)}%`;
     }
 
-    // Fallback to overall_comparison if available
-    else if (
+    if (
       this.comparison.overall_comparison?.overall_scores?.percentage_change !==
       undefined
     ) {
       const improvement =
         this.comparison.overall_comparison.overall_scores.percentage_change;
-      return `${improvement > 0 ? '+' : ''}${improvement.toFixed(
-        1
-      )}% Improvement`;
+      return `${improvement > 0 ? '+' : ''}${improvement.toFixed(1)}%`;
     }
 
-    // If neither is available, just return the text result
+    if (
+      this.comparison.comparison_results?.['overall_comparison']?.overall_scores
+        ?.percentage_change !== undefined
+    ) {
+      const improvement =
+        this.comparison.comparison_results['overall_comparison'].overall_scores
+          .percentage_change;
+      return `${improvement > 0 ? '+' : ''}${improvement.toFixed(1)}%`;
+    }
+
     return this.comparison.summary.overall_result || 'N/A';
   }
 
@@ -590,7 +744,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   getResultClass(): string {
     if (!this.comparison?.summary) return 'neutral';
 
-    // Try to determine from percentage_change
     if (this.comparison.summary.percentage_change !== undefined) {
       const improvement = this.comparison.summary.percentage_change;
       if (improvement > 0) return 'improved';
@@ -598,8 +751,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       return 'neutral';
     }
 
-    // Check overall_comparison
-    else if (
+    if (
       this.comparison.overall_comparison?.overall_scores?.is_improvement !==
       undefined
     ) {
@@ -608,8 +760,18 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         : 'regressed';
     }
 
-    // Check overall_result string
-    else if (this.comparison.summary.overall_result) {
+    // Check overall_comparison in comparison_results
+    if (
+      this.comparison.comparison_results?.['overall_comparison']?.overall_scores
+        ?.is_improvement !== undefined
+    ) {
+      return this.comparison.comparison_results['overall_comparison']
+        .overall_scores.is_improvement
+        ? 'improved'
+        : 'regressed';
+    }
+
+    if (this.comparison.summary.overall_result) {
       if (this.comparison.summary.overall_result === 'improved')
         return 'improved';
       if (this.comparison.summary.overall_result === 'regressed')
@@ -620,40 +782,26 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Get improved metrics percentage
+   * Get metric row CSS class
    */
-  getImprovedPercentage(): string {
-    if (!this.comparison?.summary) return '0%';
-
-    const improved = this.comparison.summary.improved_metrics || 0;
-    const total = this.comparison.summary.total_metrics || 1; // Avoid division by zero
-
-    return `${Math.round((improved / total) * 100)}%`;
+  getMetricRowClass(metric: MetricDifference): string {
+    return metric.is_improvement ? 'improved' : 'regressed';
   }
 
   /**
-   * Get regressed metrics percentage
+   * Get metric card CSS class
    */
-  getRegressedPercentage(): string {
-    if (!this.comparison?.summary) return '0%';
-
-    const regressed = this.comparison.summary.regressed_metrics || 0;
-    const total = this.comparison.summary.total_metrics || 1; // Avoid division by zero
-
-    return `${Math.round((regressed / total) * 100)}%`;
+  getMetricCardClass(metric: MetricDifference): string {
+    return metric.is_improvement ? 'improved' : 'regressed';
   }
 
   /**
-   * Get metric difference CSS class
+   * Get difference CSS class
    */
   getDifferenceClass(metric: MetricDifference): string {
-    if (metric.is_improvement) {
-      return 'positive';
-    } else if (metric.absolute_difference === 0) {
-      return 'neutral';
-    } else {
-      return 'negative';
-    }
+    if (metric.is_improvement) return 'positive';
+    if (metric.absolute_difference === 0) return 'neutral';
+    return 'negative';
   }
 
   /**
@@ -675,26 +823,55 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
+   * Get impact class
+   */
+  getImpactClass(metric: MetricDifference): string {
+    const percentage = Math.abs(
+      metric.percentage_change || metric.percentage_difference || 0
+    );
+    if (percentage >= 20) return 'high';
+    if (percentage >= 5) return 'medium';
+    return 'low';
+  }
+
+  /**
+   * Get impact label
+   */
+  getImpactLabel(metric: MetricDifference): string {
+    const percentage = Math.abs(
+      metric.percentage_change || metric.percentage_difference || 0
+    );
+    if (percentage >= 20) return 'High Impact';
+    if (percentage >= 5) return 'Medium Impact';
+    return 'Low Impact';
+  }
+
+  /**
+   * Get sample row CSS class
+   */
+  getSampleRowClass(sample: SampleDifference): string {
+    return sample.status === 'improved'
+      ? 'improved'
+      : sample.status === 'regressed'
+      ? 'regressed'
+      : '';
+  }
+
+  /**
    * Get sample difference CSS class
    */
   getSampleDifferenceClass(sample: SampleDifference | null): string {
-    if (!sample || !sample.absolute_difference) return 'neutral';
-
-    if (sample.status === 'improved') {
-      return 'positive';
-    } else if (sample.status === 'regressed') {
-      return 'negative';
-    } else {
-      return 'neutral';
-    }
+    if (!sample) return 'neutral';
+    if (sample.status === 'improved') return 'positive';
+    if (sample.status === 'regressed') return 'negative';
+    return 'neutral';
   }
 
   /**
    * Get formatted sample difference with sign
    */
   getSampleDifferenceWithSign(sample: SampleDifference | null): string {
-    if (!sample || !sample.absolute_difference) return '0.00';
-
+    if (!sample || sample.absolute_difference === undefined) return '0.0000';
     const sign = sample.status === 'improved' ? '+' : '';
     return `${sign}${sample.absolute_difference.toFixed(4)}`;
   }
@@ -703,8 +880,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    * Get formatted sample percentage difference
    */
   getSamplePercentageDifference(sample: SampleDifference | null): string {
-    if (!sample || !sample.percentage_difference) return '0.0%';
-
+    if (!sample || sample.percentage_difference === undefined) return '0.0%';
     const sign = sample.status === 'improved' ? '+' : '';
     return `${sign}${(sample.percentage_difference * 100).toFixed(1)}%`;
   }
@@ -714,7 +890,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   getSampleStatusClass(status: string | undefined): string {
     if (!status) return '';
-
     switch (status) {
       case 'improved':
         return 'improved';
@@ -728,42 +903,10 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Get evaluation dataset name
-   */
-  getEvaluationDatasetName(): string {
-    if (!this.comparison) return '';
-
-    if (this.comparison.evaluation_a?.['dataset']?.name) {
-      return this.comparison.evaluation_a['dataset'].name;
-    }
-
-    return 'N/A';
-  }
-
-  /**
-   * Get evaluation method
-   */
-  getEvaluationMethod(): string {
-    if (!this.comparison) return '';
-
-    if (this.comparison.evaluation_a?.['method']) {
-      return this.comparison.evaluation_a['method'];
-    }
-
-    return 'N/A';
-  }
-
-  /**
    * Get config threshold value
    */
   getConfigThreshold(): string {
-    if (!this.comparison || !this.comparison.config) return '0.05';
-
-    if (this.comparison.config['threshold']) {
-      return this.comparison.config['threshold'].toString();
-    }
-
-    return '0.05';
+    return this.comparison?.config?.['threshold']?.toString() || '0.05';
   }
 
   /**
@@ -771,7 +914,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   formatJsonData(data: any): string {
     if (!data) return 'No data available';
-
     try {
       return JSON.stringify(data, null, 2);
     } catch (e) {

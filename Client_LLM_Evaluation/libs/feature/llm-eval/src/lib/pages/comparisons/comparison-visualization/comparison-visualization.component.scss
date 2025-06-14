@@ -5,15 +5,63 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  background-color: #fff;
-  padding: $spacing-4;
-  border-radius: $radius-md;
+  background-color: white;
+  border-radius: $radius-lg;
   box-shadow: $shadow-sm;
   overflow: hidden;
-  min-height: 400px;
+  min-height: 500px;
+  position: relative;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-3;
+    min-height: 400px;
+  }
+}
+
+.chart-header {
+  padding: $spacing-4 $spacing-6;
+  border-bottom: 1px solid $border-light;
+  background: linear-gradient(
+    135deg,
+    rgba($primary, 0.03) 0%,
+    rgba($primary, 0.01) 100%
+  );
+
+  .chart-title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+    margin: 0;
+    text-align: center;
+  }
+}
+
+.no-data-message {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 400px;
+  text-align: center;
+  padding: $spacing-8;
+
+  .no-data-icon {
+    font-size: $font-size-3xl;
+    margin-bottom: $spacing-4;
+    opacity: 0.5;
+  }
+
+  h3 {
+    color: $text-primary;
+    font-size: $font-size-lg;
+    margin-bottom: $spacing-3;
+  }
+
+  p {
+    color: $text-secondary;
+    font-size: $font-size-base;
+    max-width: 400px;
+    line-height: $line-height-normal;
   }
 }
 
@@ -21,107 +69,141 @@
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-bottom: $spacing-4;
+  align-items: center;
+  padding: $spacing-4;
   overflow: hidden;
+  flex: 1;
 
   @include media-breakpoint-down(md) {
-    height: auto;
-    max-height: 400px;
+    padding: $spacing-2;
   }
-}
-
-.no-data-message {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 300px;
-  color: $text-secondary;
-  font-size: $font-size-base;
-  font-style: italic;
-  border: 1px dashed $border-color;
-  border-radius: $radius-md;
-  text-align: center;
-  padding: $spacing-4;
 }
 
 .chart-svg {
   max-width: 100%;
   height: auto;
   overflow: visible;
+  background-color: transparent;
 
   @include media-breakpoint-down(md) {
     width: 100%;
-    max-height: 380px;
   }
 }
 
-/* Radar Chart Styles */
+// Chart Title
+.chart-title-text {
+  font-size: 18px;
+  font-weight: $font-weight-semibold;
+  fill: $text-primary;
+  text-anchor: middle;
+}
+
+// Radar Chart Styles
 .grid-circle {
   fill: none;
   stroke: $border-light;
   stroke-width: 1;
+  opacity: 0.7;
+}
+
+.grid-label {
+  font-size: 10px;
+  fill: $text-tertiary;
+  font-weight: $font-weight-regular;
 }
 
 .axis-line {
   stroke: $border-light;
   stroke-width: 1;
+  opacity: 0.8;
 }
 
 .data-polygon {
   stroke-width: 2;
-  opacity: 0.7;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+
+  &:hover {
+    opacity: 0.8;
+  }
 }
 
-/* Bar and Line Chart Styles */
+// Bar and Line Chart Styles
 .axis-label {
-  font-size: $font-size-xs;
+  font-size: 11px;
   fill: $text-secondary;
+  font-weight: $font-weight-regular;
 
   &.small {
-    font-size: $font-size-xs;
+    font-size: 9px;
   }
 }
 
 .bar {
-  stroke: rgba(255, 255, 255, 0.5);
-  stroke-width: 1;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.8;
+  }
 }
 
 .bar-label {
-  font-size: $font-size-xs;
+  font-size: 10px;
   font-weight: $font-weight-medium;
+  pointer-events: none;
 }
 
-/* Legend Styles */
+.line-path {
+  transition: stroke-width 0.2s ease;
+
+  &:hover {
+    stroke-width: 4 !important;
+  }
+}
+
+.data-point {
+  transition: r 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    r: 7;
+  }
+}
+
+.point-label {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+
+  .data-point:hover + & {
+    opacity: 1;
+  }
+}
+
+// Legend Styles
 .chart-legend {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
-  gap: $spacing-3;
-  margin-top: $spacing-2;
-  padding: $spacing-3;
+  align-items: center;
+  gap: $spacing-4;
+  padding: $spacing-4 $spacing-6;
   border-top: 1px solid $border-light;
+  background-color: $background-light;
 
   @include media-breakpoint-down(sm) {
     flex-direction: column;
     align-items: flex-start;
-    gap: $spacing-2;
+    gap: $spacing-3;
   }
 
   .legend-title {
-    font-weight: $font-weight-medium;
+    font-weight: $font-weight-semibold;
     font-size: $font-size-sm;
-    margin-right: $spacing-4;
     color: $text-secondary;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    margin-right: $spacing-4;
-    white-space: nowrap;
+    margin-right: $spacing-2;
 
     @include media-breakpoint-down(sm) {
       margin-right: 0;
@@ -129,16 +211,186 @@
     }
   }
 
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+    padding: $spacing-1 $spacing-3;
+    border-radius: $radius-sm;
+    background-color: white;
+    border: 1px solid $border-light;
+    transition: $transition-normal;
+
+    &:hover {
+      background-color: rgba($primary, 0.02);
+      border-color: rgba($primary, 0.2);
+    }
+
+    @include media-breakpoint-down(sm) {
+      width: 100%;
+    }
+  }
+
   .legend-color {
     width: 16px;
     height: 16px;
     border-radius: $radius-sm;
-    margin-right: $spacing-2;
     flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
   }
 
   .legend-label {
-    font-size: $font-size-xs;
-    color: $text-secondary;
+    font-size: $font-size-sm;
+    color: $text-primary;
+    font-weight: $font-weight-medium;
+    white-space: nowrap;
+  }
+}
+
+// Chart Statistics
+.chart-stats {
+  padding: $spacing-4 $spacing-6;
+  border-top: 1px solid $border-light;
+  background-color: rgba($info, 0.02);
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: $spacing-4;
+
+    @include media-breakpoint-down(sm) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-3;
+    }
+  }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-2 $spacing-3;
+    background-color: white;
+    border-radius: $radius-sm;
+    border: 1px solid $border-light;
+
+    .stat-label {
+      font-size: $font-size-xs;
+      color: $text-secondary;
+      font-weight: $font-weight-medium;
+    }
+
+    .stat-value {
+      font-size: $font-size-sm;
+      color: $text-primary;
+      font-weight: $font-weight-semibold;
+      font-family: $font-family-mono;
+    }
+  }
+}
+
+// Responsive adjustments
+@include media-breakpoint-down(lg) {
+  .visualization-container {
+    min-height: 450px;
+  }
+
+  .chart-svg {
+    .axis-label {
+      font-size: 10px;
+    }
+
+    .bar-label {
+      font-size: 9px;
+    }
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .visualization-container {
+    min-height: 400px;
+  }
+
+  .chart-legend {
+    padding: $spacing-3;
+
+    .legend-item {
+      padding: $spacing-1 $spacing-2;
+    }
+
+    .legend-label {
+      font-size: $font-size-xs;
+    }
+  }
+
+  .chart-stats {
+    padding: $spacing-3;
+
+    .stat-item {
+      padding: $spacing-1 $spacing-2;
+
+      .stat-label {
+        font-size: 10px;
+      }
+
+      .stat-value {
+        font-size: $font-size-xs;
+      }
+    }
+  }
+}
+
+@include media-breakpoint-down(sm) {
+  .chart-svg {
+    .axis-label {
+      font-size: 8px;
+    }
+
+    .chart-title-text {
+      font-size: 14px;
+    }
+  }
+}
+
+// Loading animation for better UX
+@keyframes chartFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chart-container {
+  animation: chartFadeIn 0.5s ease-out;
+}
+
+// Interactive hover effects
+.data-polygon,
+.line-path,
+.bar {
+  transition: all 0.2s ease;
+}
+
+// Grid line improvements
+.grid-circle,
+.axis-line {
+  transition: opacity 0.2s ease;
+}
+
+// Color variations for better accessibility
+.legend-color {
+  &[style*='54, 162, 235'] {
+    box-shadow: inset 0 0 0 1px rgba(54, 162, 235, 0.3);
+  }
+
+  &[style*='255, 99, 132'] {
+    box-shadow: inset 0 0 0 1px rgba(255, 99, 132, 0.3);
+  }
+
+  &[style*='75, 192, 192'] {
+    box-shadow: inset 0 0 0 1px rgba(75, 192, 192, 0.3);
   }
 }

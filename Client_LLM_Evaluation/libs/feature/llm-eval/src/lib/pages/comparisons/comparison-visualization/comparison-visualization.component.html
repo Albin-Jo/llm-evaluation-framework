@@ -1,19 +1,35 @@
-<div class="visualization-container">
-  <!-- Error Message -->
-  <div *ngIf="!chartData" class="no-data-message">
-    No visualization data available. Run the comparison to see visualizations of
-    the results.
+<div class="visualization-container" #chartContainer>
+  <!-- Chart Title -->
+  <div class="chart-header" *ngIf="hasData()">
+    <h3 class="chart-title">{{ getChartTitle() }}</h3>
+  </div>
+
+  <!-- No Data Message -->
+  <div *ngIf="!hasData()" class="no-data-message">
+    <div class="no-data-icon">📊</div>
+    <h3>No Visualization Data Available</h3>
+    <p>Run the comparison to see visualizations of the results.</p>
   </div>
 
   <!-- Chart Area -->
-  <div class="chart-container" *ngIf="chartData">
+  <div class="chart-container" *ngIf="hasData()">
     <svg
       [attr.width]="svgWidth"
       [attr.height]="svgHeight"
       class="chart-svg"
-      [attr.viewBox]="'0 0 ' + svgWidth + ' ' + svgHeight"
+      [attr.viewBox]="getViewBox()"
       preserveAspectRatio="xMidYMid meet"
     >
+      <!-- Chart Title -->
+      <text
+        [attr.x]="svgWidth / 2"
+        [attr.y]="30"
+        text-anchor="middle"
+        class="chart-title-text"
+      >
+        {{ getChartTitle() }}
+      </text>
+
       <!-- Radar Chart -->
       <g *ngIf="visualizationType === 'radar'">
         <!-- Grid circles -->
@@ -24,6 +40,18 @@
           [attr.r]="circle.r"
           class="grid-circle"
         ></circle>
+
+        <!-- Grid labels -->
+        <g *ngFor="let circle of getRadarGridCircles(); let i = index">
+          <text
+            [attr.x]="circle.cx + circle.r"
+            [attr.y]="circle.cy - 5"
+            class="grid-label"
+            text-anchor="start"
+          >
+            {{ ((i + 1) * 0.2).toFixed(1) }}
+          </text>
+        </g>
 
         <!-- Axis lines -->
         <line
@@ -36,15 +64,18 @@
         ></line>
 
         <!-- Data polygons -->
-        <path
-          *ngFor="let dataset of chartData.datasets; let i = index"
-          [attr.d]="getRadarPath(i)"
-          [attr.stroke]="dataset.borderColor"
-          [attr.fill]="dataset.backgroundColor"
-          class="data-polygon"
-        ></path>
+        <g *ngFor="let dataset of processedData?.datasets; let i = index">
+          <path
+            [attr.d]="getRadarPath(i)"
+            [attr.stroke]="dataset.borderColor"
+            [attr.fill]="dataset.backgroundColor"
+            [attr.stroke-width]="2"
+            class="data-polygon"
+            [attr.opacity]="0.7"
+          ></path>
+        </g>
 
-        <!-- Labels -->
+        <!-- Axis labels -->
         <g *ngFor="let label of getRadarLabelPositions()">
           <text
             [attr.x]="label.x"
@@ -72,34 +103,47 @@
 
       <!-- Bar Chart -->
       <g *ngIf="visualizationType === 'bar'">
-        <!-- Y-axis and ticks -->
+        <!-- Y-axis -->
         <line
           [attr.x1]="margin.left"
           [attr.y1]="margin.top"
           [attr.x2]="margin.left"
           [attr.y2]="margin.top + innerHeight"
-          stroke="black"
-          stroke-width="1"
+          stroke="#333"
+          stroke-width="2"
         ></line>
 
+        <!-- Y-axis ticks and labels -->
         <g *ngFor="let tick of getYAxisTicks()">
           <line
             [attr.x1]="tick.x1"
             [attr.y1]="tick.y1"
             [attr.x2]="tick.x2"
             [attr.y2]="tick.y2"
-            stroke="black"
+            stroke="#333"
             stroke-width="1"
           ></line>
           <text
-            [attr.x]="tick.x1 - 5"
+            [attr.x]="tick.x1 - 8"
             [attr.y]="tick.y1"
             text-anchor="end"
             alignment-baseline="middle"
-            class="axis-label small"
+            class="axis-label"
           >
             {{ tick.label }}
           </text>
+        </g>
+
+        <!-- Horizontal grid lines -->
+        <g *ngFor="let tick of getYAxisTicks()">
+          <line
+            [attr.x1]="margin.left"
+            [attr.y1]="tick.y1"
+            [attr.x2]="margin.left + innerWidth"
+            [attr.y2]="tick.y1"
+            stroke="#f0f0f0"
+            stroke-width="1"
+          ></line>
         </g>
 
         <!-- X-axis -->
@@ -108,9 +152,37 @@
           [attr.y1]="margin.top + innerHeight"
           [attr.x2]="margin.left + innerWidth"
           [attr.y2]="margin.top + innerHeight"
-          stroke="black"
-          stroke-width="1"
+          stroke="#333"
+          stroke-width="2"
         ></line>
+
+        <!-- Bars -->
+        <g *ngFor="let bar of getBarChartRects(); let i = index">
+          <rect
+            [attr.x]="bar.x"
+            [attr.y]="bar.y"
+            [attr.width]="bar.width"
+            [attr.height]="bar.height"
+            [attr.fill]="bar.color"
+            class="bar"
+            stroke="white"
+            stroke-width="1"
+          ></rect>
+
+          <!-- Bar value labels -->
+          <text
+            *ngIf="bar.height > 20"
+            [attr.x]="bar.x + bar.width / 2"
+            [attr.y]="bar.y + 15"
+            text-anchor="middle"
+            fill="white"
+            class="bar-label"
+            font-size="10"
+            font-weight="bold"
+          >
+            {{ bar.value.toFixed(3) }}
+          </text>
+        </g>
 
         <!-- X-axis labels -->
         <g *ngFor="let label of getXAxisLabels()">
@@ -126,40 +198,9 @@
           </text>
         </g>
 
-        <!-- Bars -->
-        <g *ngFor="let bar of getBarChartRects(); let i = index">
-          <rect
-            [attr.x]="bar.x"
-            [attr.y]="bar.y"
-            [attr.width]="bar.width"
-            [attr.height]="bar.height"
-            [attr.fill]="bar.color"
-            class="bar"
-          ></rect>
-          <text
-            *ngIf="bar.height > 20"
-            [attr.x]="bar.x + bar.width / 2"
-            [attr.y]="bar.y + 15"
-            text-anchor="middle"
-            fill="white"
-            class="bar-label"
-          >
-            {{ bar.value.toFixed(2) }}
-          </text>
-        </g>
-
         <!-- Difference line -->
-        <g *ngIf="chartData.datasets.length > 2">
-          <polyline
-            [attr.points]="getDifferenceLine().points"
-            [attr.stroke]="getDifferenceLine().color"
-            fill="none"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          ></polyline>
-
-          <!-- Zero line for reference -->
+        <g *ngIf="processedData?.datasets?.length > 2">
+          <!-- Zero reference line -->
           <line
             [attr.x1]="margin.left"
             [attr.y1]="margin.top + innerHeight / 2"
@@ -167,38 +208,49 @@
             [attr.y2]="margin.top + innerHeight / 2"
             stroke="#ccc"
             stroke-width="1"
-            stroke-dasharray="4"
+            stroke-dasharray="4,4"
           ></line>
+
+          <!-- Difference line -->
+          <polyline
+            [attr.points]="getDifferenceLine().points"
+            [attr.stroke]="getDifferenceLine().color"
+            fill="none"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ></polyline>
         </g>
       </g>
 
       <!-- Line Chart -->
       <g *ngIf="visualizationType === 'line'">
-        <!-- Y-axis and ticks -->
+        <!-- Y-axis -->
         <line
           [attr.x1]="margin.left"
           [attr.y1]="margin.top"
           [attr.x2]="margin.left"
           [attr.y2]="margin.top + innerHeight"
-          stroke="black"
-          stroke-width="1"
+          stroke="#333"
+          stroke-width="2"
         ></line>
 
+        <!-- Y-axis ticks and labels -->
         <g *ngFor="let tick of getYAxisTicks()">
           <line
             [attr.x1]="tick.x1"
             [attr.y1]="tick.y1"
             [attr.x2]="tick.x2"
             [attr.y2]="tick.y2"
-            stroke="black"
+            stroke="#333"
             stroke-width="1"
           ></line>
           <text
-            [attr.x]="tick.x1 - 5"
+            [attr.x]="tick.x1 - 8"
             [attr.y]="tick.y1"
             text-anchor="end"
             alignment-baseline="middle"
-            class="axis-label small"
+            class="axis-label"
           >
             {{ tick.label }}
           </text>
@@ -211,7 +263,7 @@
             [attr.y1]="tick.y1"
             [attr.x2]="margin.left + innerWidth"
             [attr.y2]="tick.y1"
-            stroke="#eee"
+            stroke="#f0f0f0"
             stroke-width="1"
           ></line>
         </g>
@@ -222,8 +274,8 @@
           [attr.y1]="margin.top + innerHeight"
           [attr.x2]="margin.left + innerWidth"
           [attr.y2]="margin.top + innerHeight"
-          stroke="black"
-          stroke-width="1"
+          stroke="#333"
+          stroke-width="2"
         ></line>
 
         <!-- X-axis labels -->
@@ -233,7 +285,7 @@
             [attr.y]="label.y"
             text-anchor="middle"
             alignment-baseline="hanging"
-            class="axis-label small"
+            class="axis-label"
             [attr.transform]="
               'rotate(-45, ' + label.x + ', ' + (label.y + 10) + ')'
             "
@@ -243,27 +295,40 @@
         </g>
 
         <!-- Lines for each dataset -->
-        <g *ngFor="let dataset of chartData.datasets; let i = index">
+        <g *ngFor="let dataset of processedData?.datasets; let i = index">
           <path
             [attr.d]="getLineChartPath(i)"
             [attr.stroke]="dataset.borderColor"
             fill="none"
-            stroke-width="2"
+            stroke-width="3"
             stroke-linecap="round"
             stroke-linejoin="round"
+            class="line-path"
           ></path>
 
-          <!-- Add data points -->
+          <!-- Data points -->
           <g *ngFor="let point of getDataPoints(i)">
             <circle
-              *ngIf="point"
               [attr.cx]="point.x"
               [attr.cy]="point.y"
-              r="4"
+              r="5"
               [attr.fill]="dataset.borderColor"
               stroke="white"
-              stroke-width="1"
+              stroke-width="2"
+              class="data-point"
             ></circle>
+
+            <!-- Value labels on hover -->
+            <text
+              [attr.x]="point.x"
+              [attr.y]="point.y - 10"
+              text-anchor="middle"
+              class="point-label"
+              fill="#666"
+              font-size="10"
+            >
+              {{ point.value.toFixed(3) }}
+            </text>
           </g>
         </g>
       </g>
@@ -271,10 +336,10 @@
   </div>
 
   <!-- Legend -->
-  <div *ngIf="chartData" class="chart-legend">
+  <div *ngIf="hasData()" class="chart-legend">
     <div class="legend-title">Legend</div>
     <div
-      *ngFor="let dataset of chartData.datasets; let i = index"
+      *ngFor="let dataset of processedData?.datasets; let i = index"
       class="legend-item"
     >
       <div
@@ -284,6 +349,30 @@
         "
       ></div>
       <div class="legend-label">{{ dataset.label }}</div>
+    </div>
+  </div>
+
+  <!-- Chart Statistics -->
+  <div *ngIf="hasData() && metricDifferences.length > 0" class="chart-stats">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-label">Metrics Analyzed:</span>
+        <span class="stat-value">{{ processedData?.labels?.length || 0 }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Evaluations:</span>
+        <span class="stat-value">{{
+          processedData?.datasets?.length || 0
+        }}</span>
+      </div>
+      <div class="stat-item" *ngIf="processedData?.maxValue">
+        <span class="stat-label">Max Value:</span>
+        <span class="stat-value">{{ processedData.maxValue.toFixed(3) }}</span>
+      </div>
+      <div class="stat-item" *ngIf="processedData?.minValue">
+        <span class="stat-label">Min Value:</span>
+        <span class="stat-value">{{ processedData.minValue.toFixed(3) }}</span>
+      </div>
     </div>
   </div>
 </div>

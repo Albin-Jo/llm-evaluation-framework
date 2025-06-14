@@ -253,19 +253,19 @@
 
   // Color coding for section headers
   &.datasets-section h3 {
-    color: $primary;
+    color: $qa-black;
   }
 
   &.prompts-section h3 {
-    color: $info;
+    color: $qa-black;
   }
 
   &.agents-section h3 {
-    color: #673ab7;
+    color: $qa-black;
   }
 
   &.evaluations-section h3 {
-    color: $success;
+    color: $qa-black;
   }
 }
 
@@ -569,7 +569,7 @@
 
   // Color variations for different sections
   &.datasets-button {
-    background-color: $primary;
+    background-color: $qa-primary;
 
     &:hover {
       background-color: darken($primary, 10%);
@@ -577,7 +577,7 @@
   }
 
   &.prompts-button {
-    background-color: $info;
+    background-color: $qa-primary;
 
     &:hover {
       background-color: darken($info, 10%);
@@ -585,7 +585,7 @@
   }
 
   &.agents-button {
-    background-color: #673ab7;
+    background-color: $qa-primary;
 
     &:hover {
       background-color: darken(#673ab7, 10%);
@@ -593,11 +593,11 @@
   }
 
   &.evaluations-button {
-    background-color: $success;
+    background-color: $qa-primary;
     min-width: 160px; // Wider button for "Start New Evaluation"
 
     &:hover {
-      background-color: darken($success, 10%);
+      background-color: darken($qa-primary-light, 10%);
     }
   }
 }

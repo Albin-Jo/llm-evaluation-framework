@@ -88,6 +88,7 @@ export interface Comparison {
   created_at: string;
   updated_at: string;
   created_by_id?: string;
+  narrative_insights?: string; // Added based on API response
 }
 
 /**
@@ -96,6 +97,8 @@ export interface Comparison {
 export interface ComparisonSummary {
   evaluation_a_name?: string;
   evaluation_b_name?: string;
+  evaluation_a_method?: string;
+  evaluation_b_method?: string;
   overall_result?: string; // "improved", "regressed", etc.
   percentage_change?: number; // The actual percentage improvement/regression
   total_metrics?: number;
@@ -105,16 +108,40 @@ export interface ComparisonSummary {
   improved_samples?: number;
   regressed_samples?: number;
   matched_samples?: number;
+  significant_improvements?: number;
+  significant_regressions?: number;
+  significance_rate?: number;
+  metric_improvement_rate?: number;
+  weighted_improvement_score?: number; // Added based on API response
+  consistency_score?: number; // Added based on API response
+  cross_method_comparison?: boolean; // Added based on API response
   top_improvements?: Array<{
     metric_name: string;
     absolute_difference: number;
     percentage_change: number;
+    is_significant?: boolean;
+    effect_size?: number;
+    effect_magnitude?: string;
   }>;
   top_regressions?: Array<{
     metric_name: string;
     absolute_difference: number;
     percentage_change: number;
+    is_significant?: boolean;
+    effect_size?: number;
+    effect_magnitude?: string;
   }>;
+  statistical_power?: {
+    sample_size: number;
+    power_category: string;
+    recommendations: string[];
+    significant_results: number;
+    significance_rate: number;
+  };
+  effect_size_summary?: {
+    metric_effect_sizes: any[];
+    average_effect_size: number | null;
+  };
 }
 
 /**
@@ -125,6 +152,14 @@ export interface ComparisonDetail extends Comparison {
   evaluation_b?: Record<string, any>;
   metric_differences?: MetricDifference[];
   result_differences?: Record<string, SampleDifference[]>;
+  metric_configs?: Record<
+    string,
+    {
+      higher_is_better: boolean;
+      weight: number;
+      description?: string;
+    }
+  >;
   overall_comparison?: {
     overall_scores?: {
       evaluation_a: number;

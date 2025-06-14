@@ -1,7 +1,10 @@
-/* Path: libs/styles/_variables.scss */
-
 // Color System
 // Primary colors - Based on indigo from material design
+$qa-primary: #8d0c4a;
+$qa-primary-light: #8e2157;
+$qa-white: #fff;
+$qa-black: #212121;
+
 $primary: #3f51b5;
 $primary-dark: #303f9f;
 $primary-light: #c5cae9;
@@ -45,14 +48,14 @@ $shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
 $font-family-base: 'Arial, sans-serif';
 $font-family-mono: 'Courier New, monospace';
 
-$font-size-xs: 0.75rem;   // 12px
-$font-size-sm: 0.875rem;  // 14px
-$font-size-base: 1rem;    // 16px
-$font-size-md: 1.125rem;  // 18px
-$font-size-lg: 1.25rem;   // 20px
-$font-size-xl: 1.5rem;    // 24px
-$font-size-2xl: 1.75rem;  // 28px
-$font-size-3xl: 2rem;     // 32px
+$font-size-xs: 0.75rem; // 12px
+$font-size-sm: 0.875rem; // 14px
+$font-size-base: 1rem; // 16px
+$font-size-md: 1.125rem; // 18px
+$font-size-lg: 1.25rem; // 20px
+$font-size-xl: 1.5rem; // 24px
+$font-size-2xl: 1.75rem; // 28px
+$font-size-3xl: 2rem; // 32px
 
 $font-weight-regular: 400;
 $font-weight-medium: 500;
@@ -65,17 +68,17 @@ $line-height-loose: 1.8;
 
 // Spacing
 $spacing-0: 0;
-$spacing-1: 0.25rem;  // 4px
-$spacing-2: 0.5rem;   // 8px
-$spacing-3: 0.75rem;  // 12px
-$spacing-4: 1rem;     // 16px
-$spacing-5: 1.25rem;  // 20px
-$spacing-6: 1.5rem;   // 24px
-$spacing-8: 2rem;     // 32px
-$spacing-10: 2.5rem;  // 40px
-$spacing-12: 3rem;    // 48px
-$spacing-16: 4rem;    // 64px
-$spacing-20: 5rem;    // 80px
+$spacing-1: 0.25rem; // 4px
+$spacing-2: 0.5rem; // 8px
+$spacing-3: 0.75rem; // 12px
+$spacing-4: 1rem; // 16px
+$spacing-5: 1.25rem; // 20px
+$spacing-6: 1.5rem; // 24px
+$spacing-8: 2rem; // 32px
+$spacing-10: 2.5rem; // 40px
+$spacing-12: 3rem; // 48px
+$spacing-16: 4rem; // 64px
+$spacing-20: 5rem; // 80px
 
 // Border radius
 $radius-sm: 4px;
@@ -84,11 +87,11 @@ $radius-lg: 8px;
 $radius-full: 9999px;
 
 // Responsive breakpoints
-$breakpoint-xs: 320px;   // Extra small devices
-$breakpoint-sm: 576px;   // Small devices
-$breakpoint-md: 768px;   // Medium devices
-$breakpoint-lg: 992px;   // Large devices
-$breakpoint-xl: 1200px;  // Extra large devices
+$breakpoint-xs: 320px; // Extra small devices
+$breakpoint-sm: 576px; // Small devices
+$breakpoint-md: 768px; // Medium devices
+$breakpoint-lg: 992px; // Large devices
+$breakpoint-xl: 1200px; // Extra large devices
 $breakpoint-xxl: 1400px; // Extra extra large devices
 
 // Z-index

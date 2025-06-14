@@ -17,6 +17,18 @@
           >
             {{ evaluation.status }}
           </span>
+          <!-- Pass Rate Indicator -->
+          <span
+            class="pass-rate-badge"
+            *ngIf="resultsSummary"
+            [ngClass]="{
+              'high': resultsSummary.pass_rate >= 80,
+              'medium': resultsSummary.pass_rate >= 60 && resultsSummary.pass_rate < 80,
+              'low': resultsSummary.pass_rate < 60
+            }"
+          >
+            {{ resultsSummary.pass_rate }}% Pass Rate
+          </span>
         </div>
       </div>
 
@@ -97,6 +109,139 @@
           >Est. completion: {{
           formatDate(evaluationProgress.estimated_completion) }}</span
         >
+      </div>
+    </div>
+
+    <!-- Enhanced Metrics Overview -->
+    <div
+      class="metrics-overview-section"
+      *ngIf="hasResults() && metricsCategories.length > 0"
+    >
+      <div class="section-header">
+        <h3 class="section-title">Metrics Dashboard</h3>
+        <div class="overall-stats" *ngIf="metricsSummary">
+          <div class="stat-item">
+            <span class="stat-value">{{ metricsSummary.passedMetrics }}</span>
+            <span class="stat-label"
+              >/ {{ metricsSummary.totalMetrics }} metrics passed</span
+            >
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ resultsSummary.pass_count }}</span>
+            <span class="stat-label"
+              >/ {{ resultsSummary.total_evaluated }} samples passed</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="metrics-grid">
+        <div
+          *ngFor="let metric of metricsCategories"
+          class="metric-card"
+          [ngClass]="getMetricStatusClass(metric)"
+        >
+          <div class="metric-header">
+            <h4 class="metric-name">{{ metric.name }}</h4>
+            <div
+              class="metric-status-badge"
+              [ngClass]="getMetricStatusClass(metric)"
+            >
+              {{ getMetricStatusText(metric) }}
+            </div>
+          </div>
+
+          <div class="metric-description">{{ metric.description }}</div>
+
+          <div class="metric-score-container">
+            <div class="score-circle">
+              <svg viewBox="0 0 42 42" class="circular-progress">
+                <circle
+                  cx="21"
+                  cy="21"
+                  r="15.91549430918954"
+                  fill="transparent"
+                  stroke="#e2e8f0"
+                  stroke-width="2"
+                ></circle>
+                <circle
+                  cx="21"
+                  cy="21"
+                  r="15.91549430918954"
+                  fill="transparent"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-dasharray="{{ metric.averageScore * 100 }}, 100"
+                  stroke-dashoffset="25"
+                  stroke-linecap="round"
+                  class="progress-circle"
+                ></circle>
+              </svg>
+              <div class="score-text">
+                {{ (metric.averageScore * 100).toFixed(0) }}%
+              </div>
+            </div>
+
+            <div class="metric-details">
+              <div class="threshold-info" *ngIf="metric.threshold">
+                <span class="threshold-label">Threshold:</span>
+                <span class="threshold-value"
+                  >{{ (metric.threshold * 100).toFixed(0) }}%</span
+                >
+              </div>
+              <div class="sample-info">
+                <span class="sample-count"
+                  >{{ metric.samples.length }} samples</span
+                >
+                <span class="success-count"
+                  >{{ getSuccessCount(metric.samples) }} passed</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Insights -->
+      <div class="performance-insights" *ngIf="metricsSummary">
+        <div class="insights-grid">
+          <!-- Critical Issues -->
+          <div
+            class="insight-card critical"
+            *ngIf="metricsSummary.criticalIssues.length > 0"
+          >
+            <h5 class="insight-title">⚠️ Critical Issues</h5>
+            <ul class="insight-list">
+              <li *ngFor="let issue of metricsSummary.criticalIssues">
+                {{ issue }}
+              </li>
+            </ul>
+          </div>
+
+          <!-- Strengths -->
+          <div
+            class="insight-card strengths"
+            *ngIf="metricsSummary.strengths.length > 0"
+          >
+            <h5 class="insight-title">✅ Strengths</h5>
+            <ul class="insight-list">
+              <li *ngFor="let strength of metricsSummary.strengths">
+                {{ strength }}
+              </li>
+            </ul>
+          </div>
+
+          <!-- Recommendations -->
+          <div class="insight-card recommendations">
+            <h5 class="insight-title">🎯 Recommendations</h5>
+            <ul class="insight-list">
+              <li *ngFor="let recommendation of metricsSummary.recommendations">
+                {{ recommendation }}
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -191,33 +336,35 @@
       </div>
     </div>
 
-    <!-- Metrics Section -->
-    <div class="metrics-section" *ngIf="hasResults() && metricsData.length > 0">
-      <h3 class="section-title">Metrics Overview</h3>
-      <div class="metrics-content">
-        <div class="metrics-chart">
-          <!-- Simple bar chart representation -->
-          <div class="chart-container">
-            <div *ngFor="let metric of metricsData" class="chart-bar">
-              <div class="bar-label">{{ metric.name }}</div>
-              <div class="bar-container">
-                <div class="bar" [style.width.%]="metric.value * 100"></div>
-                <div class="bar-value">{{ metric.value }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Results Section -->
     <div class="results-section">
       <div class="results-header">
         <h3 class="section-title">Evaluation Results</h3>
-        <div
-          class="results-actions"
-          *ngIf="evaluation.status === EvaluationStatus.COMPLETED || evaluation.status === EvaluationStatus.FAILED || evaluation.status === EvaluationStatus.CANCELLED"
-        ></div>
+        <div class="results-summary" *ngIf="resultsSummary">
+          <div class="summary-stats">
+            <div class="summary-stat">
+              <span class="summary-value"
+                >{{ resultsSummary.total_evaluated }}</span
+              >
+              <span class="summary-label">Total Samples</span>
+            </div>
+            <div class="summary-stat success">
+              <span class="summary-value">{{ resultsSummary.pass_count }}</span>
+              <span class="summary-label">Passed</span>
+            </div>
+            <div class="summary-stat failed">
+              <span class="summary-value"
+                >{{ resultsSummary.total_evaluated - resultsSummary.pass_count
+                }}</span
+              >
+              <span class="summary-label">Failed</span>
+            </div>
+            <div class="summary-stat">
+              <span class="summary-value">{{ resultsSummary.pass_rate }}%</span>
+              <span class="summary-label">Pass Rate</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Results Loading State -->
@@ -255,18 +402,14 @@
 
       <!-- Results Content -->
       <div *ngIf="hasResults() && !isLoadingResults" class="results-content">
-        <div class="results-summary">
-          <span class="results-count">Total Results: {{ totalResults }}</span>
-        </div>
-
         <table class="results-table">
           <thead>
             <tr>
               <th>#</th>
               <th>Sample ID</th>
-              <th>Score</th>
+              <th>Overall Score</th>
               <th>Status</th>
-              <th>Processing Time</th>
+              <th>Key Metrics</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
@@ -276,14 +419,28 @@
               <td>{{ i + 1 }}</td>
               <td>{{ result['dataset_sample_id'] || 'N/A' }}</td>
               <td>
-                {{ result['overall_score'] ? (result['overall_score'] |
-                number:'1.2-2') : 'N/A' }}
+                <div class="score-cell">
+                  <span class="score-value">
+                    {{ result['overall_score'] ? (result['overall_score'] |
+                    number:'1.2-2') : 'N/A' }}
+                  </span>
+                  <div class="score-bar" *ngIf="result['overall_score']">
+                    <div
+                      class="score-fill"
+                      [style.width.%]="result['overall_score'] * 100"
+                      [ngClass]="{
+                        'excellent': result['overall_score'] >= 0.8,
+                        'good': result['overall_score'] >= 0.6 && result['overall_score'] < 0.8,
+                        'poor': result['overall_score'] < 0.6
+                      }"
+                    ></div>
+                  </div>
+                </div>
               </td>
-              <!-- Pass/fail status column -->
               <td>
                 <span
                   class="status-badge"
-                  [ngClass]="result['passed'] ? 'completed' : 'failed'"
+                  [ngClass]="result['passed'] ? 'passed' : 'failed'"
                   *ngIf="result['passed'] !== undefined"
                 >
                   {{ result['passed'] ? 'PASS' : 'FAIL' }}
@@ -291,8 +448,27 @@
                 <span *ngIf="result['passed'] === undefined">N/A</span>
               </td>
               <td>
-                {{ result['processing_time_ms'] ? (result['processing_time_ms']
-                | number) + ' ms' : 'N/A' }}
+                <div
+                  class="key-metrics"
+                  *ngIf="result['metric_scores'] && result['metric_scores'].length > 0"
+                >
+                  <div
+                    *ngFor="let metric of result['metric_scores'].slice(0, 3)"
+                    class="mini-metric"
+                    [ngClass]="getMetricStatusClass(metric)"
+                  >
+                    <span class="metric-name">{{ metric.name }}</span>
+                    <span class="metric-value"
+                      >{{ (metric.value * 100).toFixed(0) }}%</span
+                    >
+                  </div>
+                  <span
+                    *ngIf="result['metric_scores'].length > 3"
+                    class="more-metrics"
+                  >
+                    +{{ result['metric_scores'].length - 3 }} more
+                  </span>
+                </div>
               </td>
               <td>{{ formatDate(result['created_at']) }}</td>
               <td>
@@ -306,7 +482,7 @@
       </div>
     </div>
 
-    <!-- Result Details Modal -->
+    <!-- Enhanced Result Details Modal -->
     <div
       class="modal-overlay"
       *ngIf="showResultDetails"
@@ -316,6 +492,18 @@
         <div class="modal-header">
           <h2>Result Details</h2>
           <div class="header-actions">
+            <div class="result-status" *ngIf="selectedResult">
+              <span
+                class="status-indicator"
+                [ngClass]="selectedResult['passed'] ? 'passed' : 'failed'"
+              >
+                {{ selectedResult['passed'] ? 'PASSED' : 'FAILED' }}
+              </span>
+              <span class="score-indicator">
+                {{ selectedResult['overall_score'] ?
+                (selectedResult['overall_score'] | number:'1.2-2') : 'N/A' }}
+              </span>
+            </div>
             <button class="export-button" (click)="exportResultDetails()">
               <span class="export-icon">📊</span>
               Export
@@ -355,7 +543,7 @@
               [class.active]="activeResultTab === 'metrics'"
               (click)="setActiveResultTab('metrics')"
             >
-              Metrics
+              Metrics ({{ selectedResult['metric_scores'].length || 0 }})
             </button>
           </div>
 
@@ -365,7 +553,7 @@
             <div class="tab-content" *ngIf="activeResultTab === 'query'">
               <div class="content-section">
                 <div class="section-header">
-                  <h4>User Query</h4>
+                  <h4>Input Query</h4>
                   <button
                     class="copy-button"
                     (click)="copyToClipboard(getQueryText(selectedResult))"
@@ -459,11 +647,13 @@
                 </div>
                 <div class="content-wrapper">
                   <div
-                    class="formatted-content"
+                    class="formatted-content response-content"
                     [class.collapsed]="!expandedSections.output"
                     [class.expanded]="expandedSections.output"
                   >
-                    <p>{{ getOutputText(selectedResult) }}</p>
+                    <div class="response-text">
+                      {{ getOutputText(selectedResult) }}
+                    </div>
                   </div>
                   <div
                     class="expand-toggle"
@@ -477,17 +667,42 @@
                     </span>
                   </div>
                 </div>
+
+                <!-- Expected Output Comparison -->
+                <div
+                  class="content-section"
+                  *ngIf="getExpectedOutputText(selectedResult) !== 'No expected output available'"
+                >
+                  <div class="section-header">
+                    <h4>Expected Output</h4>
+                    <button
+                      class="copy-button"
+                      (click)="copyToClipboard(getExpectedOutputText(selectedResult))"
+                      title="Copy expected output"
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
+                  <div class="content-wrapper">
+                    <div class="formatted-content expected-content">
+                      <p>{{ getExpectedOutputText(selectedResult) }}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Metrics Tab -->
+            <!-- Enhanced Metrics Tab -->
             <div class="tab-content" *ngIf="activeResultTab === 'metrics'">
               <div class="content-section">
                 <div class="section-header">
                   <h4>Evaluation Metrics</h4>
                   <div class="overall-score">
                     Overall Score:
-                    <span class="score-value">
+                    <span
+                      class="score-value"
+                      [ngClass]="getOverallScoreClass(selectedResult['overall_score'])"
+                    >
                       {{ selectedResult['overall_score'] ?
                       (selectedResult['overall_score'] | number:'1.2-2') : 'N/A'
                       }}
@@ -495,93 +710,89 @@
                   </div>
                 </div>
 
-                <!-- Metrics Table -->
+                <!-- Enhanced Metrics Grid -->
                 <div
-                  class="metrics-table-container"
+                  class="metrics-grid-modal"
                   *ngIf="selectedResult['metric_scores'] && selectedResult['metric_scores'].length > 0"
                 >
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>Metric</th>
-                        <th>Score</th>
-                        <th>Weight</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        *ngFor="let metric of selectedResult['metric_scores']"
-                      >
-                        <td>
-                          <div class="metric-name">{{ metric.name }}</div>
-                          <div
-                            class="metric-description"
-                            *ngIf="metric.meta_info && metric.meta_info['description']"
-                          >
-                            {{ metric.meta_info['description'] }}
-                          </div>
-                          <!-- Add threshold info -->
-                          <div
-                            class="metric-threshold"
-                            *ngIf="getMetricThreshold(metric)"
-                          >
-                            <small
-                              ><strong>Threshold:</strong> {{
-                              getMetricThreshold(metric) }}</small
-                            >
-                          </div>
-                        </td>
-                        <td>
-                          <div class="score-cell">
-                            <div class="score-bar">
-                              <div
-                                class="score-fill"
-                                [style.width.%]="metric.value * 100"
-                              ></div>
-                            </div>
-                            <span class="score-text"
-                              >{{ metric.value | number:'1.2-2' }}</span
-                            >
-                          </div>
-                        </td>
-                        <td>{{ metric.weight | number:'1.2-2' }}</td>
-                        <td>
-                          <span
-                            class="metric-status"
-                            [ngClass]="getMetricStatusClass(metric)"
-                          >
-                            {{ getMetricStatus(metric) }}
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div
-                  class="metrics-explanations"
-                  *ngIf="selectedResult['metric_scores'] && selectedResult['metric_scores'].length > 0"
-                >
-                  <h5>Metric Explanations</h5>
                   <div
-                    class="explanation-item"
                     *ngFor="let metric of selectedResult['metric_scores']"
+                    class="metric-card-detailed"
+                    [ngClass]="getMetricStatusClass(metric)"
                   >
-                    <div class="explanation-header">
-                      <span class="metric-name">{{ metric.name }}</span>
-                      <span
-                        class="metric-status"
-                        [ngClass]="getMetricStatusClass(metric)"
-                      >
-                        {{ getMetricStatus(metric) }}
-                      </span>
+                    <div class="metric-header-detailed">
+                      <div class="metric-name-section">
+                        <h5 class="metric-name">{{ metric.name }}</h5>
+                        <p
+                          class="metric-description"
+                          *ngIf="getMetricDescription(metric.name)"
+                        >
+                          {{ getMetricDescription(metric.name) }}
+                        </p>
+                      </div>
+                      <div class="metric-score-section">
+                        <div class="score-circle-small">
+                          <svg viewBox="0 0 36 36" class="circular-chart">
+                            <circle
+                              cx="18"
+                              cy="18"
+                              r="15.91549430918954"
+                              fill="transparent"
+                              stroke="#e2e8f0"
+                              stroke-width="2"
+                            ></circle>
+                            <circle
+                              cx="18"
+                              cy="18"
+                              r="15.91549430918954"
+                              fill="transparent"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-dasharray="{{ metric.value * 100 }}, 100"
+                              stroke-dashoffset="25"
+                              stroke-linecap="round"
+                              class="progress-circle"
+                            ></circle>
+                          </svg>
+                          <div class="score-text-small">
+                            {{ (metric.value * 100).toFixed(0) }}%
+                          </div>
+                        </div>
+                        <div
+                          class="status-badge-small"
+                          [ngClass]="getMetricStatusClass(metric)"
+                        >
+                          {{ getMetricStatus(metric) }}
+                        </div>
+                      </div>
                     </div>
+
+                    <div class="metric-details-section">
+                      <div
+                        class="metric-info-row"
+                        *ngIf="getMetricThreshold(metric)"
+                      >
+                        <span class="info-label">Threshold:</span>
+                        <span class="info-value"
+                          >{{ getMetricThreshold(metric) ?
+                          (getMetricThreshold(metric)! * 100).toFixed(0) + '%' :
+                          'N/A' }}</span
+                        >
+                      </div>
+                      <div class="metric-info-row">
+                        <span class="info-label">Weight:</span>
+                        <span class="info-value"
+                          >{{ metric.weight | number:'1.2-2' }}</span
+                        >
+                      </div>
+                    </div>
+
                     <div
-                      class="explanation-text"
+                      class="metric-explanation"
                       *ngIf="getMetricReason(metric)"
                     >
-                      {{ getMetricReason(metric) }}
+                      <h6>Explanation:</h6>
+                      <p>{{ getMetricReason(metric) }}</p>
                     </div>
                   </div>
                 </div>
@@ -616,7 +827,7 @@
             </div>
           </div>
 
-          <!-- Summary Footer -->
+          <!-- Enhanced Summary Footer -->
           <div class="result-summary-footer">
             <div class="summary-item">
               <span class="summary-label">Processing Time:</span>
@@ -630,8 +841,8 @@
               <span class="summary-label">Status:</span>
               <span
                 class="summary-value status-badge"
-                [class.pass]="selectedResult['passed']"
-                [class.fail]="selectedResult['passed'] === false"
+                [class.passed]="selectedResult['passed']"
+                [class.failed]="selectedResult['passed'] === false"
               >
                 {{ selectedResult['passed'] === undefined ? 'N/A' :
                 (selectedResult['passed'] ? 'PASS' : 'FAIL') }}
@@ -641,6 +852,12 @@
               <span class="summary-label">Sample ID:</span>
               <span class="summary-value"
                 >{{ selectedResult['dataset_sample_id'] || 'N/A' }}</span
+              >
+            </div>
+            <div class="summary-item" *ngIf="selectedResult['pass_threshold']">
+              <span class="summary-label">Threshold:</span>
+              <span class="summary-value"
+                >{{ selectedResult['pass_threshold'] }}</span
               >
             </div>
           </div>

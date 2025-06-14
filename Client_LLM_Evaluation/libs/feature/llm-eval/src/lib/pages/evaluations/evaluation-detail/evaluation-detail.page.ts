@@ -11,7 +11,7 @@ import {
   EvaluationStatus,
   MetricScore,
   Prompt,
-  Dataset, // Make sure Dataset is imported
+  Dataset,
 } from '@ngtx-apps/data-access/models';
 import {
   EvaluationService,
@@ -28,6 +28,24 @@ import {
   NotificationService,
 } from '@ngtx-apps/utils/services';
 
+interface MetricsSummary {
+  totalMetrics: number;
+  passedMetrics: number;
+  passRate: number;
+  criticalIssues: string[];
+  strengths: string[];
+  recommendations: string[];
+}
+
+interface MetricCategory {
+  name: string;
+  description: string;
+  averageScore: number;
+  success: boolean;
+  threshold: number;
+  samples: { score: number; success: boolean }[];
+}
+
 @Component({
   selector: 'app-evaluation-detail',
   standalone: true,
@@ -39,12 +57,17 @@ import {
 export class EvaluationDetailPage implements OnInit, OnDestroy {
   evaluation: EvaluationDetail | null = null;
   evaluationResults: any[] = [];
+  resultsSummary: any = null;
   isLoading = false;
   isLoadingResults = false;
   error: string | null = null;
   resultsError: string | null = null;
   evaluationProgress: EvaluationProgress | null = null;
   evaluationId: string = '';
+
+  // Enhanced metrics data
+  metricsCategories: MetricCategory[] = [];
+  metricsSummary: MetricsSummary | null = null;
 
   // Pagination for results
   resultsPage = 1;
@@ -61,19 +84,13 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     raw: false,
   };
 
-  // For displaying result details
   selectedResult: EvaluationResult | null = null;
   showResultDetails = false;
-
-  // Polling for progress updates
   progressPolling = false;
 
   // Enums for template access
   EvaluationStatus = EvaluationStatus;
   EvaluationMethod = EvaluationMethod;
-
-  // Metrics charting
-  metricsData: { name: string; value: number }[] = [];
 
   private destroy$ = new Subject<void>();
 
@@ -106,24 +123,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     this.stopProgressPolling();
   }
 
-  // ISSUE 4 FIX: Add status validation before editing
-  editEvaluation(): void {
-    if (!this.evaluation) return;
-
-    // Check if evaluation can be edited (only PENDING status)
-    if (this.evaluation.status !== EvaluationStatus.PENDING) {
-      this.notificationService.error(
-        `Cannot edit ${this.evaluation.status.toLowerCase()} evaluation`
-      );
-      return;
-    }
-
-    this.router.navigate(['app/evaluations', this.evaluation.id, 'edit']);
-  }
-
-  /**
-   * Load both evaluation details and results
-   */
   loadEvaluationData(id: string): void {
     this.isLoading = true;
     this.error = null;
@@ -136,10 +135,8 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
           this.evaluation = evaluation;
           this.isLoading = false;
 
-          // Load related entities
           this.loadRelatedEntities();
 
-          // Load results if evaluation has completed
           if (
             evaluation.status === EvaluationStatus.COMPLETED ||
             evaluation.status === EvaluationStatus.FAILED ||
@@ -148,7 +145,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
             this.loadEvaluationResults();
           }
 
-          // Handle progress polling
           if (evaluation.status === EvaluationStatus.RUNNING) {
             this.startProgressPolling();
           } else if (evaluation.status === EvaluationStatus.PENDING) {
@@ -163,9 +159,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Load evaluation results separately
-   */
   loadEvaluationResults(): void {
     if (!this.evaluation) return;
 
@@ -179,8 +172,11 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
         next: (response) => {
           this.evaluationResults = response.items || [];
           this.totalResults = response.total || 0;
+          this.resultsSummary = (response as any).summary || null;
           this.isLoadingResults = false;
-          this.prepareMetricsData();
+
+          // Process metrics data from backend response
+          this.processMetricsData();
         },
         error: (error) => {
           this.resultsError = 'Failed to load evaluation results.';
@@ -190,10 +186,173 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       });
   }
 
+  processMetricsData(): void {
+    if (!this.evaluationResults || this.evaluationResults.length === 0) {
+      return;
+    }
+
+    // Extract unique metrics and calculate averages
+    const metricsMap = new Map<string, MetricCategory>();
+    let totalSuccessfulMetrics = 0;
+    let totalMetrics = 0;
+
+    this.evaluationResults.forEach((result) => {
+      if (result.metric_scores && result.metric_scores.length > 0) {
+        result.metric_scores.forEach((metric: any) => {
+          totalMetrics++;
+          if (metric.meta_info?.success) {
+            totalSuccessfulMetrics++;
+          }
+
+          if (!metricsMap.has(metric.name)) {
+            metricsMap.set(metric.name, {
+              name: metric.name,
+              description: this.getMetricDescription(metric.name),
+              averageScore: 0,
+              success: false,
+              threshold: metric.meta_info?.threshold || 0,
+              samples: [],
+            });
+          }
+
+          const category = metricsMap.get(metric.name)!;
+          category.samples.push({
+            score: metric.value,
+            success: metric.meta_info?.success || false,
+          });
+        });
+      }
+    });
+
+    // Calculate averages and overall success
+    this.metricsCategories = Array.from(metricsMap.values()).map((category) => {
+      const avgScore =
+        category.samples.reduce((sum, sample) => sum + sample.score, 0) /
+        category.samples.length;
+      const successCount = category.samples.filter(
+        (sample) => sample.success
+      ).length;
+
+      return {
+        ...category,
+        averageScore: avgScore,
+        success: successCount === category.samples.length, // All samples must pass
+      };
+    });
+
+    // Generate summary insights
+    this.generateMetricsSummary();
+  }
+
+  generateMetricsSummary(): void {
+    if (!this.resultsSummary || !this.metricsCategories.length) return;
+
+    const failedMetrics = this.metricsCategories.filter((m) => !m.success);
+    const excellentMetrics = this.metricsCategories.filter(
+      (m) => m.success && m.averageScore >= 0.8
+    );
+
+    const criticalIssues: string[] = [];
+    const strengths: string[] = [];
+    const recommendations: string[] = [];
+
+    // Identify critical issues from failed metrics
+    failedMetrics.forEach((metric) => {
+      criticalIssues.push(
+        `${metric.name} underperforming (${(metric.averageScore * 100).toFixed(
+          1
+        )}% avg)`
+      );
+    });
+
+    // Identify strengths from excellent metrics
+    excellentMetrics.forEach((metric) => {
+      strengths.push(
+        `Excellent ${metric.name} performance (${(
+          metric.averageScore * 100
+        ).toFixed(1)}% avg)`
+      );
+    });
+
+    // Generate recommendations based on performance
+    if (this.resultsSummary.pass_rate < 70) {
+      recommendations.push('Review evaluation strategy - pass rate below 70%');
+    }
+
+    failedMetrics.forEach((metric) => {
+      if (metric.name.toLowerCase().includes('relevancy')) {
+        recommendations.push(
+          'Optimize context retrieval and ranking algorithms'
+        );
+      } else if (metric.name.toLowerCase().includes('correctness')) {
+        recommendations.push('Review model accuracy and training data quality');
+      }
+    });
+
+    this.metricsSummary = {
+      totalMetrics: this.metricsCategories.length,
+      passedMetrics: this.metricsCategories.filter((m) => m.success).length,
+      passRate: this.resultsSummary.pass_rate,
+      criticalIssues,
+      strengths,
+      recommendations: recommendations.length
+        ? recommendations
+        : ['Continue current evaluation strategy'],
+    };
+  }
+
+  getMetricDescription(metricName: string): string {
+    const descriptions: { [key: string]: string } = {
+      'Answer Relevancy': 'Response relevance to query',
+      'Correctness (GEval)': 'Factual accuracy score',
+      'Completeness (GEval)': 'Response completeness',
+      Faithfulness: 'Context consistency',
+      'Contextual Precision': 'Context ranking quality',
+      'Contextual Relevancy': 'Context relevance score',
+      'Contextual Recall': 'Context completeness',
+      Hallucination: 'Factual inconsistencies',
+      Toxicity: 'Harmful content detection',
+      Bias: 'Unfair bias detection',
+    };
+    return descriptions[metricName] || 'Evaluation metric';
+  }
+
+  getMetricStatusClass(metric: MetricCategory | any): string {
+    // Handle MetricCategory objects
+    if (metric.success !== undefined) {
+      if (metric.success) {
+        return (metric.averageScore || metric.value || 0) >= 0.8
+          ? 'excellent'
+          : 'good';
+      }
+      return (metric.averageScore || metric.value || 0) >= 0.5
+        ? 'warning'
+        : 'danger';
+    }
+
+    // Handle metric objects with meta_info
+    if (metric.meta_info?.success !== undefined) {
+      return metric.meta_info.success ? 'pass' : 'fail';
+    }
+
+    // Fallback for other cases
+    const value = metric.averageScore || metric.value || 0;
+    if (value >= 0.8) return 'excellent';
+    if (value >= 0.6) return 'good';
+    if (value >= 0.5) return 'warning';
+    return 'danger';
+  }
+
+  getMetricStatusText(metric: MetricCategory): string {
+    if (metric.success) {
+      return metric.averageScore >= 0.8 ? 'EXCELLENT' : 'GOOD';
+    }
+    return metric.averageScore >= 0.5 ? 'FAIR' : 'POOR';
+  }
+
   loadRelatedEntities(): void {
     if (!this.evaluation) return;
 
-    // Load agent details if we have agent_id
     if (this.evaluation.agent_id && !this.evaluation.agent) {
       this.agentService
         .getAgent(this.evaluation.agent_id)
@@ -201,36 +360,27 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
         .subscribe({
           next: (agent) => {
             this.evaluation!.agent = agent;
-            console.log('✅ Loaded agent:', agent.name); // Debug log
           },
           error: (error) => {
-            console.error('❌ Error loading agent details:', error);
+            console.error('Error loading agent details:', error);
           },
         });
     }
 
-    // FIXED: Load dataset details - extract dataset from DatasetDetailResponse
     if (this.evaluation.dataset_id && !this.evaluation.dataset) {
       this.datasetService
         .getDataset(this.evaluation.dataset_id)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (datasetDetailResponse) => {
-            // DatasetService.getDataset() returns { dataset: Dataset, documents: Document[] }
-            // We need to extract the dataset property
             this.evaluation!.dataset = datasetDetailResponse.dataset;
-            console.log(
-              '✅ Loaded dataset:',
-              datasetDetailResponse.dataset.name
-            ); // Debug log
           },
           error: (error) => {
-            console.error('❌ Error loading dataset details:', error);
+            console.error('Error loading dataset details:', error);
           },
         });
     }
 
-    // Load prompt details if we have prompt_id
     if (this.evaluation.prompt_id && !this.evaluation.prompt) {
       this.promptService
         .getPromptById(this.evaluation.prompt_id)
@@ -246,13 +396,25 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
               updated_at: prompt.updated_at,
               version: prompt.version ? Number(prompt.version) : undefined,
             } as Prompt;
-            console.log('✅ Loaded prompt:', prompt.name); // Debug log
           },
           error: (error) => {
-            console.error('❌ Error loading prompt details:', error);
+            console.error('Error loading prompt details:', error);
           },
         });
     }
+  }
+
+  editEvaluation(): void {
+    if (!this.evaluation) return;
+
+    if (this.evaluation.status !== EvaluationStatus.PENDING) {
+      this.notificationService.error(
+        `Cannot edit ${this.evaluation.status.toLowerCase()} evaluation`
+      );
+      return;
+    }
+
+    this.router.navigate(['app/evaluations', this.evaluation.id, 'edit']);
   }
 
   startEvaluation(): void {
@@ -347,12 +509,25 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       });
   }
 
-  // ISSUE 1: Enhanced result details methods
+  navigateToCreateReport(): void {
+    if (!this.evaluation) return;
+
+    if (this.evaluation.status !== EvaluationStatus.COMPLETED) {
+      this.notificationService.error(
+        'Reports can only be generated for completed evaluations'
+      );
+      return;
+    }
+
+    this.router.navigate(['app/reports/create'], {
+      queryParams: { evaluation_id: this.evaluation.id },
+    });
+  }
+
   viewResultDetails(result: any): void {
     this.selectedResult = result;
     this.showResultDetails = true;
-    this.activeResultTab = 'query'; // Reset to first tab
-    // Reset expanded sections
+    this.activeResultTab = 'query';
     this.expandedSections = {
       query: false,
       context: false,
@@ -370,12 +545,11 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
   setActiveResultTab(tab: 'query' | 'context' | 'output' | 'metrics'): void {
     this.activeResultTab = tab;
   }
-  // Text extraction methods for different result fields
+
   getQueryText(result: any): string {
     if (!result || !result.input_data) return 'No query available';
-
-    // Handle different possible query field names
     return (
+      result.input_data.input ||
       result.input_data.query ||
       result.input_data.question ||
       result.input_data.user_input ||
@@ -421,6 +595,7 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     if (!result || !result.output_data) return 'No output available';
 
     return (
+      result.output_data.actual_output ||
       result.output_data.response ||
       result.output_data.answer ||
       result.output_data.generated_text ||
@@ -428,7 +603,11 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     );
   }
 
-  // Utility methods for text management
+  getExpectedOutputText(result: any): string {
+    if (!result || !result.input_data) return 'No expected output available';
+    return result.input_data.expected_output || 'No expected output provided';
+  }
+
   shouldShowExpandButton(text: string | undefined): boolean {
     return !!(text && typeof text === 'string' && text.length > 300);
   }
@@ -444,38 +623,31 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  getMetricStatus(metric: any): string {
-    // Use backend-calculated success if available
-    if (metric.meta_info && typeof metric.meta_info.success === 'boolean') {
-      return metric.meta_info.success ? 'PASS' : 'FAIL';
-    }
-    
-    // Fallback to frontend calculation (should not be needed anymore)
-    if (metric.value >= 0.7) return 'PASS';
-    if (metric.value >= 0.5) return 'WARN';
-    return 'FAIL';
-  }
-  getMetricStatusClass(metric: any): string {
-    // Use backend-calculated success if available
-    if (metric.meta_info && typeof metric.meta_info.success === 'boolean') {
-      return metric.meta_info.success ? 'pass' : 'fail';
-    }
-    
-    // Fallback to frontend calculation
-    if (metric.value >= 0.7) return 'pass';
-    if (metric.value >= 0.5) return 'warn';
-    return 'fail';
-  }
-  
-  getMetricThreshold(metric: any): number | null {
-    return metric.meta_info && metric.meta_info.threshold ? metric.meta_info.threshold : null;
-  }
-  
-  getMetricReason(metric: any): string | null {
-    return metric.meta_info && metric.meta_info.reason ? metric.meta_info.reason : null;
+  getSuccessCount(samples: { success: boolean }[]): number {
+    return samples ? samples.filter((sample) => sample.success).length : 0;
   }
 
-  // Copy to clipboard functionality
+  getOverallScoreClass(score: number | undefined): { [key: string]: boolean } {
+    if (!score) return {};
+    return {
+      excellent: score >= 0.8,
+      good: score >= 0.6 && score < 0.8,
+      poor: score < 0.6,
+    };
+  }
+
+  getMetricStatus(metric: any): string {
+    return metric.meta_info?.success ? 'PASS' : 'FAIL';
+  }
+
+  getMetricThreshold(metric: any): number | null {
+    return metric.meta_info?.threshold || null;
+  }
+
+  getMetricReason(metric: any): string | null {
+    return metric.meta_info?.reason || null;
+  }
+
   copyToClipboard(text: string): void {
     navigator.clipboard.writeText(text).then(
       () => {
@@ -488,7 +660,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
     );
   }
 
-  // Helper method to safely convert objects to JSON strings
   getJsonString(obj: any): string {
     try {
       return JSON.stringify(obj, null, 2);
@@ -496,24 +667,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       console.error('Error converting to JSON:', error);
       return String(obj);
     }
-  }
-
-  // ISSUE 2 FIX: Generate Report Button
-  navigateToCreateReport(): void {
-    if (!this.evaluation) return;
-
-    // Check if evaluation is completed
-    if (this.evaluation.status !== EvaluationStatus.COMPLETED) {
-      this.notificationService.error(
-        'Reports can only be generated for completed evaluations'
-      );
-      return;
-    }
-
-    // Navigate to report creation with evaluation ID
-    this.router.navigate(['app/reports/create'], {
-      queryParams: { evaluation_id: this.evaluation.id },
-    });
   }
 
   exportResultDetails(): void {
@@ -525,8 +678,10 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
       query: this.getQueryText(this.selectedResult),
       context: this.getContextText(this.selectedResult),
       output: this.getOutputText(this.selectedResult),
+      expected_output: this.getExpectedOutputText(this.selectedResult),
       metrics: this.selectedResult.metric_scores,
       overall_score: this.selectedResult.overall_score,
+      passed: this.selectedResult['passed'],
       timestamp: new Date().toISOString(),
     };
 
@@ -615,39 +770,6 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
 
   stopProgressPolling(): void {
     this.progressPolling = false;
-  }
-
-  prepareMetricsData(): void {
-    if (!this.evaluationResults || this.evaluationResults.length === 0) {
-      return;
-    }
-
-    const metricNames = new Set<string>();
-    const metricValues: Record<string, number[]> = {};
-
-    this.evaluationResults.forEach((result) => {
-      if (result['metric_scores'] && result['metric_scores'].length > 0) {
-        result['metric_scores'].forEach((metric: any) => {
-          metricNames.add(metric.name);
-          if (!metricValues[metric.name]) {
-            metricValues[metric.name] = [];
-          }
-          metricValues[metric.name].push(metric.value);
-        });
-      }
-    });
-
-    this.metricsData = Array.from(metricNames).map((name) => {
-      const values = metricValues[name];
-      const average =
-        values.reduce((sum, value) => sum + value, 0) / values.length;
-      return {
-        name,
-        value: parseFloat(average.toFixed(2)),
-      };
-    });
-
-    this.metricsData.sort((a, b) => b.value - a.value);
   }
 
   getStatusBadgeClass(status: EvaluationStatus): string {

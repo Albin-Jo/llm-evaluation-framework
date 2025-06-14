@@ -4,12 +4,30 @@ import {
   OnChanges,
   SimpleChanges,
   ChangeDetectorRef,
+  ElementRef,
+  ViewChild,
+  AfterViewInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   MetricDifference,
   VisualizationData,
 } from '@ngtx-apps/data-access/models';
+
+interface ChartPoint {
+  x: number;
+  y: number;
+  value: number;
+  label: string;
+}
+
+interface ChartDataset {
+  label: string;
+  data: number[];
+  backgroundColor?: string;
+  borderColor?: string;
+  fill?: boolean;
+}
 
 @Component({
   selector: 'app-comparison-visualization',
@@ -18,15 +36,19 @@ import {
   templateUrl: './comparison-visualization.component.html',
   styleUrls: ['./comparison-visualization.component.scss'],
 })
-export class ComparisonVisualizationComponent implements OnChanges {
+export class ComparisonVisualizationComponent
+  implements OnChanges, AfterViewInit
+{
   @Input() visualizationData: VisualizationData | null = null;
   @Input() visualizationType: 'radar' | 'bar' | 'line' = 'radar';
   @Input() metricDifferences: MetricDifference[] = [];
 
+  @ViewChild('chartContainer', { static: false }) chartContainer!: ElementRef;
+
   // SVG dimensions and configuration
-  svgWidth = 700;
-  svgHeight = 500;
-  margin = { top: 50, right: 100, bottom: 80, left: 60 }; // Increased bottom margin for rotated labels
+  svgWidth = 800;
+  svgHeight = 600;
+  margin = { top: 80, right: 120, bottom: 120, left: 80 };
 
   // Derived dimensions
   get innerWidth(): number {
@@ -39,22 +61,53 @@ export class ComparisonVisualizationComponent implements OnChanges {
 
   // Chart data
   chartData: any = null;
+  processedData: any = null;
+
+  // Color schemes
+  private readonly colorSchemes = {
+    primary: 'rgba(54, 162, 235, 0.8)',
+    primaryLight: 'rgba(54, 162, 235, 0.2)',
+    secondary: 'rgba(255, 99, 132, 0.8)',
+    secondaryLight: 'rgba(255, 99, 132, 0.2)',
+    tertiary: 'rgba(75, 192, 192, 0.8)',
+    tertiaryLight: 'rgba(75, 192, 192, 0.2)',
+    grid: '#e0e0e0',
+    axis: '#757575',
+    text: '#212121',
+  };
 
   constructor(private cdr: ChangeDetectorRef) {}
 
+  ngAfterViewInit(): void {
+    this.updateSvgDimensions();
+    this.processData();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
-    // Process data when inputs change
     if (
       (changes['visualizationData'] && this.visualizationData) ||
       (changes['metricDifferences'] && this.metricDifferences.length > 0) ||
       changes['visualizationType']
     ) {
-      console.log('Visualization component inputs changed:', {
-        visualizationType: this.visualizationType,
-        visualizationData: this.visualizationData,
-        metricDifferences: this.metricDifferences,
-      });
       this.processData();
+    }
+  }
+
+  /**
+   * Update SVG dimensions based on container size
+   */
+  private updateSvgDimensions(): void {
+    if (this.chartContainer?.nativeElement) {
+      const containerWidth = this.chartContainer.nativeElement.offsetWidth;
+      if (containerWidth > 0) {
+        this.svgWidth = Math.min(containerWidth - 40, 1000);
+        this.svgHeight = Math.max(400, this.svgWidth * 0.6);
+
+        // Adjust margins for smaller screens
+        if (this.svgWidth < 600) {
+          this.margin = { top: 60, right: 80, bottom: 100, left: 60 };
+        }
+      }
     }
   }
 
@@ -63,31 +116,26 @@ export class ComparisonVisualizationComponent implements OnChanges {
    */
   processData(): void {
     if (this.visualizationData) {
-      // If visualization data is provided directly, use it
       this.chartData = this.visualizationData;
-      console.log('Using provided visualization data:', this.chartData);
     } else if (this.metricDifferences.length > 0) {
-      // Otherwise, create visualization data from metric differences
       this.chartData = this.createChartDataFromMetricDifferences();
-      console.log(
-        'Created chart data from metric differences:',
-        this.chartData
-      );
     }
-    this.cdr.markForCheck();
+
+    if (this.chartData) {
+      this.processedData = this.processChartData(this.chartData);
+      this.cdr.markForCheck();
+    }
   }
 
   /**
    * Create chart data from metric differences
    */
   private createChartDataFromMetricDifferences(): VisualizationData {
-    // Use either name or metric_name, falling back to index if neither exists
     const labels = this.metricDifferences.map(
       (m, index) => m.name || m.metric_name || `Metric ${index + 1}`
     );
 
-    // Create datasets based on visualization type
-    let datasets;
+    let datasets: ChartDataset[];
 
     if (
       this.visualizationType === 'radar' ||
@@ -97,40 +145,34 @@ export class ComparisonVisualizationComponent implements OnChanges {
         {
           label: 'Evaluation A',
           data: this.metricDifferences.map((m) => m.evaluation_a_value),
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          borderColor: 'rgba(54, 162, 235, 1)',
+          backgroundColor: this.colorSchemes.primaryLight,
+          borderColor: this.colorSchemes.primary,
           fill: this.visualizationType === 'radar',
         },
         {
           label: 'Evaluation B',
           data: this.metricDifferences.map((m) => m.evaluation_b_value),
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: this.colorSchemes.secondaryLight,
+          borderColor: this.colorSchemes.secondary,
           fill: this.visualizationType === 'radar',
         },
       ];
     } else {
-      // bar chart
       datasets = [
         {
           label: 'Evaluation A',
           data: this.metricDifferences.map((m) => m.evaluation_a_value),
-          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          backgroundColor: this.colorSchemes.primary,
         },
         {
           label: 'Evaluation B',
           data: this.metricDifferences.map((m) => m.evaluation_b_value),
-          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+          backgroundColor: this.colorSchemes.secondary,
         },
         {
           label: 'Difference (%)',
-          data: this.metricDifferences.map(
-            (m) =>
-              (m.percentage_change !== undefined
-                ? m.percentage_change
-                : m.percentage_difference) || 0
-          ),
-          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          data: this.metricDifferences.map((m) => m.percentage_change || 0),
+          backgroundColor: this.colorSchemes.tertiary,
         },
       ];
     }
@@ -143,94 +185,121 @@ export class ComparisonVisualizationComponent implements OnChanges {
   }
 
   /**
-   * Get path for radar chart
+   * Process chart data for rendering
    */
-  getRadarPath(dataIndex: number): string {
-    if (
-      !this.chartData ||
-      !this.chartData.datasets ||
-      this.chartData.datasets.length <= dataIndex
-    ) {
+  private processChartData(data: any): any {
+    if (!data || !data.labels || !data.datasets) {
+      return null;
+    }
+
+    const processed = {
+      labels: data.labels,
+      datasets: data.datasets,
+      maxValue: 0,
+      minValue: 0,
+    };
+
+    // Calculate min and max values for scaling
+    const allValues = data.datasets.flatMap((dataset: any) =>
+      dataset.data.filter((val: any) => !isNaN(val) && isFinite(val))
+    );
+
+    if (allValues.length > 0) {
+      processed.maxValue = Math.max(...allValues);
+      processed.minValue = Math.min(...allValues);
+
+      // For difference data (can be negative), adjust range
+      if (this.visualizationType === 'bar' && data.datasets.length > 2) {
+        const diffValues = data.datasets[2].data.filter(
+          (val: any) => !isNaN(val) && isFinite(val)
+        );
+        if (diffValues.length > 0) {
+          processed.maxValue = Math.max(
+            processed.maxValue,
+            Math.max(...diffValues)
+          );
+          processed.minValue = Math.min(
+            processed.minValue,
+            Math.min(...diffValues)
+          );
+        }
+      }
+
+      // Add some padding
+      const range = processed.maxValue - processed.minValue;
+      processed.maxValue += range * 0.1;
+      processed.minValue -= range * 0.1;
+
+      // Ensure minimum range for radar and line charts
+      if (this.visualizationType !== 'bar') {
+        processed.minValue = Math.max(0, processed.minValue);
+        if (processed.maxValue < 1) {
+          processed.maxValue = 1;
+        }
+      }
+    }
+
+    return processed;
+  }
+
+  /**
+   * Get radar chart path
+   */
+  getRadarPath(datasetIndex: number): string {
+    if (!this.processedData || !this.processedData.datasets[datasetIndex]) {
       return '';
     }
 
-    const dataset = this.chartData.datasets[dataIndex];
+    const dataset = this.processedData.datasets[datasetIndex];
     const dataPoints = dataset.data;
-    const labels = this.chartData.labels;
+    const labels = this.processedData.labels;
 
     if (!dataPoints || !labels || dataPoints.length === 0) {
       return '';
     }
 
-    // Calculate the maximum value for scaling
-    const maxValue = Math.max(
-      ...this.chartData.datasets.flatMap((ds: any) =>
-        ds.data.filter((val: any) => !isNaN(val))
-      )
-    );
-
-    // If all values are NaN, return empty path
-    if (!isFinite(maxValue)) {
-      return '';
-    }
-
-    // Calculate radius and center
     const radius = Math.min(this.innerWidth, this.innerHeight) / 2;
     const centerX = this.margin.left + this.innerWidth / 2;
     const centerY = this.margin.top + this.innerHeight / 2;
-
-    // Calculate the angles for each metric (equally spaced)
     const angleStep = (2 * Math.PI) / labels.length;
 
-    // Create path
     let path = '';
+    let hasValidPoints = false;
+
     for (let i = 0; i < dataPoints.length; i++) {
-      // Skip if value is NaN
-      if (isNaN(dataPoints[i])) {
-        continue;
-      }
+      if (isNaN(dataPoints[i]) || !isFinite(dataPoints[i])) continue;
 
-      // Scale the data point value to the radius
-      const scaledValue = (dataPoints[i] / maxValue) * radius;
-
-      // Calculate the x and y coordinates for this point
-      const angle = i * angleStep - Math.PI / 2; // Start from top (minus pi/2)
+      const scaledValue =
+        (dataPoints[i] / this.processedData.maxValue) * radius;
+      const angle = i * angleStep - Math.PI / 2;
       const x = centerX + scaledValue * Math.cos(angle);
       const y = centerY + scaledValue * Math.sin(angle);
 
-      // Add to path
-      if (path === '') {
+      if (!hasValidPoints) {
         path += `M ${x} ${y}`;
+        hasValidPoints = true;
       } else {
         path += ` L ${x} ${y}`;
       }
     }
 
-    // Close the path if we have at least one point
-    if (path !== '') {
-      path += ' Z';
-    }
-
-    return path;
+    return hasValidPoints ? path + ' Z' : '';
   }
 
   /**
    * Get radar axis lines
    */
   getRadarAxisLines(): { x1: number; y1: number; x2: number; y2: number }[] {
-    if (!this.chartData || !this.chartData.labels) {
-      return [];
-    }
+    if (!this.processedData?.labels) return [];
 
-    const labels = this.chartData.labels;
+    const labels = this.processedData.labels;
     const radius = Math.min(this.innerWidth, this.innerHeight) / 2;
     const centerX = this.margin.left + this.innerWidth / 2;
     const centerY = this.margin.top + this.innerHeight / 2;
-
     const angleStep = (2 * Math.PI) / labels.length;
 
     return labels.map((_: any, i: number) => {
-      const angle = i * angleStep - Math.PI / 2; // Start from top
+      const angle = i * angleStep - Math.PI / 2;
       return {
         x1: centerX,
         y1: centerY,
@@ -241,18 +310,15 @@ export class ComparisonVisualizationComponent implements OnChanges {
   }
 
   /**
-   * Get radar circular grid lines
+   * Get radar grid circles
    */
   getRadarGridCircles(): { cx: number; cy: number; r: number }[] {
-    if (!this.chartData) {
-      return [];
-    }
+    if (!this.processedData) return [];
 
     const radius = Math.min(this.innerWidth, this.innerHeight) / 2;
     const centerX = this.margin.left + this.innerWidth / 2;
     const centerY = this.margin.top + this.innerHeight / 2;
 
-    // Create 5 concentric circles for the grid
     return [0.2, 0.4, 0.6, 0.8, 1].map((factor) => ({
       cx: centerX,
       cy: centerY,
@@ -261,31 +327,25 @@ export class ComparisonVisualizationComponent implements OnChanges {
   }
 
   /**
-   * Get radar labels positions
+   * Get radar label positions
    */
   getRadarLabelPositions(): { x: number; y: number; label: string }[] {
-    if (!this.chartData || !this.chartData.labels) {
-      return [];
-    }
+    if (!this.processedData?.labels) return [];
 
-    const labels = this.chartData.labels;
-    const radius = Math.min(this.innerWidth, this.innerHeight) / 2 + 20; // Add padding
+    const labels = this.processedData.labels;
+    const radius = Math.min(this.innerWidth, this.innerHeight) / 2 + 30;
     const centerX = this.margin.left + this.innerWidth / 2;
     const centerY = this.margin.top + this.innerHeight / 2;
-
     const angleStep = (2 * Math.PI) / labels.length;
 
     return labels.map((label: any, i: number) => {
-      const angle = i * angleStep - Math.PI / 2; // Start from top
+      const angle = i * angleStep - Math.PI / 2;
+      const truncatedLabel = this.truncateLabel(label);
+
       return {
         x: centerX + radius * Math.cos(angle),
         y: centerY + radius * Math.sin(angle),
-        label:
-          typeof label === 'string'
-            ? label.length > 15
-              ? label.substring(0, 12) + '...'
-              : label
-            : 'Label ' + (i + 1),
+        label: truncatedLabel,
       };
     });
   }
@@ -293,77 +353,55 @@ export class ComparisonVisualizationComponent implements OnChanges {
   /**
    * Get bar chart rectangles
    */
-  getBarChartRects(): {
+  getBarChartRects(): Array<{
     x: number;
     y: number;
     width: number;
     height: number;
     color: string;
-    label: string;
     value: number;
-  }[] {
-    if (!this.chartData || !this.chartData.datasets || !this.chartData.labels) {
-      return [];
-    }
+  }> {
+    if (!this.processedData?.datasets || !this.processedData?.labels) return [];
 
-    const labels = this.chartData.labels;
-    const datasets = this.chartData.datasets;
+    const labels = this.processedData.labels;
+    const datasets = this.processedData.datasets.slice(0, 2); // Only first two datasets for bars
 
-    // Use only the first two datasets for the bar chart
-    const barDatasets = datasets.slice(0, 2);
+    const barGroupWidth = this.innerWidth / labels.length;
+    const barWidth = Math.min(barGroupWidth * 0.35, 50);
+    const barSpacing = barGroupWidth * 0.1;
 
-    // Calculate bar width and spacing
-    const barGroupWidth = this.innerWidth / (labels.length || 1);
-    const barWidth = Math.min(barGroupWidth * 0.35, 40); // Adjust as needed and cap max width
-    const barSpacing = barGroupWidth * 0.05;
-
-    // Calculate the maximum value for scaling
-    const maxValue = Math.max(
-      ...barDatasets.flatMap((ds: any) =>
-        ds.data.filter((val: any) => !isNaN(val))
-      )
-    );
-
-    // If all values are NaN, return empty array
-    if (!isFinite(maxValue) || maxValue === 0) {
-      return [];
-    }
-
-    const bars: {
+    const bars: Array<{
       x: number;
       y: number;
       width: number;
       height: number;
       color: string;
-      label: string;
       value: number;
-    }[] = [];
+    }> = [];
 
-    barDatasets.forEach((dataset: any, datasetIndex: number) => {
+    datasets.forEach((dataset: any, datasetIndex: number) => {
       dataset.data.forEach((value: number, index: number) => {
-        // Skip if value is undefined, null, or NaN
-        if (value === undefined || value === null || isNaN(value)) {
-          return;
-        }
+        if (isNaN(value) || !isFinite(value)) return;
 
-        // Calculate bar height based on value
-        const barHeight = (value / maxValue) * this.innerHeight;
+        const normalizedValue = Math.max(0, value);
+        const barHeight =
+          (normalizedValue / this.processedData.maxValue) * this.innerHeight;
 
-        // Calculate bar position
         const x =
           this.margin.left +
           index * barGroupWidth +
           datasetIndex * (barWidth + barSpacing) +
-          barGroupWidth * 0.1; // Add some padding on the left
+          (barGroupWidth -
+            (datasets.length * barWidth + (datasets.length - 1) * barSpacing)) /
+            2;
         const y = this.margin.top + this.innerHeight - barHeight;
 
         bars.push({
           x,
           y,
           width: barWidth,
-          height: barHeight || 1, // Ensure a minimum height for visibility
-          color: dataset.backgroundColor,
-          label: labels[index] || `Label ${index}`,
+          height: Math.max(1, barHeight),
+          color: dataset.backgroundColor || this.colorSchemes.primary,
           value,
         });
       });
@@ -377,52 +415,29 @@ export class ComparisonVisualizationComponent implements OnChanges {
    */
   getDifferenceLine(): { points: string; color: string } {
     if (
-      !this.chartData ||
-      !this.chartData.datasets ||
-      this.chartData.datasets.length < 3
+      !this.processedData?.datasets ||
+      this.processedData.datasets.length < 3
     ) {
       return { points: '', color: '' };
     }
 
-    const labels = this.chartData.labels;
-    const diffDataset = this.chartData.datasets[2]; // Difference dataset
+    const diffDataset = this.processedData.datasets[2];
+    const labels = this.processedData.labels;
+    const barGroupWidth = this.innerWidth / labels.length;
 
-    // Filter out NaN values
-    const validDiffData = diffDataset.data.filter((val: any) => !isNaN(val));
-
-    // If no valid data, return empty line
-    if (validDiffData.length === 0) {
-      return { points: '', color: '' };
-    }
-
-    // Calculate the maximum absolute difference value for scaling
+    // Create a scale for the difference line (centered around zero)
     const maxAbsDiff = Math.max(
-      ...validDiffData.map((val: number) => Math.abs(val))
+      ...diffDataset.data.map((val: number) => Math.abs(val))
     );
+    const zeroLine = this.margin.top + this.innerHeight / 2;
+    const diffScale = (this.innerHeight * 0.3) / maxAbsDiff; // Use 30% of chart height
 
-    // If maxAbsDiff is 0 or not finite, return empty line
-    if (maxAbsDiff === 0 || !isFinite(maxAbsDiff)) {
-      return { points: '', color: '' };
-    }
-
-    // Calculate bar group width
-    const barGroupWidth = this.innerWidth / (labels.length || 1);
-
-    // Calculate the center points of each bar group
     const points = diffDataset.data
       .map((value: number, index: number) => {
-        // Skip if value is undefined, null, or NaN
-        if (value === undefined || value === null || isNaN(value)) {
-          return null;
-        }
+        if (isNaN(value) || !isFinite(value)) return null;
 
-        // Calculate the scaled value (map from -maxAbsDiff..maxAbsDiff to -halfHeight..halfHeight)
-        const halfHeight = this.innerHeight / 3; // Use 1/3 of height for difference line
-        const scaledValue = (value / maxAbsDiff) * halfHeight;
-
-        // Calculate the center of the bar group
         const x = this.margin.left + index * barGroupWidth + barGroupWidth / 2;
-        const y = this.margin.top + this.innerHeight / 2 - scaledValue; // Center line
+        const y = zeroLine - value * diffScale;
 
         return `${x},${y}`;
       })
@@ -431,68 +446,36 @@ export class ComparisonVisualizationComponent implements OnChanges {
 
     return {
       points,
-      color: diffDataset.backgroundColor,
+      color: diffDataset.backgroundColor || this.colorSchemes.tertiary,
     };
   }
 
   /**
-   * Get line chart paths
+   * Get line chart path
    */
   getLineChartPath(datasetIndex: number): string {
-    if (
-      !this.chartData ||
-      !this.chartData.datasets ||
-      this.chartData.datasets.length <= datasetIndex
-    ) {
-      return '';
-    }
+    if (!this.processedData?.datasets?.[datasetIndex]) return '';
 
-    const dataset = this.chartData.datasets[datasetIndex];
+    const dataset = this.processedData.datasets[datasetIndex];
     const dataPoints = dataset.data;
-    const labels = this.chartData.labels;
+    const labels = this.processedData.labels;
 
-    if (!dataPoints || !labels || dataPoints.length === 0) {
-      return '';
-    }
+    if (!dataPoints || !labels || dataPoints.length === 0) return '';
 
-    // Filter out NaN values for calculating max
-    const validDataPoints = this.chartData.datasets.flatMap((ds: any) =>
-      ds.data.filter((val: any) => !isNaN(val))
-    );
-
-    // If no valid data points, return empty path
-    if (validDataPoints.length === 0) {
-      return '';
-    }
-
-    // Calculate the maximum value for scaling
-    const maxValue = Math.max(...validDataPoints);
-
-    // If maxValue is 0 or not finite, return empty path
-    if (maxValue === 0 || !isFinite(maxValue)) {
-      return '';
-    }
-
-    // Calculate x and y scales
     const xStep = this.innerWidth / Math.max(1, labels.length - 1);
 
     let path = '';
     let isFirstValidPoint = true;
 
     dataPoints.forEach((value: number, index: number) => {
-      // Skip if value is undefined, null, or NaN
-      if (value === undefined || value === null || isNaN(value)) {
-        return;
-      }
+      if (isNaN(value) || !isFinite(value)) return;
 
-      // Calculate x and y coordinates
       const x = this.margin.left + index * xStep;
       const y =
         this.margin.top +
         this.innerHeight -
-        (value / maxValue) * this.innerHeight;
+        (value / this.processedData.maxValue) * this.innerHeight;
 
-      // Add to path
       if (isFirstValidPoint) {
         path += `M ${x} ${y}`;
         isFirstValidPoint = false;
@@ -505,150 +488,159 @@ export class ComparisonVisualizationComponent implements OnChanges {
   }
 
   /**
-   * Get data points for the line chart
+   * Get data points for line chart
    */
-  getDataPoints(datasetIndex: number): { x: number; y: number }[] {
+  getDataPoints(datasetIndex: number): ChartPoint[] {
     if (
-      !this.chartData ||
-      !this.chartData.datasets ||
-      this.chartData.datasets.length <= datasetIndex ||
+      !this.processedData?.datasets?.[datasetIndex] ||
       this.visualizationType !== 'line'
     ) {
       return [];
     }
 
-    const dataset = this.chartData.datasets[datasetIndex];
+    const dataset = this.processedData.datasets[datasetIndex];
     const dataPoints = dataset.data;
-    const labels = this.chartData.labels;
+    const labels = this.processedData.labels;
 
-    if (!dataPoints || !labels || dataPoints.length === 0) {
-      return [];
-    }
+    if (!dataPoints || !labels || dataPoints.length === 0) return [];
 
-    // Filter out NaN values for calculating max
-    const validDataPoints = this.chartData.datasets.flatMap((ds: any) =>
-      ds.data.filter((val: any) => !isNaN(val))
-    );
-
-    // If no valid data points, return empty array
-    if (validDataPoints.length === 0) {
-      return [];
-    }
-
-    // Calculate the maximum value for scaling
-    const maxValue = Math.max(...validDataPoints);
-
-    // If maxValue is not valid, return empty array
-    if (maxValue === 0 || !isFinite(maxValue)) {
-      return [];
-    }
-
-    // Calculate x and y scales
     const xStep = this.innerWidth / Math.max(1, labels.length - 1);
 
     return dataPoints
       .map((value: number, index: number) => {
-        // Skip if value is undefined, null, or NaN
-        if (value === undefined || value === null || isNaN(value)) {
-          return null;
-        }
+        if (isNaN(value) || !isFinite(value)) return null;
 
-        // Calculate x and y coordinates
         const x = this.margin.left + index * xStep;
         const y =
           this.margin.top +
           this.innerHeight -
-          (value / maxValue) * this.innerHeight;
+          (value / this.processedData.maxValue) * this.innerHeight;
 
-        return { x, y };
+        return {
+          x,
+          y,
+          value,
+          label: labels[index],
+        };
       })
-      .filter((point: any) => point !== null);
+      .filter((point: any) => point !== null) as ChartPoint[];
   }
 
   /**
-   * Get y-axis ticks for line and bar charts
+   * Get Y-axis ticks
    */
-  getYAxisTicks(): {
+  getYAxisTicks(): Array<{
     x1: number;
     y1: number;
     x2: number;
     y2: number;
     label: string;
-  }[] {
-    // Generate 5 evenly spaced ticks
-    const ticks = [0, 0.25, 0.5, 0.75, 1];
+  }> {
+    if (!this.processedData) return [];
 
-    return ticks.map((tick) => {
-      const y = this.margin.top + this.innerHeight - tick * this.innerHeight;
-      return {
+    const tickCount = 5;
+    const ticks: Array<{
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      label: string;
+    }> = [];
+
+    for (let i = 0; i <= tickCount; i++) {
+      const value = (this.processedData.maxValue / tickCount) * i;
+      const y =
+        this.margin.top + this.innerHeight - (i / tickCount) * this.innerHeight;
+
+      ticks.push({
         x1: this.margin.left - 5,
         y1: y,
         x2: this.margin.left,
         y2: y,
-        label: (tick * 100).toFixed(0) + '%',
-      };
-    });
+        label: value.toFixed(2),
+      });
+    }
+
+    return ticks;
   }
 
   /**
-   * Get x-axis labels for line and bar charts
+   * Get X-axis labels
    */
-  getXAxisLabels(): { x: number; y: number; label: string }[] {
-    if (!this.chartData || !this.chartData.labels) {
-      return [];
-    }
+  getXAxisLabels(): Array<{ x: number; y: number; label: string }> {
+    if (!this.processedData?.labels) return [];
 
-    const labels = this.chartData.labels;
-
-    // Ensure we don't have too many labels that would cause cluttering
-    const maxLabelsToShow = Math.min(
-      labels.length,
-      Math.floor(this.innerWidth / 80)
-    );
-    const skipFactor = Math.ceil(labels.length / maxLabelsToShow);
-
-    const filteredLabels = labels.filter(
-      (_: any, i: any) => i % skipFactor === 0 || i === labels.length - 1
-    );
+    const labels = this.processedData.labels;
 
     if (this.visualizationType === 'bar') {
-      // For bar chart, labels go in the center of each bar group
       const barGroupWidth = this.innerWidth / labels.length;
-
-      return labels.map((label: string, index: number) => {
-        // Truncate long labels
-        const displayLabel =
-          typeof label === 'string'
-            ? label.length > 15
-              ? label.substring(0, 12) + '...'
-              : label
-            : `Label ${index + 1}`;
-
-        const x = this.margin.left + index * barGroupWidth + barGroupWidth / 2;
-        const y = this.margin.top + this.innerHeight + 10;
-        return { x, y, label: displayLabel };
-      });
+      return labels.map((label: string, index: number) => ({
+        x: this.margin.left + index * barGroupWidth + barGroupWidth / 2,
+        y: this.margin.top + this.innerHeight + 20,
+        label: this.truncateLabel(label),
+      }));
     } else {
-      // line chart
-      // For line chart, labels go at each data point, with filtering for large datasets
       const xStep = this.innerWidth / Math.max(1, labels.length - 1);
+      const maxLabels = Math.floor(this.innerWidth / 80);
+      const skipFactor = Math.ceil(labels.length / maxLabels);
 
-      return filteredLabels.map((label: string, i: number) => {
-        // Get the actual index in the original labels array
-        const originalIndex = labels.indexOf(label);
-
-        // Truncate long labels
-        const displayLabel =
-          typeof label === 'string'
-            ? label.length > 15
-              ? label.substring(0, 12) + '...'
-              : label
-            : `Label ${originalIndex + 1}`;
-
-        const x = this.margin.left + originalIndex * xStep;
-        const y = this.margin.top + this.innerHeight + 10;
-        return { x, y, label: displayLabel };
-      });
+      return labels
+        .filter(
+          (_: any, i: number) => i % skipFactor === 0 || i === labels.length - 1
+        )
+        .map((label: string, i: number) => {
+          const originalIndex = labels.indexOf(label);
+          return {
+            x: this.margin.left + originalIndex * xStep,
+            y: this.margin.top + this.innerHeight + 20,
+            label: this.truncateLabel(label),
+          };
+        });
     }
+  }
+
+  /**
+   * Truncate long labels
+   */
+  private truncateLabel(label: string): string {
+    if (typeof label !== 'string') return String(label);
+
+    const maxLength = this.svgWidth < 600 ? 8 : 12;
+    return label.length > maxLength
+      ? label.substring(0, maxLength) + '...'
+      : label;
+  }
+
+  /**
+   * Get chart title
+   */
+  getChartTitle(): string {
+    switch (this.visualizationType) {
+      case 'radar':
+        return 'Radar Chart Comparison';
+      case 'bar':
+        return 'Bar Chart Comparison';
+      case 'line':
+        return 'Line Chart Comparison';
+      default:
+        return 'Metric Comparison';
+    }
+  }
+
+  /**
+   * Check if data is available
+   */
+  hasData(): boolean {
+    return !!(
+      this.processedData?.datasets?.length > 0 &&
+      this.processedData?.labels?.length > 0
+    );
+  }
+
+  /**
+   * Get SVG viewBox
+   */
+  getViewBox(): string {
+    return `0 0 ${this.svgWidth} ${this.svgHeight}`;
   }
 }
