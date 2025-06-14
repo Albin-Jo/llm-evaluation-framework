@@ -1,6 +1,18 @@
 @import '../../../../../../../styles/variables';
 @import '../../../../../../../styles/mixins';
 
+// QA Theme Colors - Updated to use the new color scheme
+$qa-primary: #8d0c4a;
+$qa-primary-light: #8e2157;
+$qa-white: #fff;
+$qa-black: #212121;
+
+// Override existing colors with QA theme
+$primary: $qa-primary;
+$primary-dark: darken($qa-primary, 10%);
+$primary-light: lighten($qa-primary, 40%);
+$text-primary: $qa-black;
+
 :host {
   display: block;
   width: 100%;
@@ -26,7 +38,7 @@
     .back-link {
       display: inline-flex;
       align-items: center;
-      color: $primary;
+      color: $qa-primary;
       text-decoration: none;
       font-size: $font-size-sm;
       font-weight: $font-weight-medium;
@@ -35,7 +47,7 @@
       transition: $transition-normal;
 
       &:hover {
-        background-color: rgba($primary, 0.1);
+        background-color: rgba($qa-primary, 0.1);
         text-decoration: none;
       }
 
@@ -63,7 +75,7 @@
       .page-title {
         @include page-title;
         margin-bottom: $spacing-3;
-        color: $text-primary;
+        color: $qa-black;
       }
 
       .page-description {
@@ -102,6 +114,12 @@
 
         &.edit-button {
           @include button-outline;
+          border-color: $qa-primary;
+          color: $qa-primary;
+
+          &:hover:not(:disabled) {
+            background-color: rgba($qa-primary, 0.05);
+          }
         }
 
         &.delete-button {
@@ -109,13 +127,13 @@
         }
 
         &.run-button {
-          background-color: $primary;
+          background-color: $qa-primary;
           color: white;
-          border-color: $primary;
+          border-color: $qa-primary;
 
           &:hover:not(:disabled) {
-            background-color: $primary-dark;
-            border-color: $primary-dark;
+            background-color: $qa-primary-light;
+            border-color: $qa-primary-light;
           }
         }
       }
@@ -123,24 +141,27 @@
   }
 }
 
-// Summary Banner
+// Summary Banner - Enhanced with QA colors
 .summary-banner {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: $spacing-6;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(180px, 1fr)
+  ); // Reduced from 200px
+  gap: $spacing-4; // Reduced from $spacing-6
   margin-bottom: $spacing-8;
-  padding: $spacing-6;
+  padding: $spacing-5; // Reduced from $spacing-6
   background: linear-gradient(
     135deg,
-    rgba($primary, 0.05) 0%,
-    rgba($primary, 0.02) 100%
+    rgba($qa-primary, 0.05) 0%,
+    rgba($qa-primary, 0.02) 100%
   );
   border-radius: $radius-lg;
-  border: 1px solid rgba($primary, 0.1);
+  border: 1px solid rgba($qa-primary, 0.15);
 
   @include media-breakpoint-down(md) {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: $spacing-4;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: $spacing-3;
     padding: $spacing-4;
   }
 
@@ -151,7 +172,7 @@
       font-size: $font-size-xl;
       font-weight: $font-weight-bold;
       margin-bottom: $spacing-2;
-      color: $text-primary;
+      color: $qa-black;
 
       &.improved {
         color: $success;
@@ -174,11 +195,14 @@
   }
 }
 
-// Information Cards Grid
+// Compact Information Cards Grid - Major redesign
 .info-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: $spacing-6;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(280px, 1fr)
+  ); // Reduced from 350px
+  gap: $spacing-4; // Reduced from $spacing-6
   margin-bottom: $spacing-8;
 
   @include media-breakpoint-down(sm) {
@@ -186,42 +210,51 @@
   }
 
   .info-card {
-    @include card-padded;
-    height: 100%;
+    @include card;
+    padding: $spacing-4; // Reduced from default card padding
+    height: auto; // Changed from 100% for more compact design
     display: flex;
     flex-direction: column;
+    border: 1px solid rgba($qa-primary, 0.1);
 
     &.evaluation-card {
-      border-left: 4px solid $primary;
+      border-left: 4px solid $qa-primary;
+      background: linear-gradient(
+        135deg,
+        rgba($qa-primary, 0.02) 0%,
+        rgba($qa-primary, 0.01) 100%
+      );
 
       .evaluation-indicator {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
+        width: 24px; // Reduced from 28px
+        height: 24px;
         border-radius: 50%;
         font-weight: $font-weight-bold;
-        font-size: $font-size-sm;
-        margin-right: $spacing-3;
+        font-size: $font-size-xs; // Reduced from $font-size-sm
+        margin-right: $spacing-2; // Reduced from $spacing-3
 
         &.eval-a {
-          background-color: rgba(54, 162, 235, 0.15);
-          color: rgba(54, 162, 235, 1);
+          background-color: rgba($qa-primary, 0.15);
+          color: $qa-primary;
         }
 
         &.eval-b {
-          background-color: rgba(255, 99, 132, 0.15);
-          color: rgba(255, 99, 132, 1);
+          background-color: rgba($qa-primary-light, 0.15);
+          color: $qa-primary-light;
         }
       }
     }
 
     .card-title {
-      @include section-title;
-      border-bottom: 1px solid $border-light;
-      padding-bottom: $spacing-3;
-      margin-bottom: $spacing-4;
+      font-size: $font-size-base; // Reduced from section-title
+      font-weight: $font-weight-semibold;
+      color: $qa-black;
+      border-bottom: 1px solid rgba($qa-primary, 0.1);
+      padding-bottom: $spacing-2; // Reduced from $spacing-3
+      margin-bottom: $spacing-3; // Reduced from $spacing-4
       display: flex;
       align-items: center;
     }
@@ -229,31 +262,37 @@
     .card-content {
       display: flex;
       flex-direction: column;
-      gap: $spacing-3;
+      gap: $spacing-2; // Reduced from $spacing-3
       flex: 1;
 
       .info-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding: $spacing-1 0; // Added padding for better spacing
 
         .info-label {
-          font-size: $font-size-sm;
+          font-size: $font-size-xs; // Reduced from $font-size-sm
           color: $text-secondary;
           font-weight: $font-weight-medium;
-          min-width: 120px;
+          min-width: 100px; // Reduced from 120px
         }
 
         .info-value {
-          font-size: $font-size-sm;
-          color: $text-primary;
+          font-size: $font-size-xs; // Reduced from $font-size-sm
+          color: $qa-black;
           word-break: break-word;
           text-align: right;
+          font-weight: $font-weight-medium;
 
           &.score {
             font-family: $font-family-mono;
             font-weight: $font-weight-bold;
-            color: $primary;
+            color: $qa-primary;
+            font-size: $font-size-sm; // Keep scores slightly larger
+            padding: $spacing-1 $spacing-2;
+            background: rgba($qa-primary, 0.1);
+            border-radius: $radius-sm;
           }
 
           &.improved {
@@ -270,75 +309,695 @@
     }
 
     .card-footer {
-      margin-top: $spacing-4;
-      padding-top: $spacing-4;
-      border-top: 1px solid $border-light;
+      margin-top: $spacing-3; // Reduced from $spacing-4
+      padding-top: $spacing-3;
+      border-top: 1px solid rgba($qa-primary, 0.1);
 
       .view-eval-button {
         @include button-outline;
-        font-size: $font-size-sm;
-        padding: $spacing-2 $spacing-4;
+        border-color: $qa-primary;
+        color: $qa-primary;
+        font-size: $font-size-xs; // Reduced from $font-size-sm
+        padding: $spacing-2 $spacing-3; // Reduced padding
         width: 100%;
+
+        &:hover:not(:disabled) {
+          background-color: rgba($qa-primary, 0.05);
+        }
       }
     }
   }
 }
 
-// Narrative Insights
-.narrative-insights {
-  @include card-padded;
+// Enhanced Analysis Summary
+.enhanced-analysis-summary {
   margin-bottom: $spacing-8;
-  background: linear-gradient(
-    135deg,
-    rgba($info, 0.03) 0%,
-    rgba($info, 0.01) 100%
-  );
-  border-left: 4px solid $info;
 
-  .insights-title {
-    @include section-title;
-    color: $info;
-    margin-bottom: $spacing-4;
+  // Compatibility Warnings
+  .compatibility-warnings {
+    @include card;
+    padding: $spacing-4;
+    margin-bottom: $spacing-6;
+    background: linear-gradient(
+      135deg,
+      rgba($warning, 0.05) 0%,
+      rgba($warning, 0.02) 100%
+    );
+    border-left: 4px solid $warning;
+
+    .warning-header {
+      display: flex;
+      align-items: center;
+      gap: $spacing-2;
+      margin-bottom: $spacing-3;
+
+      .warning-icon {
+        font-size: $font-size-base;
+      }
+
+      .warning-title {
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: darken($warning, 15%);
+        margin: 0;
+      }
+    }
+
+    .warning-content {
+      .warning-item {
+        display: flex;
+        gap: $spacing-2;
+        margin-bottom: $spacing-2;
+        font-size: $font-size-sm;
+
+        .warning-label {
+          font-weight: $font-weight-medium;
+          color: darken($warning, 20%);
+          min-width: 120px;
+        }
+
+        .warning-detail {
+          color: $qa-black;
+          font-family: $font-family-mono;
+          font-size: $font-size-xs;
+        }
+      }
+    }
   }
 
-  .insights-content {
-    color: $text-primary;
-    line-height: $line-height-normal;
-    white-space: pre-line;
+  // Performance Overview
+  .performance-overview {
+    margin-bottom: $spacing-6;
+
+    .overview-header {
+      display: flex;
+      align-items: center;
+      gap: $spacing-2;
+      margin-bottom: $spacing-4;
+
+      .overview-icon {
+        font-size: $font-size-lg;
+      }
+
+      .overview-title {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $qa-black;
+        margin: 0;
+      }
+    }
+
+    .performance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: $spacing-4;
+
+      @include media-breakpoint-down(md) {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: $spacing-3;
+      }
+
+      .performance-card {
+        @include card;
+        padding: $spacing-4;
+        text-align: center;
+        transition: $transition-normal;
+        border-left: 4px solid $qa-primary;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: $shadow-md;
+        }
+
+        &.overall-card {
+          &.improved {
+            border-left-color: $success;
+            background: linear-gradient(
+              135deg,
+              rgba($success, 0.05) 0%,
+              rgba($success, 0.02) 100%
+            );
+          }
+
+          &.regressed {
+            border-left-color: $error;
+            background: linear-gradient(
+              135deg,
+              rgba($error, 0.05) 0%,
+              rgba($error, 0.02) 100%
+            );
+          }
+
+          &.neutral {
+            border-left-color: $qa-primary;
+            background: linear-gradient(
+              135deg,
+              rgba($qa-primary, 0.05) 0%,
+              rgba($qa-primary, 0.02) 100%
+            );
+          }
+        }
+
+        .card-header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: $spacing-2;
+          margin-bottom: $spacing-3;
+
+          .performance-indicator {
+            font-size: $font-size-lg;
+
+            &.improved {
+              filter: hue-rotate(90deg);
+            }
+
+            &.regressed {
+              filter: hue-rotate(0deg);
+            }
+          }
+
+          .performance-title {
+            font-size: $font-size-sm;
+            font-weight: $font-weight-medium;
+            color: $text-secondary;
+          }
+        }
+
+        .performance-value {
+          font-size: $font-size-xl;
+          font-weight: $font-weight-bold;
+          color: $qa-black;
+          margin-bottom: $spacing-2;
+          font-family: $font-family-mono;
+        }
+
+        .performance-subtitle {
+          font-size: $font-size-xs;
+          color: $text-secondary;
+        }
+
+        // Metrics breakdown
+        .metrics-breakdown {
+          display: flex;
+          justify-content: space-around;
+          margin-bottom: $spacing-2;
+
+          .metric-stat {
+            text-align: center;
+
+            .stat-number {
+              display: block;
+              font-size: $font-size-lg;
+              font-weight: $font-weight-bold;
+              font-family: $font-family-mono;
+            }
+
+            .stat-label {
+              font-size: 10px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+
+            &.improved {
+              color: $success;
+            }
+
+            &.regressed {
+              color: $error;
+            }
+
+            &.neutral {
+              color: $qa-primary;
+            }
+          }
+        }
+
+        // Sample breakdown
+        .sample-breakdown {
+          .sample-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: $spacing-1;
+            font-size: $font-size-xs;
+
+            .sample-label {
+              color: $text-secondary;
+            }
+
+            .sample-value {
+              font-weight: $font-weight-medium;
+              font-family: $font-family-mono;
+              color: $qa-black;
+            }
+
+            &.improved .sample-value {
+              color: $success;
+            }
+
+            &.regressed .sample-value {
+              color: $error;
+            }
+          }
+        }
+
+        // Stats content
+        .stats-content {
+          .power-level {
+            font-size: $font-size-lg;
+            font-weight: $font-weight-bold;
+            margin-bottom: $spacing-1;
+
+            &.high-power {
+              color: $success;
+            }
+
+            &.medium-power {
+              color: $warning;
+            }
+
+            &.low-power,
+            &.very-low-power {
+              color: $error;
+            }
+          }
+
+          .sample-size {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            font-family: $font-family-mono;
+          }
+        }
+      }
+    }
+  }
+
+  // Key Findings
+  .key-findings {
+    margin-bottom: $spacing-6;
+
+    .findings-header {
+      display: flex;
+      align-items: center;
+      gap: $spacing-2;
+      margin-bottom: $spacing-4;
+
+      .findings-icon {
+        font-size: $font-size-lg;
+      }
+
+      .findings-title {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $qa-black;
+        margin: 0;
+      }
+    }
+
+    .findings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: $spacing-4;
+
+      @include media-breakpoint-down(md) {
+        grid-template-columns: 1fr;
+      }
+
+      .findings-card {
+        @include card;
+        padding: $spacing-4;
+
+        &.improvements {
+          border-left: 4px solid $success;
+          background: linear-gradient(
+            135deg,
+            rgba($success, 0.03) 0%,
+            rgba($success, 0.01) 100%
+          );
+        }
+
+        &.regressions {
+          border-left: 4px solid $error;
+          background: linear-gradient(
+            135deg,
+            rgba($error, 0.03) 0%,
+            rgba($error, 0.01) 100%
+          );
+        }
+
+        &.insights {
+          border-left: 4px solid $qa-primary;
+          background: linear-gradient(
+            135deg,
+            rgba($qa-primary, 0.03) 0%,
+            rgba($qa-primary, 0.01) 100%
+          );
+        }
+
+        .findings-card-header {
+          display: flex;
+          align-items: center;
+          gap: $spacing-2;
+          margin-bottom: $spacing-3;
+
+          .findings-card-icon {
+            font-size: $font-size-base;
+
+            &.success {
+              color: $success;
+            }
+
+            &.error {
+              color: $error;
+            }
+
+            &.info {
+              color: $qa-primary;
+            }
+          }
+
+          .findings-card-title {
+            font-size: $font-size-sm;
+            font-weight: $font-weight-semibold;
+            color: $qa-black;
+            margin: 0;
+          }
+        }
+
+        .findings-list {
+          .finding-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: $spacing-2;
+            margin-bottom: $spacing-2;
+            border-radius: $radius-sm;
+            font-size: $font-size-xs;
+
+            &.improvement {
+              background: rgba($success, 0.1);
+            }
+
+            &.regression {
+              background: rgba($error, 0.1);
+            }
+
+            .finding-metric {
+              font-weight: $font-weight-medium;
+              color: $qa-black;
+              flex: 1;
+            }
+
+            .finding-value {
+              font-family: $font-family-mono;
+              font-weight: $font-weight-bold;
+              margin: 0 $spacing-2;
+
+              &.positive {
+                color: $success;
+              }
+
+              &.negative {
+                color: $error;
+              }
+            }
+
+            .finding-impact {
+              @include badge;
+              font-size: 9px;
+
+              &.high {
+                background-color: rgba($error, 0.15);
+                color: $error;
+              }
+
+              &.medium {
+                background-color: rgba($warning, 0.15);
+                color: darken($warning, 15%);
+              }
+
+              &.low {
+                background-color: rgba($success, 0.15);
+                color: $success;
+              }
+            }
+          }
+        }
+
+        .insights-list {
+          .insight-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: $spacing-2 0;
+            border-bottom: 1px solid rgba($qa-primary, 0.1);
+            font-size: $font-size-xs;
+
+            &:last-child {
+              border-bottom: none;
+            }
+
+            .insight-label {
+              color: $text-secondary;
+              font-weight: $font-weight-medium;
+            }
+
+            .insight-value {
+              font-family: $font-family-mono;
+              font-weight: $font-weight-medium;
+              color: $qa-black;
+
+              &.positive {
+                color: $success;
+              }
+
+              &.negative {
+                color: $error;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Detailed Narrative
+  .detailed-narrative {
+    margin-bottom: $spacing-6;
+
+    .narrative-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: $spacing-4;
+
+      .narrative-icon {
+        font-size: $font-size-lg;
+      }
+
+      .narrative-title {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $qa-black;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
+      }
+
+      .expand-toggle {
+        @include button-outline;
+        border-color: $qa-primary;
+        color: $qa-primary;
+        font-size: $font-size-xs;
+        padding: $spacing-1 $spacing-2;
+        display: flex;
+        align-items: center;
+        gap: $spacing-1;
+
+        &:hover:not(:disabled) {
+          background-color: rgba($qa-primary, 0.05);
+        }
+
+        .toggle-icon {
+          font-size: 10px;
+          transition: transform 0.2s ease;
+        }
+
+        &.expanded .toggle-icon {
+          transform: rotate(180deg);
+        }
+      }
+    }
+
+    .narrative-content {
+      @include card;
+      padding: $spacing-4;
+      background: linear-gradient(
+        135deg,
+        rgba($qa-primary, 0.02) 0%,
+        rgba($qa-primary, 0.01) 100%
+      );
+      border: 1px solid rgba($qa-primary, 0.1);
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+
+      &:not(.expanded) {
+        max-height: 100px;
+      }
+
+      &.expanded {
+        max-height: none;
+      }
+
+      .narrative-text {
+        color: $qa-black;
+        line-height: $line-height-normal;
+        white-space: pre-line;
+        font-size: $font-size-sm;
+
+        // Style warning indicators
+        strong {
+          color: $qa-primary;
+          font-weight: $font-weight-semibold;
+        }
+      }
+    }
+  }
+
+  // Recommendations
+  .recommendations {
+    .recommendations-header {
+      display: flex;
+      align-items: center;
+      gap: $spacing-2;
+      margin-bottom: $spacing-4;
+
+      .recommendations-icon {
+        font-size: $font-size-lg;
+      }
+
+      .recommendations-title {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $qa-black;
+        margin: 0;
+      }
+    }
+
+    .recommendations-list {
+      @include card;
+      padding: $spacing-4;
+      background: linear-gradient(
+        135deg,
+        rgba($qa-primary, 0.03) 0%,
+        rgba($qa-primary, 0.01) 100%
+      );
+      border-left: 4px solid $qa-primary;
+
+      .recommendation-item {
+        display: flex;
+        align-items: flex-start;
+        gap: $spacing-2;
+        margin-bottom: $spacing-2;
+        font-size: $font-size-sm;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .recommendation-bullet {
+          color: $qa-primary;
+          font-weight: $font-weight-bold;
+          margin-top: 2px;
+        }
+
+        .recommendation-text {
+          color: $qa-black;
+          line-height: $line-height-normal;
+        }
+      }
+    }
   }
 }
 
-// Tabs
+// Enhanced Narrative Insights with QA theming
+.narrative-insights {
+  @include card;
+  padding: $spacing-5;
+  margin-bottom: $spacing-8;
+  background: linear-gradient(
+    135deg,
+    rgba($qa-primary, 0.03) 0%,
+    rgba($qa-primary, 0.01) 100%
+  );
+  border-left: 4px solid $qa-primary;
+
+  .insights-title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $qa-primary;
+    margin-bottom: $spacing-4;
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+
+    &::before {
+      content: '💡';
+      font-size: $font-size-base;
+    }
+  }
+
+  .insights-content {
+    color: $qa-black;
+    line-height: $line-height-normal;
+    white-space: pre-line;
+    background: $qa-white;
+    padding: $spacing-4;
+    border-radius: $radius-sm;
+    border: 1px solid rgba($qa-primary, 0.1);
+
+    // Style warning indicators
+    strong {
+      color: $qa-primary;
+    }
+  }
+}
+
+// Tabs with QA theming
 .comparison-tabs {
   @include card;
   overflow: hidden;
   margin-bottom: $spacing-6;
+  border: 1px solid rgba($qa-primary, 0.1);
 }
 
 .tabs-container {
   display: flex;
-  background-color: white;
-  border-bottom: 1px solid $border-color;
+  background-color: $qa-white;
+  border-bottom: 1px solid rgba($qa-primary, 0.1);
   overflow-x: auto;
 
   .tab {
-    padding: $spacing-4 $spacing-6;
+    padding: $spacing-3 $spacing-5; // Reduced from $spacing-4 $spacing-6
     cursor: pointer;
     text-align: center;
     font-weight: $font-weight-medium;
     color: $text-secondary;
     transition: all 0.3s ease;
     position: relative;
-    min-width: 160px;
+    min-width: 140px; // Reduced from 160px
     white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: $spacing-2;
+    border-bottom: 3px solid transparent;
 
     @include media-breakpoint-down(md) {
-      padding: $spacing-3 $spacing-4;
-      min-width: 120px;
+      padding: $spacing-2 $spacing-3; // Reduced from $spacing-3 $spacing-4
+      min-width: 100px; // Reduced from 120px
       font-size: $font-size-sm;
     }
 
@@ -347,49 +1006,44 @@
     }
 
     &:hover:not(.active) {
-      color: darken($text-secondary, 15%);
-      background-color: rgba($primary, 0.03);
+      color: $qa-primary;
+      background-color: rgba($qa-primary, 0.03);
     }
 
     &.active {
-      color: $primary;
+      color: $qa-primary;
       font-weight: $font-weight-semibold;
-      background-color: rgba($primary, 0.05);
-
-      &:after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background-color: $primary;
-      }
+      background-color: rgba($qa-primary, 0.05);
+      border-bottom-color: $qa-primary;
     }
   }
 }
 
 .tab-content {
-  padding: $spacing-8;
+  padding: $spacing-6; // Reduced from $spacing-8
   min-height: 400px;
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-6;
+    padding: $spacing-4; // Reduced from $spacing-6
   }
 }
 
-// Metrics Analysis
+// Metrics Analysis with QA colors
 .metrics-analysis-section {
   .metrics-summary {
-    margin-bottom: $spacing-8;
+    margin-bottom: $spacing-6; // Reduced from $spacing-8
 
     .summary-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: $spacing-4;
+      grid-template-columns: repeat(
+        auto-fit,
+        minmax(120px, 1fr)
+      ); // Reduced from 150px
+      gap: $spacing-3; // Reduced from $spacing-4
 
       .metric-summary-card {
-        @include card-padded($spacing-4);
+        @include card;
+        padding: $spacing-3; // Reduced from $spacing-4
         text-align: center;
         border-left: 4px solid;
 
@@ -404,18 +1058,19 @@
         }
 
         &.neutral {
-          border-left-color: $text-tertiary;
-          background-color: rgba($text-tertiary, 0.03);
+          border-left-color: $qa-primary;
+          background-color: rgba($qa-primary, 0.03);
         }
 
         .summary-number {
-          font-size: $font-size-2xl;
+          font-size: $font-size-xl; // Reduced from $font-size-2xl
           font-weight: $font-weight-bold;
-          margin-bottom: $spacing-2;
+          margin-bottom: $spacing-1; // Reduced from $spacing-2
+          color: $qa-black;
         }
 
         .summary-label {
-          font-size: $font-size-sm;
+          font-size: $font-size-xs; // Reduced from $font-size-sm
           color: $text-secondary;
           font-weight: $font-weight-medium;
         }
@@ -425,16 +1080,16 @@
 
   .metrics-table-container {
     overflow-x: auto;
-    margin-bottom: $spacing-8;
+    margin-bottom: $spacing-6; // Reduced from $spacing-8
 
     .metrics-table {
       @include table;
       width: 100%;
 
       th {
-        background-color: $background-light;
+        background-color: rgba($qa-primary, 0.05);
         font-weight: $font-weight-semibold;
-        color: $text-secondary;
+        color: $qa-primary;
         font-size: $font-size-xs;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -452,12 +1107,13 @@
 
       .metric-name {
         font-weight: $font-weight-medium;
-        color: $text-primary;
+        color: $qa-black;
       }
 
       .metric-value {
         font-family: $font-family-mono;
         text-align: center;
+        font-size: $font-size-xs;
       }
 
       .metric-difference,
@@ -465,6 +1121,7 @@
         font-family: $font-family-mono;
         font-weight: $font-weight-medium;
         text-align: center;
+        font-size: $font-size-xs;
 
         &.positive {
           color: $success;
@@ -484,7 +1141,7 @@
 
         .impact-badge {
           @include badge;
-          font-size: $font-size-xs;
+          font-size: 10px; // Very small for compact design
 
           &.high {
             background-color: rgba($error, 0.15);
@@ -508,7 +1165,7 @@
   .top-changes {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: $spacing-6;
+    gap: $spacing-4; // Reduced from $spacing-6
 
     @include media-breakpoint-down(md) {
       grid-template-columns: 1fr;
@@ -516,24 +1173,26 @@
 
     .top-improvements,
     .top-regressions {
-      @include card-padded;
+      @include card;
+      padding: $spacing-4; // Reduced from default card padding
 
       h4 {
-        margin-bottom: $spacing-4;
-        font-size: $font-size-lg;
+        margin-bottom: $spacing-3; // Reduced from $spacing-4
+        font-size: $font-size-base; // Reduced from $font-size-lg
         font-weight: $font-weight-semibold;
+        color: $qa-black;
       }
 
       .change-list {
         display: flex;
         flex-direction: column;
-        gap: $spacing-3;
+        gap: $spacing-2; // Reduced from $spacing-3
 
         .change-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: $spacing-3;
+          padding: $spacing-2; // Reduced from $spacing-3
           border-radius: $radius-sm;
 
           &.improved {
@@ -548,13 +1207,14 @@
 
           .change-metric {
             font-weight: $font-weight-medium;
-            color: $text-primary;
+            color: $qa-black;
+            font-size: $font-size-xs;
           }
 
           .change-value {
             font-family: $font-family-mono;
             font-weight: $font-weight-bold;
-            font-size: $font-size-sm;
+            font-size: $font-size-xs;
           }
         }
       }
@@ -562,56 +1222,62 @@
   }
 }
 
-// Visualization Section
+// Enhanced Visualization Section
 .visualization-section {
   .visualization-controls {
-    margin-bottom: $spacing-6;
-    @include card-padded;
-    background-color: $background-light;
+    margin-bottom: $spacing-4; // Reduced from $spacing-6
+    @include card;
+    padding: $spacing-4;
+    background: linear-gradient(
+      135deg,
+      rgba($qa-primary, 0.03) 0%,
+      rgba($qa-primary, 0.01) 100%
+    );
+    border: 1px solid rgba($qa-primary, 0.1);
 
     .control-group {
       display: flex;
       align-items: center;
-      gap: $spacing-4;
+      gap: $spacing-3; // Reduced from $spacing-4
       flex-wrap: wrap;
 
       .control-label {
         font-weight: $font-weight-medium;
-        font-size: $font-size-base;
-        color: $text-primary;
+        font-size: $font-size-sm; // Reduced from $font-size-base
+        color: $qa-black;
       }
 
       .visualization-buttons {
         display: flex;
-        gap: $spacing-3;
+        gap: $spacing-2; // Reduced from $spacing-3
 
         .viz-type-button {
-          padding: $spacing-3 $spacing-5;
-          border: 1px solid $border-color;
-          background-color: white;
-          color: $text-primary;
+          padding: $spacing-2 $spacing-4; // Reduced from $spacing-3 $spacing-5
+          border: 1px solid rgba($qa-primary, 0.3);
+          background-color: $qa-white;
+          color: $qa-black;
           border-radius: $radius-sm;
           cursor: pointer;
           transition: all 0.2s ease;
-          font-size: $font-size-sm;
+          font-size: $font-size-xs; // Reduced from $font-size-sm
           font-weight: $font-weight-medium;
           display: flex;
           align-items: center;
-          gap: $spacing-2;
+          gap: $spacing-1; // Reduced from $spacing-2
 
           .viz-icon {
-            font-size: $font-size-base;
+            font-size: $font-size-sm; // Reduced from $font-size-base
           }
 
           &:hover:not(.active) {
-            background-color: $background-light;
-            border-color: $border-dark;
+            background-color: rgba($qa-primary, 0.05);
+            border-color: rgba($qa-primary, 0.5);
           }
 
           &.active {
-            background-color: $primary;
-            color: white;
-            border-color: $primary;
+            background-color: $qa-primary;
+            color: $qa-white;
+            border-color: $qa-primary;
             box-shadow: $shadow-sm;
           }
         }
@@ -620,31 +1286,74 @@
   }
 
   .visualization-wrapper {
-    @include card-padded;
-    min-height: 500px;
+    @include card;
+    padding: $spacing-4; // Reduced from default card padding
+    min-height: 450px; // Reduced from 500px
   }
 }
 
-// Sample Analysis
+// Status badges with QA colors
+.status-badge {
+  &.completed,
+  &.ready,
+  &.active,
+  &.success {
+    @include status-badge('success');
+  }
+
+  &.running,
+  &.info {
+    background-color: rgba($qa-primary, 0.15);
+    color: $qa-primary;
+  }
+
+  &.pending,
+  &.processing,
+  &.warning {
+    @include status-badge('warning');
+  }
+
+  &.failed,
+  &.error,
+  &.inactive {
+    @include status-badge('error');
+  }
+
+  &.improved {
+    @include status-badge('success');
+  }
+
+  &.regressed {
+    @include status-badge('error');
+  }
+
+  &.unchanged {
+    background-color: rgba($qa-primary, 0.15);
+    color: darken($qa-primary, 10%);
+  }
+}
+
+// Compact Sample Analysis
 .samples-section {
   .samples-controls {
-    margin-bottom: $spacing-6;
+    margin-bottom: $spacing-4; // Reduced from $spacing-6
 
     .samples-summary {
       display: flex;
-      gap: $spacing-6;
-      margin-bottom: $spacing-6;
+      gap: $spacing-4; // Reduced from $spacing-6
+      margin-bottom: $spacing-4; // Reduced from $spacing-6
 
       @include media-breakpoint-down(sm) {
         flex-direction: column;
-        gap: $spacing-4;
+        gap: $spacing-3;
       }
 
       .sample-stat {
-        @include card-padded($spacing-4);
+        @include card;
+        padding: $spacing-3; // Reduced from $spacing-4
         text-align: center;
         flex: 1;
-        border-left: 4px solid $text-tertiary;
+        border-left: 4px solid $qa-primary;
 
         &.improved {
           border-left-color: $success;
@@ -658,283 +1367,104 @@
 
         .stat-number {
           display: block;
-          font-size: $font-size-xl;
+          font-size: $font-size-lg; // Reduced from $font-size-xl
           font-weight: $font-weight-bold;
           margin-bottom: $spacing-1;
+          color: $qa-black;
         }
 
         .stat-label {
-          font-size: $font-size-sm;
+          font-size: $font-size-xs; // Reduced from $font-size-sm
           color: $text-secondary;
           font-weight: $font-weight-medium;
-        }
-      }
-    }
-
-    .samples-filters {
-      display: flex;
-      gap: $spacing-6;
-      align-items: center;
-      flex-wrap: wrap;
-
-      .filter-group {
-        display: flex;
-        align-items: center;
-        gap: $spacing-2;
-
-        .filter-label {
-          font-weight: $font-weight-medium;
-          font-size: $font-size-sm;
-          color: $text-primary;
-        }
-
-        .filter-select {
-          @include form-control;
-          padding: $spacing-2 $spacing-3;
-          min-width: 150px;
-          font-size: $font-size-sm;
-        }
-      }
-    }
-  }
-
-  .samples-table-container {
-    overflow-x: auto;
-
-    .samples-table {
-      @include table;
-      width: 100%;
-
-      tr {
-        &.improved {
-          background-color: rgba($success, 0.02);
-        }
-
-        &.regressed {
-          background-color: rgba($error, 0.02);
-        }
-      }
-
-      .sample-id {
-        font-family: $font-family-mono;
-        font-size: $font-size-xs;
-      }
-
-      .sample-score {
-        font-family: $font-family-mono;
-        text-align: center;
-      }
-
-      .sample-difference,
-      .sample-percentage {
-        font-family: $font-family-mono;
-        font-weight: $font-weight-medium;
-        text-align: center;
-
-        &.positive {
-          color: $success;
-        }
-
-        &.negative {
-          color: $error;
-        }
-
-        &.neutral {
-          color: $text-tertiary;
-        }
-      }
-
-      .sample-status {
-        font-size: $font-size-xs;
-      }
-
-      .view-sample-button {
-        @include button-outline;
-        padding: $spacing-1 $spacing-3;
-        font-size: $font-size-xs;
-      }
-    }
-  }
-
-  .no-samples-message {
-    @include card-padded;
-    text-align: center;
-    color: $text-secondary;
-    font-style: italic;
-  }
-}
-
-// Detailed Metrics
-.detailed-metrics-section {
-  .metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: $spacing-6;
-
-    @include media-breakpoint-down(sm) {
-      grid-template-columns: 1fr;
-    }
-
-    .metric-detail-card {
-      @include card-padded;
-      border-left: 4px solid $text-tertiary;
-
-      &.improved {
-        border-left-color: $success;
-        background-color: rgba($success, 0.02);
-      }
-
-      &.regressed {
-        border-left-color: $error;
-        background-color: rgba($error, 0.02);
-      }
-
-      .metric-title {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
-        margin-bottom: $spacing-4;
-        color: $text-primary;
-      }
-
-      .metric-stats {
-        margin-bottom: $spacing-6;
-
-        .stat-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: $spacing-2;
-
-          &.highlight {
-            padding: $spacing-2;
-            background-color: $background-light;
-            border-radius: $radius-sm;
-            font-weight: $font-weight-medium;
-          }
-
-          .stat-label {
-            font-size: $font-size-sm;
-            color: $text-secondary;
-          }
-
-          .stat-value {
-            font-family: $font-family-mono;
-            font-size: $font-size-sm;
-            color: $text-primary;
-
-            &.positive {
-              color: $success;
-            }
-
-            &.negative {
-              color: $error;
-            }
-          }
-        }
-      }
-
-      .metric-details {
-        h5 {
-          font-size: $font-size-sm;
-          font-weight: $font-weight-semibold;
-          margin-bottom: $spacing-3;
-          color: $text-secondary;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: $spacing-4;
-
-          .stats-column {
-            .stat-item {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: $spacing-2;
-
-              .stat-key {
-                font-size: $font-size-xs;
-                color: $text-secondary;
-              }
-
-              .stat-val {
-                font-family: $font-family-mono;
-                font-size: $font-size-xs;
-                color: $text-primary;
-              }
-            }
-          }
         }
       }
     }
   }
 }
 
-// Empty States
+// Empty States with QA theming
 .no-metrics-container,
 .no-visualization-container,
 .no-samples-container,
 .no-detailed-metrics-container {
   @include empty-state;
-  margin: $spacing-12 0;
+  margin: $spacing-8 0; // Reduced from $spacing-12
+  background: linear-gradient(
+    135deg,
+    rgba($qa-primary, 0.02) 0%,
+    rgba($qa-primary, 0.01) 100%
+  );
+  border: 1px solid rgba($qa-primary, 0.1);
 
   .empty-state-icon {
-    font-size: $font-size-3xl;
-    margin-bottom: $spacing-4;
+    font-size: $font-size-2xl; // Reduced from $font-size-3xl
+    margin-bottom: $spacing-3; // Reduced from $spacing-4
+    color: rgba($qa-primary, 0.5);
   }
 
   h3 {
-    font-size: $font-size-lg;
-    margin-bottom: $spacing-3;
-    color: $text-primary;
+    font-size: $font-size-base; // Reduced from $font-size-lg
+    margin-bottom: $spacing-2; // Reduced from $spacing-3
+    color: $qa-black;
   }
 
   .no-results-text {
     color: $text-secondary;
-    margin-bottom: $spacing-6;
+    margin-bottom: $spacing-4; // Reduced from $spacing-6
+    font-size: $font-size-sm;
   }
 
   .run-button-primary {
-    @include button-primary;
-    padding: $spacing-3 $spacing-6;
+    background-color: $qa-primary;
+    color: $qa-white;
+    border-color: $qa-primary;
+    padding: $spacing-2 $spacing-4; // Reduced from $spacing-3 $spacing-6
+
+    &:hover:not(:disabled) {
+      background-color: $qa-primary-light;
+      border-color: $qa-primary-light;
+    }
   }
 }
 
-// Status badges
-.status-badge {
-  &.completed {
-    @include status-badge('success');
+// Loading and error states with QA theming
+.loading-container {
+  @include loading-container;
+  @include card;
+  margin-bottom: $spacing-6;
+  border: 1px solid rgba($qa-primary, 0.1);
+
+  .spinner {
+    @include spinner($size: 24px, $border-width: 3px, $color: $qa-primary);
+    margin-bottom: $spacing-4;
   }
 
-  &.running {
-    @include status-badge('info');
-  }
-
-  &.pending {
-    @include status-badge('warning');
-  }
-
-  &.failed {
-    @include status-badge('error');
-  }
-
-  &.improved {
-    @include status-badge('success');
-  }
-
-  &.regressed {
-    @include status-badge('error');
-  }
-
-  &.unchanged {
-    background-color: rgba($text-tertiary, 0.15);
-    color: darken($text-tertiary, 10%);
+  .loading-text {
+    color: $qa-black;
   }
 }
 
-// Modal
+.error-container {
+  @include error-container;
+  @include card;
+  margin-bottom: $spacing-6;
+  border: 1px solid rgba($error, 0.3);
+  background: rgba($error, 0.02);
+
+  .retry-button {
+    @include button-secondary;
+    margin-top: $spacing-4;
+    border-color: $qa-primary;
+    color: $qa-primary;
+
+    &:hover:not(:disabled) {
+      background-color: rgba($qa-primary, 0.05);
+    }
+  }
+}
+
+// Modal with QA theming
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -949,58 +1479,64 @@
   padding: $spacing-4;
 
   .modal-content {
-    background-color: white;
+    background-color: $qa-white;
     border-radius: $radius-lg;
     box-shadow: $shadow-lg;
     max-width: 90%;
-    width: 800px;
+    width: 700px; // Reduced from 800px
     max-height: 90vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border: 1px solid rgba($qa-primary, 0.1);
 
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: $spacing-6;
-      border-bottom: 1px solid $border-color;
-      background-color: white;
+      padding: $spacing-4; // Reduced from $spacing-6
+      border-bottom: 1px solid rgba($qa-primary, 0.1);
+      background: linear-gradient(
+        135deg,
+        rgba($qa-primary, 0.03) 0%,
+        rgba($qa-primary, 0.01) 100%
+      );
 
       h2 {
-        font-size: $font-size-lg;
+        font-size: $font-size-base; // Reduced from $font-size-lg
         font-weight: $font-weight-medium;
         margin: 0;
+        color: $qa-black;
       }
 
       .close-button {
         background: none;
         border: none;
-        font-size: $font-size-xl;
+        font-size: $font-size-lg; // Reduced from $font-size-xl
         cursor: pointer;
         color: $text-secondary;
-        padding: $spacing-2;
+        padding: $spacing-1; // Reduced from $spacing-2
         border-radius: $radius-sm;
 
         &:hover {
-          color: $text-primary;
-          background-color: $background-light;
+          color: $qa-black;
+          background-color: rgba($qa-primary, 0.1);
         }
       }
     }
 
     .modal-body {
-      padding: $spacing-6;
+      padding: $spacing-4; // Reduced from $spacing-6
       overflow-y: auto;
       flex: 1;
 
       .sample-meta-section {
         display: flex;
         flex-wrap: wrap;
-        gap: $spacing-6;
-        padding-bottom: $spacing-6;
-        border-bottom: 1px solid $border-light;
-        margin-bottom: $spacing-6;
+        gap: $spacing-4; // Reduced from $spacing-6
+        padding-bottom: $spacing-4; // Reduced from $spacing-6
+        border-bottom: 1px solid rgba($qa-primary, 0.1);
+        margin-bottom: $spacing-4; // Reduced from $spacing-6
 
         .sample-id-row,
         .sample-status-row {
@@ -1011,38 +1547,45 @@
           .sample-id-label,
           .sample-status-label {
             font-weight: $font-weight-medium;
-            font-size: $font-size-sm;
+            font-size: $font-size-xs;
             color: $text-secondary;
           }
 
           .sample-id-value {
             font-family: $font-family-mono;
-            font-size: $font-size-sm;
-            color: $text-primary;
+            font-size: $font-size-xs;
+            color: $qa-black;
+            background: rgba($qa-primary, 0.1);
+            padding: $spacing-1 $spacing-2;
+            border-radius: $radius-sm;
           }
         }
       }
 
       .sample-scores-section {
-        margin-bottom: $spacing-6;
+        margin-bottom: $spacing-4; // Reduced from $spacing-6
 
         .scores-row {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: $spacing-6;
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(160px, 1fr)
+          ); // Reduced from 200px
+          gap: $spacing-4; // Reduced from $spacing-6
 
           .score-item {
-            @include card-padded($spacing-4);
+            @include card;
+            padding: $spacing-3; // Reduced from $spacing-4
 
             .score-label {
-              font-size: $font-size-xs;
+              font-size: 10px; // Reduced from $font-size-xs
               color: $text-secondary;
-              margin-bottom: $spacing-2;
+              margin-bottom: $spacing-1; // Reduced from $spacing-2
               display: block;
             }
 
             .score-value {
-              font-size: $font-size-base;
+              font-size: $font-size-sm; // Reduced from $font-size-base
               font-weight: $font-weight-medium;
               font-family: $font-family-mono;
 
@@ -1064,33 +1607,33 @@
 
       .sample-data-section {
         h4 {
-          margin-bottom: $spacing-3;
-          font-size: $font-size-sm;
+          margin-bottom: $spacing-2; // Reduced from $spacing-3
+          font-size: $font-size-xs; // Reduced from $font-size-sm
           font-weight: $font-weight-semibold;
-          color: $text-primary;
+          color: $qa-black;
         }
 
         .data-block {
           background-color: $background-light;
-          padding: $spacing-4;
+          padding: $spacing-3; // Reduced from $spacing-4
           border-radius: $radius-sm;
           font-family: $font-family-mono;
-          font-size: $font-size-xs;
+          font-size: 10px; // Reduced from $font-size-xs
           white-space: pre-wrap;
           overflow-x: auto;
-          max-height: 300px;
+          max-height: 250px; // Reduced from 300px
           overflow-y: auto;
-          border: 1px solid $border-light;
+          border: 1px solid rgba($qa-primary, 0.1);
         }
 
         .sample-input {
-          margin-bottom: $spacing-6;
+          margin-bottom: $spacing-4; // Reduced from $spacing-6
         }
 
         .sample-output-section {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: $spacing-6;
+          gap: $spacing-4; // Reduced from $spacing-6
 
           @include media-breakpoint-down(md) {
             grid-template-columns: 1fr;
@@ -1098,28 +1641,5 @@
         }
       }
     }
-  }
-}
-
-// Loading and error states
-.loading-container {
-  @include loading-container;
-  @include card-padded;
-  margin-bottom: $spacing-6;
-
-  .spinner {
-    @include spinner;
-    margin-bottom: $spacing-4;
-  }
-}
-
-.error-container {
-  @include error-container;
-  @include card-padded;
-  margin-bottom: $spacing-6;
-
-  .retry-button {
-    @include button-secondary;
-    margin-top: $spacing-4;
   }
 }
