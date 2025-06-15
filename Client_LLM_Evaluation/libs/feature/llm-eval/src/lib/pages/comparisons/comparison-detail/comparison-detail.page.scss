@@ -1,1138 +1,816 @@
 @import '../../../../../../../styles/variables';
 @import '../../../../../../../styles/mixins';
 
-// QA Theme Colors - Updated to use the new color scheme
-$qa-primary: #8d0c4a;
-$qa-primary-light: #8e2157;
-$qa-white: #fff;
-$qa-black: #212121;
+// Modern color scheme
+$primary-blue: #3b82f6;
+$success-green: #10b981;
+$warning-orange: #f59e0b;
+$error-red: #ef4444;
+$neutral-gray: #6b7280;
 
-// Override existing colors with QA theme
-$primary: $qa-primary;
-$primary-dark: darken($qa-primary, 10%);
-$primary-light: lighten($qa-primary, 40%);
-$text-primary: $qa-black;
+$background-card: #ffffff;
+$background-light: #f8fafc;
+$border-color: #e2e8f0;
+$text-primary: #0f172a;
+$text-secondary: #64748b;
+$text-muted: #94a3b8;
 
-:host {
-  display: block;
-  width: 100%;
-}
-
+// Component styling
 .comparison-detail-container {
-  max-width: $container-xxl;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: $spacing-6;
+  padding: 2rem;
+  background-color: $background-light;
+  min-height: 100vh;
+
+  @include media-breakpoint-down(lg) {
+    padding: 1.5rem;
+  }
 
   @include media-breakpoint-down(md) {
-    padding: $spacing-4;
+    padding: 1rem;
   }
 }
 
 // Header section
 .header-section {
-  margin-bottom: $spacing-8;
+  margin-bottom: 2rem;
 
   .back-navigation {
-    margin-bottom: $spacing-6;
+    margin-bottom: 1.5rem;
 
     .back-link {
       display: inline-flex;
       align-items: center;
-      color: $qa-primary;
+      gap: 0.5rem;
+      color: $primary-blue;
       text-decoration: none;
-      font-size: $font-size-sm;
-      font-weight: $font-weight-medium;
-      padding: $spacing-2 $spacing-4;
-      border-radius: $radius-sm;
-      transition: $transition-normal;
+      font-weight: 500;
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
 
       &:hover {
-        background-color: rgba($qa-primary, 0.1);
+        background-color: rgba($primary-blue, 0.1);
         text-decoration: none;
       }
 
-      .back-icon {
-        margin-right: $spacing-2;
-        font-size: $font-size-md;
+      .icon {
+        font-size: 1rem;
       }
     }
   }
 
-  .title-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: $spacing-6;
-
-    @include media-breakpoint-down(md) {
-      flex-direction: column;
-    }
-
-    .title-section {
-      flex: 1;
-
-      .page-title {
-        @include page-title;
-        margin-bottom: $spacing-3;
-        color: $qa-black;
-      }
-
-      .page-description {
-        color: $text-secondary;
-        font-size: $font-size-base;
-        margin-bottom: $spacing-4;
-        line-height: $line-height-normal;
-      }
-
-      .status-badge-container {
-        margin-top: $spacing-2;
-      }
-    }
-
-    .action-buttons {
+  .page-header {
+    .header-content {
       display: flex;
-      gap: $spacing-3;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 2rem;
 
-      @include media-breakpoint-down(md) {
-        width: 100%;
-        justify-content: flex-start;
+      @include media-breakpoint-down(lg) {
+        flex-direction: column;
+        gap: 1.5rem;
       }
 
-      .action-button {
-        @include button-base;
-        padding: $spacing-3 $spacing-5;
-        font-weight: $font-weight-medium;
-        display: inline-flex;
-        align-items: center;
-        gap: $spacing-2;
+      .title-section {
+        flex: 1;
 
-        .button-icon {
-          font-size: $font-size-sm;
-        }
+        .page-title {
+          font-size: 2rem;
+          font-weight: 700;
+          color: $text-primary;
+          margin-bottom: 0.5rem;
+          line-height: 1.2;
 
-        &.edit-button {
-          @include button-outline;
-          border-color: $qa-primary;
-          color: $qa-primary;
-
-          &:hover:not(:disabled) {
-            background-color: rgba($qa-primary, 0.05);
+          @include media-breakpoint-down(md) {
+            font-size: 1.75rem;
           }
         }
 
-        &.delete-button {
-          @include button-danger;
+        .page-description {
+          color: $text-secondary;
+          font-size: 1rem;
+          margin-bottom: 1rem;
+          line-height: 1.5;
         }
 
-        &.run-button {
-          background-color: $qa-primary;
-          color: white;
-          border-color: $qa-primary;
+        .status-container {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
 
-          &:hover:not(:disabled) {
-            background-color: $qa-primary-light;
-            border-color: $qa-primary-light;
+          .creation-date {
+            color: $text-muted;
+            font-size: 0.875rem;
           }
+        }
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-shrink: 0;
+
+        @include media-breakpoint-down(lg) {
+          width: 100%;
+          justify-content: flex-start;
+        }
+
+        @include media-breakpoint-down(sm) {
+          flex-direction: column;
         }
       }
     }
   }
 }
 
-// Summary Banner - Enhanced with QA colors
+// Enhanced Summary Banner
 .summary-banner {
-  display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(180px, 1fr)
-  ); // Reduced from 200px
-  gap: $spacing-4; // Reduced from $spacing-6
-  margin-bottom: $spacing-8;
-  padding: $spacing-5; // Reduced from $spacing-6
-  background: linear-gradient(
-    135deg,
-    rgba($qa-primary, 0.05) 0%,
-    rgba($qa-primary, 0.02) 100%
-  );
-  border-radius: $radius-lg;
-  border: 1px solid rgba($qa-primary, 0.15);
+  background: $background-card;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid $border-color;
+  margin-bottom: 2rem;
 
-  @include media-breakpoint-down(md) {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: $spacing-3;
-    padding: $spacing-4;
-  }
+  .performance-overview {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
 
-  .summary-stat {
-    text-align: center;
+    @include media-breakpoint-down(lg) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1.5rem;
+    }
 
-    .stat-value {
-      font-size: $font-size-xl;
-      font-weight: $font-weight-bold;
-      margin-bottom: $spacing-2;
-      color: $qa-black;
+    .performance-indicator {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      border-radius: 0.75rem;
+      min-width: 200px;
 
       &.improved {
-        color: $success;
+        background: linear-gradient(135deg, rgba($success-green, 0.1) 0%, rgba($success-green, 0.05) 100%);
+        border: 1px solid rgba($success-green, 0.2);
       }
 
       &.regressed {
-        color: $error;
+        background: linear-gradient(135deg, rgba($error-red, 0.1) 0%, rgba($error-red, 0.05) 100%);
+        border: 1px solid rgba($error-red, 0.2);
       }
 
-      &.neutral {
-        color: $text-tertiary;
+      &.unchanged {
+        background: linear-gradient(135deg, rgba($neutral-gray, 0.1) 0%, rgba($neutral-gray, 0.05) 100%);
+        border: 1px solid rgba($neutral-gray, 0.2);
+      }
+
+      .indicator-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.8);
+
+        .icon {
+          font-size: 1.5rem;
+
+          &.icon-trending-up {
+            color: $success-green;
+          }
+
+          &.icon-trending-down {
+            color: $error-red;
+          }
+
+          &.icon-minus {
+            color: $neutral-gray;
+          }
+        }
+      }
+
+      .indicator-content {
+        .indicator-value {
+          font-size: 1.75rem;
+          font-weight: 700;
+          color: $text-primary;
+          line-height: 1;
+        }
+
+        .indicator-label {
+          font-size: 0.875rem;
+          color: $text-secondary;
+          margin-top: 0.25rem;
+        }
       }
     }
 
-    .stat-label {
-      font-size: $font-size-sm;
-      color: $text-secondary;
-      font-weight: $font-weight-medium;
+    .performance-details {
+      display: flex;
+      gap: 2rem;
+      flex: 1;
+
+      @include media-breakpoint-down(md) {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .detail-item {
+        text-align: center;
+
+        .detail-value {
+          font-size: 1.25rem;
+          font-weight: 600;
+          color: $text-primary;
+          line-height: 1;
+        }
+
+        .detail-label {
+          font-size: 0.75rem;
+          color: $text-secondary;
+          margin-top: 0.25rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+      }
+    }
+  }
+
+  .key-insights {
+    border-top: 1px solid $border-color;
+    padding-top: 2rem;
+
+    .insights-header {
+      margin-bottom: 1rem;
+
+      h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: $text-primary;
+        margin: 0;
+      }
+    }
+
+    .insights-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+
+      @include media-breakpoint-down(md) {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+
+      .improvements,
+      .regressions {
+        h4 {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          font-weight: 600;
+          margin-bottom: 0.75rem;
+          color: $text-secondary;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+
+          .icon {
+            font-size: 1rem;
+          }
+        }
+
+        .change-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+
+          .change-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+
+            &.improved {
+              background: rgba($success-green, 0.1);
+              border-left: 3px solid $success-green;
+            }
+
+            &.regressed {
+              background: rgba($error-red, 0.1);
+              border-left: 3px solid $error-red;
+            }
+
+            .metric-name {
+              font-weight: 500;
+              color: $text-primary;
+              flex: 1;
+            }
+
+            .metric-change {
+              font-weight: 600;
+              font-family: monospace;
+              margin: 0 0.75rem;
+
+              .improved & {
+                color: $success-green;
+              }
+
+              .regressed & {
+                color: $error-red;
+              }
+            }
+
+            .impact-badge {
+              font-size: 0.75rem;
+              padding: 0.25rem 0.5rem;
+              border-radius: 0.25rem;
+              font-weight: 500;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+
+              &.high {
+                background: rgba($error-red, 0.2);
+                color: $error-red;
+              }
+
+              &.medium {
+                background: rgba($warning-orange, 0.2);
+                color: $warning-orange;
+              }
+
+              &.low {
+                background: rgba($success-green, 0.2);
+                color: $success-green;
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
 
-// Compact Information Cards Grid - Major redesign
-.info-cards-grid {
+// Evaluation Cards
+.evaluation-cards {
   display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(280px, 1fr)
-  ); // Reduced from 350px
-  gap: $spacing-4; // Reduced from $spacing-6
-  margin-bottom: $spacing-8;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  align-items: start;
 
-  @include media-breakpoint-down(sm) {
+  @include media-breakpoint-down(lg) {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 
-  .info-card {
-    @include card;
-    padding: $spacing-4; // Reduced from default card padding
-    height: auto; // Changed from 100% for more compact design
-    display: flex;
-    flex-direction: column;
-    border: 1px solid rgba($qa-primary, 0.1);
+  .evaluation-card {
+    background: $background-card;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid $border-color;
+    overflow: hidden;
+    transition: all 0.2s ease;
 
-    &.evaluation-card {
-      border-left: 4px solid $qa-primary;
-      background: linear-gradient(
-        135deg,
-        rgba($qa-primary, 0.02) 0%,
-        rgba($qa-primary, 0.01) 100%
-      );
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      border-bottom: 1px solid $border-color;
+      background: linear-gradient(135deg, rgba($primary-blue, 0.05) 0%, rgba($primary-blue, 0.02) 100%);
 
       .evaluation-indicator {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
-        width: 24px; // Reduced from 28px
-        height: 24px;
+        width: 2.5rem;
+        height: 2.5rem;
         border-radius: 50%;
-        font-weight: $font-weight-bold;
-        font-size: $font-size-xs; // Reduced from $font-size-sm
-        margin-right: $spacing-2; // Reduced from $spacing-3
+        font-weight: 700;
+        font-size: 1rem;
+        color: white;
 
         &.eval-a {
-          background-color: rgba($qa-primary, 0.15);
-          color: $qa-primary;
+          background: $primary-blue;
         }
 
         &.eval-b {
-          background-color: rgba($qa-primary-light, 0.15);
-          color: $qa-primary-light;
+          background: $success-green;
+        }
+      }
+
+      .evaluation-info {
+        flex: 1;
+
+        .evaluation-name {
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: $text-primary;
+          margin: 0 0 0.25rem 0;
+          line-height: 1.2;
+        }
+
+        .evaluation-method {
+          font-size: 0.75rem;
+          color: $text-secondary;
+          font-weight: 500;
+          letter-spacing: 0.05em;
+        }
+      }
+
+      .evaluation-score {
+        text-align: right;
+
+        .score-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: $text-primary;
+          font-family: monospace;
+          line-height: 1;
+        }
+
+        .score-label {
+          font-size: 0.75rem;
+          color: $text-secondary;
+          margin-top: 0.25rem;
         }
       }
     }
 
-    .card-title {
-      font-size: $font-size-base; // Reduced from section-title
-      font-weight: $font-weight-semibold;
-      color: $qa-black;
-      border-bottom: 1px solid rgba($qa-primary, 0.1);
-      padding-bottom: $spacing-2; // Reduced from $spacing-3
-      margin-bottom: $spacing-3; // Reduced from $spacing-4
-      display: flex;
-      align-items: center;
-    }
-
     .card-content {
-      display: flex;
-      flex-direction: column;
-      gap: $spacing-2; // Reduced from $spacing-3
-      flex: 1;
+      padding: 1.5rem;
 
-      .info-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: $spacing-1 0; // Added padding for better spacing
+      .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
 
-        .info-label {
-          font-size: $font-size-xs; // Reduced from $font-size-sm
-          color: $text-secondary;
-          font-weight: $font-weight-medium;
-          min-width: 100px; // Reduced from 120px
+        @include media-breakpoint-down(sm) {
+          grid-template-columns: 1fr;
         }
 
-        .info-value {
-          font-size: $font-size-xs; // Reduced from $font-size-sm
-          color: $qa-black;
-          word-break: break-word;
-          text-align: right;
-          font-weight: $font-weight-medium;
+        .info-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
 
-          &.score {
-            font-family: $font-family-mono;
-            font-weight: $font-weight-bold;
-            color: $qa-primary;
-            font-size: $font-size-sm; // Keep scores slightly larger
-            padding: $spacing-1 $spacing-2;
-            background: rgba($qa-primary, 0.1);
-            border-radius: $radius-sm;
+          .icon {
+            font-size: 1rem;
+            color: $text-muted;
+            flex-shrink: 0;
           }
 
-          &.improved {
-            color: $success;
-            font-weight: $font-weight-medium;
-          }
+          .info-content {
+            min-width: 0;
 
-          &.regressed {
-            color: $error;
-            font-weight: $font-weight-medium;
+            .info-label {
+              font-size: 0.75rem;
+              color: $text-secondary;
+              margin-bottom: 0.125rem;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+
+            .info-value {
+              font-size: 0.875rem;
+              color: $text-primary;
+              font-weight: 500;
+              word-break: break-word;
+            }
           }
         }
       }
     }
 
     .card-footer {
-      margin-top: $spacing-3; // Reduced from $spacing-4
-      padding-top: $spacing-3;
-      border-top: 1px solid rgba($qa-primary, 0.1);
-
-      .view-eval-button {
-        @include button-outline;
-        border-color: $qa-primary;
-        color: $qa-primary;
-        font-size: $font-size-xs; // Reduced from $font-size-sm
-        padding: $spacing-2 $spacing-3; // Reduced padding
-        width: 100%;
-
-        &:hover:not(:disabled) {
-          background-color: rgba($qa-primary, 0.05);
-        }
-      }
-    }
-  }
-}
-
-// Enhanced Analysis Summary
-.enhanced-analysis-summary {
-  margin-bottom: $spacing-8;
-
-  // Compatibility Warnings
-  .compatibility-warnings {
-    @include card;
-    padding: $spacing-4;
-    margin-bottom: $spacing-6;
-    background: linear-gradient(
-      135deg,
-      rgba($warning, 0.05) 0%,
-      rgba($warning, 0.02) 100%
-    );
-    border-left: 4px solid $warning;
-
-    .warning-header {
-      display: flex;
-      align-items: center;
-      gap: $spacing-2;
-      margin-bottom: $spacing-3;
-
-      .warning-icon {
-        font-size: $font-size-base;
-      }
-
-      .warning-title {
-        font-size: $font-size-base;
-        font-weight: $font-weight-semibold;
-        color: darken($warning, 15%);
-        margin: 0;
-      }
-    }
-
-    .warning-content {
-      .warning-item {
-        display: flex;
-        gap: $spacing-2;
-        margin-bottom: $spacing-2;
-        font-size: $font-size-sm;
-
-        .warning-label {
-          font-weight: $font-weight-medium;
-          color: darken($warning, 20%);
-          min-width: 120px;
-        }
-
-        .warning-detail {
-          color: $qa-black;
-          font-family: $font-family-mono;
-          font-size: $font-size-xs;
-        }
-      }
+      padding: 1rem 1.5rem;
+      border-top: 1px solid $border-color;
+      background: $background-light;
     }
   }
 
-  // Performance Overview
-  .performance-overview {
-    margin-bottom: $spacing-6;
-
-    .overview-header {
-      display: flex;
-      align-items: center;
-      gap: $spacing-2;
-      margin-bottom: $spacing-4;
-
-      .overview-icon {
-        font-size: $font-size-lg;
-      }
-
-      .overview-title {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
-        color: $qa-black;
-        margin: 0;
-      }
-    }
-
-    .performance-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: $spacing-4;
-
-      @include media-breakpoint-down(md) {
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: $spacing-3;
-      }
-
-      .performance-card {
-        @include card;
-        padding: $spacing-4;
-        text-align: center;
-        transition: $transition-normal;
-        border-left: 4px solid $qa-primary;
-
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: $shadow-md;
-        }
-
-        &.overall-card {
-          &.improved {
-            border-left-color: $success;
-            background: linear-gradient(
-              135deg,
-              rgba($success, 0.05) 0%,
-              rgba($success, 0.02) 100%
-            );
-          }
-
-          &.regressed {
-            border-left-color: $error;
-            background: linear-gradient(
-              135deg,
-              rgba($error, 0.05) 0%,
-              rgba($error, 0.02) 100%
-            );
-          }
-
-          &.neutral {
-            border-left-color: $qa-primary;
-            background: linear-gradient(
-              135deg,
-              rgba($qa-primary, 0.05) 0%,
-              rgba($qa-primary, 0.02) 100%
-            );
-          }
-        }
-
-        .card-header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: $spacing-2;
-          margin-bottom: $spacing-3;
-
-          .performance-indicator {
-            font-size: $font-size-lg;
-
-            &.improved {
-              filter: hue-rotate(90deg);
-            }
-
-            &.regressed {
-              filter: hue-rotate(0deg);
-            }
-          }
-
-          .performance-title {
-            font-size: $font-size-sm;
-            font-weight: $font-weight-medium;
-            color: $text-secondary;
-          }
-        }
-
-        .performance-value {
-          font-size: $font-size-xl;
-          font-weight: $font-weight-bold;
-          color: $qa-black;
-          margin-bottom: $spacing-2;
-          font-family: $font-family-mono;
-        }
-
-        .performance-subtitle {
-          font-size: $font-size-xs;
-          color: $text-secondary;
-        }
-
-        // Metrics breakdown
-        .metrics-breakdown {
-          display: flex;
-          justify-content: space-around;
-          margin-bottom: $spacing-2;
-
-          .metric-stat {
-            text-align: center;
-
-            .stat-number {
-              display: block;
-              font-size: $font-size-lg;
-              font-weight: $font-weight-bold;
-              font-family: $font-family-mono;
-            }
-
-            .stat-label {
-              font-size: 10px;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-
-            &.improved {
-              color: $success;
-            }
-
-            &.regressed {
-              color: $error;
-            }
-
-            &.neutral {
-              color: $qa-primary;
-            }
-          }
-        }
-
-        // Sample breakdown
-        .sample-breakdown {
-          .sample-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: $spacing-1;
-            font-size: $font-size-xs;
-
-            .sample-label {
-              color: $text-secondary;
-            }
-
-            .sample-value {
-              font-weight: $font-weight-medium;
-              font-family: $font-family-mono;
-              color: $qa-black;
-            }
-
-            &.improved .sample-value {
-              color: $success;
-            }
-
-            &.regressed .sample-value {
-              color: $error;
-            }
-          }
-        }
-
-        // Stats content
-        .stats-content {
-          .power-level {
-            font-size: $font-size-lg;
-            font-weight: $font-weight-bold;
-            margin-bottom: $spacing-1;
-
-            &.high-power {
-              color: $success;
-            }
-
-            &.medium-power {
-              color: $warning;
-            }
-
-            &.low-power,
-            &.very-low-power {
-              color: $error;
-            }
-          }
-
-          .sample-size {
-            font-size: $font-size-sm;
-            color: $text-secondary;
-            font-family: $font-family-mono;
-          }
-        }
-      }
-    }
-  }
-
-  // Key Findings
-  .key-findings {
-    margin-bottom: $spacing-6;
-
-    .findings-header {
-      display: flex;
-      align-items: center;
-      gap: $spacing-2;
-      margin-bottom: $spacing-4;
-
-      .findings-icon {
-        font-size: $font-size-lg;
-      }
-
-      .findings-title {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
-        color: $qa-black;
-        margin: 0;
-      }
-    }
-
-    .findings-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: $spacing-4;
-
-      @include media-breakpoint-down(md) {
-        grid-template-columns: 1fr;
-      }
-
-      .findings-card {
-        @include card;
-        padding: $spacing-4;
-
-        &.improvements {
-          border-left: 4px solid $success;
-          background: linear-gradient(
-            135deg,
-            rgba($success, 0.03) 0%,
-            rgba($success, 0.01) 100%
-          );
-        }
-
-        &.regressions {
-          border-left: 4px solid $error;
-          background: linear-gradient(
-            135deg,
-            rgba($error, 0.03) 0%,
-            rgba($error, 0.01) 100%
-          );
-        }
-
-        &.insights {
-          border-left: 4px solid $qa-primary;
-          background: linear-gradient(
-            135deg,
-            rgba($qa-primary, 0.03) 0%,
-            rgba($qa-primary, 0.01) 100%
-          );
-        }
-
-        .findings-card-header {
-          display: flex;
-          align-items: center;
-          gap: $spacing-2;
-          margin-bottom: $spacing-3;
-
-          .findings-card-icon {
-            font-size: $font-size-base;
-
-            &.success {
-              color: $success;
-            }
-
-            &.error {
-              color: $error;
-            }
-
-            &.info {
-              color: $qa-primary;
-            }
-          }
-
-          .findings-card-title {
-            font-size: $font-size-sm;
-            font-weight: $font-weight-semibold;
-            color: $qa-black;
-            margin: 0;
-          }
-        }
-
-        .findings-list {
-          .finding-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: $spacing-2;
-            margin-bottom: $spacing-2;
-            border-radius: $radius-sm;
-            font-size: $font-size-xs;
-
-            &.improvement {
-              background: rgba($success, 0.1);
-            }
-
-            &.regression {
-              background: rgba($error, 0.1);
-            }
-
-            .finding-metric {
-              font-weight: $font-weight-medium;
-              color: $qa-black;
-              flex: 1;
-            }
-
-            .finding-value {
-              font-family: $font-family-mono;
-              font-weight: $font-weight-bold;
-              margin: 0 $spacing-2;
-
-              &.positive {
-                color: $success;
-              }
-
-              &.negative {
-                color: $error;
-              }
-            }
-
-            .finding-impact {
-              @include badge;
-              font-size: 9px;
-
-              &.high {
-                background-color: rgba($error, 0.15);
-                color: $error;
-              }
-
-              &.medium {
-                background-color: rgba($warning, 0.15);
-                color: darken($warning, 15%);
-              }
-
-              &.low {
-                background-color: rgba($success, 0.15);
-                color: $success;
-              }
-            }
-          }
-        }
-
-        .insights-list {
-          .insight-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: $spacing-2 0;
-            border-bottom: 1px solid rgba($qa-primary, 0.1);
-            font-size: $font-size-xs;
-
-            &:last-child {
-              border-bottom: none;
-            }
-
-            .insight-label {
-              color: $text-secondary;
-              font-weight: $font-weight-medium;
-            }
-
-            .insight-value {
-              font-family: $font-family-mono;
-              font-weight: $font-weight-medium;
-              color: $qa-black;
-
-              &.positive {
-                color: $success;
-              }
-
-              &.negative {
-                color: $error;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Detailed Narrative
-  .detailed-narrative {
-    margin-bottom: $spacing-6;
-
-    .narrative-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: $spacing-4;
-
-      .narrative-icon {
-        font-size: $font-size-lg;
-      }
-
-      .narrative-title {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
-        color: $qa-black;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: $spacing-2;
-      }
-
-      .expand-toggle {
-        @include button-outline;
-        border-color: $qa-primary;
-        color: $qa-primary;
-        font-size: $font-size-xs;
-        padding: $spacing-1 $spacing-2;
-        display: flex;
-        align-items: center;
-        gap: $spacing-1;
-
-        &:hover:not(:disabled) {
-          background-color: rgba($qa-primary, 0.05);
-        }
-
-        .toggle-icon {
-          font-size: 10px;
-          transition: transform 0.2s ease;
-        }
-
-        &.expanded .toggle-icon {
-          transform: rotate(180deg);
-        }
-      }
-    }
-
-    .narrative-content {
-      @include card;
-      padding: $spacing-4;
-      background: linear-gradient(
-        135deg,
-        rgba($qa-primary, 0.02) 0%,
-        rgba($qa-primary, 0.01) 100%
-      );
-      border: 1px solid rgba($qa-primary, 0.1);
-      overflow: hidden;
-      transition: max-height 0.3s ease;
-
-      &:not(.expanded) {
-        max-height: 100px;
-      }
-
-      &.expanded {
-        max-height: none;
-      }
-
-      .narrative-text {
-        color: $qa-black;
-        line-height: $line-height-normal;
-        white-space: pre-line;
-        font-size: $font-size-sm;
-
-        // Style warning indicators
-        strong {
-          color: $qa-primary;
-          font-weight: $font-weight-semibold;
-        }
-      }
-    }
-  }
-
-  // Recommendations
-  .recommendations {
-    .recommendations-header {
-      display: flex;
-      align-items: center;
-      gap: $spacing-2;
-      margin-bottom: $spacing-4;
-
-      .recommendations-icon {
-        font-size: $font-size-lg;
-      }
-
-      .recommendations-title {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
-        color: $qa-black;
-        margin: 0;
-      }
-    }
-
-    .recommendations-list {
-      @include card;
-      padding: $spacing-4;
-      background: linear-gradient(
-        135deg,
-        rgba($qa-primary, 0.03) 0%,
-        rgba($qa-primary, 0.01) 100%
-      );
-      border-left: 4px solid $qa-primary;
-
-      .recommendation-item {
-        display: flex;
-        align-items: flex-start;
-        gap: $spacing-2;
-        margin-bottom: $spacing-2;
-        font-size: $font-size-sm;
-
-        &:last-child {
-          margin-bottom: 0;
-        }
-
-        .recommendation-bullet {
-          color: $qa-primary;
-          font-weight: $font-weight-bold;
-          margin-top: 2px;
-        }
-
-        .recommendation-text {
-          color: $qa-black;
-          line-height: $line-height-normal;
-        }
-      }
-    }
-  }
-}
-
-// Enhanced Narrative Insights with QA theming
-.narrative-insights {
-  @include card;
-  padding: $spacing-5;
-  margin-bottom: $spacing-8;
-  background: linear-gradient(
-    135deg,
-    rgba($qa-primary, 0.03) 0%,
-    rgba($qa-primary, 0.01) 100%
-  );
-  border-left: 4px solid $qa-primary;
-
-  .insights-title {
-    font-size: $font-size-lg;
-    font-weight: $font-weight-semibold;
-    color: $qa-primary;
-    margin-bottom: $spacing-4;
+  .vs-indicator {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
+    justify-content: center;
+    padding: 2rem 0;
 
-    &::before {
-      content: '💡';
-      font-size: $font-size-base;
+    @include media-breakpoint-down(lg) {
+      display: none;
+    }
+
+    .vs-circle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      background: $primary-blue;
+      color: white;
+      font-weight: 700;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+    }
+  }
+}
+
+// Narrative Insights
+.narrative-insights {
+  background: $background-card;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid $border-color;
+  margin-bottom: 2rem;
+
+  .insights-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+
+    .icon {
+      font-size: 1.25rem;
+      color: $primary-blue;
+    }
+
+    h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: $text-primary;
+      margin: 0;
     }
   }
 
   .insights-content {
-    color: $qa-black;
-    line-height: $line-height-normal;
-    white-space: pre-line;
-    background: $qa-white;
-    padding: $spacing-4;
-    border-radius: $radius-sm;
-    border: 1px solid rgba($qa-primary, 0.1);
-
-    // Style warning indicators
-    strong {
-      color: $qa-primary;
+    .narrative-text {
+      color: $text-primary;
+      line-height: 1.6;
+      white-space: pre-line;
+      font-size: 0.875rem;
     }
   }
 }
 
-// Tabs with QA theming
-.comparison-tabs {
-  @include card;
+// Tabbed Content
+.tabbed-content {
+  background: $background-card;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid $border-color;
   overflow: hidden;
-  margin-bottom: $spacing-6;
-  border: 1px solid rgba($qa-primary, 0.1);
-}
 
-.tabs-container {
-  display: flex;
-  background-color: $qa-white;
-  border-bottom: 1px solid rgba($qa-primary, 0.1);
-  overflow-x: auto;
-
-  .tab {
-    padding: $spacing-3 $spacing-5; // Reduced from $spacing-4 $spacing-6
-    cursor: pointer;
-    text-align: center;
-    font-weight: $font-weight-medium;
-    color: $text-secondary;
-    transition: all 0.3s ease;
-    position: relative;
-    min-width: 140px; // Reduced from 160px
-    white-space: nowrap;
+  .tab-navigation {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: $spacing-2;
-    border-bottom: 3px solid transparent;
+    background: $background-light;
+    border-bottom: 1px solid $border-color;
+    overflow-x: auto;
 
-    @include media-breakpoint-down(md) {
-      padding: $spacing-2 $spacing-3; // Reduced from $spacing-3 $spacing-4
-      min-width: 100px; // Reduced from 120px
-      font-size: $font-size-sm;
+    .tab-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem 1.5rem;
+      background: none;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: $text-secondary;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+
+      &:hover:not(.active) {
+        color: $text-primary;
+        background: rgba($primary-blue, 0.05);
+      }
+
+      &.active {
+        color: $primary-blue;
+        background: $background-card;
+        border-bottom-color: $primary-blue;
+      }
+
+      .icon {
+        font-size: 1rem;
+      }
     }
+  }
 
-    .tab-icon {
-      font-size: $font-size-base;
-    }
+  .tab-content {
+    .tab-panel {
+      padding: 2rem;
 
-    &:hover:not(.active) {
-      color: $qa-primary;
-      background-color: rgba($qa-primary, 0.03);
-    }
-
-    &.active {
-      color: $qa-primary;
-      font-weight: $font-weight-semibold;
-      background-color: rgba($qa-primary, 0.05);
-      border-bottom-color: $qa-primary;
+      @include media-breakpoint-down(md) {
+        padding: 1.5rem;
+      }
     }
   }
 }
 
-.tab-content {
-  padding: $spacing-6; // Reduced from $spacing-8
-  min-height: 400px;
-
-  @include media-breakpoint-down(md) {
-    padding: $spacing-4; // Reduced from $spacing-6
-  }
-}
-
-// Metrics Analysis with QA colors
-.metrics-analysis-section {
+// Overview Tab
+.overview-content {
   .metrics-summary {
-    margin-bottom: $spacing-6; // Reduced from $spacing-8
+    margin-bottom: 2rem;
 
-    .summary-cards {
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $text-primary;
+      margin-bottom: 1rem;
+    }
+
+    .summary-grid {
       display: grid;
-      grid-template-columns: repeat(
-        auto-fit,
-        minmax(120px, 1fr)
-      ); // Reduced from 150px
-      gap: $spacing-3; // Reduced from $spacing-4
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
 
-      .metric-summary-card {
-        @include card;
-        padding: $spacing-3; // Reduced from $spacing-4
-        text-align: center;
-        border-left: 4px solid;
+      .summary-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        border: 1px solid;
 
         &.improved {
-          border-left-color: $success;
-          background-color: rgba($success, 0.03);
+          background: rgba($success-green, 0.1);
+          border-color: rgba($success-green, 0.3);
+
+          .card-icon .icon {
+            color: $success-green;
+          }
         }
 
         &.regressed {
-          border-left-color: $error;
-          background-color: rgba($error, 0.03);
+          background: rgba($error-red, 0.1);
+          border-color: rgba($error-red, 0.3);
+
+          .card-icon .icon {
+            color: $error-red;
+          }
         }
 
-        &.neutral {
-          border-left-color: $qa-primary;
-          background-color: rgba($qa-primary, 0.03);
+        &.unchanged {
+          background: rgba($neutral-gray, 0.1);
+          border-color: rgba($neutral-gray, 0.3);
+
+          .card-icon .icon {
+            color: $neutral-gray;
+          }
         }
 
-        .summary-number {
-          font-size: $font-size-xl; // Reduced from $font-size-2xl
-          font-weight: $font-weight-bold;
-          margin-bottom: $spacing-1; // Reduced from $spacing-2
-          color: $qa-black;
+        .card-icon {
+          .icon {
+            font-size: 1.5rem;
+          }
         }
 
-        .summary-label {
-          font-size: $font-size-xs; // Reduced from $font-size-sm
-          color: $text-secondary;
-          font-weight: $font-weight-medium;
+        .card-content {
+          .card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: $text-primary;
+            line-height: 1;
+          }
+
+          .card-label {
+            font-size: 0.75rem;
+            color: $text-secondary;
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
         }
       }
     }
   }
 
+  .configuration-info {
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $text-primary;
+      margin-bottom: 1rem;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+
+      .config-item {
+        padding: 1rem;
+        background: $background-light;
+        border-radius: 0.5rem;
+        border: 1px solid $border-color;
+
+        .config-label {
+          font-size: 0.75rem;
+          color: $text-secondary;
+          margin-bottom: 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .config-value {
+          font-size: 0.875rem;
+          color: $text-primary;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+}
+
+// Metrics Analysis Tab
+.metrics-analysis {
   .metrics-table-container {
     overflow-x: auto;
-    margin-bottom: $spacing-6; // Reduced from $spacing-8
+    border-radius: 0.5rem;
+    border: 1px solid $border-color;
 
     .metrics-table {
-      @include table;
       width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
 
       th {
-        background-color: rgba($qa-primary, 0.05);
-        font-weight: $font-weight-semibold;
-        color: $qa-primary;
-        font-size: $font-size-xs;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        background: $background-light;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: $text-primary;
+        border-bottom: 1px solid $border-color;
+        white-space: nowrap;
       }
 
-      tr {
+      td {
+        padding: 1rem;
+        border-bottom: 1px solid rgba($border-color, 0.5);
+        vertical-align: middle;
+      }
+
+      tbody tr {
+        transition: background-color 0.2s ease;
+
+        &:hover {
+          background: rgba($primary-blue, 0.02);
+        }
+
         &.improved {
-          background-color: rgba($success, 0.02);
+          background: rgba($success-green, 0.02);
         }
 
         &.regressed {
-          background-color: rgba($error, 0.02);
+          background: rgba($error-red, 0.02);
         }
       }
 
       .metric-name {
-        font-weight: $font-weight-medium;
-        color: $qa-black;
+        font-weight: 500;
+        color: $text-primary;
+        min-width: 200px;
       }
 
       .metric-value {
-        font-family: $font-family-mono;
-        text-align: center;
-        font-size: $font-size-xs;
+        font-family: monospace;
+        text-align: right;
+        color: $text-primary;
       }
 
       .metric-difference,
       .metric-percentage {
-        font-family: $font-family-mono;
-        font-weight: $font-weight-medium;
-        text-align: center;
-        font-size: $font-size-xs;
+        font-family: monospace;
+        text-align: right;
+        font-weight: 600;
 
         &.positive {
-          color: $success;
+          color: $success-green;
         }
 
         &.negative {
-          color: $error;
+          color: $error-red;
         }
 
         &.neutral {
-          color: $text-tertiary;
+          color: $text-muted;
         }
       }
 
@@ -1140,81 +818,27 @@ $text-primary: $qa-black;
         text-align: center;
 
         .impact-badge {
-          @include badge;
-          font-size: 10px; // Very small for compact design
+          display: inline-block;
+          padding: 0.25rem 0.5rem;
+          border-radius: 0.25rem;
+          font-size: 0.75rem;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
 
           &.high {
-            background-color: rgba($error, 0.15);
-            color: $error;
+            background: rgba($error-red, 0.2);
+            color: $error-red;
           }
 
           &.medium {
-            background-color: rgba($warning, 0.15);
-            color: darken($warning, 15%);
+            background: rgba($warning-orange, 0.2);
+            color: $warning-orange;
           }
 
           &.low {
-            background-color: rgba($success, 0.15);
-            color: $success;
-          }
-        }
-      }
-    }
-  }
-
-  .top-changes {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: $spacing-4; // Reduced from $spacing-6
-
-    @include media-breakpoint-down(md) {
-      grid-template-columns: 1fr;
-    }
-
-    .top-improvements,
-    .top-regressions {
-      @include card;
-      padding: $spacing-4; // Reduced from default card padding
-
-      h4 {
-        margin-bottom: $spacing-3; // Reduced from $spacing-4
-        font-size: $font-size-base; // Reduced from $font-size-lg
-        font-weight: $font-weight-semibold;
-        color: $qa-black;
-      }
-
-      .change-list {
-        display: flex;
-        flex-direction: column;
-        gap: $spacing-2; // Reduced from $spacing-3
-
-        .change-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: $spacing-2; // Reduced from $spacing-3
-          border-radius: $radius-sm;
-
-          &.improved {
-            background-color: rgba($success, 0.1);
-            border-left: 3px solid $success;
-          }
-
-          &.regressed {
-            background-color: rgba($error, 0.1);
-            border-left: 3px solid $error;
-          }
-
-          .change-metric {
-            font-weight: $font-weight-medium;
-            color: $qa-black;
-            font-size: $font-size-xs;
-          }
-
-          .change-value {
-            font-family: $font-family-mono;
-            font-weight: $font-weight-bold;
-            font-size: $font-size-xs;
+            background: rgba($success-green, 0.2);
+            color: $success-green;
           }
         }
       }
@@ -1222,424 +846,622 @@ $text-primary: $qa-black;
   }
 }
 
-// Enhanced Visualization Section
+// Visualization Tab
 .visualization-section {
   .visualization-controls {
-    margin-bottom: $spacing-4; // Reduced from $spacing-6
-    @include card;
-    padding: $spacing-4;
-    background: linear-gradient(
-      135deg,
-      rgba($qa-primary, 0.03) 0%,
-      rgba($qa-primary, 0.01) 100%
-    );
-    border: 1px solid rgba($qa-primary, 0.1);
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: $background-light;
+    border-radius: 0.5rem;
+    border: 1px solid $border-color;
 
     .control-group {
       display: flex;
       align-items: center;
-      gap: $spacing-3; // Reduced from $spacing-4
+      gap: 1rem;
       flex-wrap: wrap;
 
       .control-label {
-        font-weight: $font-weight-medium;
-        font-size: $font-size-sm; // Reduced from $font-size-base
-        color: $qa-black;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: $text-primary;
       }
 
-      .visualization-buttons {
+      .chart-type-buttons {
         display: flex;
-        gap: $spacing-2; // Reduced from $spacing-3
+        gap: 0.5rem;
 
-        .viz-type-button {
-          padding: $spacing-2 $spacing-4; // Reduced from $spacing-3 $spacing-5
-          border: 1px solid rgba($qa-primary, 0.3);
-          background-color: $qa-white;
-          color: $qa-black;
-          border-radius: $radius-sm;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-size: $font-size-xs; // Reduced from $font-size-sm
-          font-weight: $font-weight-medium;
+        .chart-button {
           display: flex;
           align-items: center;
-          gap: $spacing-1; // Reduced from $spacing-2
-
-          .viz-icon {
-            font-size: $font-size-sm; // Reduced from $font-size-base
-          }
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          background: $background-card;
+          border: 1px solid $border-color;
+          border-radius: 0.375rem;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: $text-secondary;
+          cursor: pointer;
+          transition: all 0.2s ease;
 
           &:hover:not(.active) {
-            background-color: rgba($qa-primary, 0.05);
-            border-color: rgba($qa-primary, 0.5);
+            background: rgba($primary-blue, 0.05);
+            border-color: rgba($primary-blue, 0.3);
+            color: $text-primary;
           }
 
           &.active {
-            background-color: $qa-primary;
-            color: $qa-white;
-            border-color: $qa-primary;
-            box-shadow: $shadow-sm;
+            background: $primary-blue;
+            border-color: $primary-blue;
+            color: white;
+          }
+
+          .icon {
+            font-size: 1rem;
           }
         }
       }
     }
   }
 
-  .visualization-wrapper {
-    @include card;
-    padding: $spacing-4; // Reduced from default card padding
-    min-height: 450px; // Reduced from 500px
-  }
-}
+  .chart-container {
+    background: $background-card;
+    border-radius: 0.5rem;
+    border: 1px solid $border-color;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-// Status badges with QA colors
-.status-badge {
-  &.completed,
-  &.ready,
-  &.active,
-  &.success {
-    @include status-badge('success');
-  }
-
-  &.running,
-  &.info {
-    background-color: rgba($qa-primary, 0.15);
-    color: $qa-primary;
-  }
-
-  &.pending,
-  &.processing,
-  &.warning {
-    @include status-badge('warning');
-  }
-
-  &.failed,
-  &.error,
-  &.inactive {
-    @include status-badge('error');
-  }
-
-  &.improved {
-    @include status-badge('success');
-  }
-
-  &.regressed {
-    @include status-badge('error');
-  }
-
-  &.unchanged {
-    background-color: rgba($qa-primary, 0.15);
-    color: darken($qa-primary, 10%);
-  }
-}
-
-// Compact Sample Analysis
-.samples-section {
-  .samples-controls {
-    margin-bottom: $spacing-4; // Reduced from $spacing-6
-
-    .samples-summary {
+    .chart-loading {
       display: flex;
-      gap: $spacing-4; // Reduced from $spacing-6
-      margin-bottom: $spacing-4; // Reduced from $spacing-6
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      color: $text-secondary;
+
+      .spinner {
+        @include spinner(32px, 3px, $primary-blue);
+      }
+    }
+  }
+}
+
+// Sample Analysis Tab
+.sample-analysis {
+  .sample-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: $background-light;
+    border-radius: 0.5rem;
+    border: 1px solid $border-color;
+
+    @include media-breakpoint-down(md) {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .filter-controls {
+      display: flex;
+      gap: 1rem;
 
       @include media-breakpoint-down(sm) {
         flex-direction: column;
-        gap: $spacing-3;
       }
 
-      .sample-stat {
-        @include card;
-        padding: $spacing-3; // Reduced from $spacing-4
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        .control-label {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: $text-primary;
+          white-space: nowrap;
+        }
+
+        .control-select {
+          @include form-control;
+          padding: 0.375rem 0.75rem;
+          font-size: 0.875rem;
+          min-width: 150px;
+        }
+      }
+    }
+
+    .sample-stats {
+      display: flex;
+      gap: 1rem;
+
+      .stat-item {
         text-align: center;
-        flex: 1;
-        border-left: 4px solid $qa-primary;
 
-        &.improved {
-          border-left-color: $success;
-          background-color: rgba($success, 0.03);
-        }
-
-        &.regressed {
-          border-left-color: $error;
-          background-color: rgba($error, 0.03);
-        }
-
-        .stat-number {
-          display: block;
-          font-size: $font-size-lg; // Reduced from $font-size-xl
-          font-weight: $font-weight-bold;
-          margin-bottom: $spacing-1;
-          color: $qa-black;
+        .stat-value {
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: $text-primary;
+          line-height: 1;
         }
 
         .stat-label {
-          font-size: $font-size-xs; // Reduced from $font-size-sm
+          font-size: 0.75rem;
           color: $text-secondary;
-          font-weight: $font-weight-medium;
+          margin-top: 0.25rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+      }
+    }
+  }
+
+  .sample-table-container {
+    overflow-x: auto;
+    border-radius: 0.5rem;
+    border: 1px solid $border-color;
+
+    .sample-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+
+      th {
+        background: $background-light;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: $text-primary;
+        border-bottom: 1px solid $border-color;
+        white-space: nowrap;
+      }
+
+      td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgba($border-color, 0.5);
+        vertical-align: middle;
+      }
+
+      tbody tr {
+        transition: background-color 0.2s ease;
+
+        &:hover {
+          background: rgba($primary-blue, 0.02);
+        }
+
+        &.success {
+          background: rgba($success-green, 0.02);
+        }
+
+        &.error {
+          background: rgba($error-red, 0.02);
+        }
+      }
+
+      .sample-id {
+        font-family: monospace;
+        font-weight: 500;
+        color: $text-primary;
+      }
+
+      .sample-score {
+        font-family: monospace;
+        text-align: right;
+        color: $text-primary;
+      }
+
+      .sample-difference,
+      .sample-percentage {
+        font-family: monospace;
+        text-align: right;
+        font-weight: 600;
+
+        &.positive {
+          color: $success-green;
+        }
+
+        &.negative {
+          color: $error-red;
+        }
+
+        &.neutral {
+          color: $text-muted;
         }
       }
     }
   }
 }
 
-// Empty States with QA theming
-.no-metrics-container,
-.no-visualization-container,
-.no-samples-container,
-.no-detailed-metrics-container {
-  @include empty-state;
-  margin: $spacing-8 0; // Reduced from $spacing-12
-  background: linear-gradient(
-    135deg,
-    rgba($qa-primary, 0.02) 0%,
-    rgba($qa-primary, 0.01) 100%
-  );
-  border: 1px solid rgba($qa-primary, 0.1);
+// Common button styles
+.btn {
+  @include button-base;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
 
-  .empty-state-icon {
-    font-size: $font-size-2xl; // Reduced from $font-size-3xl
-    margin-bottom: $spacing-3; // Reduced from $spacing-4
-    color: rgba($qa-primary, 0.5);
+  &.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
   }
 
-  h3 {
-    font-size: $font-size-base; // Reduced from $font-size-lg
-    margin-bottom: $spacing-2; // Reduced from $spacing-3
-    color: $qa-black;
-  }
-
-  .no-results-text {
-    color: $text-secondary;
-    margin-bottom: $spacing-4; // Reduced from $spacing-6
-    font-size: $font-size-sm;
-  }
-
-  .run-button-primary {
-    background-color: $qa-primary;
-    color: $qa-white;
-    border-color: $qa-primary;
-    padding: $spacing-2 $spacing-4; // Reduced from $spacing-3 $spacing-6
+  &.btn-primary {
+    @include button-primary;
+    background: $primary-blue;
+    border-color: $primary-blue;
 
     &:hover:not(:disabled) {
-      background-color: $qa-primary-light;
-      border-color: $qa-primary-light;
+      background: darken($primary-blue, 10%);
+      border-color: darken($primary-blue, 10%);
     }
+  }
+
+  &.btn-outline {
+    @include button-outline;
+    border-color: $border-color;
+    color: $text-primary;
+
+    &:hover:not(:disabled) {
+      background: $background-light;
+      border-color: $primary-blue;
+      color: $primary-blue;
+    }
+  }
+
+  &.btn-danger {
+    @include button-danger;
+    background: $error-red;
+    border-color: $error-red;
+
+    &:hover:not(:disabled) {
+      background: darken($error-red, 10%);
+      border-color: darken($error-red, 10%);
+    }
+  }
+
+  .icon {
+    font-size: 1rem;
   }
 }
 
-// Loading and error states with QA theming
+// Status badge styles
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  &.success {
+    background: rgba($success-green, 0.15);
+    color: $success-green;
+  }
+
+  &.error {
+    background: rgba($error-red, 0.15);
+    color: $error-red;
+  }
+
+  &.warning {
+    background: rgba($warning-orange, 0.15);
+    color: $warning-orange;
+  }
+
+  &.info {
+    background: rgba($primary-blue, 0.15);
+    color: $primary-blue;
+  }
+
+  &.neutral {
+    background: rgba($neutral-gray, 0.15);
+    color: $neutral-gray;
+  }
+
+  .icon {
+    font-size: 0.75rem;
+  }
+}
+
+// Empty state styles
+.empty-state {
+  @include empty-state;
+  padding: 3rem;
+
+  .empty-icon {
+    .icon {
+      font-size: 3rem;
+      color: $text-muted;
+      margin-bottom: 1rem;
+    }
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: $text-secondary;
+    margin-bottom: 1.5rem;
+  }
+}
+
+// Loading and error states
 .loading-container {
   @include loading-container;
-  @include card;
-  margin-bottom: $spacing-6;
-  border: 1px solid rgba($qa-primary, 0.1);
+  background: $background-card;
+  border-radius: 1rem;
+  border: 1px solid $border-color;
 
   .spinner {
-    @include spinner($size: 24px, $border-width: 3px, $color: $qa-primary);
-    margin-bottom: $spacing-4;
+    @include spinner(32px, 3px, $primary-blue);
   }
 
   .loading-text {
-    color: $qa-black;
+    color: $text-secondary;
+    font-size: 0.875rem;
   }
 }
 
 .error-container {
   @include error-container;
-  @include card;
-  margin-bottom: $spacing-6;
-  border: 1px solid rgba($error, 0.3);
-  background: rgba($error, 0.02);
+  background: $background-card;
+  border-radius: 1rem;
+  border: 1px solid rgba($error-red, 0.3);
 
-  .retry-button {
-    @include button-secondary;
-    margin-top: $spacing-4;
-    border-color: $qa-primary;
-    color: $qa-primary;
-
-    &:hover:not(:disabled) {
-      background-color: rgba($qa-primary, 0.05);
+  .error-icon {
+    .icon {
+      font-size: 3rem;
+      color: $error-red;
+      margin-bottom: 1rem;
     }
+  }
+
+  .error-message {
+    color: $text-primary;
+    margin-bottom: 1.5rem;
   }
 }
 
-// Modal with QA theming
+// Modal styles
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: $z-index-modal-backdrop;
-  padding: $spacing-4;
+  padding: 2rem;
 
-  .modal-content {
-    background-color: $qa-white;
-    border-radius: $radius-lg;
-    box-shadow: $shadow-lg;
-    max-width: 90%;
-    width: 700px; // Reduced from 800px
+  .modal-container {
+    background: $background-card;
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px rgba(0, 0, 0, 0.25);
+    max-width: 90vw;
+    width: 800px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba($qa-primary, 0.1);
 
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: $spacing-4; // Reduced from $spacing-6
-      border-bottom: 1px solid rgba($qa-primary, 0.1);
-      background: linear-gradient(
-        135deg,
-        rgba($qa-primary, 0.03) 0%,
-        rgba($qa-primary, 0.01) 100%
-      );
+      padding: 1.5rem;
+      border-bottom: 1px solid $border-color;
+      background: $background-light;
 
       h2 {
-        font-size: $font-size-base; // Reduced from $font-size-lg
-        font-weight: $font-weight-medium;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: $text-primary;
         margin: 0;
-        color: $qa-black;
       }
 
-      .close-button {
+      .modal-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.375rem;
         background: none;
         border: none;
-        font-size: $font-size-lg; // Reduced from $font-size-xl
-        cursor: pointer;
         color: $text-secondary;
-        padding: $spacing-1; // Reduced from $spacing-2
-        border-radius: $radius-sm;
+        cursor: pointer;
+        transition: all 0.2s ease;
 
         &:hover {
-          color: $qa-black;
-          background-color: rgba($qa-primary, 0.1);
+          background: rgba($error-red, 0.1);
+          color: $error-red;
+        }
+
+        .icon {
+          font-size: 1.25rem;
         }
       }
     }
 
-    .modal-body {
-      padding: $spacing-4; // Reduced from $spacing-6
+    .modal-content {
+      padding: 1.5rem;
       overflow-y: auto;
       flex: 1;
 
-      .sample-meta-section {
-        display: flex;
-        flex-wrap: wrap;
-        gap: $spacing-4; // Reduced from $spacing-6
-        padding-bottom: $spacing-4; // Reduced from $spacing-6
-        border-bottom: 1px solid rgba($qa-primary, 0.1);
-        margin-bottom: $spacing-4; // Reduced from $spacing-6
+      .sample-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid $border-color;
 
-        .sample-id-row,
-        .sample-status-row {
-          display: flex;
-          align-items: center;
-          gap: $spacing-2;
-
-          .sample-id-label,
-          .sample-status-label {
-            font-weight: $font-weight-medium;
-            font-size: $font-size-xs;
+        .meta-item {
+          .meta-label {
+            font-size: 0.75rem;
             color: $text-secondary;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
           }
 
-          .sample-id-value {
-            font-family: $font-family-mono;
-            font-size: $font-size-xs;
-            color: $qa-black;
-            background: rgba($qa-primary, 0.1);
-            padding: $spacing-1 $spacing-2;
-            border-radius: $radius-sm;
+          .meta-value {
+            font-size: 0.875rem;
+            color: $text-primary;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+
+            &.positive {
+              color: $success-green;
+            }
+
+            &.negative {
+              color: $error-red;
+            }
+
+            &.neutral {
+              color: $text-muted;
+            }
           }
         }
       }
 
-      .sample-scores-section {
-        margin-bottom: $spacing-4; // Reduced from $spacing-6
+      .sample-scores {
+        margin-bottom: 1.5rem;
 
-        .scores-row {
-          display: grid;
-          grid-template-columns: repeat(
-            auto-fit,
-            minmax(160px, 1fr)
-          ); // Reduced from 200px
-          gap: $spacing-4; // Reduced from $spacing-6
+        .score-comparison {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          background: $background-light;
+          padding: 1.5rem;
+          border-radius: 0.75rem;
+          border: 1px solid $border-color;
+
+          @include media-breakpoint-down(sm) {
+            flex-direction: column;
+          }
 
           .score-item {
-            @include card;
-            padding: $spacing-3; // Reduced from $spacing-4
+            flex: 1;
+            text-align: center;
 
-            .score-label {
-              font-size: 10px; // Reduced from $font-size-xs
-              color: $text-secondary;
-              margin-bottom: $spacing-1; // Reduced from $spacing-2
-              display: block;
+            .score-header {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 0.5rem;
+              margin-bottom: 0.75rem;
+
+              .evaluation-indicator {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 1.5rem;
+                height: 1.5rem;
+                border-radius: 50%;
+                font-weight: 700;
+                font-size: 0.75rem;
+                color: white;
+
+                &.eval-a {
+                  background: $primary-blue;
+                }
+
+                &.eval-b {
+                  background: $success-green;
+                }
+              }
+
+              .score-label {
+                font-size: 0.875rem;
+                color: $text-secondary;
+                font-weight: 500;
+              }
             }
 
             .score-value {
-              font-size: $font-size-sm; // Reduced from $font-size-base
-              font-weight: $font-weight-medium;
-              font-family: $font-family-mono;
+              font-size: 1.5rem;
+              font-weight: 700;
+              color: $text-primary;
+              font-family: monospace;
+            }
+          }
 
-              &.positive {
-                color: $success;
-              }
+          .score-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: $text-muted;
 
-              &.negative {
-                color: $error;
-              }
+            @include media-breakpoint-down(sm) {
+              transform: rotate(90deg);
+            }
 
-              &.neutral {
-                color: $text-tertiary;
-              }
+            .icon {
+              font-size: 1.25rem;
             }
           }
         }
       }
 
-      .sample-data-section {
-        h4 {
-          margin-bottom: $spacing-2; // Reduced from $spacing-3
-          font-size: $font-size-xs; // Reduced from $font-size-sm
-          font-weight: $font-weight-semibold;
-          color: $qa-black;
-        }
+      .sample-data {
+        .data-section {
+          margin-bottom: 1.5rem;
 
-        .data-block {
-          background-color: $background-light;
-          padding: $spacing-3; // Reduced from $spacing-4
-          border-radius: $radius-sm;
-          font-family: $font-family-mono;
-          font-size: 10px; // Reduced from $font-size-xs
-          white-space: pre-wrap;
-          overflow-x: auto;
-          max-height: 250px; // Reduced from 300px
-          overflow-y: auto;
-          border: 1px solid rgba($qa-primary, 0.1);
-        }
+          &:last-child {
+            margin-bottom: 0;
+          }
 
-        .sample-input {
-          margin-bottom: $spacing-4; // Reduced from $spacing-6
-        }
+          h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: $text-primary;
+            margin-bottom: 0.75rem;
+          }
 
-        .sample-output-section {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: $spacing-4; // Reduced from $spacing-6
-
-          @include media-breakpoint-down(md) {
-            grid-template-columns: 1fr;
+          .data-content {
+            background: #f8f9fa;
+            border: 1px solid $border-color;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
           }
         }
       }
     }
   }
+}
+
+// Icon styles
+.icon {
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
 }
