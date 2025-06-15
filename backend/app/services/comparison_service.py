@@ -681,11 +681,19 @@ class ComparisonService:
             compatibility_check = _check_evaluation_compatibility(evaluation_a, evaluation_b)
             if compatibility_check.get("errors"):
                 error_msg = f"Evaluations incompatible: {'; '.join(compatibility_check['errors'])}"
-                await self.comparison_repo.update(comparison_id, {"status": "failed", "error": error_msg})
+                # Use a new transaction for error update
+                try:
+                    await self.comparison_repo.update(comparison_id, {"status": "failed", "error": error_msg})
+                except Exception as update_error:
+                    logger.error(f"Failed to update comparison status after compatibility error: {update_error}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
-            # Update status
-            await self.comparison_repo.update(comparison_id, {"status": "running"})
+            # Update status to running
+            try:
+                await self.comparison_repo.update(comparison_id, {"status": "running"})
+            except Exception as update_error:
+                logger.error(f"Failed to update comparison status to running: {update_error}")
+                # Continue anyway as this is not critical
 
             # Calculate comparison
             comparison_results = await self._calculate_comparison(evaluation_a, evaluation_b, comparison.metric_configs)
@@ -696,11 +704,27 @@ class ComparisonService:
                 comparison_results["summary"], compatibility_check.get("warnings", [])
             )
 
+            # Ensure all data is JSON serializable before database update
+            serializable_comparison_results = self._ensure_json_serializable(comparison_results["detailed_results"])
+            serializable_summary = self._ensure_json_serializable(comparison_results["summary"])
+
+            # Validate serialized data before saving
+            try:
+                import json
+                json.dumps(serializable_comparison_results)
+                json.dumps(serializable_summary)
+            except (TypeError, ValueError) as json_error:
+                logger.error(f"Data still not JSON serializable after conversion: {json_error}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to serialize comparison results for storage"
+                )
+
             # Update with results
             update_data = {
                 "status": "completed",
-                "comparison_results": comparison_results["detailed_results"],
-                "summary": comparison_results["summary"],
+                "comparison_results": serializable_comparison_results,
+                "summary": serializable_summary,
                 "narrative_insights": narrative_insights
             }
 
@@ -708,11 +732,34 @@ class ComparisonService:
             logger.info(f"Completed comparison calculation for {comparison_id}")
             return updated_comparison
 
+        except HTTPException:
+            # Re-raise HTTP exceptions as-is
+            raise
         except Exception as e:
             logger.error(f"Error calculating comparison {comparison_id}: {str(e)}", exc_info=True)
-            await self.comparison_repo.update(comparison_id, {"status": "failed", "error": str(e)})
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                                detail=f"Error calculating comparison: {str(e)}")
+
+            # Try to update status to failed, but handle transaction errors
+            try:
+                # Use a simplified error message to avoid serialization issues
+                error_message = f"Calculation failed: {type(e).__name__}"
+                if hasattr(e, 'message'):
+                    error_message += f" - {e.message[:200]}"  # Truncate long messages
+                elif str(e):
+                    error_message += f" - {str(e)[:200]}"  # Truncate long error strings
+
+                await self.comparison_repo.update(comparison_id, {
+                    "status": "failed",
+                    "error": error_message
+                })
+            except Exception as update_error:
+                logger.error(f"Failed to update comparison status after calculation error: {update_error}")
+                # If we can't update the database, at least log the original error
+                logger.error(f"Original calculation error for {comparison_id}: {str(e)}")
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error calculating comparison: {type(e).__name__}"
+            )
 
     async def _calculate_comparison(
             self, evaluation_a: Evaluation, evaluation_b: Evaluation,
@@ -1070,9 +1117,6 @@ class ComparisonService:
         # Get metric comparisons
         metric_comparison = comparison.comparison_results["metric_comparison"]
 
-        logger.info(f"metric_comparison keys: {list(metric_comparison.keys())}")
-        logger.info(metric_comparison.items())
-
         # Generate visualization data based on type
         if visualization_type == "radar":
             return self._generate_radar_chart_data(metric_comparison, evaluation_a.name, evaluation_b.name)
@@ -1237,3 +1281,58 @@ class ComparisonService:
             "evaluation_a_name": eval_a_name,
             "evaluation_b_name": eval_b_name
         }
+
+    def _ensure_json_serializable(self, data: Any) -> Any:
+        """
+        Recursively ensure all data is JSON serializable.
+        Converts numpy types, NaN, infinity, and other non-serializable types to Python native types.
+        """
+        import json
+        import numpy as np
+        import math
+
+        if isinstance(data, dict):
+            return {key: self._ensure_json_serializable(value) for key, value in data.items()}
+        elif isinstance(data, list):
+            return [self._ensure_json_serializable(item) for item in data]
+        elif isinstance(data, np.bool_):
+            return bool(data)
+        elif isinstance(data, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64)):
+            return int(data)
+        elif isinstance(data, (np.float64, np.float16, np.float32, np.float64)):
+            # Handle NaN and infinity values
+            if np.isnan(data):
+                return None  # Convert NaN to null
+            elif np.isinf(data):
+                return None  # Convert infinity to null
+            else:
+                return float(data)
+        elif isinstance(data, (float, np.floating)):
+            # Handle Python float NaN and infinity
+            if math.isnan(data):
+                return None
+            elif math.isinf(data):
+                return None
+            else:
+                return float(data)
+        elif isinstance(data, np.ndarray):
+            # Convert array and handle NaN/inf values
+            converted_list = []
+            for item in data.tolist():
+                converted_list.append(self._ensure_json_serializable(item))
+            return converted_list
+        elif data is None or isinstance(data, (bool, int, str)):
+            return data
+        else:
+            # Try to convert to string as fallback
+            try:
+                # First check if it's already JSON serializable
+                json.dumps(data)
+                return data
+            except (TypeError, ValueError):
+                # Convert to string as last resort
+                str_value = str(data)
+                # Handle string representations of NaN/inf
+                if str_value.lower() in ['nan', 'inf', '-inf', 'infinity', '-infinity']:
+                    return None
+                return str_value

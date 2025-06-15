@@ -30,10 +30,17 @@ class StatisticsUtils:
 
     @staticmethod
     def safe_percentage_change(new_value: Optional[float], old_value: Optional[float], cap_extreme: bool = True) -> \
-    Optional[float]:
-        """Calculate percentage change with safe handling of edge cases and None values."""
+            Optional[float]:
+        """Calculate percentage change with safe handling of edge cases, None values, and NaN."""
+        import math
+
         if new_value is None or old_value is None:
             logger.debug(f"Cannot calculate percentage change: new_value={new_value}, old_value={old_value}")
+            return None
+
+        # Check for NaN values
+        if math.isnan(new_value) or math.isnan(old_value):
+            logger.debug(f"NaN detected in percentage change calculation: new_value={new_value}, old_value={old_value}")
             return None
 
         if new_value == old_value:
@@ -41,6 +48,12 @@ class StatisticsUtils:
 
         if abs(old_value) > 1e-10:  # Normal case
             percentage = ((new_value - old_value) / old_value) * 100
+
+            # Check if result is NaN
+            if math.isnan(percentage):
+                logger.debug("Percentage calculation resulted in NaN")
+                return None
+
         else:  # Division by zero or very small numbers
             if cap_extreme:
                 if new_value > old_value:
@@ -50,11 +63,13 @@ class StatisticsUtils:
                 else:
                     percentage = 0.0
             else:
-                percentage = float('inf') if new_value > old_value else float('-inf')
+                return None  # Return None instead of infinity
 
-        # Cap extreme values if requested
-        if cap_extreme and percentage is not None:
+        # Cap extreme values if requested and check for NaN/inf
+        if cap_extreme and percentage is not None and not math.isnan(percentage) and not math.isinf(percentage):
             percentage = max(-MAX_PERCENTAGE_CHANGE, min(MAX_PERCENTAGE_CHANGE, percentage))
+        elif math.isnan(percentage) or math.isinf(percentage):
+            return None
 
         return percentage
 

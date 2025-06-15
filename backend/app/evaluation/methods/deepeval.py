@@ -9,12 +9,13 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm import Evaluation, EvaluationStatus
+from backend.app.db.models.orm import Evaluation, EvaluationStatus, IntegrationType
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
 from backend.app.evaluation.metrics.deepeval_metrics import (
     DEEPEVAL_AVAILABLE
 )
+from backend.app.services.agent_clients import AgentClientFactory
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,7 +60,7 @@ if DEEPEVAL_AVAILABLE:
             BiasMetric,
             ToxicityMetric,
             HallucinationMetric, GEval
-)
+        )
         from deepeval.models.base_model import DeepEvalBaseLLM
 
         # Import LangChain Azure OpenAI
@@ -69,6 +70,162 @@ if DEEPEVAL_AVAILABLE:
     except ImportError as e:
         logger.error(f"Failed to import DeepEval components: {e}")
         DEEPEVAL_AVAILABLE = False
+
+
+def _create_fallback_json_response(schema: Optional[Any], error_message: str) -> str:
+    """Create a fallback JSON response when MCP fails or doesn't return valid JSON."""
+    import json
+
+    logger.info(f"Creating fallback JSON response for schema: {schema}, error: {error_message}")
+
+    if not schema:
+        # Return simple error object
+        fallback = {"error": error_message, "fallback": True}
+        logger.info(f"No schema provided, returning simple error: {fallback}")
+        return json.dumps(fallback)
+
+    # Try to create appropriate fallback based on common DeepEval patterns
+    try:
+        schema_str = str(schema).lower()
+        logger.info(f"Schema string for analysis: {schema_str}")
+
+        # AnswerRelevancyMetric expects statements
+        if "statements" in schema_str or "answer_relevancy" in schema_str or "answerrelevancy" in schema_str:
+            fallback = {
+                "statements": [
+                    "This is a fallback statement due to MCP parsing error.",
+                    "The original response could not be processed as valid JSON."
+                ]
+            }
+            logger.info(f"Created AnswerRelevancy fallback: {fallback}")
+            return json.dumps(fallback)
+
+        # ContextualRecall, ContextualPrecision, Hallucination expect verdicts array
+        elif "verdicts" in schema_str or any(word in schema_str for word in ["contextualrecall", "contextualprecision", "hallucination"]):
+            fallback = {
+                "verdicts": [
+                    {
+                        "verdict": "no",
+                        "reason": f"Could not evaluate due to MCP error: {error_message}"
+                    }
+                ]
+            }
+            logger.info(f"Created Verdicts array fallback: {fallback}")
+            return json.dumps(fallback)
+
+        # ContextualRelevancy expects verdicts array (different schema but same structure)
+        elif "contextualrelevancy" in schema_str or "contextual_relevancy" in schema_str:
+            fallback = {
+                "verdicts": [
+                    {
+                        "verdict": "no",
+                        "reason": f"Could not evaluate due to MCP error: {error_message}"
+                    }
+                ]
+            }
+            logger.info(f"Created ContextualRelevancy fallback: {fallback}")
+            return json.dumps(fallback)
+
+        # FaithfulnessMetric expects claims and truths
+        elif "claims" in schema_str or "faithfulness" in schema_str:
+            fallback = {
+                "claims": [
+                    {
+                        "claim": "Fallback claim due to parsing error",
+                        "truths": ["Unable to process original response"]
+                    }
+                ]
+            }
+            logger.info(f"Created Faithfulness fallback: {fallback}")
+            return json.dumps(fallback)
+
+        # BiasMetric expects opinions array
+        elif "opinions" in schema_str or "bias" in schema_str:
+            fallback = {
+                "opinions": []
+            }
+            logger.info(f"Created Bias fallback: {fallback}")
+            return json.dumps(fallback)
+
+        # ToxicityMetric expects opinions array
+        elif "toxicity" in schema_str:
+            fallback = {
+                "opinions": []
+            }
+            logger.info(f"Created Toxicity fallback: {fallback}")
+            return json.dumps(fallback)
+
+        # G-Eval metrics expect reasoning and score
+        elif "reasoning" in schema_str or "g_eval" in schema_str or "geval" in schema_str:
+            fallback = {
+                "reasoning": f"Evaluation failed due to MCP error: {error_message}",
+                "score": 0.0
+            }
+            logger.info(f"Created G-Eval fallback: {fallback}")
+            return json.dumps(fallback)
+
+        else:
+            # Generic fallback - try to cover multiple possible structures
+            fallback = {
+                "statements": ["Fallback response due to processing error"],
+                "verdicts": [{"verdict": "no", "reason": error_message}],
+                "opinions": [],
+                "result": "error",
+                "message": error_message,
+                "fallback": True
+            }
+            logger.info(f"Created generic fallback: {fallback}")
+            return json.dumps(fallback)
+
+    except Exception as e:
+        logger.error(f"Error creating fallback JSON: {e}")
+        # Last resort fallback - include all possible structures
+        fallback = {
+            "error": "Multiple errors in JSON generation",
+            "original_error": error_message,
+            "statements": ["Critical fallback due to multiple errors"],
+            "verdicts": [{"verdict": "no", "reason": "Critical error in JSON generation"}],
+            "opinions": []
+        }
+        logger.error(f"Created last resort fallback: {fallback}")
+        return json.dumps(fallback)
+
+
+def _extract_json_from_text(text: str) -> Optional[str]:
+    """Try to extract JSON from text that might contain other content."""
+    import json
+    import re
+
+    # First try to find JSON blocks marked with ```json
+    json_block_pattern = r'```json\s*(\{.*?\}|\[.*?\])\s*```'
+    json_blocks = re.findall(json_block_pattern, text, re.DOTALL | re.IGNORECASE)
+
+    for block in json_blocks:
+        try:
+            json.loads(block)
+            return block
+        except json.JSONDecodeError:
+            continue
+
+    # Look for JSON objects or arrays in the text
+    json_patterns = [
+        r'\{[^{}]*"statements"[^{}]*\}',  # Prioritize objects with statements
+        r'\{[^{}]*"verdict"[^{}]*\}',  # Objects with verdict
+        r'\{[^{}]*"claims"[^{}]*\}',  # Objects with claims
+        r'\{(?:[^{}]|{[^{}]*})*\}',  # Complex nested objects
+        r'\[(?:[^\[\]]|\[[^\[\]]*\])*\]'  # Arrays
+    ]
+
+    for pattern in json_patterns:
+        matches = re.findall(pattern, text, re.DOTALL)
+        for match in matches:
+            try:
+                json.loads(match.strip())
+                return match.strip()
+            except json.JSONDecodeError:
+                continue
+
+    return None
 
 
 class EnhancedAzureOpenAI(DeepEvalBaseLLM):
@@ -210,6 +367,208 @@ class EnhancedAzureOpenAI(DeepEvalBaseLLM):
         return "Enhanced Azure OpenAI Model"
 
 
+class CustomMCPDeepEvalLLM(DeepEvalBaseLLM):
+    """Custom DeepEval LLM wrapper that delegates to MCP agent client with JSON support."""
+
+    def __init__(self, agent_client):
+        """Initialize with pre-created agent client"""
+        self.agent_client = agent_client
+        self.request_count = 0
+        super().__init__()
+
+    def load_model(self):
+        """Return self - DeepEval will call generate/a_generate on this object"""
+        return self
+
+    def generate(self, prompt: str, schema: Optional[Any] = None, **kwargs) -> str:
+        """
+        Synchronous generation using MCP client with JSON schema support.
+        """
+        try:
+            self.request_count += 1
+            logger.info(f"MCP generate request #{self.request_count} (sync): {prompt[:100]}...")
+            logger.info(f"Schema provided: {schema}")
+            logger.info(f"Schema type: {type(schema)}")
+
+            # Check if we're in an async context
+            try:
+                loop = asyncio.get_running_loop()
+                # Create a future and schedule the async work
+                future = asyncio.ensure_future(self._async_generate(prompt, schema, **kwargs))
+
+                # Wait for completion with timeout
+                result = loop.run_until_complete(future)
+
+                # Ensure result is valid JSON if schema is provided
+                if schema:
+                    result = self._ensure_valid_json(result, schema)
+
+                logger.info(f"Final result being returned to DeepEval: {result}")
+                return result
+
+            except RuntimeError:
+                # No running loop, safe to create new one
+                logger.info("Creating new event loop for MCP generation")
+                result = asyncio.run(self._async_generate(prompt, schema, **kwargs))
+
+                # Ensure result is valid JSON if schema is provided
+                if schema:
+                    result = self._ensure_valid_json(result, schema)
+
+                logger.info(f"Final result being returned to DeepEval: {result}")
+                return result
+
+        except Exception as e:
+            logger.error(f"MCP generate failed: {str(e)}")
+            fallback = _create_fallback_json_response(schema, str(e))
+            logger.info(f"Returning fallback response to DeepEval: {fallback}")
+            return fallback
+
+    async def a_generate(self, prompt: str, schema: Optional[Any] = None, **kwargs) -> str:
+        """Async generation using MCP client with JSON schema support."""
+        self.request_count += 1
+        logger.info(f"MCP async generate request #{self.request_count}: {prompt[:100]}...")
+
+        if schema:
+            logger.info(f"DeepEval requesting structured output with schema: {type(schema)}")
+
+        return await self._async_generate(prompt, schema, **kwargs)
+
+    async def _async_generate(self, prompt: str, schema: Optional[Any] = None, **kwargs) -> str:
+        """Internal async generation method that calls MCP client with JSON handling."""
+        try:
+            logger.info(f"_async_generate called with prompt length: {len(prompt)}")
+            logger.info(f"Prompt content: {prompt}")
+
+            # Enhance prompt for JSON output if schema is provided
+            enhanced_prompt = self._enhance_prompt_for_json(prompt, schema)
+            logger.info(f"Enhanced prompt: {enhanced_prompt}")
+
+            # Use the pre-created MCP agent client
+            response = await self.agent_client.process_query(
+                query=enhanced_prompt,
+                system_message="You are an evaluation assistant. Always respond with valid JSON when requested. Be precise and factual."
+            )
+
+            logger.info(f"MCP client response: {response}")
+
+            if response.get("success", True):
+                answer = response.get("answer", "")
+                logger.info(f"MCP generation successful: {len(answer)} chars")
+                logger.info(f"Raw MCP answer: {answer}")
+
+                # If schema was requested, try to ensure valid JSON
+                if schema:
+                    result = self._ensure_valid_json(answer, schema)
+                    logger.info(f"After JSON validation: {result}")
+                    return result
+                else:
+                    # Even without schema, try to detect if this should be JSON based on prompt
+                    if any(word in prompt.lower() for word in ["json", "statements", "verdict", "claims"]):
+                        logger.info("Detected JSON request in prompt, applying validation")
+                        result = self._ensure_valid_json(answer, None)
+                        return result
+                    return answer
+            else:
+                error_msg = response.get("error", "Unknown MCP error")
+                logger.error(f"MCP client error: {error_msg}")
+                return _create_fallback_json_response(schema, error_msg)
+
+        except Exception as e:
+            logger.error(f"MCP async generation failed: {str(e)}")
+            return _create_fallback_json_response(schema, str(e))
+
+    def _enhance_prompt_for_json(self, prompt: str, schema: Optional[Any]) -> str:
+        """Enhance prompt to request JSON output when schema is provided."""
+        logger.info(f"Enhancing prompt. Original length: {len(prompt)}")
+        logger.info(f"Schema provided: {schema}")
+
+        # Always try to detect what DeepEval wants based on prompt content
+        prompt_lower = prompt.lower()
+
+        # Detect AnswerRelevancyMetric requests
+        if any(word in prompt_lower for word in ["statements", "answer relevancy", "relevant statements"]):
+            json_instruction = (
+                "\n\nIMPORTANT: You must respond with valid JSON in this exact format: "
+                '{"statements": ["statement1", "statement2", "statement3"]}. '
+                "The statements should be relevant to the question. "
+                "Do not include any text before or after the JSON."
+            )
+            enhanced = prompt + json_instruction
+            logger.info(f"Enhanced for AnswerRelevancy: {enhanced}")
+            return enhanced
+
+        # Detect Contextual metric requests
+        elif any(word in prompt_lower for word in ["verdict", "contextual", "relevant to input"]):
+            json_instruction = (
+                "\n\nIMPORTANT: You must respond with valid JSON in this exact format: "
+                '{"verdict": "yes", "reason": "explanation here"}. '
+                "Do not include any text before or after the JSON."
+            )
+            enhanced = prompt + json_instruction
+            logger.info(f"Enhanced for Contextual metrics: {enhanced}")
+            return enhanced
+
+        # Detect Faithfulness metric requests
+        elif any(word in prompt_lower for word in ["claims", "faithfulness", "factually accurate"]):
+            json_instruction = (
+                "\n\nIMPORTANT: You must respond with valid JSON in this exact format: "
+                '{"claims": [{"claim": "claim text", "truths": ["supporting evidence"]}]}. '
+                "Do not include any text before or after the JSON."
+            )
+            enhanced = prompt + json_instruction
+            logger.info(f"Enhanced for Faithfulness: {enhanced}")
+            return enhanced
+
+        # Generic JSON instruction if schema is provided or JSON keywords detected
+        elif schema or any(word in prompt_lower for word in ["json", "format", "structure"]):
+            json_instruction = (
+                "\n\nIMPORTANT: You must respond with valid JSON only. "
+                "Do not include any text before or after the JSON. "
+                "The response should be a valid JSON object that can be parsed directly."
+            )
+            enhanced = prompt + json_instruction
+            logger.info(f"Enhanced with generic JSON instruction: {enhanced}")
+            return enhanced
+
+        logger.info("No JSON enhancement applied")
+        return prompt
+
+    def _ensure_valid_json(self, response: str, schema: Optional[Any]) -> str:
+        """Ensure the response is valid JSON, create fallback if needed."""
+        try:
+            import json
+            parsed = json.loads(response.strip())
+            logger.debug(f"MCP response successfully parsed as JSON: {type(parsed)}")
+            # If successful, return the original response
+            return response.strip()
+        except json.JSONDecodeError:
+            logger.warning(
+                f"MCP response is not valid JSON, attempting to extract or create fallback.")
+
+            # Try to extract JSON from the response
+            extracted_json = _extract_json_from_text(response)
+            if extracted_json:
+                try:
+                    # Validate the extracted JSON
+                    import json
+                    parsed_extracted = json.loads(extracted_json)
+                    logger.info(f"Successfully extracted and parsed JSON: {type(parsed_extracted)}")
+                    return extracted_json
+                except json.JSONDecodeError:
+                    logger.warning("Extracted JSON is still invalid")
+                    pass
+
+            # Create fallback JSON based on the prompt/schema
+            fallback_response = _create_fallback_json_response(schema, "Could not parse JSON from MCP response")
+            logger.info(f"Created fallback JSON response: {fallback_response}")
+            return fallback_response
+
+    def get_model_name(self):
+        """Return model name for DeepEval"""
+        return "Custom MCP Model with JSON Support"
+
+
 class DeepEvalMethod(BaseEvaluationMethod):
     method_name = "deepeval"
 
@@ -258,8 +617,16 @@ class DeepEvalMethod(BaseEvaluationMethod):
                 test_cases, agent, prompt, jwt_token
             )
 
-            # Initialize Azure OpenAI model
-            azure_openai = EnhancedAzureOpenAI(agent)
+            # Initialize the appropriate model for DeepEval metrics
+            if agent.integration_type == IntegrationType.MCP and jwt_token:
+                # For MCP agents, create custom model that uses the agent client
+                agent_client = await AgentClientFactory.create_client(agent, jwt_token)
+                azure_openai = CustomMCPDeepEvalLLM(agent_client)
+                logger.info("Using CustomMCPDeepEvalLLM with pre-created agent for DeepEval metrics evaluation")
+            else:
+                # For Azure OpenAI agents, use the enhanced Azure model
+                azure_openai = EnhancedAzureOpenAI(agent)
+                logger.info("Using EnhancedAzureOpenAI for DeepEval metrics evaluation")
 
             # Create metrics following selected metrics in evaluation
             metrics_dict = self._create_comprehensive_metrics(azure_openai, evaluation)
@@ -276,6 +643,8 @@ class DeepEvalMethod(BaseEvaluationMethod):
             logger.info(
                 f"Running evaluation with {len(metrics)} selected metrics on {len(test_cases_with_outputs)} test cases")
             logger.info(f"Selected metrics: {list(validated_metrics_dict.keys())}")
+
+            logger.info(f"\n\n{test_cases_with_outputs}\n\n")
 
             # Run evaluation
             results = evaluate(test_cases=test_cases_with_outputs, metrics=metrics)
@@ -348,47 +717,93 @@ class DeepEvalMethod(BaseEvaluationMethod):
             prompt,
             jwt_token: Optional[str] = None
     ) -> List[LLMTestCase]:
-        """Generate agent responses"""
+        """Generate agent responses for test cases with proper MCP/Azure handling."""
         from backend.app.services.agent_clients.factory import AgentClientFactory
         from backend.app.db.models.orm import IntegrationType
 
-        # Create agent client
+        logger.info(f"Generating responses for {len(test_cases)} test cases")
+
+        # Create agent client based on integration type
         if agent.integration_type == IntegrationType.MCP and jwt_token:
-            logger.info(f"Using JWT token for MCP agent in evaluation")
+            logger.info(f"Using JWT token for MCP agent in DeepEval evaluation")
             agent_client = await AgentClientFactory.create_client(agent, jwt_token)
+
+            # For MCP agents, generate responses manually
+            # This avoids the DeepEval model complexity for response generation
+            logger.info("Generating MCP responses directly through agent client")
+
+            for i, test_case in enumerate(test_cases):
+                try:
+                    # Format prompt with test case data
+                    formatted_prompt = self._format_prompt(prompt.content, {
+                        "query": test_case.input,
+                        "context": "\n".join(test_case.context) if test_case.context else "",
+                        "ground_truth": test_case.expected_output or ""
+                    })
+
+                    # Generate response using MCP agent client directly
+                    response = await agent_client.process_query(
+                        query=test_case.input,
+                        context="\n".join(test_case.context) if test_case.context else None,
+                        system_message=formatted_prompt
+                    )
+
+                    # Extract answer
+                    if response.get("success", True):
+                        test_case.actual_output = response.get("answer", "")
+                        logger.debug(
+                            f"Generated MCP response {i + 1}/{len(test_cases)}: {len(test_case.actual_output)} chars")
+                    else:
+                        error_msg = response.get("error", "Unknown error")
+                        test_case.actual_output = f"Error: {error_msg}"
+                        logger.warning(f"MCP response {i + 1} failed: {error_msg}")
+
+                    # Progress logging
+                    if (i + 1) % 5 == 0:
+                        logger.info(f"Generated {i + 1}/{len(test_cases)} MCP responses")
+
+                except Exception as e:
+                    logger.error(f"Error generating MCP response for test case {i}: {e}")
+                    test_case.actual_output = f"Error: {str(e)}"
+
         else:
+            # For Azure OpenAI agents, use the existing EnhancedAzureOpenAI approach
+            logger.info("Using Azure OpenAI for response generation")
+
+            # Create Azure OpenAI client
             agent_client = await AgentClientFactory.create_client(agent)
 
-        # Process test cases to generate responses
-        for i, test_case in enumerate(test_cases):
-            try:
-                # Format prompt with test case data
-                formatted_prompt = self._format_prompt(prompt.content, {
-                    "query": test_case.input,
-                    "context": "\n".join(test_case.context) if test_case.context else "",
-                    "ground_truth": test_case.expected_output or ""
-                })
+            # Process test cases to generate responses using agent client
+            for i, test_case in enumerate(test_cases):
+                try:
+                    # Format prompt with test case data
+                    formatted_prompt = self._format_prompt(prompt.content, {
+                        "query": test_case.input,
+                        "context": "\n".join(test_case.context) if test_case.context else "",
+                        "ground_truth": test_case.expected_output or ""
+                    })
 
-                # Generate response using agent client
-                response = await agent_client.process_query(
-                    query=test_case.input,
-                    context="\n".join(test_case.context) if test_case.context else None,
-                    system_message=formatted_prompt
-                )
+                    # Generate response using Azure OpenAI agent client
+                    response = await agent_client.process_query(
+                        query=test_case.input,
+                        context="\n".join(test_case.context) if test_case.context else None,
+                        system_message=formatted_prompt
+                    )
 
-                # Extract answer
-                if response.get("success", True):
-                    test_case.actual_output = response.get("answer", "")
-                else:
-                    test_case.actual_output = f"Error: {response.get('error', 'Unknown error')}"
+                    # Extract answer
+                    if response.get("success", True):
+                        test_case.actual_output = response.get("answer", "")
+                    else:
+                        test_case.actual_output = f"Error: {response.get('error', 'Unknown error')}"
 
-                if (i + 1) % 5 == 0:
-                    logger.info(f"Generated {i + 1}/{len(test_cases)} responses")
+                    if (i + 1) % 5 == 0:
+                        logger.info(f"Generated {i + 1}/{len(test_cases)} Azure responses")
 
-            except Exception as e:
-                logger.error(f"Error generating response for test case {i}: {e}")
-                test_case.actual_output = f"Error: {str(e)}"
+                except Exception as e:
+                    logger.error(f"Error generating Azure response for test case {i}: {e}")
+                    test_case.actual_output = f"Error: {str(e)}"
 
+        logger.info(f"Completed response generation for all {len(test_cases)} test cases")
         return test_cases
 
     @staticmethod

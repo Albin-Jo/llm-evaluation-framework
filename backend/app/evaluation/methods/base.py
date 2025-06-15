@@ -12,7 +12,7 @@ from uuid import UUID
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.models.orm import Dataset, Evaluation, Agent, Prompt
+from backend.app.db.models.orm import Dataset, Evaluation, Agent, Prompt, EvaluationMethod
 from backend.app.db.schema.evaluation_schema import EvaluationResultCreate, MetricScoreCreate
 from backend.app.evaluation.utils.dataset_utils import (
     process_user_query_dataset, process_context_dataset,
@@ -26,6 +26,69 @@ from backend.app.services.storage import get_storage_service
 # Add logger configuration
 logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.ERROR)
+
+
+def _is_lower_better_metric(metric_name: str, evaluation_method: EvaluationMethod) -> bool:
+    """Check if a metric is 'lower is better' based on evaluation method."""
+    if evaluation_method == EvaluationMethod.DEEPEVAL:
+        from backend.app.evaluation.metrics.deepeval_metrics import get_metric_requirements
+        requirements = get_metric_requirements(metric_name)
+        return not requirements.get("higher_is_better", True)
+    elif evaluation_method == EvaluationMethod.RAGAS:
+        # Define RAGAS metrics that are lower-is-better
+        lower_better_ragas = {"noise_sensitivity"}
+        return metric_name in lower_better_ragas
+    return False
+
+
+def _get_metric_threshold(metric_name: str, evaluation_method: EvaluationMethod,
+                          config: Dict[str, Any]) -> float:
+    """Get threshold for a metric based on evaluation method and config."""
+    # Check if threshold is specified in config
+    if config and config.get("thresholds") and metric_name in config["thresholds"]:
+        return config["thresholds"][metric_name]
+
+    # Use evaluation-wide threshold if available
+    if config and config.get("threshold"):
+        return config["threshold"]
+
+    # Default thresholds by evaluation method
+    if evaluation_method == EvaluationMethod.DEEPEVAL:
+        from backend.app.evaluation.metrics.deepeval_metrics import get_default_config
+        default_config = get_default_config(metric_name)
+        return default_config.get("threshold", 0.7)
+    elif evaluation_method == EvaluationMethod.RAGAS:
+        # RAGAS default thresholds
+        ragas_thresholds = {
+            "faithfulness": 0.7,
+            "response_relevancy": 0.7,
+            "context_precision": 0.7,
+            "context_recall": 0.7,
+            "context_entity_recall": 0.7,
+            "noise_sensitivity": 0.3,  # Lower is better
+            "answer_correctness": 0.7,
+            "answer_similarity": 0.7,
+            "answer_relevancy": 0.7,
+            "factual_correctness": 0.7
+        }
+        return ragas_thresholds.get(metric_name, 0.7)
+
+    return 0.7  # Default threshold
+
+
+def _generate_ragas_reason(metric_name: str, value: float, threshold: float,
+                           success: bool, is_lower_better: bool) -> str:
+    """Generate explanation reason for RAGAS metrics."""
+    if success:
+        if is_lower_better:
+            return f"The score is {value:.2f} which is below the threshold of {threshold:.2f}, indicating good performance."
+        else:
+            return f"The score is {value:.2f} which meets or exceeds the threshold of {threshold:.2f}, indicating good performance."
+    else:
+        if is_lower_better:
+            return f"The score is {value:.2f} which exceeds the threshold of {threshold:.2f}, indicating room for improvement."
+        else:
+            return f"The score is {value:.2f} which is below the threshold of {threshold:.2f}, indicating room for improvement."
 
 
 class BaseEvaluationMethod(ABC):
@@ -972,7 +1035,24 @@ class BaseEvaluationMethod(ABC):
             )
 
             # Calculate overall score
-            overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
+            # overall_score = sum(metrics.values()) / len(metrics) if metrics else 0.0
+            overall_score = 0.0
+            normalized_scores = []
+
+            if metrics:
+                for name, value in metrics.items():
+                    is_lower_better = _is_lower_better_metric(name, evaluation.method)
+
+                    if is_lower_better:
+                        if value == 0:
+                            normalized_score = 1.0
+                        else:
+                            normalized_score = 1 / (1 + value)
+                    else:
+                        normalized_score = value
+                    normalized_scores.append(normalized_score)
+
+                overall_score = sum(normalized_scores) / len(normalized_scores)
 
             # Determine pass/fail status
             pass_threshold = evaluation.pass_threshold or 0.7  # Default to 0.7 if not specified
@@ -981,16 +1061,37 @@ class BaseEvaluationMethod(ABC):
             logger.info(f"Item {item_index} evaluation result - score: {overall_score:.4f}, "
                         f"threshold: {pass_threshold:.4f}, passed: {passed}")
 
-            # Create metric scores
-            metric_scores = [
-                MetricScoreCreate(
+            # Create metric scores with enhanced meta_info for consistency
+            metric_scores = []
+            for name, value in metrics.items():
+                # Get threshold for this metric
+                threshold = _get_metric_threshold(name, evaluation.method, evaluation.config)
+
+                # Determine if metric passed
+                is_lower_better = _is_lower_better_metric(name, evaluation.method)
+                if is_lower_better:
+                    success = value <= threshold
+                else:
+                    success = value >= threshold
+
+                # Create enhanced meta_info
+                meta_info = {
+                    "description": self._get_metric_description(name),
+                    "success": success,
+                    "threshold": threshold
+                }
+
+                # Add reason if available
+                if evaluation.method == EvaluationMethod.RAGAS:
+                    reason = _generate_ragas_reason(name, value, threshold, success, is_lower_better)
+                    meta_info["reason"] = reason
+
+                metric_scores.append(MetricScoreCreate(
                     name=name,
                     value=value,
                     weight=1.0,
-                    meta_info={"description": self._get_metric_description(name)}
-                )
-                for name, value in metrics.items()
-            ]
+                    meta_info=meta_info
+                ))
 
             # Create result
             return EvaluationResultCreate(
