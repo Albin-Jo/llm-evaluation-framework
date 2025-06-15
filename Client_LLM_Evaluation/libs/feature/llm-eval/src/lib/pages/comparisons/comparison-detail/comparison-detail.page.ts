@@ -18,10 +18,9 @@ import {
   MetricDifference,
   SampleDifference,
   VisualizationData,
+  ApiVisualizationData,
 } from '@ngtx-apps/data-access/models';
-import {
-  ComparisonService,
-} from '@ngtx-apps/data-access/services';
+import { ComparisonService } from '@ngtx-apps/data-access/services';
 import {
   ConfirmationDialogService,
   NotificationService,
@@ -79,24 +78,25 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   // Processed summary data
   summaryData: ComparisonSummary | null = null;
 
-  // Tab state
+  // Tab state - simplified
   selectedTabIndex = 0;
   readonly tabs = [
-    { id: 'overview', label: 'Overview', icon: 'analytics' },
-    { id: 'metrics', label: 'Metrics Analysis', icon: 'trending-up' },
-    { id: 'visualizations', label: 'Charts', icon: 'bar-chart' },
-    { id: 'samples', label: 'Sample Analysis', icon: 'list' },
+    { id: 'metrics', label: 'Metrics', icon: 'trending-up' },
+    { id: 'charts', label: 'Charts', icon: 'bar-chart' },
+    { id: 'samples', label: 'Samples', icon: 'list' },
+    { id: 'details', label: 'Details', icon: 'info' },
   ];
 
   // Metrics data
   metricDifferences: MetricDifference[] = [];
-  topImprovements: Array<{metric: string; value: number; impact: string}> = [];
-  topRegressions: Array<{metric: string; value: number; impact: string}> = [];
+  topImprovements: Array<{ metric: string; value: number; impact: string }> =
+    [];
+  topRegressions: Array<{ metric: string; value: number; impact: string }> = [];
 
   // Visualization data
   selectedVisualization: 'radar' | 'bar' | 'line' = 'radar';
-  visualizationData: VisualizationData | null = null;
-  isLoadingVisualization = false;
+  visualizationData: ApiVisualizationData | VisualizationData | null = null;
+  isLoadingVisualization: boolean = false;
 
   // Sample data
   sampleDifferences: SampleDifference[] = [];
@@ -104,7 +104,8 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   sampleFilter: string = 'all';
   sampleSort: string = 'difference';
 
-  // Modal state
+  // UI state
+  showInsights = false;
   showSampleDetails = false;
   selectedSample: SampleDifference | null = null;
 
@@ -176,15 +177,27 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   private loadEnhancedMetadata(comparison: ComparisonDetail): void {
     // Create evaluation info from available comparison data
     if (comparison.evaluation_a) {
-      this.evaluationA = this.createEvaluationInfoFromData(comparison.evaluation_a, 'a');
+      this.evaluationA = this.createEvaluationInfoFromData(
+        comparison.evaluation_a,
+        'a'
+      );
     } else {
-      this.evaluationA = this.createFallbackEvaluationInfo(comparison.evaluation_a_id, 'a');
+      this.evaluationA = this.createFallbackEvaluationInfo(
+        comparison.evaluation_a_id,
+        'a'
+      );
     }
 
     if (comparison.evaluation_b) {
-      this.evaluationB = this.createEvaluationInfoFromData(comparison.evaluation_b, 'b');
+      this.evaluationB = this.createEvaluationInfoFromData(
+        comparison.evaluation_b,
+        'b'
+      );
     } else {
-      this.evaluationB = this.createFallbackEvaluationInfo(comparison.evaluation_b_id, 'b');
+      this.evaluationB = this.createFallbackEvaluationInfo(
+        comparison.evaluation_b_id,
+        'b'
+      );
     }
 
     this.cdr.markForCheck();
@@ -193,37 +206,54 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   /**
    * Create evaluation info from available data
    */
-  private createEvaluationInfoFromData(evaluationData: any, type: 'a' | 'b'): EvaluationInfo {
+  private createEvaluationInfoFromData(
+    evaluationData: any,
+    type: 'a' | 'b'
+  ): EvaluationInfo {
     return {
       id: evaluationData.id || '',
       name: evaluationData.name || `Evaluation ${type.toUpperCase()}`,
-      agentName: evaluationData.agent_name || `Agent ${evaluationData.agent_id || 'Unknown'}`,
-      datasetName: evaluationData.dataset_name || `Dataset ${evaluationData.dataset_id || 'Unknown'}`,
-      promptName: evaluationData.prompt_name || 'Default Prompt',
+      agentName: this.truncateId(evaluationData.agent_id || 'Unknown'),
+      datasetName: this.truncateId(evaluationData.dataset_id || 'Unknown'),
+      promptName: this.truncateId(evaluationData.prompt_id || 'Default'),
       method: evaluationData.method || 'Unknown',
       processedItems: evaluationData.processed_items || 0,
       overallScore: this.getOverallScore(type),
       status: evaluationData.status || 'unknown',
-      duration: this.calculateDuration(evaluationData.start_time, evaluationData.end_time)
+      duration: this.calculateDuration(
+        evaluationData.start_time,
+        evaluationData.end_time
+      ),
     };
   }
 
   /**
    * Create fallback evaluation info when detailed data isn't available
    */
-  private createFallbackEvaluationInfo(id: string, type: 'a' | 'b'): EvaluationInfo {
+  private createFallbackEvaluationInfo(
+    id: string,
+    type: 'a' | 'b'
+  ): EvaluationInfo {
     return {
       id: id,
       name: `Evaluation ${type.toUpperCase()}`,
-      agentName: 'Loading...',
+      agentName: this.truncateId(id),
       datasetName: 'Loading...',
       promptName: 'Loading...',
       method: 'Unknown',
       processedItems: 0,
       overallScore: this.getOverallScore(type),
       status: 'unknown',
-      duration: 'Unknown'
+      duration: 'Unknown',
     };
+  }
+
+  /**
+   * Truncate long IDs for display
+   */
+  private truncateId(id: string): string {
+    if (!id || id.length <= 8) return id;
+    return id.substring(0, 8) + '...';
   }
 
   /**
@@ -273,7 +303,8 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   private createSummaryData(comparison: ComparisonDetail): ComparisonSummary {
     const summary = comparison.summary;
-    const overallScores = comparison.comparison_results?.['overall_comparison']?.overall_scores;
+    const overallScores =
+      comparison.comparison_results?.['overall_comparison']?.overall_scores;
 
     const overallChange = overallScores?.percentage_change || 0;
     const totalMetrics = summary?.total_metrics || 0;
@@ -283,14 +314,22 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
 
     return {
       overallPerformanceChange: overallChange,
-      overallStatus: overallChange > 0 ? 'improved' : overallChange < 0 ? 'regressed' : 'unchanged',
+      overallStatus:
+        overallChange > 0
+          ? 'improved'
+          : overallChange < 0
+          ? 'regressed'
+          : 'unchanged',
       totalMetrics,
       improvedMetrics: improved,
       regressedMetrics: regressed,
       unchangedMetrics: unchanged,
       samplesAnalyzed: summary?.matched_samples || 0,
       statisticalPower: summary?.statistical_power?.power_category || 'Unknown',
-      hasSignificantChanges: (summary?.significant_improvements || 0) + (summary?.significant_regressions || 0) > 0
+      hasSignificantChanges:
+        (summary?.significant_improvements || 0) +
+          (summary?.significant_regressions || 0) >
+        0,
     };
   }
 
@@ -299,23 +338,27 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   private processTopChanges(): void {
     this.topImprovements = this.metricDifferences
-      .filter(m => m.is_improvement && (m.percentage_change || 0) > 0)
+      .filter((m) => m.is_improvement && (m.percentage_change || 0) > 0)
       .sort((a, b) => (b.percentage_change || 0) - (a.percentage_change || 0))
       .slice(0, 3)
-      .map(m => ({
+      .map((m) => ({
         metric: this.getFormattedMetricName(m.metric_name),
         value: m.percentage_change || 0,
-        impact: this.getImpactLevel(this.getAbsoluteValue(m.percentage_change || 0))
+        impact: this.getImpactLevel(
+          this.getAbsoluteValue(m.percentage_change || 0)
+        ),
       }));
 
     this.topRegressions = this.metricDifferences
-      .filter(m => !m.is_improvement && (m.percentage_change || 0) < 0)
+      .filter((m) => !m.is_improvement && (m.percentage_change || 0) < 0)
       .sort((a, b) => (a.percentage_change || 0) - (b.percentage_change || 0))
       .slice(0, 3)
-      .map(m => ({
+      .map((m) => ({
         metric: this.getFormattedMetricName(m.metric_name),
         value: m.percentage_change || 0,
-        impact: this.getImpactLevel(this.getAbsoluteValue(m.percentage_change || 0))
+        impact: this.getImpactLevel(
+          this.getAbsoluteValue(m.percentage_change || 0)
+        ),
       }));
   }
 
@@ -367,24 +410,35 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   private determineSampleStatus(comparison: any): string {
     if (!comparison) return 'unchanged';
     if (comparison.is_improvement === true) return 'improved';
-    if (comparison.is_improvement === false && comparison.absolute_difference !== 0) return 'regressed';
+    if (
+      comparison.is_improvement === false &&
+      comparison.absolute_difference !== 0
+    )
+      return 'regressed';
     return 'unchanged';
   }
 
   /**
-   * Load visualization data
+   * Load visualization data with better error handling and real API support
    */
   loadVisualizationData(type: 'radar' | 'bar' | 'line'): void {
-    if (!this.comparisonId || !this.hasResults()) return;
+    if (!this.comparisonId || !this.hasResults()) {
+      console.log('No comparison ID or results available for visualization');
+      return;
+    }
 
     this.isLoadingVisualization = true;
+    this.visualizationData = null;
+
+    // Use the enhanced service method that handles real API formats
     this.comparisonService
-      .getVisualizationData(this.comparisonId, type)
+      .getVisualizationDataWithFallback(this.comparisonId, type)
       .pipe(
         takeUntil(this.destroy$),
         catchError((error) => {
           console.error(`Error loading ${type} visualization:`, error);
-          return of(this.createVisualizationDataFromMetrics(type));
+          // Return null to trigger fallback behavior in component
+          return of(null);
         }),
         finalize(() => {
           this.isLoadingVisualization = false;
@@ -393,16 +447,47 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       )
       .subscribe((data) => {
         if (data) {
+          console.log(`Loaded ${type} visualization data:`, data);
           this.visualizationData = data;
-          this.cdr.markForCheck();
+        } else {
+          console.warn(`No ${type} visualization data available`);
+          this.visualizationData = null;
         }
+        this.cdr.markForCheck();
       });
+  }
+
+  /**
+   * Create fallback visualization data
+   */
+  private createFallbackVisualizationData(
+    type: 'radar' | 'bar' | 'line'
+  ): VisualizationData {
+    return {
+      type,
+      labels: ['No Data'],
+      datasets: [
+        {
+          label: 'No Data Available',
+          data: [0],
+          backgroundColor: 'rgba(107, 114, 128, 0.5)',
+          borderColor: 'rgba(107, 114, 128, 1)',
+          fill: false,
+        },
+      ],
+    };
   }
 
   /**
    * Create visualization data from metric differences
    */
-  private createVisualizationDataFromMetrics(type: 'radar' | 'bar' | 'line'): VisualizationData {
+  private createVisualizationDataFromMetrics(
+    type: 'radar' | 'bar' | 'line'
+  ): VisualizationData {
+    if (!this.metricDifferences || this.metricDifferences.length === 0) {
+      return this.createFallbackVisualizationData(type);
+    }
+
     const labels = this.metricDifferences.map((m) =>
       this.getFormattedMetricName(m.metric_name)
     );
@@ -461,7 +546,9 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     let filtered = [...this.sampleDifferences];
 
     if (this.sampleFilter !== 'all') {
-      filtered = filtered.filter((sample) => sample.status === this.sampleFilter);
+      filtered = filtered.filter(
+        (sample) => sample.status === this.sampleFilter
+      );
     }
 
     switch (this.sampleSort) {
@@ -476,10 +563,14 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
         filtered.sort((a, b) => a.sample_id.localeCompare(b.sample_id));
         break;
       case 'score_a':
-        filtered.sort((a, b) => (b.evaluation_a_score || 0) - (a.evaluation_a_score || 0));
+        filtered.sort(
+          (a, b) => (b.evaluation_a_score || 0) - (a.evaluation_a_score || 0)
+        );
         break;
       case 'score_b':
-        filtered.sort((a, b) => (b.evaluation_b_score || 0) - (a.evaluation_b_score || 0));
+        filtered.sort(
+          (a, b) => (b.evaluation_b_score || 0) - (a.evaluation_b_score || 0)
+        );
         break;
     }
 
@@ -494,7 +585,7 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     this.selectedTabIndex = index;
 
     // Load visualization data when charts tab is selected
-    if (index === 2) {
+    if (index === 1) {
       this.loadVisualizationData(this.selectedVisualization);
     }
 
@@ -510,14 +601,26 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
+   * Toggle insights display
+   */
+  toggleInsights(): void {
+    this.showInsights = !this.showInsights;
+    this.cdr.markForCheck();
+  }
+
+  /**
    * Get overall score for evaluation
    */
   getOverallScore(evaluation: 'a' | 'b'): number {
-    if (!this.comparison?.comparison_results?.['overall_comparison']?.overall_scores) {
+    if (
+      !this.comparison?.comparison_results?.['overall_comparison']
+        ?.overall_scores
+    ) {
       return 0;
     }
 
-    const scores = this.comparison.comparison_results['overall_comparison'].overall_scores;
+    const scores =
+      this.comparison.comparison_results['overall_comparison'].overall_scores;
     return evaluation === 'a' ? scores.evaluation_a : scores.evaluation_b;
   }
 
@@ -538,7 +641,10 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    * Check if comparison has results
    */
   hasResults(): boolean {
-    return !!this.comparison?.summary && this.comparison.status === ComparisonStatus.COMPLETED;
+    return (
+      !!this.comparison?.summary &&
+      this.comparison.status === ComparisonStatus.COMPLETED
+    );
   }
 
   /**
@@ -556,11 +662,16 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   getStatusClass(status: ComparisonStatus): string {
     switch (status) {
-      case ComparisonStatus.COMPLETED: return 'success';
-      case ComparisonStatus.RUNNING: return 'info';
-      case ComparisonStatus.PENDING: return 'warning';
-      case ComparisonStatus.FAILED: return 'error';
-      default: return 'neutral';
+      case ComparisonStatus.COMPLETED:
+        return 'completed';
+      case ComparisonStatus.RUNNING:
+        return 'running';
+      case ComparisonStatus.PENDING:
+        return 'pending';
+      case ComparisonStatus.FAILED:
+        return 'failed';
+      default:
+        return 'neutral';
     }
   }
 
@@ -572,11 +683,9 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     try {
       const date = new Date(dateString);
       return new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
         month: 'short',
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
+        year: 'numeric',
       }).format(date);
     } catch (e) {
       return 'Invalid date';
@@ -622,16 +731,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     return this.getImpactLevel(Math.abs(value));
   }
 
-  /**
-   * Get unchanged metrics count
-   */
-  getUnchangedMetrics(): number {
-    const total = this.comparison?.summary?.total_metrics || 0;
-    const improved = this.comparison?.summary?.improved_metrics || 0;
-    const regressed = this.comparison?.summary?.regressed_metrics || 0;
-    return this.getMaxValue(0, total - improved - regressed);
-  }
-
   getImpactClass(percentage: number): string {
     const absPercentage = this.getAbsoluteValue(percentage);
     if (absPercentage >= 20) return 'high';
@@ -671,7 +770,9 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
                 setTimeout(() => this.loadComparison(this.comparisonId), 2000);
               },
               error: (error) => {
-                this.notificationService.error('Failed to run comparison. Please try again.');
+                this.notificationService.error(
+                  'Failed to run comparison. Please try again.'
+                );
                 console.error('Error running comparison:', error);
               },
             });
@@ -697,11 +798,15 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe({
               next: () => {
-                this.notificationService.success('Comparison deleted successfully');
+                this.notificationService.success(
+                  'Comparison deleted successfully'
+                );
                 this.router.navigate(['app/comparisons']);
               },
               error: (error) => {
-                this.notificationService.error('Failed to delete comparison. Please try again.');
+                this.notificationService.error(
+                  'Failed to delete comparison. Please try again.'
+                );
                 console.error('Error deleting comparison:', error);
               },
             });
@@ -731,13 +836,27 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     this.filterSamples();
   }
 
+  // Helper method to check if object has meaningful data
+  hasObjectData(obj: any): boolean {
+    if (!obj) return false;
+    if (typeof obj === 'string') return obj.trim().length > 0;
+    if (typeof obj === 'object') {
+      return Object.keys(obj).length > 0;
+    }
+    return true;
+  }
+
   // Helper methods for template
   getSampleStatusClass(status: string): string {
     switch (status) {
-      case 'improved': return 'success';
-      case 'regressed': return 'error';
-      case 'unchanged': return 'neutral';
-      default: return 'neutral';
+      case 'improved':
+        return 'improved';
+      case 'regressed':
+        return 'regressed';
+      case 'unchanged':
+        return 'unchanged';
+      default:
+        return 'unchanged';
     }
   }
 
