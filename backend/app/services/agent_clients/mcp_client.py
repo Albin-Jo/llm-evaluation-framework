@@ -1,3 +1,5 @@
+# File: backend/app/services/agent_clients/mcp_client.py
+
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -30,12 +32,13 @@ def _extract_text_from_response(response: Any) -> str:
             text_parts = []
             for item in response.content:
                 if hasattr(item, 'text'):
-                    text_parts.append(item.text)
+                    text_parts.append(str(item.text))
             return "\n".join(text_parts)
 
         # Check for error
         if hasattr(response, 'isError') and response.isError:
-            return f"Error from server: {getattr(response, 'error_message', 'Unknown error')}"
+            error_msg = getattr(response, 'error_message', 'Unknown error')
+            return f"Error from server: {error_msg}"
 
         # Fall back to string representation
         return str(response)
@@ -100,7 +103,7 @@ class MCPAgentClient(AgentClient):
             "Content-Type": "application/json",
         }
 
-        logger.info(f"Connecting to SSE endpoint with Bearer authentication")
+        logger.debug(f"Connecting to SSE endpoint: {self.sse_url}")
 
         try:
             # Establish SSE connection with authentication headers
@@ -111,16 +114,16 @@ class MCPAgentClient(AgentClient):
                 async with ClientSession(read_stream, write_stream) as session:
                     # Initialize the session
                     await session.initialize()
-                    logger.info("Successfully connected and initialized MCP session")
+                    logger.debug("Successfully connected and initialized MCP session")
                     self.session = session
                     yield session
 
         except Exception as e:
-            logger.error(f"Connection error: {e}")
+            logger.error(f"MCP connection error: {e}")
             raise
         finally:
             self.session = None
-            logger.info("Disconnected from MCP server")
+            logger.debug("Disconnected from MCP server")
 
     async def list_tools(self) -> List[Any]:
         """
@@ -158,35 +161,43 @@ class MCPAgentClient(AgentClient):
         """
         start_time = time.time()
 
-        # Build user message
+        # FIXED: Properly construct user message with context
         user_message = query
-        if context:
-            # user_message = f"{user_message}\n\nContext: {context}"
-            user_message = f"{user_message}"
+        if context and context.strip():
+            user_message = f"{query}\n\nContext: {context}"
 
         # Get tool name from config or use default
         tool_name = self.agent.config.get("tool_name", "McpAskPolicyBot") if self.agent.config else "McpAskPolicyBot"
 
+        # FIXED: Properly construct the messages array
+        messages = []
+
+        # Add system message first if provided
+        if system_message and system_message.strip():
+            messages.append({
+                "role": "system",
+                "content": system_message
+            })
+
+        # Add user message
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+
         # Format arguments exactly as shown in the working script
         arguments = {
-            "model": [
-                {
-                    "role": "user",
-                    "content": user_message
-                }
-            ],
+            "model": messages,
             "prompt": system_message or "You are an AI Assistant",
             "_meta": {
                 "progressToken": config.get("progress_token", 1) if config else 1
             }
         }
 
-        # Add system message if provided
+        logger.debug(f"MCP tool call - tool: {tool_name}, messages: {len(messages)}")
+        logger.debug(f"User message length: {len(user_message)}")
         if system_message:
-            arguments["model"].insert(0, {
-                "role": "system",
-                "content": system_message
-            })
+            logger.debug(f"System message length: {len(system_message)}")
 
         try:
             # Process using MCP connection
@@ -206,20 +217,34 @@ class MCPAgentClient(AgentClient):
                 # Calculate processing time
                 processing_time = (time.time() - start_time) * 1000
 
+                # Log response info
+                logger.debug(f"MCP response received: {len(text_response)} chars, error: {is_error}")
+
                 return {
                     "answer": text_response,
                     "processing_time_ms": int(processing_time),
-                    "raw_response": str(response),
+                    "raw_response": str(response)[:500],  # Truncate for logging
                     "success": not is_error,
                     "error": text_response if is_error else None
                 }
 
         except Exception as e:
+            processing_time = (time.time() - start_time) * 1000
             logger.error(f"Error processing query with MCP: {e}")
+
+            # Provide more specific error information
+            error_details = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "tool_name": tool_name,
+                "endpoint": self.sse_url
+            }
+
             return {
                 "answer": f"Error: {str(e)}",
-                "processing_time_ms": int((time.time() - start_time) * 1000),
+                "processing_time_ms": int(processing_time),
                 "error": str(e),
+                "error_details": error_details,
                 "success": False
             }
 
@@ -234,7 +259,8 @@ class MCPAgentClient(AgentClient):
             async with self.connection() as session:
                 # Just list tools to check connection
                 await session.list_tools()
+                logger.debug("MCP health check passed")
                 return True
         except Exception as e:
-            logger.error(f"Health check failed: {e}")
+            logger.error(f"MCP health check failed: {e}")
             return False
