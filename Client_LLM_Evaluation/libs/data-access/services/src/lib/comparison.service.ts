@@ -1,8 +1,6 @@
-/* Path: libs/data-access/services/src/lib/comparison.service.ts */
-
 import { Injectable } from '@angular/core';
-import { Observable, throwError, of } from 'rxjs';
-import { catchError, map, delay, tap } from 'rxjs/operators';
+import { Observable, throwError, of, forkJoin, combineLatest } from 'rxjs';
+import { catchError, map, delay, tap, switchMap } from 'rxjs/operators';
 import {
   HttpParams,
   HttpErrorResponse,
@@ -17,6 +15,7 @@ import {
   ComparisonsResponse,
   MetricDifference,
   VisualizationData,
+  ApiVisualizationData,
 } from '@ngtx-apps/data-access/models';
 import { HttpClientService } from './common/http-client.service';
 import { HttpClient } from '@angular/common/http';
@@ -26,8 +25,11 @@ import { AppConstant } from '@ngtx-apps/utils/shared';
   providedIn: 'root',
 })
 export class ComparisonService {
-  // Use the API endpoint path that matches FastAPI routes
   private baseUrl = '__fastapi__/comparisons';
+  private datasetsUrl = '__fastapi__/datasets';
+  private agentsUrl = '__fastapi__/agents';
+  private promptsUrl = '__fastapi__/prompts';
+  private evaluationsUrl = '__fastapi__/evaluations';
 
   constructor(
     private httpClient: HttpClientService,
@@ -78,7 +80,7 @@ export class ComparisonService {
 
     // Add name filter if provided
     if (filters.name) {
-      params = params.set('search', filters.name); // Changed from 'name' to 'search' to match API
+      params = params.set('search', filters.name);
     }
 
     // Add sort parameters - always sending these parameters to match backend expectations
@@ -86,10 +88,7 @@ export class ComparisonService {
     params = params.set('sort_by', filters.sortBy || 'created_at');
     params = params.set('sort_dir', filters.sortDirection || 'desc');
 
-    console.log('API Request params:', params.toString()); // Debug log
-
     return this.httpClient.get<any>(this.baseUrl, params).pipe(
-      tap((response) => console.log('API Response:', response)), // Debug log
       map((response) => {
         // Transform the API response to match the expected structure
         if (response && response.items && Array.isArray(response.items)) {
@@ -106,29 +105,208 @@ export class ComparisonService {
           } as ComparisonsResponse;
         }
 
-        // Return the response as is if it already matches our format
         return response as ComparisonsResponse;
       }),
       catchError((error) => {
-        console.error('API Error:', error); // Debug log
         return this.handleError('Failed to fetch comparisons', error);
       })
     );
   }
 
   /**
-   * Get a single comparison by ID with detailed results
+   * Get a single comparison by ID with detailed results and enhanced metadata
    */
   getComparison(id: string): Observable<ComparisonDetail> {
     return this.httpClient.get<ComparisonDetail>(`${this.baseUrl}/${id}`).pipe(
-      tap((response) => console.log('API Detail Response:', response)), // Debug log
       catchError((error) => {
-        console.error('API Detail Error:', error); // Debug log
         return this.handleError(
           `Failed to fetch comparison with ID ${id}`,
           error
         );
       })
+    );
+  }
+
+  /**
+   * Enhance comparison with metadata (dataset, agent, prompt names)
+   */
+  private enhanceComparisonWithMetadata(
+    comparison: ComparisonDetail
+  ): Observable<ComparisonDetail> {
+    // Create array of metadata requests
+    const metadataRequests: Observable<any>[] = [];
+
+    // Get evaluation A metadata if available
+    if (comparison.evaluation_a) {
+      metadataRequests.push(
+        this.getEvaluationMetadata(comparison.evaluation_a)
+      );
+    } else {
+      metadataRequests.push(of(null));
+    }
+
+    // Get evaluation B metadata if available
+    if (comparison.evaluation_b) {
+      metadataRequests.push(
+        this.getEvaluationMetadata(comparison.evaluation_b)
+      );
+    } else {
+      metadataRequests.push(of(null));
+    }
+
+    if (!comparison.evaluation_a || !comparison.evaluation_b) {
+      return this.fetchEvaluationData(comparison).pipe(
+        switchMap((enhancedComparison) =>
+          this.enhanceComparisonWithMetadata(enhancedComparison)
+        )
+      );
+    }
+
+    return combineLatest(metadataRequests).pipe(
+      map(([evaluationAMeta, evaluationBMeta]) => {
+        // Enhanced comparison with metadata
+        const enhanced = { ...comparison };
+
+        if (evaluationAMeta && enhanced.evaluation_a) {
+          enhanced.evaluation_a = {
+            ...enhanced.evaluation_a,
+            ...evaluationAMeta,
+          };
+        }
+
+        if (evaluationBMeta && enhanced.evaluation_b) {
+          enhanced.evaluation_b = {
+            ...enhanced.evaluation_b,
+            ...evaluationBMeta,
+          };
+        }
+
+        return enhanced;
+      }),
+      catchError((error) => {
+        console.warn('Failed to enhance comparison with metadata:', error);
+        // Return original comparison if metadata fetch fails
+        return of(comparison);
+      })
+    );
+  }
+
+  /**
+   * Get evaluation metadata (dataset, agent, prompt names)
+   */
+  private getEvaluationMetadata(evaluation: any): Observable<any> {
+    const metadataRequests: { [key: string]: Observable<any> } = {};
+
+    // Get dataset name
+    if (evaluation.dataset_id) {
+      metadataRequests['dataset'] = this.getDatasetName(evaluation.dataset_id);
+    }
+
+    // Get agent name
+    if (evaluation.agent_id) {
+      metadataRequests['agent'] = this.getAgentName(evaluation.agent_id);
+    }
+
+    // Get prompt name
+    if (evaluation.prompt_id) {
+      metadataRequests['prompt'] = this.getPromptName(evaluation.prompt_id);
+    }
+
+    if (Object.keys(metadataRequests).length === 0) {
+      return of({
+        dataset_name: 'Unknown Dataset',
+        agent_name: 'Unknown Agent',
+        prompt_name: 'Default Prompt',
+      });
+    }
+
+    return forkJoin(metadataRequests).pipe(
+      map((results) => ({
+        dataset_name: results['dataset'] || 'Unknown Dataset',
+        agent_name: results['agent'] || 'Unknown Agent',
+        prompt_name: results['prompt'] || 'Default Prompt',
+      })),
+      catchError(() =>
+        of({
+          dataset_name: 'Unknown Dataset',
+          agent_name: 'Unknown Agent',
+          prompt_name: 'Default Prompt',
+        })
+      )
+    );
+  }
+
+  /**
+   * Fetch evaluation data if not present in comparison
+   */
+  private fetchEvaluationData(
+    comparison: ComparisonDetail
+  ): Observable<ComparisonDetail> {
+    const evaluationRequests: Observable<any>[] = [];
+
+    // Fetch evaluation A if missing
+    if (!comparison.evaluation_a && comparison.evaluation_a_id) {
+      evaluationRequests.push(
+        this.getEvaluationById(comparison.evaluation_a_id)
+      );
+    } else {
+      evaluationRequests.push(of(comparison.evaluation_a));
+    }
+
+    // Fetch evaluation B if missing
+    if (!comparison.evaluation_b && comparison.evaluation_b_id) {
+      evaluationRequests.push(
+        this.getEvaluationById(comparison.evaluation_b_id)
+      );
+    } else {
+      evaluationRequests.push(of(comparison.evaluation_b));
+    }
+
+    return combineLatest(evaluationRequests).pipe(
+      map(([evaluationA, evaluationB]) => ({
+        ...comparison,
+        evaluation_a: evaluationA,
+        evaluation_b: evaluationB,
+      }))
+    );
+  }
+
+  /**
+   * Get evaluation by ID
+   */
+  private getEvaluationById(id: string): Observable<any> {
+    return this.httpClient
+      .get<any>(`${this.evaluationsUrl}/${id}`)
+      .pipe(catchError(() => of(null)));
+  }
+
+  /**
+   * Get dataset name by ID
+   */
+  private getDatasetName(id: string): Observable<string> {
+    return this.httpClient.get<any>(`${this.datasetsUrl}/${id}`).pipe(
+      map((dataset) => dataset?.name || 'Unknown Dataset'),
+      catchError(() => of('Unknown Dataset'))
+    );
+  }
+
+  /**
+   * Get agent name by ID
+   */
+  private getAgentName(id: string): Observable<string> {
+    return this.httpClient.get<any>(`${this.agentsUrl}/${id}`).pipe(
+      map((agent) => agent?.name || 'Unknown Agent'),
+      catchError(() => of('Unknown Agent'))
+    );
+  }
+
+  /**
+   * Get prompt name by ID
+   */
+  private getPromptName(id: string): Observable<string> {
+    return this.httpClient.get<any>(`${this.promptsUrl}/${id}`).pipe(
+      map((prompt) => prompt?.name || 'Default Prompt'),
+      catchError(() => of('Default Prompt'))
     );
   }
 
@@ -239,6 +417,28 @@ export class ComparisonService {
     }
 
     return metrics;
+  }
+
+  /**
+   * Get visualization data with fallback support
+   */
+  getVisualizationDataWithFallback(
+    id: string,
+    type: 'radar' | 'bar' | 'line'
+  ): Observable<ApiVisualizationData | VisualizationData | null> {
+    // First try to get the real data from the API
+    return this.httpClient
+      .get<ApiVisualizationData>(`${this.baseUrl}/${id}/visualizations/${type}`)
+      .pipe(
+        catchError((error) => {
+          console.warn(
+            `Visualization API endpoint not available for ${type}:`,
+            error
+          );
+          // If API endpoint not available, try to build visualization from metrics
+          return this.buildVisualizationFromMetrics(id, type);
+        })
+      );
   }
 
   /**
@@ -432,7 +632,6 @@ export class ComparisonService {
           } as ComparisonsResponse;
         }
 
-        // Return the response as is if it already matches our format
         return response as ComparisonsResponse;
       }),
       catchError((error) =>

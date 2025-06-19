@@ -10,6 +10,8 @@ import {
   EvaluationUpdate,
   EvaluationProgress,
   EvaluationsResponse,
+  ImpersonationValidationRequest,
+  ImpersonationValidationResponse,
 } from '@ngtx-apps/data-access/models';
 import { environment } from '@ngtx-apps/utils/shared';
 import { HttpClientService } from './common/http-client.service';
@@ -22,6 +24,28 @@ export class EvaluationService {
   private baseUrl = '__fastapi__/evaluations';
 
   constructor(private httpClient: HttpClientService) {}
+
+  /**
+   * Validate user impersonation
+   */
+  validateImpersonation(
+    employeeId: string
+  ): Observable<ImpersonationValidationResponse> {
+    const request: ImpersonationValidationRequest = {
+      employee_id: employeeId,
+    };
+
+    return this.httpClient
+      .post<ImpersonationValidationResponse>(
+        `${this.baseUrl}/validate-impersonation`,
+        request
+      )
+      .pipe(
+        catchError((error) => {
+          return this.handleError('Failed to validate employee ID', error);
+        })
+      );
+  }
 
   /**
    * Get a list of evaluations with optional filtering
@@ -97,7 +121,6 @@ export class EvaluationService {
           } as EvaluationsResponse;
         }
 
-        // Return the response as is if it already matches our format
         return response as EvaluationsResponse;
       }),
       catchError((error) =>
@@ -229,6 +252,9 @@ export class EvaluationService {
             return {
               items: response.items,
               total: response.total || response.items.length,
+              summary: response.summary || null,
+              impersonation_context: response.impersonation_context || null,
+              evaluation_info: response.evaluation_info || null,
             };
           } else if (Array.isArray(response)) {
             // Backend returns array directly

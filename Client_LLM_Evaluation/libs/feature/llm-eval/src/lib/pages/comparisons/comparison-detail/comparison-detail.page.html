@@ -31,7 +31,7 @@
           (click)="runComparison()"
         >
           <i class="icon icon-play"></i>
-          Run Again
+          Run Comparison
         </button>
         <button class="btn btn-outline" (click)="editComparison()">
           <i class="icon icon-edit"></i>
@@ -119,8 +119,68 @@
       class="narrative-insights"
       *ngIf="comparison.narrative_insights && showInsights"
     >
-      <h4><i class="icon icon-lightbulb"></i> Analysis Summary</h4>
-      <div class="narrative-text">{{ comparison.narrative_insights }}</div>
+      <div class="insights-header">
+        <h4><i class="icon icon-lightbulb"></i> Analysis Summary</h4>
+      </div>
+
+      <div class="insights-content">
+        <div
+          class="insights-sections"
+          *ngIf="getFormattedNarrativeInsights().hasContent"
+        >
+          <div
+            *ngFor="let section of getFormattedNarrativeInsights().sections"
+            class="insight-section"
+            [ngClass]="getInsightSectionClass(section)"
+          >
+            <!-- Header sections (with title and optional content) -->
+            <div
+              *ngIf="section.type === 'header' || section.type === 'conclusion'"
+              class="insight-header-section"
+            >
+              <div class="section-title">
+                <i
+                  class="icon"
+                  [ngClass]="'icon-' + getInsightSectionIcon(section)"
+                ></i>
+                <h5>{{ section.title }}</h5>
+              </div>
+              <div
+                *ngIf="section.content"
+                class="section-content"
+                [innerHTML]="section.content"
+              ></div>
+
+              <!-- List items for this section -->
+              <ul
+                *ngIf="section.items && section.items.length > 0"
+                class="insight-list"
+              >
+                <li *ngFor="let item of section.items" [innerHTML]="item"></li>
+              </ul>
+            </div>
+
+            <!-- Standalone paragraphs -->
+            <div *ngIf="section.type === 'paragraph'" class="insight-paragraph">
+              <p [innerHTML]="section.content"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fallback for unparseable content -->
+        <div
+          *ngIf="!getFormattedNarrativeInsights().hasContent"
+          class="insights-fallback"
+        >
+          <div class="fallback-content">
+            <i class="icon icon-file-text"></i>
+            <h5>Raw Analysis</h5>
+            <pre class="narrative-text-raw">
+{{ comparison.narrative_insights }}</pre
+            >
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Compact Evaluation Comparison -->

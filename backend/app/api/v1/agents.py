@@ -150,26 +150,36 @@ async def list_agents(
     if integration_type:
         filters["integration_type"] = integration_type
 
+    # Add name filter if provided (handled by base repository)
+    if name:
+        filters["name"] = name
+
     # Filter by user ID (show only user's own agents)
-    if current_user.db_user:
-        filters["created_by_id"] = current_user.db_user.id
+    user_id = current_user.db_user.id if current_user.db_user else None
 
     agent_repo = AgentRepository(db)
 
-    # Get total count first
-    if name:
-        # Count with name search
-        total_count = await agent_repo.count_with_search(name, filters)
-    else:
-        total_count = await agent_repo.count(filters)
+    # Get total count and agents
+    total_count = await agent_repo.count(filters, user_id=user_id)
+    agents = await agent_repo.get_multi(skip=skip, limit=limit, filters=filters, user_id=user_id)
 
-    # Get agents
-    if name:
-        agents = await agent_repo.search_by_name(name, skip=skip, limit=limit, additional_filters=filters)
-    else:
-        agents = await agent_repo.get_multi(skip=skip, limit=limit, filters=filters)
+    # Convert to response schema and add MCP-specific fields
+    agents_schema_list = []
+    for agent in agents:
+        agent_response = AgentResponse.model_validate(agent)
+        
+        # Add tools and capabilities for MCP agents only
+        if agent.integration_type == IntegrationType.MCP:
+            # These will be populated by separate API calls if needed
+            agent_response.tools = []
+            agent_response.capabilities = []
+        else:
+            # Explicitly set to None for non-MCP agents
+            agent_response.tools = None
+            agent_response.capabilities = None
+            
+        agents_schema_list.append(agent_response)
 
-    agents_schema_list = [AgentResponse.model_validate(agent) for agent in agents]
     return create_paginated_response(agents_schema_list, total_count, skip, limit)
 
 
@@ -196,19 +206,28 @@ async def get_agent(
     logger.debug(f"Getting agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get(agent_id)
+    
+    # Use user-owned method to ensure access control
+    user_id = current_user.db_user.id if current_user.db_user else None
+    agent = await agent_repo.get_user_owned(agent_id, user_id) if user_id else await agent_repo.get(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
 
-    # Check if user has access to this agent (created by them)
-    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have access to this agent"
-        )
+    # Convert to response schema and add MCP-specific fields
+    agent_response = AgentResponse.model_validate(agent)
+    
+    # Add tools and capabilities for MCP agents only
+    if agent.integration_type == IntegrationType.MCP:
+        # These will be populated by separate API calls if needed
+        agent_response.tools = []
+        agent_response.capabilities = []
+    else:
+        # Explicitly set to None for non-MCP agents
+        agent_response.tools = None
+        agent_response.capabilities = None
 
-    return agent
+    return agent_response
 
 
 @router.put("/{agent_id}", response_model=AgentResponse)
@@ -236,17 +255,13 @@ async def update_agent(
     logger.info(f"Updating agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get(agent_id)
+    
+    # Use user-owned method to ensure access control
+    user_id = current_user.db_user.id if current_user.db_user else None
+    agent = await agent_repo.get_user_owned(agent_id, user_id) if user_id else await agent_repo.get(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
-
-    # Check if user has access to update this agent
-    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to update this agent"
-        )
 
     # If name is being updated, check if it conflicts with another agent
     if agent_data.name and agent_data.name != agent.name:
@@ -298,7 +313,18 @@ async def update_agent(
     }
 
     if not update_data:
-        return agent
+        # Convert to response schema and add MCP-specific fields
+        agent_response = AgentResponse.model_validate(agent)
+        
+        # Add tools and capabilities for MCP agents only
+        if agent.integration_type == IntegrationType.MCP:
+            agent_response.tools = []
+            agent_response.capabilities = []
+        else:
+            agent_response.tools = None
+            agent_response.capabilities = None
+            
+        return agent_response
 
     # Log masked credentials if updating
     if agent_data.auth_credentials:
@@ -309,7 +335,18 @@ async def update_agent(
     updated_agent = await agent_repo.update_with_encrypted_credentials(agent_id, update_data)
     logger.info(f"Agent updated successfully: {agent_id}")
 
-    return updated_agent
+    # Convert to response schema and add MCP-specific fields
+    agent_response = AgentResponse.model_validate(updated_agent)
+    
+    # Add tools and capabilities for MCP agents only
+    if updated_agent.integration_type == IntegrationType.MCP:
+        agent_response.tools = []
+        agent_response.capabilities = []
+    else:
+        agent_response.tools = None
+        agent_response.capabilities = None
+
+    return agent_response
 
 
 @router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -332,17 +369,13 @@ async def delete_agent(
     logger.info(f"Deleting agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get(agent_id)
+    
+    # Use user-owned method to ensure access control
+    user_id = current_user.db_user.id if current_user.db_user else None
+    agent = await agent_repo.get_user_owned(agent_id, user_id) if user_id else await agent_repo.get(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
-
-    # Check if user has access to delete this agent
-    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to delete this agent"
-        )
 
     # Check if agent is used in any evaluations
     has_evaluations = await agent_repo.has_related_evaluations(agent_id)
@@ -353,8 +386,8 @@ async def delete_agent(
             detail="Cannot delete agent that has associated evaluations"
         )
 
-    # Delete the Agent
-    success = await agent_repo.delete(agent_id)
+    # Delete the Agent using user ownership check
+    success = await agent_repo.delete(agent_id, user_id=user_id)
     if not success:
         logger.error(f"Failed to delete agent: {agent_id}")
         raise HTTPException(
@@ -390,17 +423,13 @@ async def test_agent(
     logger.info(f"Testing agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
+    
+    # Use user-owned method to ensure access control
+    user_id = current_user.db_user.id if current_user.db_user else None
+    agent = await agent_repo.get_user_owned_with_decrypted_credentials(agent_id, user_id) if user_id else await agent_repo.get_with_decrypted_credentials(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
-
-    # Check if user has access to test this agent
-    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to test this agent"
-        )
 
     if not agent.is_active:
         logger.warning(f"Cannot test inactive agent: {agent_id}")
@@ -455,17 +484,13 @@ async def test_mcp_agent(
     logger.info(f"Testing MCP agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
+    
+    # Use user-owned method to ensure access control
+    user_id = current_user.db_user.id if current_user.db_user else None
+    agent = await agent_repo.get_user_owned_with_decrypted_credentials(agent_id, user_id) if user_id else await agent_repo.get_with_decrypted_credentials(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
-
-    # Check if user has access to test this agent
-    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to test this agent"
-        )
 
     if not agent.is_active:
         logger.warning(f"Cannot test inactive agent: {agent_id}")
@@ -507,7 +532,7 @@ async def list_agent_tools(
         jwt_token: Optional[str] = Depends(get_jwt_token)
 ):
     """
-    List available tools for an MCP agent.
+    List available tools for an agent. Returns empty array for non-MCP agents.
 
     Args:
         agent_id: The ID of the agent
@@ -516,25 +541,21 @@ async def list_agent_tools(
         jwt_token: JWT token from request
 
     Returns:
-        List of available tools
+        List of available tools (empty for non-MCP agents)
 
     Raises:
-        HTTPException: If agent not found, is inactive, or is not an MCP agent
+        HTTPException: If agent not found or is inactive
     """
     logger.info(f"Listing tools for agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
+    
+    # Use user-owned method to ensure access control
+    user_id = current_user.db_user.id if current_user.db_user else None
+    agent = await agent_repo.get_user_owned_with_decrypted_credentials(agent_id, user_id) if user_id else await agent_repo.get_with_decrypted_credentials(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
-
-    # Check if user has access to this agent
-    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this agent's tools"
-        )
 
     if not agent.is_active:
         logger.warning(f"Cannot list tools for inactive agent: {agent_id}")
@@ -543,12 +564,10 @@ async def list_agent_tools(
             detail="Agent is not active"
         )
 
-    # Verify agent is MCP type
+    # Return empty array for non-MCP agents
     if agent.integration_type != IntegrationType.MCP:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint is only for MCP agents"
-        )
+        logger.info(f"Agent {agent_id} is not MCP type, returning empty tools list")
+        return []
 
     try:
         # Create MCP client with JWT token
@@ -568,16 +587,14 @@ async def list_agent_tools(
             }
             tool_list.append(tool_dict)
 
-        logger.info(f"tool_list: {tool_list}")
-
+        logger.info(f"Retrieved {len(tool_list)} tools for MCP agent {agent_id}")
         return tool_list
 
     except Exception as e:
         logger.error(f"Error listing tools for agent {agent_id}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error listing tools: {str(e)}"
-        )
+        # Return empty array on error rather than raising exception
+        logger.warning(f"Returning empty tools list due to error: {str(e)}")
+        return []
 
 
 @router.post("/{agent_id}/health", response_model=Dict[str, Any])
@@ -603,17 +620,13 @@ async def check_agent_health(
     logger.info(f"Checking health for agent with ID: {agent_id}")
 
     agent_repo = AgentRepository(db)
-    agent = await agent_repo.get_with_decrypted_credentials(agent_id)
+    
+    # Use user-owned method to ensure access control
+    user_id = current_user.db_user.id if current_user.db_user else None
+    agent = await agent_repo.get_user_owned_with_decrypted_credentials(agent_id, user_id) if user_id else await agent_repo.get_with_decrypted_credentials(agent_id)
 
     if not agent:
         raise NotFoundException(resource="Agent", resource_id=str(agent_id))
-
-    # Check if user has access to this agent
-    if current_user.db_user and agent.created_by_id != current_user.db_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to check health of this agent"
-        )
 
     if not agent.is_active:
         logger.warning(f"Cannot check health for inactive agent: {agent_id}")

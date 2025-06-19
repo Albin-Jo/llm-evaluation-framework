@@ -90,6 +90,19 @@
               @include status-badge('error');
             }
           }
+
+          // Impersonation badge in header
+          .impersonation-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: $spacing-1 $spacing-2;
+            border-radius: $radius-sm;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-medium;
+            background-color: rgba($info, 0.1);
+            color: $info;
+            border: 1px solid rgba($info, 0.2);
+          }
         }
       }
 
@@ -538,6 +551,22 @@
         }
       }
     }
+
+    // Impersonation badge styles in info cards
+    .impersonation-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: $spacing-1 $spacing-2;
+      border-radius: $radius-sm;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+
+      &.active {
+        background-color: rgba($info, 0.1);
+        color: $info;
+        border: 1px solid rgba($info, 0.2);
+      }
+    }
   }
 
   // Enhanced Results Section
@@ -575,6 +604,11 @@
             &.failed {
               background: rgba($error, 0.1);
               color: $error;
+            }
+
+            &.threshold {
+              background: rgba($secondary, 0.1);
+              color: $secondary;
             }
 
             .summary-value {
@@ -1312,11 +1346,7 @@
             }
           }
 
-          // Result Summary Footer - Top level for proper specificity
-          .modal-overlay
-            .enhanced-modal-content
-            .modal-body
-            .result-summary-footer,
+          // Result Summary Footer
           .result-summary-footer {
             display: flex !important;
             justify-content: space-between;

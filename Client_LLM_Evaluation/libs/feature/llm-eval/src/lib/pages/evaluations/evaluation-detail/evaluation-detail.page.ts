@@ -12,6 +12,7 @@ import {
   MetricScore,
   Prompt,
   Dataset,
+  ImpersonationContext,
 } from '@ngtx-apps/data-access/models';
 import {
   EvaluationService,
@@ -174,6 +175,12 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
           this.totalResults = response.total || 0;
           this.resultsSummary = (response as any).summary || null;
           this.isLoadingResults = false;
+
+          // Update evaluation with impersonation context if available
+          if (response.impersonation_context && this.evaluation) {
+            this.evaluation.impersonation_context =
+              response.impersonation_context;
+          }
 
           // Process metrics data from backend response
           this.processMetricsData();
@@ -881,5 +888,54 @@ export class EvaluationDetailPage implements OnInit, OnDestroy {
 
   getDisplayResults(): any[] {
     return this.evaluationResults;
+  }
+
+  /**
+   * Check if evaluation has impersonation context
+   */
+  hasImpersonationContext(): boolean {
+    return !!this.evaluation?.impersonation_context?.is_impersonated;
+  }
+
+  /**
+   * Get impersonated user display text
+   */
+  getImpersonatedUserDisplay(): string {
+    if (!this.evaluation?.impersonation_context?.is_impersonated) {
+      return '';
+    }
+
+    const context = this.evaluation.impersonation_context;
+
+    // Use display name if available, otherwise construct from user info
+    if (context.impersonated_user_display) {
+      return context.impersonated_user_display;
+    }
+
+    if (context.impersonated_user_info) {
+      const userInfo = context.impersonated_user_info;
+      return (
+        userInfo.name || userInfo.preferred_username || userInfo.employee_id
+      );
+    }
+
+    return context.impersonated_user_id || 'Unknown User';
+  }
+
+  /**
+   * Get impersonated user email
+   */
+  getImpersonatedUserEmail(): string {
+    return (
+      this.evaluation?.impersonation_context?.impersonated_user_info?.email ||
+      ''
+    );
+  }
+
+  /**
+   * Get impersonated user ID
+   */
+  getImpersonatedUserId(): string {
+    return this.evaluation?.impersonation_context?.impersonated_user_id || '';
   }
 }

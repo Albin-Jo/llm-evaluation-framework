@@ -137,6 +137,20 @@
     }
   }
 
+  // Enhanced validation states
+  &.is-valid {
+    border-color: $success;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73.94-.94 1.38 1.38 3.03-3.03.94.94-3.97 3.97z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+
+    &:focus {
+      border-color: $success;
+      box-shadow: 0 0 0 3px rgba($success, 0.1);
+    }
+  }
+
   &.textarea {
     height: auto;
     min-height: 120px;
@@ -160,6 +174,33 @@ select.form-control {
   margin-top: $spacing-1;
   font-size: $font-size-xs;
   color: $error;
+}
+
+// Valid feedback
+.valid-feedback {
+  display: block;
+  width: 100%;
+  margin-top: $spacing-1;
+  font-size: $font-size-xs;
+  color: $success;
+  font-weight: $font-weight-medium;
+}
+
+// Input with validation (for impersonation field)
+.input-with-validation {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .validation-spinner {
+    position: absolute;
+    right: $spacing-3;
+    z-index: 1;
+
+    .spinner-sm {
+      @include spinner($size: 16px, $border-width: 2px, $color: $primary);
+    }
+  }
 }
 
 // Form group

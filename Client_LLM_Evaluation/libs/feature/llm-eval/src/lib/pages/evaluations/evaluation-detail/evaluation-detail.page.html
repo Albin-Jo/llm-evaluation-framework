@@ -29,6 +29,10 @@
           >
             {{ resultsSummary.pass_rate }}% Pass Rate
           </span>
+          <!-- Impersonation Indicator -->
+          <span class="impersonation-badge" *ngIf="hasImpersonationContext()">
+            👤 Impersonated
+          </span>
         </div>
       </div>
 
@@ -328,9 +332,38 @@
               >{{ evaluation.prompt?.name || evaluation.prompt_id }}</span
             >
           </div>
-          <div class="info-row" *ngIf="evaluation.pass_threshold">
+          <div class="info-row" *ngIf="evaluation.pass_threshold !== undefined">
             <span class="info-label">Pass Threshold:</span>
-            <span class="info-value">{{ evaluation.pass_threshold }}</span>
+            <span class="info-value"
+              >{{ (evaluation.pass_threshold * 100).toFixed(0) }}%</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Impersonation Context Card -->
+      <div class="info-card" *ngIf="hasImpersonationContext()">
+        <h3 class="card-title">Impersonation Context</h3>
+        <div class="card-content">
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="info-value">
+              <span class="impersonation-badge active">
+                👤 Impersonated Evaluation
+              </span>
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">User:</span>
+            <span class="info-value">{{ getImpersonatedUserDisplay() }}</span>
+          </div>
+          <div class="info-row" *ngIf="getImpersonatedUserEmail()">
+            <span class="info-label">Email:</span>
+            <span class="info-value">{{ getImpersonatedUserEmail() }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">User ID:</span>
+            <span class="info-value">{{ getImpersonatedUserId() }}</span>
           </div>
         </div>
       </div>
@@ -362,6 +395,15 @@
             <div class="summary-stat">
               <span class="summary-value">{{ resultsSummary.pass_rate }}%</span>
               <span class="summary-label">Pass Rate</span>
+            </div>
+            <div
+              class="summary-stat threshold"
+              *ngIf="resultsSummary.pass_threshold"
+            >
+              <span class="summary-value"
+                >{{ (resultsSummary.pass_threshold * 100).toFixed(0) }}%</span
+              >
+              <span class="summary-label">Threshold</span>
             </div>
           </div>
         </div>

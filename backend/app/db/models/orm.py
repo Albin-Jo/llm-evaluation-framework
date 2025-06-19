@@ -85,9 +85,6 @@ class Agent(Base, TimestampMixin, ModelMixin):
     domain: Mapped[str] = mapped_column(String(100), nullable=False)
     config: Mapped[dict] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-
-    model_type: Mapped[str] = mapped_column(String(100), nullable=True)
-    version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=True)
 
     # Integration fields
@@ -98,19 +95,6 @@ class Agent(Base, TimestampMixin, ModelMixin):
         SQLEnum(AuthType), nullable=False, default=AuthType.API_KEY
     )
     auth_credentials: Mapped[Optional[Dict]] = mapped_column(
-        JSON, nullable=True
-    )
-    request_template: Mapped[Optional[Dict]] = mapped_column(
-        JSON, nullable=True
-    )
-    response_format: Mapped[Optional[str]] = mapped_column(
-        String(50), nullable=True
-    )
-    retry_config: Mapped[Optional[Dict]] = mapped_column(
-        JSON, nullable=True,
-        default={"max_retries": 3, "backoff_factor": 1.5, "status_codes": [429, 500, 502, 503, 504]}
-    )
-    content_filter_config: Mapped[Optional[Dict]] = mapped_column(
         JSON, nullable=True
     )
 
@@ -266,7 +250,6 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     experiment_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    # Add pass threshold for the evaluation
     pass_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.7)
 
     # User relationship field
@@ -288,7 +271,7 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
     # Impersonation fields
     impersonated_user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     impersonated_user_info: Mapped[Optional[Dict]] = mapped_column(JSON, nullable=True)
-    impersonated_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Encrypted storage
+    impersonated_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class MetricScore(Base, TimestampMixin, ModelMixin):
@@ -307,7 +290,7 @@ class MetricScore(Base, TimestampMixin, ModelMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     value: Mapped[float] = mapped_column(Float, nullable=False)
     weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    meta_info: Mapped[dict] = mapped_column(JSON, nullable=True)  # Renamed from metadata
+    meta_info: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     # Relationships
     result_id: Mapped[UUID] = mapped_column(ForeignKey("evaluationresult.id"), nullable=False)
@@ -322,7 +305,7 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     __table_args__ = (
         Index('idx_evaluationresult_evaluation_id', 'evaluation_id'),
         Index('idx_evaluationresult_overall_score', 'overall_score'),
-        Index('idx_evaluationresult_passed', 'passed'),  # Index for the passed field
+        Index('idx_evaluationresult_passed', 'passed'),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -334,7 +317,6 @@ class EvaluationResult(Base, TimestampMixin, ModelMixin):
     input_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     output_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     processing_time_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    # Pass/fail fields:
     passed: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     pass_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 

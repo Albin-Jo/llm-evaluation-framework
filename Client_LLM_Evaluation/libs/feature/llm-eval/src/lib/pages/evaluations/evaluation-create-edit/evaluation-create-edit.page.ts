@@ -5,9 +5,19 @@ import {
   FormGroup,
   ReactiveFormsModule,
   Validators,
+  AsyncValidatorFn,
+  AbstractControl,
+  ValidationErrors,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, forkJoin, takeUntil } from 'rxjs';
+import { Subject, forkJoin, takeUntil, of, Observable, timer } from 'rxjs';
+import {
+  debounceTime,
+  distinctUntilChanged,
+  switchMap,
+  map,
+  catchError,
+} from 'rxjs/operators';
 
 import {
   EvaluationService,
@@ -24,6 +34,7 @@ import {
   Agent,
   Dataset,
   PromptResponse,
+  ImpersonationValidationResponse,
 } from '@ngtx-apps/data-access/models';
 import { NotificationService } from '@ngtx-apps/utils/services';
 
@@ -45,6 +56,10 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
   isSaving = false;
   error: string | null = null;
   pageTitle = 'Create New Evaluation';
+
+  // Impersonation validation state
+  isValidatingImpersonation = false;
+  impersonationValidationResult: ImpersonationValidationResponse | null = null;
 
   // Reference data
   agents: Agent[] = [];
@@ -103,6 +118,9 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
           this.loadDatasetMetrics(datasetId);
         }
       });
+
+    // Set up impersonation validation
+    this.setupImpersonationValidation();
   }
 
   ngOnDestroy(): void {
@@ -121,6 +139,8 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       agent_id: ['', Validators.required],
       dataset_id: ['', Validators.required],
       prompt_id: ['', Validators.required],
+      pass_threshold: [0.7, [Validators.min(0), Validators.max(1)]],
+      impersonate_user_id: [''], // New field for impersonation
       config: this.fb.group({
         temperature: [0.7],
         max_tokens: [1000],
@@ -132,8 +152,126 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
   }
 
   /**
+   * Set up impersonation validation with debounced async validator
+   */
+  private setupImpersonationValidation(): void {
+    const impersonateControl = this.evaluationForm.get('impersonate_user_id');
+    if (impersonateControl) {
+      // Set up async validator for impersonation
+      impersonateControl.setAsyncValidators([this.impersonationValidator()]);
+
+      // Listen for value changes to reset validation state
+      impersonateControl.valueChanges
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((value) => {
+          if (!value || !value.trim()) {
+            this.isValidatingImpersonation = false;
+            this.impersonationValidationResult = null;
+          }
+          // Don't set isValidatingImpersonation = true here to avoid race conditions
+          // Let the async validator handle the loading state
+        });
+
+      // Listen to control status changes to manage validation state
+      impersonateControl.statusChanges
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((status) => {
+          if (status === 'PENDING') {
+            this.isValidatingImpersonation = true;
+          } else {
+            this.isValidatingImpersonation = false;
+          }
+        });
+    }
+  }
+
+  /**
+   * Async validator for impersonation field
+   */
+  private impersonationValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      const value = control.value;
+
+      // If empty, it's valid (optional field)
+      if (!value || !value.trim()) {
+        this.impersonationValidationResult = null;
+        return of(null);
+      }
+
+      // Add debouncing to the validator itself
+      return timer(500).pipe(
+        switchMap(() => {
+          // Validate the employee ID
+          return this.evaluationService
+            .validateImpersonation(value.trim())
+            .pipe(
+              map((response: ImpersonationValidationResponse) => {
+                this.impersonationValidationResult = response;
+
+                if (response.valid) {
+                  return null; // Valid
+                } else {
+                  return {
+                    invalidImpersonation: {
+                      message: response.error || 'Invalid employee ID',
+                    },
+                  };
+                }
+              }),
+              catchError((error) => {
+                this.impersonationValidationResult = null;
+                console.error('Impersonation validation error:', error);
+                return of({
+                  invalidImpersonation: {
+                    message: 'Unable to validate employee ID',
+                  },
+                });
+              })
+            );
+        })
+      );
+    };
+  }
+
+  /**
+   * Get impersonation validation error message
+   */
+  getImpersonationErrorMessage(): string {
+    const control = this.evaluationForm.get('impersonate_user_id');
+    if (!control || !control.errors) return '';
+
+    if (control.errors['invalidImpersonation']) {
+      return (
+        control.errors['invalidImpersonation'].message || 'Invalid employee ID'
+      );
+    }
+
+    return '';
+  }
+
+  /**
+   * Check if impersonation field is invalid
+   */
+  isImpersonationFieldInvalid(): boolean {
+    const control = this.evaluationForm.get('impersonate_user_id');
+    return !!control && control.invalid && (control.dirty || control.touched);
+  }
+
+  /**
+   * Get impersonation display text
+   */
+  getImpersonationDisplayText(): string {
+    if (
+      this.impersonationValidationResult?.valid &&
+      this.impersonationValidationResult.user_display
+    ) {
+      return this.impersonationValidationResult.user_display;
+    }
+    return '';
+  }
+
+  /**
    * Determines if the Next button should be disabled
-   * @returns True if the button should be disabled, false otherwise
    */
   isNextButtonDisabled(): boolean {
     if (this.selectedTabIndex === 0) {
@@ -146,22 +284,33 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         this.evaluationForm.get('dataset_id')?.invalid === true;
       const promptInvalid =
         this.evaluationForm.get('prompt_id')?.invalid === true;
+      const impersonationInvalid =
+        this.evaluationForm.get('impersonate_user_id')?.invalid === true;
+      const passThresholdInvalid =
+        this.evaluationForm.get('pass_threshold')?.invalid === true;
+
+      // Check if impersonation field is pending (being validated)
+      const impersonationPending =
+        this.evaluationForm.get('impersonate_user_id')?.status === 'PENDING';
 
       return (
         nameInvalid ||
         methodInvalid ||
         agentInvalid ||
         datasetInvalid ||
-        promptInvalid
+        promptInvalid ||
+        impersonationInvalid ||
+        passThresholdInvalid ||
+        impersonationPending || // Use Angular's built-in pending state
+        this.isValidatingImpersonation
       );
     }
 
-    return false; // Enable the button on other tabs
+    return false;
   }
 
   /**
    * Determines if the Save/Update button should be disabled
-   * @returns True if the button should be disabled, false otherwise
    */
   isSaveButtonDisabled(): boolean {
     // Check form validity
@@ -173,11 +322,18 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     // Check if saving is in progress
     const isSavingInProgress = this.isSaving === true;
 
+    // Check if impersonation validation is in progress
+    const isValidatingImpersonation = this.isValidatingImpersonation === true;
+
     // Check if the evaluation is editable
     const isNotEditable = !this.isEvaluationEditable;
 
     return (
-      formInvalid || noMetricsSelected || isSavingInProgress || isNotEditable
+      formInvalid ||
+      noMetricsSelected ||
+      isSavingInProgress ||
+      isValidatingImpersonation ||
+      isNotEditable
     );
   }
 
@@ -284,6 +440,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         }
       });
   }
+
   /**
    * Load dataset metrics when evaluation method changes
    */
@@ -293,6 +450,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       this.loadDatasetMetrics(datasetId);
     }
   }
+
   /**
    * Load dataset metrics when a dataset is selected
    */
@@ -337,6 +495,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
         },
       });
   }
+
   /**
    * Load evaluation data for edit mode
    */
@@ -436,7 +595,7 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     // Set the selected metrics
     this.selectedMetrics = evaluation.metrics || [];
 
-    // Update form values
+    // Update form values including new fields
     this.evaluationForm.patchValue({
       name: evaluation.name,
       description: evaluation.description || '',
@@ -444,6 +603,8 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       agent_id: evaluation.agent_id,
       dataset_id: evaluation.dataset_id,
       prompt_id: evaluation.prompt_id,
+      pass_threshold: evaluation.pass_threshold || 0.7,
+      impersonate_user_id: evaluation.impersonate_user_id || '',
       metrics: evaluation.metrics || [],
     });
   }
@@ -460,10 +621,18 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
     this.isSaving = true;
     const formValue = this.evaluationForm.getRawValue();
 
+    // Prepare the data for submission
+    const evaluationData = {
+      ...formValue,
+      metrics: this.selectedMetrics,
+      // Only include impersonate_user_id if it has a value
+      impersonate_user_id: formValue.impersonate_user_id?.trim() || undefined,
+    };
+
     if (this.isEditMode) {
-      this.updateEvaluation(formValue);
+      this.updateEvaluation(evaluationData);
     } else {
-      this.createEvaluation(formValue);
+      this.createEvaluation(evaluationData);
     }
   }
 
@@ -564,6 +733,16 @@ export class EvaluationCreateEditPage implements OnInit, OnDestroy {
       return `${
         fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
       } cannot exceed ${control.errors['maxlength'].requiredLength} characters`;
+    }
+    if (control.errors['min']) {
+      return `${
+        fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+      } must be at least ${control.errors['min'].min}`;
+    }
+    if (control.errors['max']) {
+      return `${
+        fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+      } cannot exceed ${control.errors['max'].max}`;
     }
 
     return 'Invalid value';

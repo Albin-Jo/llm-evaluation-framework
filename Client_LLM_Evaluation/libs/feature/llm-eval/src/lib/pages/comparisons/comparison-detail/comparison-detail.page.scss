@@ -1,16 +1,23 @@
 @import '../../../../../../../styles/variables';
 @import '../../../../../../../styles/mixins';
 
+// ===================================================================
+// VARIABLES - Consolidated and standardized
+// ===================================================================
+
 // Professional color scheme
 $primary-blue: #3b82f6;
 $success-green: #10b981;
 $warning-orange: #f59e0b;
 $error-red: #ef4444;
 $neutral-gray: #6b7280;
+$info-purple: #6366f1;
 
 $background-card: #ffffff;
 $background-light: #f8fafc;
+$background-secondary: #f9fafb;
 $border-color: #e5e7eb;
+$border-light: #e2e8f0;
 $text-primary: #111827;
 $text-secondary: #6b7280;
 $text-muted: #9ca3af;
@@ -23,7 +30,10 @@ $spacing-lg: 16px;
 $spacing-xl: 20px;
 $spacing-2xl: 24px;
 
-// Main container - more compact
+// ===================================================================
+// MAIN LAYOUT
+// ===================================================================
+
 .comparison-detail-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -40,7 +50,10 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact header
+// ===================================================================
+// HEADER SECTION
+// ===================================================================
+
 .header {
   margin-bottom: $spacing-xl;
 
@@ -126,7 +139,10 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact performance overview
+// ===================================================================
+// PERFORMANCE OVERVIEW
+// ===================================================================
+
 .performance-overview {
   background: $background-card;
   border: 1px solid $border-color;
@@ -193,11 +209,9 @@ $spacing-2xl: 24px;
         &.icon-trending-up {
           color: $success-green;
         }
-
         &.icon-trending-down {
           color: $error-red;
         }
-
         &.icon-minus {
           color: $neutral-gray;
         }
@@ -268,38 +282,273 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact narrative insights
-.narrative-insights {
-  background: rgba($primary-blue, 0.02);
-  border: 1px solid rgba($primary-blue, 0.1);
-  border-left: 4px solid $primary-blue;
-  border-radius: 6px;
-  padding: $spacing-md $spacing-lg;
-  margin-bottom: $spacing-lg;
+// ===================================================================
+// ENHANCED NARRATIVE INSIGHTS (Single, consolidated version)
+// ===================================================================
 
-  h4 {
+.narrative-insights {
+  background: $background-secondary;
+  border: 1px solid $border-light;
+  border-radius: 12px;
+  margin-top: 1.5rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  .insights-header {
     display: flex;
     align-items: center;
-    gap: $spacing-sm;
-    font-size: 14px;
-    font-weight: 600;
-    color: $primary-blue;
-    margin-bottom: $spacing-sm;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: $background-card;
+    border-bottom: 1px solid $border-light;
 
-    .icon {
-      font-size: 16px;
+    h4 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: $text-primary;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .icon {
+        color: $primary-blue;
+        font-size: 1.2rem;
+      }
     }
   }
 
-  .narrative-text {
-    color: $text-primary;
-    line-height: 1.5;
-    white-space: pre-line;
-    font-size: 14px;
+  .insights-content {
+    padding: 1.25rem;
+  }
+
+  .insights-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .insight-section {
+    position: relative;
+
+    &.insight-positive {
+      .section-title {
+        .icon {
+          color: $success-green;
+        }
+        h5 {
+          color: darken($success-green, 15%);
+        }
+      }
+    }
+
+    &.insight-negative {
+      .section-title {
+        .icon {
+          color: $error-red;
+        }
+        h5 {
+          color: darken($error-red, 10%);
+        }
+      }
+    }
+
+    &.insight-conclusion {
+      background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+      border: 1px solid lighten($primary-blue, 40%);
+      border-radius: 8px;
+      padding: 1rem;
+
+      .section-title {
+        .icon {
+          color: $primary-blue;
+        }
+        h5 {
+          color: darken($primary-blue, 15%);
+        }
+      }
+    }
+
+    &.insight-info {
+      .section-title {
+        .icon {
+          color: $info-purple;
+        }
+        h5 {
+          color: darken($info-purple, 10%);
+        }
+      }
+    }
+  }
+
+  .insight-header-section {
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+
+      .icon {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+
+      h5 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.4;
+      }
+    }
+
+    .section-content {
+      margin-bottom: 0.75rem;
+      color: $text-secondary;
+      line-height: 1.6;
+
+      strong {
+        color: $text-primary;
+        font-weight: 600;
+      }
+
+      em {
+        font-style: italic;
+      }
+
+      code {
+        background: $background-light;
+        border: 1px solid $border-light;
+        border-radius: 4px;
+        padding: 0.125rem 0.375rem;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono',
+          monospace;
+        font-size: 0.875rem;
+      }
+    }
+
+    .insight-list {
+      margin: 0;
+      padding-left: 1.5rem;
+      list-style: none;
+
+      li {
+        position: relative;
+        margin-bottom: 0.5rem;
+        color: $text-secondary;
+        line-height: 1.6;
+
+        &:before {
+          content: '•';
+          position: absolute;
+          left: -1.25rem;
+          color: $primary-blue;
+          font-weight: bold;
+          font-size: 1.2rem;
+        }
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        strong {
+          color: $text-primary;
+          font-weight: 600;
+        }
+
+        em {
+          font-style: italic;
+        }
+
+        code {
+          background: $background-light;
+          border: 1px solid $border-light;
+          border-radius: 4px;
+          padding: 0.125rem 0.375rem;
+          font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono',
+            monospace;
+          font-size: 0.875rem;
+        }
+      }
+    }
+  }
+
+  .insight-paragraph {
+    p {
+      margin: 0;
+      color: $text-secondary;
+      line-height: 1.6;
+
+      strong {
+        color: $text-primary;
+        font-weight: 600;
+      }
+
+      em {
+        font-style: italic;
+      }
+
+      code {
+        background: $background-light;
+        border: 1px solid $border-light;
+        border-radius: 4px;
+        padding: 0.125rem 0.375rem;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono',
+          monospace;
+        font-size: 0.875rem;
+      }
+    }
+  }
+
+  // Fallback styles for unparseable content
+  .insights-fallback {
+    .fallback-content {
+      text-align: center;
+      padding: 1rem;
+
+      .icon {
+        font-size: 2rem;
+        color: $text-secondary;
+        margin-bottom: 1rem;
+      }
+
+      h5 {
+        margin-bottom: 1rem;
+        color: $text-primary;
+      }
+
+      .narrative-text-raw {
+        background: $background-light;
+        border: 1px solid $border-light;
+        border-radius: 6px;
+        padding: 1rem;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono',
+          monospace;
+        font-size: 0.875rem;
+        color: $text-secondary;
+        white-space: pre-wrap;
+        text-align: left;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+    }
+  }
+
+  // Animation for collapsing insights
+  &.collapsed {
+    .insights-content {
+      display: none;
+    }
+
+    .insights-header .insights-collapse .icon {
+      transform: rotate(180deg);
+    }
   }
 }
 
-// Compact evaluation comparison
+// ===================================================================
+// EVALUATION COMPARISON
+// ===================================================================
+
 .evaluation-comparison {
   background: $background-card;
   border: 1px solid $border-color;
@@ -340,7 +589,7 @@ $spacing-2xl: 24px;
     }
 
     .evaluation-item {
-      background: #f9fafb;
+      background: $background-secondary;
       border: 1px solid $border-color;
       border-radius: 6px;
       padding: $spacing-md;
@@ -365,7 +614,6 @@ $spacing-2xl: 24px;
           &.eval-a {
             background: $primary-blue;
           }
-
           &.eval-b {
             background: $success-green;
           }
@@ -419,7 +667,10 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact tabbed content
+// ===================================================================
+// TABBED CONTENT
+// ===================================================================
+
 .content-tabs {
   background: $background-card;
   border: 1px solid $border-color;
@@ -428,7 +679,7 @@ $spacing-2xl: 24px;
 
   .tab-navigation {
     display: flex;
-    background: #f9fafb;
+    background: $background-secondary;
     border-bottom: 1px solid $border-color;
     overflow-x: auto;
 
@@ -476,7 +727,10 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact metrics table
+// ===================================================================
+// METRICS TABLE
+// ===================================================================
+
 .metrics-analysis {
   .metrics-table-container {
     overflow-x: auto;
@@ -489,7 +743,7 @@ $spacing-2xl: 24px;
       font-size: 14px;
 
       th {
-        background: #f9fafb;
+        background: $background-secondary;
         padding: $spacing-sm $spacing-md;
         text-align: left;
         font-weight: 600;
@@ -517,7 +771,6 @@ $spacing-2xl: 24px;
         &.improved {
           background: rgba($success-green, 0.02);
         }
-
         &.regressed {
           background: rgba($error-red, 0.02);
         }
@@ -544,11 +797,9 @@ $spacing-2xl: 24px;
         &.positive {
           color: $success-green;
         }
-
         &.negative {
           color: $error-red;
         }
-
         &.neutral {
           color: $text-muted;
         }
@@ -586,12 +837,15 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact visualization section
+// ===================================================================
+// VISUALIZATION SECTION
+// ===================================================================
+
 .visualization-section {
   .visualization-controls {
     margin-bottom: $spacing-lg;
     padding: $spacing-md;
-    background: #f9fafb;
+    background: $background-secondary;
     border-radius: 6px;
     border: 1px solid $border-color;
 
@@ -633,7 +887,7 @@ $spacing-2xl: 24px;
   }
 
   .chart-container {
-    background: #f9fafb;
+    background: $background-secondary;
     border: 1px solid $border-color;
     border-radius: 6px;
     min-height: 300px;
@@ -653,22 +907,13 @@ $spacing-2xl: 24px;
         @include spinner(24px, 2px, $primary-blue);
       }
     }
-
-    .chart-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: $spacing-md;
-      color: $text-muted;
-
-      .icon {
-        font-size: 48px;
-      }
-    }
   }
 }
 
-// Compact sample analysis
+// ===================================================================
+// SAMPLE ANALYSIS
+// ===================================================================
+
 .sample-analysis {
   .sample-controls {
     display: flex;
@@ -676,7 +921,7 @@ $spacing-2xl: 24px;
     align-items: center;
     margin-bottom: $spacing-lg;
     padding: $spacing-md;
-    background: #f9fafb;
+    background: $background-secondary;
     border-radius: 6px;
     border: 1px solid $border-color;
 
@@ -719,7 +964,7 @@ $spacing-2xl: 24px;
       font-size: 14px;
 
       th {
-        background: #f9fafb;
+        background: $background-secondary;
         padding: $spacing-sm $spacing-md;
         text-align: left;
         font-weight: 600;
@@ -742,11 +987,9 @@ $spacing-2xl: 24px;
         &:hover {
           background: rgba($primary-blue, 0.02);
         }
-
         &.improved {
           background: rgba($success-green, 0.02);
         }
-
         &.regressed {
           background: rgba($error-red, 0.02);
         }
@@ -773,11 +1016,9 @@ $spacing-2xl: 24px;
         &.positive {
           color: $success-green;
         }
-
         &.negative {
           color: $error-red;
         }
-
         &.neutral {
           color: $text-muted;
         }
@@ -786,7 +1027,10 @@ $spacing-2xl: 24px;
   }
 }
 
-// Details section
+// ===================================================================
+// DETAILS SECTION
+// ===================================================================
+
 .details-section {
   .details-grid {
     display: grid;
@@ -854,7 +1098,7 @@ $spacing-2xl: 24px;
       }
 
       .eval-detail-card {
-        background: #f9fafb;
+        background: $background-secondary;
         border: 1px solid $border-color;
         border-radius: 6px;
         padding: $spacing-md;
@@ -881,7 +1125,6 @@ $spacing-2xl: 24px;
             &.eval-a {
               background: $primary-blue;
             }
-
             &.eval-b {
               background: $success-green;
             }
@@ -911,7 +1154,11 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact button styles
+// ===================================================================
+// REUSABLE COMPONENTS
+// ===================================================================
+
+// Button styles
 .btn {
   @include button-base;
   font-size: 14px;
@@ -944,7 +1191,7 @@ $spacing-2xl: 24px;
     color: $text-primary;
 
     &:hover:not(:disabled) {
-      background: #f9fafb;
+      background: $background-secondary;
       border-color: $primary-blue;
       color: $primary-blue;
     }
@@ -966,7 +1213,7 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact status badge styles
+// Status badge styles
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -982,39 +1229,33 @@ $spacing-2xl: 24px;
     background: rgba($success-green, 0.15);
     color: $success-green;
   }
-
   &.failed {
     background: rgba($error-red, 0.15);
     color: $error-red;
   }
-
   &.pending {
     background: rgba($warning-orange, 0.15);
     color: $warning-orange;
   }
-
   &.running {
     background: rgba($primary-blue, 0.15);
     color: $primary-blue;
   }
-
   &.improved {
     background: rgba($success-green, 0.15);
     color: $success-green;
   }
-
   &.regressed {
     background: rgba($error-red, 0.15);
     color: $error-red;
   }
-
   &.unchanged {
     background: rgba($neutral-gray, 0.15);
     color: $neutral-gray;
   }
 }
 
-// Compact empty state styles
+// Empty state styles
 .empty-state {
   @include empty-state;
   padding: $spacing-2xl;
@@ -1041,7 +1282,7 @@ $spacing-2xl: 24px;
   }
 }
 
-// Compact loading and error states
+// Loading and error states
 .loading-container {
   @include loading-container;
   background: $background-card;
@@ -1081,16 +1322,10 @@ $spacing-2xl: 24px;
   }
 }
 
-// Icon styles
-.icon {
-  display: inline-block;
-  font-style: normal;
-  font-variant: normal;
-  text-rendering: auto;
-  line-height: 1;
-}
+// ===================================================================
+// MODAL STYLES
+// ===================================================================
 
-// Modal styles
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1101,7 +1336,7 @@ $spacing-2xl: 24px;
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1040; // Modal backdrop z-index
+  z-index: 1040;
   padding: $spacing-lg;
 
   .modal-container {
@@ -1187,11 +1422,9 @@ $spacing-2xl: 24px;
             &.positive {
               color: $success-green;
             }
-
             &.negative {
               color: $error-red;
             }
-
             &.neutral {
               color: $text-muted;
             }
@@ -1240,7 +1473,6 @@ $spacing-2xl: 24px;
                 &.eval-a {
                   background: $primary-blue;
                 }
-
                 &.eval-b {
                   background: $success-green;
                 }
@@ -1311,6 +1543,7 @@ $spacing-2xl: 24px;
     }
   }
 
+  // Responsive adjustments for modals
   @include media-breakpoint-down(md) {
     padding: $spacing-md;
 
@@ -1338,21 +1571,82 @@ $spacing-2xl: 24px;
   }
 }
 
-// Responsive adjustments
+// ===================================================================
+// CONSOLIDATED RESPONSIVE STYLES
+// ===================================================================
+
 @include media-breakpoint-down(sm) {
   .comparison-detail-container {
     padding: $spacing-sm;
   }
 
-  .performance-overview {
-    padding: $spacing-md;
-  }
-
-  .evaluation-comparison {
-    padding: $spacing-md;
-  }
-
+  .performance-overview,
+  .evaluation-comparison,
   .content-tabs .tab-content .tab-panel {
     padding: $spacing-md;
   }
+
+  // Responsive adjustments for narrative insights
+  .narrative-insights {
+    .insights-header {
+      padding: 0.875rem 1rem;
+
+      h4 {
+        font-size: 1rem;
+      }
+    }
+
+    .insights-content {
+      padding: 1rem;
+    }
+
+    .insights-sections {
+      gap: 1rem;
+    }
+
+    .insight-section {
+      &.insight-conclusion {
+        padding: 0.875rem;
+      }
+    }
+
+    .insight-header-section {
+      .section-title {
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+
+        .icon {
+          font-size: 1rem;
+        }
+
+        h5 {
+          font-size: 0.9rem;
+        }
+      }
+
+      .insight-list {
+        padding-left: 1.25rem;
+
+        li {
+          font-size: 0.9rem;
+
+          &:before {
+            left: -1rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// ===================================================================
+// UTILITIES
+// ===================================================================
+
+.icon {
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
 }

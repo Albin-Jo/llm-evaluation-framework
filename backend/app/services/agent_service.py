@@ -1,4 +1,3 @@
-# File: backend/app/services/agent_service.py
 import json
 import logging
 import time
@@ -102,7 +101,6 @@ async def get_agent_capabilities(agent: Agent) -> Dict[str, Any]:
                 timeout=DEFAULT_TIMEOUT,
                 headers={
                     "Content-Type": "application/json",
-                    "X-API-Key": settings.AGENT_API_KEY,
                 }
             )
 
@@ -230,7 +228,7 @@ async def azure_openai_agent_call(
         ],
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "model": agent.model_type or "gpt-4",  # Default to GPT-4 if not specified
+        "model": "gpt-4",  # Default to GPT-4
     }
 
     # Add agent's custom configuration if available

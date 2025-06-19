@@ -4,7 +4,6 @@ from uuid import UUID
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.expression import or_
 
 from backend.app.db.models.orm import Agent, Evaluation
 from backend.app.db.repositories.base import BaseRepository
@@ -61,7 +60,8 @@ class AgentRepository(BaseRepository):
         # Add any additional filters
         if additional_filters:
             for key, value in additional_filters.items():
-                query = query.where(getattr(self.model, key) == value)
+                if hasattr(self.model, key):
+                    query = query.where(getattr(self.model, key) == value)
 
         # Add pagination
         query = query.offset(skip).limit(limit)
@@ -78,7 +78,8 @@ class AgentRepository(BaseRepository):
 
         if additional_filters:
             for key, value in additional_filters.items():
-                query = query.where(getattr(self.model, key) == value)
+                if hasattr(self.model, key):
+                    query = query.where(getattr(self.model, key) == value)
 
         result = await self.session.execute(query)
         return result.scalar() or 0
@@ -297,7 +298,7 @@ class AgentRepository(BaseRepository):
             domain: Optional[str] = None,
             is_active: Optional[bool] = None,
             tags: Optional[List[str]] = None,
-            model_type: Optional[str] = None,
+            integration_type: Optional[str] = None,
             user_id: Optional[UUID] = None,
             skip: int = 0,
             limit: int = 100
@@ -310,7 +311,7 @@ class AgentRepository(BaseRepository):
             domain: Optional domain filter
             is_active: Optional active status filter
             tags: Optional list of tags to filter by
-            model_type: Optional model type filter
+            integration_type: Optional integration type filter
             user_id: Optional user ID to filter by ownership
             skip: Number of records to skip
             limit: Maximum number of records to return
@@ -332,8 +333,8 @@ class AgentRepository(BaseRepository):
         if is_active is not None:
             filters.append(self.model.is_active == is_active)
 
-        if model_type:
-            filters.append(self.model.model_type == model_type)
+        if integration_type:
+            filters.append(self.model.integration_type == integration_type)
 
         if user_id:
             filters.append(self.model.created_by_id == user_id)

@@ -15,11 +15,9 @@ class AgentBase(BaseModel):
     domain: str = Field(..., min_length=1, max_length=100, description="Domain/category the agent specializes in")
     config: Optional[Dict] = Field(None, description="Configuration options for the agent")
     is_active: bool = Field(True, description="Whether the agent is currently active")
-    model_type: Optional[str] = Field(None, description="Type of model used by the agent")
-    version: Optional[str] = Field("1.0.0", pattern=r"^\d+\.\d+\.\d+$", description="Version of the agent")
     tags: Optional[List[str]] = Field(None, description="Tags for categorizing the agent")
 
-    # New fields
+    # Integration fields
     integration_type: Optional[IntegrationType] = Field(
         IntegrationType.AZURE_OPENAI,
         description="Type of integration for this agent"
@@ -30,9 +28,9 @@ class AgentBase(BaseModel):
     )
 
     @field_validator('api_endpoint')
+    @classmethod
     def validate_api_endpoint(cls, v):
         """Validate that the API endpoint is a valid URL."""
-        # Simple validation, could be extended to use HttpUrl type for stricter validation
         if not v.startswith(('http://', 'https://')):
             raise ValueError('API endpoint must be a valid HTTP or HTTPS URL')
         return v
@@ -44,30 +42,17 @@ class AgentCreate(AgentBase):
         None,
         description="Credentials for authentication (stored securely)"
     )
-    request_template: Optional[Dict] = Field(
-        None,
-        description="Template for request payload"
-    )
-    response_format: Optional[str] = Field(
-        None,
-        description="Expected response format"
-    )
-    retry_config: Optional[Dict] = Field(
-        None,
-        description="Configuration for retry behavior"
-    )
-    content_filter_config: Optional[Dict] = Field(
-        None,
-        description="Configuration for content filtering"
-    )
 
     @field_validator('auth_credentials')
+    @classmethod
     def validate_credentials(cls, v, info):
         """Validate that credentials match auth_type."""
         if not v:
             return v
 
-        auth_type = info.data.get('auth_type')
+        # Get auth_type from the data being validated
+        auth_type = getattr(info.data, 'auth_type', None) if hasattr(info, 'data') else None
+
         if not auth_type:
             return v
 
@@ -88,20 +73,15 @@ class AgentUpdate(BaseModel):
     domain: Optional[str] = Field(None, min_length=1, max_length=100)
     config: Optional[Dict] = None
     is_active: Optional[bool] = None
-    model_type: Optional[str] = None
-    version: Optional[str] = Field(None, pattern=r"^\d+\.\d+\.\d+$")
     tags: Optional[List[str]] = None
 
-    # New fields
+    # Integration fields
     integration_type: Optional[IntegrationType] = None
     auth_type: Optional[AuthType] = None
     auth_credentials: Optional[Dict[str, Any]] = None
-    request_template: Optional[Dict] = None
-    response_format: Optional[str] = None
-    retry_config: Optional[Dict] = None
-    content_filter_config: Optional[Dict] = None
 
     @field_validator('api_endpoint')
+    @classmethod
     def validate_api_endpoint(cls, v):
         """Validate that the API endpoint is a valid URL if provided."""
         if v is not None and not v.startswith(('http://', 'https://')):
@@ -109,12 +89,15 @@ class AgentUpdate(BaseModel):
         return v
 
     @field_validator('auth_credentials')
+    @classmethod
     def validate_credentials(cls, v, info):
         """Validate that credentials match auth_type."""
         if not v:
             return v
 
-        auth_type = info.data.get('auth_type')
+        # Get auth_type from the data being validated
+        auth_type = getattr(info.data, 'auth_type', None) if hasattr(info, 'data') else None
+
         if not auth_type:
             return v
 
@@ -136,18 +119,12 @@ class AgentInDB(BaseModel):
     domain: str
     config: Optional[Dict] = None
     is_active: bool = True
-    model_type: Optional[str] = None
-    version: Optional[str] = "1.0.0"
     tags: Optional[List[str]] = None
     integration_type: Optional[IntegrationType] = IntegrationType.AZURE_OPENAI
     auth_type: Optional[AuthType] = AuthType.API_KEY
 
     # Credentials in DB are encrypted string, not a dictionary
     auth_credentials: Optional[Union[Dict[str, Any], str]] = None
-    request_template: Optional[Dict] = None
-    response_format: Optional[str] = None
-    retry_config: Optional[Dict] = None
-    content_filter_config: Optional[Dict] = None
 
     created_at: datetime
     updated_at: datetime
@@ -157,7 +134,9 @@ class AgentInDB(BaseModel):
 
 class AgentResponse(AgentInDB):
     """Schema for Agent response."""
-    pass
+    # Optional fields for MCP agents only
+    tools: Optional[List[Dict]] = Field(None, description="Available tools (MCP agents only)")
+    capabilities: Optional[List[str]] = Field(None, description="Agent capabilities (MCP agents only)")
 
 
 class AgentTest(BaseModel):

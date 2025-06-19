@@ -24,6 +24,54 @@ export enum EvaluationStatus {
 }
 
 /**
+ * Interface for impersonation validation request
+ */
+export interface ImpersonationValidationRequest {
+  employee_id: string;
+}
+
+/**
+ * Interface for impersonation validation response
+ */
+export interface ImpersonationValidationResponse {
+  valid: boolean;
+  employee_id: string;
+  user_info?: {
+    employee_id: string;
+    name: string;
+    preferred_username: string;
+    email: string;
+    expires_in: number;
+    token_type: string;
+    scope: string;
+  };
+  user_display?: string;
+  token_expires_in?: number;
+  validation_timestamp?: string;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Interface for impersonation context in evaluation results
+ */
+export interface ImpersonationContext {
+  is_impersonated: boolean;
+  impersonated_user_id?: string;
+  impersonated_user_info?: {
+    employee_id: string;
+    name: string;
+    preferred_username: string;
+    email: string;
+    expires_in: number;
+    token_type: string;
+    scope: string;
+    session_state?: string;
+  };
+  impersonated_user_display?: string;
+}
+
+/**
  * Interface for evaluation creation
  */
 export interface EvaluationCreate {
@@ -35,7 +83,8 @@ export interface EvaluationCreate {
   agent_id: string;
   dataset_id: string;
   prompt_id: string;
-  pass_threshold: number;
+  pass_threshold?: number;
+  impersonate_user_id?: string; // New field for user impersonation
 }
 
 /**
@@ -50,7 +99,8 @@ export interface EvaluationUpdate {
   experiment_id?: string;
   start_time?: string;
   end_time?: string;
-  pass_threshold: number;
+  pass_threshold?: number;
+  impersonate_user_id?: string; // New field for user impersonation
 }
 
 /**
@@ -65,8 +115,8 @@ export interface EvaluationFilterParams {
   dataset_id?: string;
   prompt_id?: string;
   method?: EvaluationMethod;
-  sortBy?: string; // Added for template compatibility
-  sortDirection?: 'asc' | 'desc'; // Added for template compatibility
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 /**
@@ -98,7 +148,18 @@ export interface EvaluationResult {
   created_at: string;
   updated_at: string;
   metric_scores: MetricScore[];
+  passed?: boolean; // Added for pass/fail status
   [key: string]: any;
+}
+
+/**
+ * Interface for evaluation results summary
+ */
+export interface EvaluationResultsSummary {
+  pass_rate: number;
+  pass_count: number;
+  total_evaluated: number;
+  pass_threshold: number;
 }
 
 /**
@@ -118,6 +179,8 @@ export interface Evaluation {
   agent_id: string;
   dataset_id: string;
   prompt_id: string;
+  pass_threshold?: number; // New field
+  impersonate_user_id?: string; // New field
   created_at: string;
   updated_at: string;
 }
@@ -129,36 +192,26 @@ export interface EvaluationDetail extends Evaluation {
   agent?: Agent;
   dataset?: Dataset;
   prompt?: Prompt;
-  results?: Record<string, any>[]; // Changed to array for ngFor compatibility
+  results?: Record<string, any>[];
   metrics_results?: Record<string, number>;
   progress?: EvaluationProgress;
   error_message?: string;
-  start_time?: string; // Added for template compatibility
-  end_time?: string; // Added for template compatibility
-  experiment_id?: string; // Added for template compatibility
-  pass_threshold?: string;
+  impersonation_context?: ImpersonationContext; // New field for impersonation details
 }
 
 /**
- * Interface for evaluation progress - Updated to match backend response
+ * Interface for evaluation progress
  */
 export interface EvaluationProgress {
-  // Core progress fields that match backend
   total: number;
   completed: number;
   failed: number;
   percentage: number;
-
-  // Template compatibility fields (mapped from backend)
-  percentage_complete: number; // Maps to progress_percentage
-  processed_items: number; // Maps to completed_items
-  total_items: number; // Maps to total_items
-
-  // Time-related fields
-  estimated_completion?: string; // Calculated from estimated_time_remaining_seconds
-  eta_seconds?: number; // Maps to estimated_time_remaining_seconds
-
-  // Status and metadata
+  percentage_complete: number;
+  processed_items: number;
+  total_items: number;
+  estimated_completion?: string;
+  eta_seconds?: number;
   status?: EvaluationStatus;
   start_time?: string;
   last_updated?: string;
@@ -186,4 +239,24 @@ export interface BackendProgressResponse {
 export interface EvaluationsResponse {
   evaluations: Evaluation[];
   totalCount: number;
+}
+
+/**
+ * Interface for evaluation results response with enhanced metadata
+ */
+export interface EvaluationResultsResponse {
+  items: EvaluationResult[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  has_previous: boolean;
+  summary: EvaluationResultsSummary;
+  impersonation_context: ImpersonationContext;
+  evaluation_info: {
+    id: string;
+    name: string;
+    method: string;
+    status: string;
+  };
 }

@@ -31,8 +31,11 @@ interface EvaluationInfo {
   id: string;
   name: string;
   agentName: string;
+  agentId: string;
   datasetName: string;
+  datasetId: string;
   promptName: string;
+  promptId: string;
   method: string;
   processedItems: number;
   overallScore: number;
@@ -50,6 +53,18 @@ interface ComparisonSummary {
   samplesAnalyzed: number;
   statisticalPower: string;
   hasSignificantChanges: boolean;
+}
+
+interface ParsedInsight {
+  type: 'header' | 'paragraph' | 'list' | 'conclusion';
+  title?: string;
+  content?: string;
+  items?: string[];
+}
+
+interface FormattedNarrativeInsights {
+  sections: ParsedInsight[];
+  hasContent: boolean;
 }
 
 @Component({
@@ -93,9 +108,9 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     [];
   topRegressions: Array<{ metric: string; value: number; impact: string }> = [];
 
-  // Visualization data
+  // Visualization data - fix the type to match what the visualization component expects
   selectedVisualization: 'radar' | 'bar' | 'line' = 'radar';
-  visualizationData: ApiVisualizationData | VisualizationData | null = null;
+  visualizationData: ApiVisualizationData | null = null;
   isLoadingVisualization: boolean = false;
 
   // Sample data
@@ -157,7 +172,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (comparison) => {
-          console.log('Loaded comparison:', comparison);
           this.comparison = comparison;
           this.processComparisonData(comparison);
           this.loadEnhancedMetadata(comparison);
@@ -213,9 +227,18 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
     return {
       id: evaluationData.id || '',
       name: evaluationData.name || `Evaluation ${type.toUpperCase()}`,
-      agentName: this.truncateId(evaluationData.agent_id || 'Unknown'),
-      datasetName: this.truncateId(evaluationData.dataset_id || 'Unknown'),
-      promptName: this.truncateId(evaluationData.prompt_id || 'Default'),
+      agentName:
+        evaluationData.agent_name ||
+        this.truncateId(evaluationData.agent_id || 'Unknown'),
+      agentId: evaluationData.agent_id || '',
+      datasetName:
+        evaluationData.dataset_name ||
+        this.truncateId(evaluationData.dataset_id || 'Unknown'),
+      datasetId: evaluationData.dataset_id || '',
+      promptName:
+        evaluationData.prompt_name ||
+        this.truncateId(evaluationData.prompt_id || 'Default'),
+      promptId: evaluationData.prompt_id || '',
       method: evaluationData.method || 'Unknown',
       processedItems: evaluationData.processed_items || 0,
       overallScore: this.getOverallScore(type),
@@ -238,8 +261,11 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       id: id,
       name: `Evaluation ${type.toUpperCase()}`,
       agentName: this.truncateId(id),
+      agentId: id,
       datasetName: 'Loading...',
+      datasetId: '',
       promptName: 'Loading...',
+      promptId: '',
       method: 'Unknown',
       processedItems: 0,
       overallScore: this.getOverallScore(type),
@@ -423,7 +449,6 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
    */
   loadVisualizationData(type: 'radar' | 'bar' | 'line'): void {
     if (!this.comparisonId || !this.hasResults()) {
-      console.log('No comparison ID or results available for visualization');
       return;
     }
 
@@ -445,10 +470,10 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
           this.cdr.markForCheck();
         })
       )
-      .subscribe((data) => {
+      .subscribe((data: ApiVisualizationData | VisualizationData | null) => {
         if (data) {
-          console.log(`Loaded ${type} visualization data:`, data);
-          this.visualizationData = data;
+          // Convert VisualizationData to ApiVisualizationData format if needed
+          this.visualizationData = this.convertToApiFormat(data, type);
         } else {
           console.warn(`No ${type} visualization data available`);
           this.visualizationData = null;
@@ -458,80 +483,95 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Create fallback visualization data
+   * Convert VisualizationData to ApiVisualizationData format
    */
-  private createFallbackVisualizationData(
+  private convertToApiFormat(
+    data: ApiVisualizationData | VisualizationData,
     type: 'radar' | 'bar' | 'line'
-  ): VisualizationData {
-    return {
-      type,
-      labels: ['No Data'],
-      datasets: [
-        {
-          label: 'No Data Available',
-          data: [0],
-          backgroundColor: 'rgba(107, 114, 128, 0.5)',
-          borderColor: 'rgba(107, 114, 128, 1)',
-          fill: false,
-        },
-      ],
-    };
+  ): ApiVisualizationData | null {
+    // If it's already ApiVisualizationData, return as is
+    if (this.isApiVisualizationData(data)) {
+      return data;
+    }
+
+    // Convert VisualizationData to ApiVisualizationData
+    const vizData = data as VisualizationData;
+
+    switch (type) {
+      case 'radar':
+        return {
+          type: 'radar',
+          labels: vizData.labels,
+          series: vizData.datasets.map((dataset) => ({
+            name: dataset.label,
+            data: dataset.data as number[],
+          })),
+          is_inverted: vizData.labels.map(() => false),
+        };
+
+      case 'bar':
+        return {
+          type: 'bar',
+          categories: vizData.labels,
+          series: vizData.datasets.map((dataset) => ({
+            name: dataset.label,
+            data: dataset.data as number[],
+            type: dataset.type === 'line' ? 'line' : 'bar',
+          })),
+          is_significant: vizData.labels.map(() => false),
+          higher_is_better: vizData.labels.map(() => true),
+        };
+
+      case 'line':
+        // For line charts, we need to create a different structure
+        return {
+          type: 'line',
+          metrics: vizData.labels.map((label, index) => ({
+            name: label,
+            higher_is_better: true,
+            is_significant: false,
+            evaluation_a: {
+              name: 'Evaluation A',
+              values: [vizData.datasets[0]?.data[index] || 0] as number[],
+              min: vizData.datasets[0]?.data[index] || 0,
+              max: vizData.datasets[0]?.data[index] || 0,
+              q1: vizData.datasets[0]?.data[index] || 0,
+              q3: vizData.datasets[0]?.data[index] || 0,
+              median: vizData.datasets[0]?.data[index] || 0,
+            },
+            evaluation_b: {
+              name: 'Evaluation B',
+              values: [vizData.datasets[1]?.data[index] || 0] as number[],
+              min: vizData.datasets[1]?.data[index] || 0,
+              max: vizData.datasets[1]?.data[index] || 0,
+              q1: vizData.datasets[1]?.data[index] || 0,
+              q3: vizData.datasets[1]?.data[index] || 0,
+              median: vizData.datasets[1]?.data[index] || 0,
+            },
+          })),
+        };
+
+      default:
+        return null;
+    }
   }
 
   /**
-   * Create visualization data from metric differences
+   * Type guard to check if data is ApiVisualizationData
    */
-  private createVisualizationDataFromMetrics(
-    type: 'radar' | 'bar' | 'line'
-  ): VisualizationData {
-    if (!this.metricDifferences || this.metricDifferences.length === 0) {
-      return this.createFallbackVisualizationData(type);
+  private isApiVisualizationData(data: any): data is ApiVisualizationData {
+    if (!data || !data.type) return false;
+
+    switch (data.type) {
+      case 'radar':
+        return !!(data.labels && data.series && data.is_inverted);
+      case 'bar':
+        return !!(data.categories && data.series && data.is_significant);
+      case 'line':
+        return !!data.metrics;
+      default:
+        return false;
     }
-
-    const labels = this.metricDifferences.map((m) =>
-      this.getFormattedMetricName(m.metric_name)
-    );
-
-    let datasets;
-
-    if (type === 'radar' || type === 'line') {
-      datasets = [
-        {
-          label: this.evaluationA?.name || 'Evaluation A',
-          data: this.metricDifferences.map((m) => m.evaluation_a_value),
-          backgroundColor: 'rgba(59, 130, 246, 0.2)',
-          borderColor: 'rgba(59, 130, 246, 1)',
-          fill: type === 'radar',
-        },
-        {
-          label: this.evaluationB?.name || 'Evaluation B',
-          data: this.metricDifferences.map((m) => m.evaluation_b_value),
-          backgroundColor: 'rgba(16, 185, 129, 0.2)',
-          borderColor: 'rgba(16, 185, 129, 1)',
-          fill: type === 'radar',
-        },
-      ];
-    } else {
-      datasets = [
-        {
-          label: this.evaluationA?.name || 'Evaluation A',
-          data: this.metricDifferences.map((m) => m.evaluation_a_value),
-          backgroundColor: 'rgba(59, 130, 246, 0.8)',
-        },
-        {
-          label: this.evaluationB?.name || 'Evaluation B',
-          data: this.metricDifferences.map((m) => m.evaluation_b_value),
-          backgroundColor: 'rgba(16, 185, 129, 0.8)',
-        },
-        {
-          label: 'Change (%)',
-          data: this.metricDifferences.map((m) => m.percentage_change || 0),
-          backgroundColor: 'rgba(245, 158, 11, 0.8)',
-        },
-      ];
-    }
-
-    return { type, labels, datasets };
   }
 
   /**
@@ -882,6 +922,140 @@ export class ComparisonDetailPage implements OnInit, OnDestroy {
       return JSON.stringify(data, null, 2);
     } catch (e) {
       return String(data);
+    }
+  }
+  /**
+   * Parse and format narrative insights text
+   */
+  parseNarrativeInsights(rawText: string): FormattedNarrativeInsights {
+    if (!rawText || !rawText.trim()) {
+      return { sections: [], hasContent: false };
+    }
+
+    const sections: ParsedInsight[] = [];
+    const lines = rawText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    let currentSection: ParsedInsight | null = null;
+    let currentListItems: string[] = [];
+
+    for (const line of lines) {
+      // Handle headers (bold text followed by colon)
+      if (line.match(/^\*\*(.+?):\*\*(.*)$/)) {
+        // Finish any current list
+        if (currentSection && currentListItems.length > 0) {
+          currentSection.items = [...currentListItems];
+          currentListItems = [];
+        }
+
+        const match = line.match(/^\*\*(.+?):\*\*(.*)$/);
+        if (match) {
+          const title = match[1].trim();
+          const content = match[2].trim();
+
+          currentSection = {
+            type: title.toLowerCase().includes('conclusion')
+              ? 'conclusion'
+              : 'header',
+            title,
+            content: this.cleanFormattedText(content),
+          };
+          sections.push(currentSection);
+        }
+      }
+      // Handle list items
+      else if (line.startsWith('- ')) {
+        const listItem = line.substring(2).trim();
+        currentListItems.push(this.cleanFormattedText(listItem));
+      }
+      // Handle regular paragraphs
+      else if (line.length > 0) {
+        // If we have pending list items, create a list section
+        if (currentListItems.length > 0) {
+          if (currentSection) {
+            currentSection.items = [...currentListItems];
+            currentListItems = [];
+          }
+        }
+
+        // If this isn't part of a header, create a paragraph
+        if (!line.startsWith('**')) {
+          sections.push({
+            type: 'paragraph',
+            content: this.cleanFormattedText(line),
+          });
+        }
+      }
+    }
+
+    // Handle any remaining list items
+    if (currentSection && currentListItems.length > 0) {
+      currentSection.items = [...currentListItems];
+    }
+
+    return { sections, hasContent: sections.length > 0 };
+  }
+
+  /**
+   * Clean formatted text (remove markdown syntax, preserve content)
+   */
+  private cleanFormattedText(text: string): string {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
+      .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic text
+      .replace(/`(.*?)`/g, '<code>$1</code>') // Code text
+      .trim();
+  }
+
+  /**
+   * Get formatted narrative insights for template
+   */
+  getFormattedNarrativeInsights(): FormattedNarrativeInsights {
+    if (!this.comparison?.narrative_insights) {
+      return { sections: [], hasContent: false };
+    }
+
+    return this.parseNarrativeInsights(this.comparison.narrative_insights);
+  }
+
+  /**
+   * Get insight section icon based on type
+   */
+  getInsightSectionIcon(section: ParsedInsight): string {
+    switch (section.type) {
+      case 'conclusion':
+        return 'check-circle';
+      case 'header':
+        if (section.title?.toLowerCase().includes('improvement'))
+          return 'trending-up';
+        if (section.title?.toLowerCase().includes('regression'))
+          return 'trending-down';
+        if (section.title?.toLowerCase().includes('statistical'))
+          return 'bar-chart-2';
+        if (section.title?.toLowerCase().includes('sample')) return 'users';
+        return 'info';
+      default:
+        return 'minus';
+    }
+  }
+
+  /**
+   * Get insight section class for styling
+   */
+  getInsightSectionClass(section: ParsedInsight): string {
+    switch (section.type) {
+      case 'conclusion':
+        return 'insight-conclusion';
+      case 'header':
+        if (section.title?.toLowerCase().includes('improvement'))
+          return 'insight-positive';
+        if (section.title?.toLowerCase().includes('regression'))
+          return 'insight-negative';
+        return 'insight-info';
+      default:
+        return 'insight-neutral';
     }
   }
 }

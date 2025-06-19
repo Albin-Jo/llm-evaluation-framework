@@ -76,6 +76,70 @@
                 rows="4"
               ></textarea>
             </div>
+
+            <div class="form-group">
+              <label for="impersonate_user_id"
+                >User ID to Impersonate (Optional)</label
+              >
+              <div class="input-with-validation">
+                <input
+                  type="text"
+                  id="impersonate_user_id"
+                  class="form-control"
+                  formControlName="impersonate_user_id"
+                  placeholder="Enter employee ID to impersonate"
+                  [ngClass]="{
+                    'is-invalid': isImpersonationFieldInvalid(),
+                    'is-valid': impersonationValidationResult?.valid && evaluationForm.get('impersonate_user_id')?.value?.trim()
+                  }"
+                />
+                <div
+                  class="validation-spinner"
+                  *ngIf="isValidatingImpersonation"
+                >
+                  <div class="spinner-sm"></div>
+                </div>
+              </div>
+              <div
+                *ngIf="isImpersonationFieldInvalid()"
+                class="invalid-feedback"
+              >
+                {{getImpersonationErrorMessage()}}
+              </div>
+              <div
+                *ngIf="impersonationValidationResult?.valid && getImpersonationDisplayText()"
+                class="valid-feedback"
+              >
+                ✓ Will impersonate: {{getImpersonationDisplayText()}}
+              </div>
+              <p class="helper-text">
+                Leave empty to run evaluation as the current user. Enter an
+                employee ID to run evaluation as that user.
+              </p>
+            </div>
+            <div class="form-group">
+              <label for="pass_threshold">Pass Threshold</label>
+              <input
+                type="number"
+                id="pass_threshold"
+                class="form-control"
+                formControlName="pass_threshold"
+                min="0"
+                max="1"
+                step="0.1"
+                [ngClass]="{'is-invalid': isFieldInvalid('pass_threshold')}"
+              />
+              <div
+                *ngIf="isFieldInvalid('pass_threshold')"
+                class="invalid-feedback"
+              >
+                {{getErrorMessage('pass_threshold')}}
+              </div>
+              <p class="helper-text">
+                Threshold for determining if an evaluation result passes (0.0 to
+                1.0). Default is 0.7.
+              </p>
+            </div>
           </div>
 
           <div class="column">
