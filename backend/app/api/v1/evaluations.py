@@ -32,14 +32,18 @@ async def create_evaluation(
         evaluation_data: EvaluationCreate,
         db: AsyncSession = Depends(get_db),
         current_user: UserContext = Depends(get_required_current_user),
+        jwt_token: Optional[str] = Depends(get_jwt_token),  # Extract JWT token
         _: None = Depends(rate_limit(max_requests=10, period_seconds=60))
 ):
     """
-    Create a new evaluation.
+    Create a new evaluation with optional impersonation support for MCP agents.
 
     This endpoint creates a new evaluation configuration with the specified parameters.
+    For MCP agents, if an impersonated_employee_id is provided, the system will use
+    the user's JWT token to call the impersonation API and obtain a token for that employee.
 
     - **evaluation_data**: Required evaluation configuration data
+    - **impersonated_employee_id**: Optional employee ID to impersonate (MCP agents only)
 
     Returns the created evaluation object with an ID that can be used for future operations.
     """
@@ -52,7 +56,8 @@ async def create_evaluation(
 
     evaluation_service = EvaluationService(db)
     try:
-        evaluation = await evaluation_service.create_evaluation(evaluation_data)
+        # Pass JWT token for potential impersonation
+        evaluation = await evaluation_service.create_evaluation(evaluation_data, jwt_token)
         logger.info(evaluation)
         logger.info(f"Successfully created evaluation id={evaluation.id}")
         return evaluation
@@ -360,6 +365,18 @@ async def get_evaluation(
                 "pass_threshold": evaluation.pass_threshold,
                 "metrics": metric_summary
             }
+
+            if hasattr(evaluation, 'impersonated_user_id') and evaluation.impersonated_user_id:
+                response_dict['impersonation_context'] = {
+                    'impersonated_user_id': evaluation.impersonated_user_id,
+                    'impersonated_user_info': evaluation.impersonated_user_info,
+                    'is_impersonated': True,
+                    'impersonated_user_display': _format_impersonated_user_display(evaluation.impersonated_user_info)
+                }
+            else:
+                response_dict['impersonation_context'] = {
+                    'is_impersonated': False
+                }
 
         # Return the response data directly - FastAPI will handle conversion
         return response_dict
@@ -803,6 +820,8 @@ async def get_evaluation_results(
         pass_rate = (pass_count / len(processed_results)) * 100 if processed_results else 0
 
         logger.info(f"Successfully retrieved {len(processed_results)} results for evaluation id={evaluation_id}")
+        impersonation_context = _get_impersonation_context(evaluation)
+
         return {
             "items": processed_results,
             "total": total_count,
@@ -815,6 +834,13 @@ async def get_evaluation_results(
                 "pass_count": pass_count,
                 "total_evaluated": len(processed_results),
                 "pass_threshold": evaluation.pass_threshold or 0.7
+            },
+            "impersonation_context": impersonation_context,
+            "evaluation_info": {
+                "id": str(evaluation.id),
+                "name": evaluation.name,
+                "method": evaluation.method.value if evaluation.method else None,
+                "status": evaluation.status.value if evaluation.status else None
             }
         }
     except NotFoundException:
@@ -1986,3 +2012,214 @@ async def _run_deepeval_as_background_task(
                 await service.complete_evaluation(UUID(evaluation_id), success=False)
         except Exception:
             pass
+
+
+def _format_impersonated_user_display(user_info: Optional[Dict[str, Any]]) -> str:
+    """Format impersonated user info for display."""
+    if not user_info:
+        return "Unknown User"
+
+    name = user_info.get('name', '')
+    email = user_info.get('email', '')
+    employee_id = user_info.get('employee_id', '')
+
+    if name and email:
+        return f"{name} ({email})"
+    elif name:
+        return name
+    elif email:
+        return email
+    elif employee_id:
+        return f"Employee {employee_id}"
+    else:
+        return "Unknown User"
+
+
+def _get_impersonation_context(evaluation) -> Dict[str, Any]:
+    """Get impersonation context for an evaluation."""
+    if hasattr(evaluation, 'impersonated_user_id') and evaluation.impersonated_user_id:
+        return {
+            'is_impersonated': True,
+            'impersonated_user_id': evaluation.impersonated_user_id,
+            'impersonated_user_info': evaluation.impersonated_user_info,
+            'impersonated_user_display': _format_impersonated_user_display(evaluation.impersonated_user_info)
+        }
+    else:
+        return {'is_impersonated': False}
+
+
+@router.post("/validate-impersonation", response_model=Dict[str, Any])
+async def validate_impersonation(
+        validation_request: Dict[str, str] = Body(
+            ...,
+            example={"employee_id": "12345"}
+        ),
+        jwt_token: Optional[str] = Depends(get_jwt_token),
+        _: None = Depends(rate_limit(max_requests=20, period_seconds=60))
+):
+    """
+    Validate if an employee ID can be impersonated.
+
+    This endpoint allows testing impersonation before creating an evaluation.
+    It validates the employee ID and returns user information if successful.
+    Args:
+        validation_request: Dictionary containing employee_id to validate
+        db: Database session
+        current_user: Authenticated user
+        jwt_token: JWT token for impersonation API
+
+    Returns:
+        Dict containing validation results and user information
+        :param validation_request:
+        :param _:
+    """
+    logger.info(f"Validating impersonation for employee_id={validation_request.get('employee_id')}")
+
+    # Validate request
+    employee_id = validation_request.get("employee_id")
+    if not employee_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="employee_id is required"
+        )
+
+    # Check if JWT token is available
+    if not jwt_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authentication token is required for impersonation validation"
+        )
+
+    # Use impersonation service to validate
+    from backend.app.services.impersonation_service import ImpersonationService
+
+    impersonation_service = ImpersonationService()
+
+    try:
+        # Attempt impersonation
+        logger.info(f"Attempting to validate impersonation for employee {employee_id}")
+
+        impersonation_result = await impersonation_service.impersonate_user(
+            employee_id, jwt_token
+        )
+
+        # Extract user information
+        user_info = impersonation_result.get("user_info", {})
+
+        logger.info(user_info)
+
+        if user_info.get('name'):
+            # Format display name
+            user_display = _format_impersonated_user_display(user_info)
+
+            logger.info(f"Successfully validated impersonation for employee {employee_id} - {user_display}")
+
+            response = {
+                "valid": True,
+                "employee_id": employee_id,
+                "user_info": {
+                    "employee_id": user_info.get("employee_id", employee_id),
+                    "name": user_info.get("name", ""),
+                    "preferred_username": user_info.get("preferred_username", ""),
+                    "email": user_info.get("email", ""),
+                    "expires_in": user_info.get("expires_in"),
+                    "token_type": user_info.get("token_type", "Bearer"),
+                    "scope": user_info.get("scope", "")
+                },
+                "user_display": user_display,
+                "token_expires_in": user_info.get("expires_in"),
+                "validation_timestamp": datetime.datetime.now().isoformat(),
+                "message": f"Employee {employee_id} can be impersonated successfully"
+            }
+        else:
+            response = {"valid": False, "message": f"Employee {employee_id} cannot be impersonated"}
+
+        return response
+
+    except HTTPException as e:
+        # Handle specific HTTP errors from impersonation service
+        logger.warning(f"Impersonation validation failed for employee {employee_id}: {e.detail}")
+
+        # Determine error code based on status
+        error_code = "IMPERSONATION_FAILED"
+        if e.status_code == status.HTTP_400_BAD_REQUEST:
+            if "not found" in str(e.detail).lower():
+                error_code = "EMPLOYEE_NOT_FOUND"
+            elif "unauthorized" in str(e.detail).lower():
+                error_code = "UNAUTHORIZED"
+            elif "invalid" in str(e.detail).lower():
+                error_code = "INVALID_EMPLOYEE_ID"
+        elif e.status_code == status.HTTP_401_UNAUTHORIZED:
+            error_code = "AUTHENTICATION_FAILED"
+        elif e.status_code == status.HTTP_403_FORBIDDEN:
+            error_code = "PERMISSION_DENIED"
+        elif e.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
+            error_code = "SERVICE_ERROR"
+
+        return {
+            "valid": False,
+            "employee_id": employee_id,
+            "error": str(e.detail),
+            "error_code": error_code,
+            "status_code": e.status_code,
+            "validation_timestamp": datetime.datetime.now().isoformat(),
+            "suggestions": _get_validation_suggestions(error_code)
+        }
+
+    except Exception as e:
+        # Handle unexpected errors
+        logger.error(f"Unexpected error validating impersonation for employee {employee_id}: {str(e)}")
+
+        return {
+            "valid": False,
+            "employee_id": employee_id,
+            "error": "An unexpected error occurred during validation",
+            "error_code": "UNKNOWN_ERROR",
+            "validation_timestamp": datetime.datetime.now().isoformat(),
+            "suggestions": [
+                "Please try again later",
+                "Contact system administrator if the problem persists"
+            ]
+        }
+
+
+def _get_validation_suggestions(error_code: str) -> List[str]:
+    """Get helpful suggestions based on error code."""
+    suggestions_map = {
+        "EMPLOYEE_NOT_FOUND": [
+            "Verify the employee ID is correct",
+            "Check if the employee exists in the system",
+            "Contact HR or system administrator to verify employee status"
+        ],
+        "UNAUTHORIZED": [
+            "Check if you have permission to impersonate users",
+            "Verify your authentication token is valid",
+            "Contact system administrator for access"
+        ],
+        "INVALID_EMPLOYEE_ID": [
+            "Check the employee ID format",
+            "Remove any extra spaces or special characters",
+            "Verify the employee ID follows the expected pattern"
+        ],
+        "AUTHENTICATION_FAILED": [
+            "Re-login to refresh your authentication token",
+            "Check if your session has expired",
+            "Contact system administrator if authentication issues persist"
+        ],
+        "PERMISSION_DENIED": [
+            "You may not have permission to impersonate this user",
+            "Contact system administrator to request impersonation permissions",
+            "Verify the employee is eligible for impersonation"
+        ],
+        "SERVICE_ERROR": [
+            "The impersonation service is temporarily unavailable",
+            "Try again in a few minutes",
+            "Contact system administrator if the problem persists"
+        ]
+    }
+
+    return suggestions_map.get(error_code, [
+        "Please try again",
+        "Contact system administrator if the problem persists"
+    ]
+                               )

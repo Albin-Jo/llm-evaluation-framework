@@ -285,6 +285,11 @@ class Evaluation(Base, TimestampMixin, ModelMixin):
 
     processed_items: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
 
+    # Impersonation fields
+    impersonated_user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    impersonated_user_info: Mapped[Optional[Dict]] = mapped_column(JSON, nullable=True)
+    impersonated_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Encrypted storage
+
 
 class MetricScore(Base, TimestampMixin, ModelMixin):
     """

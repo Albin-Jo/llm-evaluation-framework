@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.exceptions import NotFoundException, AuthorizationException
 from backend.app.db.models.orm import (
     Dataset, Evaluation, EvaluationResult,
-    EvaluationStatus, MetricScore, Agent, Prompt, EvaluationMethod
+    EvaluationStatus, MetricScore, Agent, Prompt, EvaluationMethod, IntegrationType
 )
 from backend.app.db.repositories.base import BaseRepository
 from backend.app.db.repositories.evaluation_repository import EvaluationRepository
@@ -18,35 +18,25 @@ from backend.app.db.schema.evaluation_schema import (
     EvaluationCreate, EvaluationResultCreate, EvaluationUpdate
 )
 from backend.app.evaluation.methods.base import BaseEvaluationMethod
-from backend.app.evaluation.metrics.ragas_metrics import DATASET_TYPE_METRICS
 from backend.app.evaluation.utils.progress import get_evaluation_result_count
+from backend.app.services.impersonation_service import ImpersonationService
+from backend.app.utils.credential_utils import encrypt_credentials
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 async def _run_evaluation_as_separate_task(evaluation_id_str: str, jwt_token: Optional[str] = None) -> None:
-    """
-    Run evaluation in a completely separate task with its own database session.
-
-    This prevents session conflicts when running async tasks.
-
-    Args:
-        evaluation_id_str: Evaluation ID as string
-        jwt_token: Optional JWT token for authentication with MCP agents
-    """
+    """Run evaluation with impersonation support."""
     from backend.app.db.session import db_session
     from uuid import UUID
 
     evaluation_id = UUID(evaluation_id_str)
 
-    # Create a new database session specifically for this task
     async with db_session() as session:
-        # Create a new service instance with this session
         service = EvaluationService(session)
 
         try:
-            # Get the evaluation
             evaluation = await service.get_evaluation(evaluation_id)
             if not evaluation:
                 logger.error(f"Evaluation {evaluation_id} not found")
@@ -57,8 +47,7 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str, jwt_token: Op
                 logger.warning(f"Evaluation {evaluation_id} is in {evaluation.status} state, not running")
                 return
 
-            # Make sure it's running - but don't call a method that might start a transaction
-            # Update directly using the repository
+            # Start evaluation
             if evaluation.status == EvaluationStatus.PENDING:
                 now = datetime.datetime.now()
                 update_data = {
@@ -68,25 +57,28 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str, jwt_token: Op
                 await service.evaluation_repo.update(evaluation_id, update_data)
                 logger.info(f"Started evaluation {evaluation_id} at {now}")
 
-            # Get the evaluation method handler
+            # Get evaluation method handler
             method_handler = await service.get_evaluation_method_handler(evaluation.method)
 
-            # Run the evaluation with JWT token
-            results = await method_handler.run_evaluation(evaluation, jwt_token=jwt_token)
+            # Get impersonated token if available
+            impersonated_token = await _get_impersonated_token(evaluation)
 
-            # Process results - create each result without a transaction
+            # Use impersonated token for MCP agents, fallback to provided JWT token
+            evaluation_token = impersonated_token or jwt_token
+
+            # Run evaluation with the appropriate token
+            results = await method_handler.run_evaluation(evaluation, jwt_token=evaluation_token)
+
+            # Process results
             for result_data in results:
                 try:
                     await service.create_evaluation_result(result_data)
                 except Exception as result_error:
                     logger.error(f"Error creating result for evaluation {evaluation_id}: {str(result_error)}")
-                    # Continue processing other results despite errors
 
-            # IMPORTANT: Check current status before marking as completed
-            # This prevents trying to complete an already completed evaluation
+            # Mark as completed
             current_status = (await service.get_evaluation(evaluation_id)).status
             if current_status in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
-                # Update directly instead of calling complete_evaluation to avoid transaction conflicts
                 now = datetime.datetime.now()
                 update_data = {
                     "status": EvaluationStatus.COMPLETED,
@@ -94,17 +86,14 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str, jwt_token: Op
                 }
                 await service.evaluation_repo.update(evaluation_id, update_data)
                 logger.info(f"Completed evaluation {evaluation_id} with {len(results)} results")
-            else:
-                logger.info(f"Evaluation {evaluation_id} already in {current_status} state, skipping completion")
 
         except Exception as e:
-            logger.exception(f"Error running evaluation {evaluation_id} in separate task: {str(e)}")
+            logger.exception(f"Error running evaluation {evaluation_id}: {str(e)}")
 
-            # Mark as failed only if still in RUNNING or PENDING state
+            # Mark as failed
             try:
                 current_status = (await service.get_evaluation(evaluation_id)).status
                 if current_status in [EvaluationStatus.RUNNING, EvaluationStatus.PENDING]:
-                    # Update directly instead of calling complete_evaluation
                     now = datetime.datetime.now()
                     update_data = {
                         "status": EvaluationStatus.FAILED,
@@ -112,10 +101,21 @@ async def _run_evaluation_as_separate_task(evaluation_id_str: str, jwt_token: Op
                     }
                     await service.evaluation_repo.update(evaluation_id, update_data)
                     logger.info(f"Marked evaluation {evaluation_id} as failed at {now}")
-                else:
-                    logger.info(f"Evaluation {evaluation_id} already in {current_status} state, not marking as failed")
             except Exception as complete_error:
                 logger.error(f"Failed to mark evaluation as failed: {str(complete_error)}")
+
+
+async def _get_impersonated_token(evaluation: Evaluation) -> dict[str, Any] | None:
+    """Get decrypted impersonated token for evaluation."""
+    if not evaluation.impersonated_token:
+        return None
+
+    try:
+        from backend.app.utils.credential_utils import decrypt_credentials
+        return decrypt_credentials(evaluation.impersonated_token)
+    except Exception as e:
+        logger.error(f"Failed to decrypt impersonated token: {str(e)}")
+        return None
 
 
 class EvaluationService:
@@ -136,9 +136,10 @@ class EvaluationService:
         self.agent_repo = BaseRepository(Agent, db_session)
         self.dataset_repo = BaseRepository(Dataset, db_session)
         self.prompt_repo = BaseRepository(Prompt, db_session)
+        self.impersonate = ImpersonationService()
 
     async def create_evaluation(
-            self, evaluation_data: EvaluationCreate,
+            self, evaluation_data: EvaluationCreate, jwt_token: Optional[str] = None
     ) -> Evaluation:
         """
         Create a new evaluation with user attribution.
@@ -190,8 +191,45 @@ class EvaluationService:
                 detail="User ID is required for evaluation creation"
             )
 
-        # Create evaluation - REMOVED TRANSACTION to avoid conflict with FastAPI dependency
-        evaluation_dict = evaluation_data.model_dump()
+        impersonation_data = {}
+        if evaluation_data.impersonated_employee_id:
+            # Verify agent is MCP type
+            agent = await self.agent_repo.get(evaluation_data.agent_id)
+            if not agent:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Agent with ID {evaluation_data.agent_id} not found"
+                )
+
+            if agent.integration_type != IntegrationType.MCP:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Impersonation is only supported for MCP agents"
+                )
+
+            # Get impersonation token
+            try:
+                impersonation_result = await self.impersonate.impersonate_user(
+                    employee_id=evaluation_data.impersonated_employee_id, auth_token=jwt_token
+                )
+
+                # Store impersonation data
+                impersonation_data = {
+                    "impersonated_user_id": evaluation_data.impersonated_employee_id,
+                    "impersonated_user_info": impersonation_result.get("user_info"),
+                    "impersonated_token": encrypt_credentials(impersonation_result["token"])
+                }
+
+                logger.info(
+                    f"Set up impersonation for evaluation with employee {evaluation_data.impersonated_employee_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to set up impersonation: {str(e)}")
+                raise
+
+        # Create evaluation with impersonation data
+        evaluation_dict = evaluation_data.model_dump(exclude={"impersonated_employee_id"})
+        evaluation_dict.update(impersonation_data)
 
         try:
             evaluation = await self.evaluation_repo.create(evaluation_dict)

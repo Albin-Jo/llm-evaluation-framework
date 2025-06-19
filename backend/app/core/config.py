@@ -79,6 +79,11 @@ class Settings(BaseSettings):
         description="OAuth scope for authentication"
     )
 
+    IMPERSONATE_API_URL: str = Field(
+        default="https://peoplexapi-uat.qatarairways.com.qa/exgw/idms/usr/imp",
+        description="URL for the impersonation API"
+    )
+
     # Additional model config
     model_config = SettingsConfigDict(
         env_file=".env",  # Try loading from multiple files

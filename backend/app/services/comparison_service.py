@@ -858,7 +858,7 @@ class ComparisonService:
             self, evaluation_a: Evaluation, evaluation_b: Evaluation, metric_comparison: Dict,
             sample_comparison: Dict, overall_comparison: Dict, statistical_summary: Dict
     ) -> Dict[str, Any]:
-        """Generate comparison summary."""
+        """Generate comparison summary with impersonation context."""
         overall_stats = overall_comparison["overall_scores"]
         metric_stats = overall_comparison["metric_stats"]
         sample_stats = sample_comparison["stats"]
@@ -869,7 +869,20 @@ class ComparisonService:
         # Identify top changes
         top_improvements, top_regressions = self._identify_top_changes(metric_comparison)
 
-        return {
+        # Include impersonation context
+        impersonation_context = {}
+        if evaluation_a.impersonated_user_id:
+            impersonation_context["evaluation_a_impersonated_user"] = {
+                "user_id": evaluation_a.impersonated_user_id,
+                "user_info": evaluation_a.impersonated_user_info
+            }
+        if evaluation_b.impersonated_user_id:
+            impersonation_context["evaluation_b_impersonated_user"] = {
+                "user_id": evaluation_b.impersonated_user_id,
+                "user_info": evaluation_b.impersonated_user_info
+            }
+
+        summary = {
             "evaluation_a_name": evaluation_a.name,
             "evaluation_b_name": evaluation_b.name,
             "evaluation_a_method": evaluation_a.method.value if evaluation_a.method else "unknown",
@@ -892,6 +905,12 @@ class ComparisonService:
             "effect_size_summary": statistical_summary.get("effect_sizes", {}),
             "statistical_power": _assess_statistical_power(metric_comparison, sample_stats)
         }
+
+        # Add impersonation context if present
+        if impersonation_context:
+            summary["impersonation_context"] = impersonation_context
+
+        return summary
 
     def _identify_top_changes(self, metric_comparison: Dict[str, Any]) -> tuple:
         """Identify top improvements and regressions."""

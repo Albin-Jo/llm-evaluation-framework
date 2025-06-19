@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -92,6 +92,12 @@ class EvaluationCreate(EvaluationBase):
     dataset_id: UUID
     prompt_id: UUID
 
+    # Impersonation field for MCP evaluations
+    impersonated_employee_id: Optional[str] = Field(
+        None,
+        description="Employee ID to impersonate for MCP agent evaluations"
+    )
+
 
 class EvaluationUpdate(BaseModel):
     """Schema for updating an Evaluation."""
@@ -122,12 +128,22 @@ class EvaluationInDB(EvaluationBase):
 
 class EvaluationResponse(EvaluationInDB):
     """Schema for Evaluation response."""
-    pass
+    # Impersonation fields
+    impersonated_user_id: Optional[str] = None
+    impersonated_user_info: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
 
 
 class EvaluationDetailResponse(EvaluationResponse):
     """Schema for detailed Evaluation response with results."""
     results: List[EvaluationResultResponse] = []
+    impersonated_user_id: Optional[str] = None
+    impersonated_user_info: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
 
 
 class EvaluationComparisonBase(BaseModel):
